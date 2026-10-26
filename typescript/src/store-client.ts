@@ -1,5 +1,4 @@
 import { backendIdSchema } from './backend-id.js';
-import { assembleVideoSchema, assembledVideoSchema } from './assembly-schemas.js';
 import { z } from 'zod';
 import { Transport, isWriteMethod } from './transport.js';
 import { NuvaError, PartialCreationError, ProductImageUploadError } from './errors.js';
@@ -411,8 +410,6 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 		},
 		jobs: { get: getJob, subscribe },
 		videos: {
-			assemble: async (input, o) =>
-				request('videos.assemble', checked(assembleVideoSchema, input, true), assembledVideoSchema, o?.requestId, o?.idempotencyKey),
 			generate: async (input, o) => {
 				const receipt = await dto(
 					'videos.generate',

@@ -118,10 +118,6 @@ export interface StoreClients {
 	readonly prompts: PromptsClient;
 	readonly videos: {
 		generate(input: B['GenerateVideo'], options?: VideoCommandOptions): Promise<Job<Asset>>;
-		assemble(
-			input: import('./assembly-schemas.js').AssembleVideoInput,
-			options?: StoreCommandOptions,
-		): Promise<import('./assembly-schemas.js').AssembledVideoResult>;
 	};
 	readonly jobs: JobsClient;
 	readonly ads: {

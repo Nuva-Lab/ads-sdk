@@ -1,6 +1,6 @@
 import type { NuvaClient, Asset } from '@nuva/sdk';
 
-/** Create a Product video from an image. Calling this function creates resources and submits generation Jobs. */
+/** Generate editable Product clips from an image. Calling this function creates resources and submits generation Jobs. */
 export async function createProductVideo(nuva: NuvaClient, file: File, revisionInstruction?: string) {
 	const brand = await nuva.brands.create({ data: { name: 'Example Brand' } });
 	const product = await nuva.products.create({
@@ -33,22 +33,12 @@ export async function createProductVideo(nuva: NuvaClient, file: File, revisionI
 		const job = await nuva.videos.generate({ prompt: prompt.id, batch_id: batchId });
 		assets.push(await job.result({ timeoutMs: 120000 }));
 	}
-	const clips = assets.map((asset) => {
-		const duration = asset.metadata.duration_ms;
-		if (typeof duration !== 'number' || !Number.isSafeInteger(duration) || duration <= 0)
-			throw new Error('Registered video duration_ms is required for explicit trim bounds.');
-		return { asset_id: asset.id, start_ms: 0, end_ms: duration };
-	});
-	const assembled = await nuva.videos.assemble({
-		batch_id: batchId,
-		composition: { version: 1, clips, width: 720, height: 1280, fps: 30, audio: 'preserve' },
-	});
 	return {
 		productId: uploaded.productId,
 		imageAssetId: uploaded.assetId,
 		scriptId: script.id,
 		promptIds: prompts.map((prompt) => prompt.id),
-		assetId: assembled.assetId,
-		uri: assembled.uri,
+		batchId,
+		clips: assets,
 	};
 }

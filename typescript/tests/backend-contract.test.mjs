@@ -49,7 +49,7 @@ test('Product attributes are an explicit JSON target overlay while the observed 
 });
 
 test('backend OrderedUUID uses GUID shape without RFC version or variant restrictions', async () => {
-	const { backendIdSchema, assembleVideoSchema, assembledVideoSchema } = await import('../dist/schemas.js');
+	const { backendIdSchema } = await import('../dist/schemas.js');
 	const { backendDefinitions } = await import('../dist/backend-definitions.js');
 	const product = '01a175e0-20c1-3f18-da7c-5afa67a79363';
 	const script = '01a175e0-31b3-da69-176e-0842e6f6602e';
@@ -72,14 +72,6 @@ test('backend OrderedUUID uses GUID shape without RFC version or variant restric
 		script,
 	);
 	assert.equal(generatePromptSchema.parse({ script, skill: { id: skill } }).script, script);
-	assert.equal(
-		assembleVideoSchema.parse({
-			batch_id: job,
-			composition: { version: 1, clips: [{ asset_id: asset, start_ms: 0, end_ms: 1000 }], width: 640, height: 360, fps: 30, audio: 'mute' },
-		}).composition.clips[0].asset_id,
-		asset,
-	);
-	assert.equal(assembledVideoSchema.parse({ assetId: asset, uri: 'https://assets.example/final.mp4' }).assetId, asset);
 	for (const invalid of [
 		product + '\n',
 		product + '0',
@@ -92,4 +84,13 @@ test('backend OrderedUUID uses GUID shape without RFC version or variant restric
 		assert.equal(backendSchema('GenerateVideo').safeParse({ prompt: invalid }).success, false);
 	}
 	assert.equal(backendDefinitions.Product.properties.id.format, 'uuid', 'Observed generated definitions stay unchanged.');
+});
+
+
+test('assembly is not an exported customer schema or route', async () => {
+	const schemas = await import('../dist/schemas.js');
+	const { dataRequest } = await import('../dist/data-routes.js');
+	assert.equal('assembleVideoSchema' in schemas, false);
+	assert.equal('assembledVideoSchema' in schemas, false);
+	assert.throws(() => dataRequest('videos.assemble', {}), error => error.code === 'UNSUPPORTED_OPERATION');
 });

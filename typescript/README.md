@@ -66,7 +66,7 @@ Use `scripts.generate` for a direct request or ask the Agent to write and revise
 
 `videos.generate({prompt: prompt.id})` submits a saved Prompt for video generation. Jobs expose status, error and an eventual Asset. `jobs.get`, `jobs.subscribe` and `job.result` keep submission separate from completion. Stopping chat or unsubscribing does not cancel a Job. To request best-effort cancellation, ask the Agent; cancellation is only confirmed by the backend Job status.
 
-`videos.assemble({batch_id,composition},{idempotencyKey?})` accepts ordered clips `{asset_id,start_ms,end_ms}` plus explicit `version:1`, dimensions, fps and audio policy. It returns `{assetId,uri}`. The result includes the registered final Asset. Use `ads.get/list` and `batches.get/list` to read the associated work.
+Edit and postprocess clips in your own editor. Upload the finished video and attach its Asset reference to the same Agent Session, with any optional editing notes or structured details. The Agent handles Ad registration and returns the Ad ID. User hints are retained in private creation trace and the structured Composition format stays unchanged. Allowing an absent composition is still a backend gap; the pinned backend currently still requires structured composition and a Batch.
 
 ## Reads, media and operation identity
 

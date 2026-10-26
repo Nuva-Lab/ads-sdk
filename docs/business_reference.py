@@ -7,7 +7,7 @@ def business_sections(table):
         ('products / brands / characters', '#products', 'Create and edit shared business entities with optimistic versions.', 'create / get / list / update'),
         ('artifacts', '#artifacts', 'Read and version Script, Directing Plan and Prompt content.', 'create / get / update'),
         ('scripts / prompts', '#generation', 'Run standalone writers with defined inputs and saved results.', 'generate / get'),
-        ('assets / videos / jobs', '#media', 'Upload media, generate from saved Prompts, track Jobs and assemble clips.', 'upload / get / generate / assemble'),
+        ('assets / videos / jobs', '#media', 'Upload media, generate from saved Prompts and track Jobs.', 'upload / get / generate'),
         ('ads', '#ads', 'Read Agent-registered final Ads and their composition.', 'get / list'),
         ('batches', '#workspaces', 'Read Batch metadata, Ads and Job counts; mutations require Agent authority.', 'get / list'),
         ('skills', 'backend-go.html#skills', 'Read authorized Skill definitions and versions; publication uses Admin authority.', 'get / list / version'),

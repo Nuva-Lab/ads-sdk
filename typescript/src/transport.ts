@@ -24,7 +24,6 @@ const writes = new Set([
 	'ads.registerFinalVideo',
 	'ads.submitMapping',
 	'videos.generate',
-	'videos.assemble',
 	'prompts.generate',
 	'products.create',
 	'products.update',
@@ -287,7 +286,7 @@ export class Transport {
 		this.assertOpen();
 		if (
 			idempotencyKey !== undefined &&
-			(!['scripts.generate', 'prompts.generate', 'videos.generate', 'videos.assemble', 'artifacts.create', 'artifacts.update'].includes(
+			(!['scripts.generate', 'prompts.generate', 'videos.generate', 'artifacts.create', 'artifacts.update'].includes(
 				method,
 			) ||
 				!/^[\x21-\x7e]{1,200}$/.test(idempotencyKey))

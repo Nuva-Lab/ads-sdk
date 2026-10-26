@@ -5,7 +5,6 @@ export function dataRequest(
 	method: string,
 	value: unknown,
 ): { method: string; path: string; body?: unknown; query?: Record<string, unknown>; generation?: boolean; agent?: boolean } {
-	if (method === 'videos.assemble') return { method: 'POST', path: '/v1/assemble', body: value, generation: true };
 	const p = value as Record<string, unknown>;
 	const id = (v: unknown) => {
 		if (typeof v !== 'string' || !v) throw new TypeError('A resource ID is required.');
