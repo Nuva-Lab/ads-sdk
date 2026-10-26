@@ -1,0 +1,48 @@
+name: Preview release
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing reviewed release tag, such as v0.1.0-preview.3
+        required: true
+        type: string
+permissions:
+  contents: write
+concurrency:
+  group: sdk-preview-release
+  cancel-in-progress: false
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go/go.mod
+          cache: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify release and Go tag identity
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: node scripts/release/check-tag.mjs
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm verify
+      - name: Create draft prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: node scripts/release/create-draft.mjs

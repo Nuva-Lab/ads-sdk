@@ -1,0 +1,21 @@
+{
+	"compilerOptions": {
+		"paths": {
+			"@nuva/sdk": ["../typescript/src/index.ts"],
+			"@nuva/protocol": ["../protocol/src/index.ts"],
+			"@nuva/sdk/schemas": ["../typescript/src/schemas.ts"]
+		},
+		"target": "ES2022",
+		"lib": ["ES2022", "DOM"],
+		"module": "ESNext",
+		"moduleResolution": "Bundler",
+		"jsx": "react-jsx",
+		"strict": true,
+		"noUncheckedIndexedAccess": true,
+		"exactOptionalPropertyTypes": true,
+		"noEmit": true,
+		"skipLibCheck": false,
+		"types": []
+	},
+	"include": ["examples/react-usage.tsx", "examples/store-usage.ts"]
+}

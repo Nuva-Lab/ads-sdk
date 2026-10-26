@@ -1,0 +1,65 @@
+{
+  "name": "@nuva/sdk",
+  "version": "0.1.0-preview.3",
+  "type": "module",
+  "description": "Headless Nuva Agent and Store client SDK",
+  "files": [
+    "dist",
+    "README.md",
+    "schema/backend.source.json"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js"
+    },
+    "./schemas": {
+      "types": "./dist/schemas.d.ts",
+      "import": "./dist/schemas.js"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "pnpm --dir ../protocol build && tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:types": "tsc -p tsconfig.tests.json",
+    "test": "pnpm build && pnpm test:types && pnpm check:backend && node --test tests/*.test.mjs",
+    "test:package": "pnpm build && node scripts/check-package.mjs",
+    "generate:backend": "node scripts/generate-backend.mjs",
+    "check:backend": "node scripts/generate-backend.mjs --check"
+  },
+  "dependencies": {
+    "@nuva/protocol": "workspace:*",
+    "zod": "4.3.6"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "22.19.1",
+    "@types/react": "19.1.16",
+    "openapi-typescript": "7.13.0",
+    "react": "19.1.1",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@11.7.0",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Nuva-Lab/ads-sdk.git",
+    "directory": "typescript"
+  },
+  "homepage": "https://github.com/Nuva-Lab/ads-sdk"
+}

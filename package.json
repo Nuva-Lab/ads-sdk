@@ -1,0 +1,20 @@
+{
+  "name": "ads-sdk-workspace",
+  "version": "0.1.0-preview.3",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.7.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "pnpm --dir typescript build",
+    "test": "pnpm --dir protocol test && pnpm --dir typescript test && cd go && go test ./...",
+    "docs:build": "pnpm --dir docs build",
+    "docs:check": "pnpm --dir docs typecheck",
+    "release:build": "node scripts/release/build.mjs",
+    "release:check": "node scripts/release/check.mjs",
+    "release:bundle": "python3 scripts/release/bundle-review.py",
+    "verify": "pnpm test && pnpm docs:build && pnpm docs:check && pnpm release:build && pnpm release:check && pnpm release:bundle"
+  }
+}

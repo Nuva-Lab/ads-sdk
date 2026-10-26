@@ -1,0 +1,14 @@
+{
+  "name": "@nuva/ads-sdk-docs",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.7.0",
+  "scripts": {
+    "build": "python3 build_customer.py",
+    "typecheck": "tsc -p tsconfig.examples.json"
+  },
+  "devDependencies": {
+    "@types/react": "19.1.16",
+    "typescript": "5.9.3"
+  }
+}

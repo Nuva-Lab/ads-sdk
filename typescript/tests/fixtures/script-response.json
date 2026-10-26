@@ -1,0 +1,164 @@
+{
+  "schema_version": 2,
+  "concept": {
+    "name": "桌面一杯",
+    "category": "other",
+    "purchase_task": "日常保温杯选购",
+    "proposition": "上班族在工位想喝热水时，打开就是热的",
+    "route": "人物对镜讲解+产品近景",
+    "route_reason": "需要看见倒水和热气",
+    "speaker_relation": "同事向观众直接推荐，口吻轻松"
+  },
+  "beats": [
+    {
+      "id": "B01",
+      "purpose": "提出工位喝热水的场景",
+      "fact_ids": []
+    },
+    {
+      "id": "B02",
+      "purpose": "展示杯子并说出名称",
+      "fact_ids": [
+        "fact_product_name"
+      ]
+    }
+  ],
+  "entities": [
+    {
+      "id": "product_01",
+      "kind": "product",
+      "name": "示例保温杯",
+      "description": "哑光红色杯身",
+      "appearance_source_asset_ids": [
+        "asset_01"
+      ]
+    },
+    {
+      "id": "person_01",
+      "kind": "person",
+      "name": "上班族",
+      "description": "二十多岁女性，短发，灰色毛衣",
+      "appearance_source_asset_ids": []
+    }
+  ],
+  "voices": [
+    {
+      "id": "voice_01",
+      "entity_id": "person_01",
+      "language": "zh-CN",
+      "description": "25岁女性，中音，明亮，语速适中，普通话"
+    }
+  ],
+  "clips": [
+    {
+      "id": "clip_01",
+      "duration_ms": 8000,
+      "shots": [
+        {
+          "id": "B01-S01",
+          "beat_id": "B01",
+          "start_ms": 0,
+          "end_ms": 4000,
+          "scene": "明亮工位",
+          "composition": "人物中景居中",
+          "camera": "平视固定",
+          "action": "人物拿起杯子看向镜头",
+          "key_detail": "",
+          "visible_entity_ids": [
+            "person_01",
+            "product_01"
+          ],
+          "fact_ids": [],
+          "speech": [
+            {
+              "voice_id": "voice_01",
+              "mode": "on_camera",
+              "text": "上班想喝口热的？",
+              "start_ms": 0,
+              "end_ms": 2500,
+              "delivery": {
+                "emotion": "轻松",
+                "pace": "适中",
+                "intent": "引出场景"
+              }
+            }
+          ],
+          "sound_cues": [],
+          "text_cues": []
+        },
+        {
+          "id": "B02-S01",
+          "beat_id": "B02",
+          "start_ms": 4000,
+          "end_ms": 8000,
+          "scene": "同一工位",
+          "composition": "杯子近景",
+          "camera": "缓慢推近",
+          "action": "手拧开杯盖，热气升起",
+          "key_detail": "热气可见",
+          "visible_entity_ids": [
+            "product_01"
+          ],
+          "fact_ids": [
+            "fact_product_name"
+          ],
+          "speech": [
+            {
+              "voice_id": "voice_01",
+              "mode": "voiceover",
+              "text": "看看这只杯子。",
+              "start_ms": 4000,
+              "end_ms": 6500,
+              "delivery": {
+                "emotion": "自然",
+                "pace": "适中",
+                "intent": "引导查看产品"
+              }
+            }
+          ],
+          "sound_cues": [
+            {
+              "description": "拧开杯盖的轻响",
+              "start_ms": 4200,
+              "end_ms": 4800
+            }
+          ],
+          "text_cues": [
+            {
+              "text": "示例保温杯",
+              "fact_ids": [
+                "fact_product_name"
+              ],
+              "start_ms": 4000,
+              "end_ms": 8000
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "open_issues": [],
+  "facts": [
+    {
+      "id": "fact_product_name",
+      "claim": "示例保温杯",
+      "source_field": "name",
+      "source_excerpt": "示例保温杯"
+    }
+  ],
+  "images": [
+    {
+      "asset_id": "asset_01",
+      "role": "product_appearance",
+      "mime_type": "image/png",
+      "url": "https://assets.example.com/image.png"
+    }
+  ],
+  "instruction": "写一条简洁的产品介绍广告，不添加未提供的功能或功效。",
+  "production": {
+    "speech": "h3",
+    "sound": "h3",
+    "music": "none",
+    "text": "postproduction"
+  }
+}

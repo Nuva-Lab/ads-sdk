@@ -1,0 +1,12 @@
+node_modules/
+**/dist/
+docs/customer/
+docs/customer-sdk-docs.zip
+__pycache__/
+*.pyc
+.DS_Store
+.env
+.env.*
+*.pem
+.local/
+.secrets/

@@ -1,0 +1,17 @@
+{
+  "repository": "Nuva-Lab/WhatIf",
+  "commit": "20c6fd9bf15f2f7dd335e0e192b58fd3ccc46d5d",
+  "path": "ads_backend/openapi.json",
+  "sha256": "217f20970bd3a01377db8750d56141f44962046090ac9bb7da0c9e65b7e295ca",
+  "verifiedAt": "2026-10-24",
+  "stagingVerification": {
+    "baseUrl": "https://api-staging.nuvalab.ai",
+    "baseCommit": "aa42b2d884ca5c73c5c79cee7e0c6f6342f8bc5e",
+    "imageTag": "staging-sdk-init-a7a8e29c42855fec",
+    "imageDigest": "sha256:0ca3bdfdad2f6d378ffaa8ba457dd5451610d3ce1098ce2a80dd19a3f93b235f",
+    "sourceDigest": "a7a8e29c42855fec887cea4e1489564d1d3c5de987884066923c312688d94350",
+    "schemaSha256": "2bc179d4ce355427889bc1bdbe619cea1c7c3a02b9ab6e5c9105763fb69663fe",
+    "taskDefinition": "ads-backend-staging:19",
+    "verifiedAt": "2026-10-26"
+  }
+}

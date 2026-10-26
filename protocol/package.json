@@ -1,0 +1,35 @@
+{
+  "name": "@nuva/protocol",
+  "version": "0.1.0-preview.3",
+  "type": "module",
+  "description": "Client-visible Nuva messages, API envelopes and validation schemas",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "pnpm build && node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "zod": "4.3.6"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  },
+  "packageManager": "pnpm@11.7.0",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Nuva-Lab/ads-sdk.git",
+    "directory": "protocol"
+  },
+  "homepage": "https://github.com/Nuva-Lab/ads-sdk"
+}
