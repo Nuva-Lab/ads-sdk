@@ -1,0 +1,20 @@
+{
+  "name": "ads-agent-playground",
+  "version": "0.1.0-preview.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "pnpm --dir ../typescript build && node server.mjs",
+    "build": "pnpm --dir ../typescript build && node build.mjs",
+    "typecheck": "pnpm --dir ../typescript build && tsc --noEmit",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@nuva/sdk": "workspace:*",
+    "esbuild": "0.25.12"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "ws": "8.18.3"
+  }
+}

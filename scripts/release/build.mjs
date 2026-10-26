@@ -65,6 +65,9 @@ export async function buildRelease({ output = DIST, origins } = {}) {
 				sourceFiles.push(name);
 			}
 		}
+		const playgroundRoot = resolve(ROOT, 'ads-agent-playground');
+		const playgroundFiles = ['package.json', 'README.md', 'tsconfig.json', 'build.mjs', 'server.mjs', 'index.html', 'style.css', ...(await files(resolve(playgroundRoot, 'src'))).map(name => `src/${name}`)];
+		for (const name of playgroundFiles) await copy(resolve(playgroundRoot, name), resolve(stage, 'source/ads-agent-playground', name));
 		const goRoot = resolve(ROOT, 'go');
 		// Go checksums include tests and support files: use the complete module tree.
 		const goFiles = await files(goRoot);
@@ -85,13 +88,13 @@ export async function buildRelease({ output = DIST, origins } = {}) {
 		}
 		await writeFile(
 			resolve(stage, 'source/package.json'),
-			JSON.stringify({ name: 'nuva-sdk-release-source', private: true, type: 'module', packageManager: 'pnpm@11.7.0' }, null, 2) + '\n',
+			JSON.stringify({ name: 'ads-sdk-release-source', private: true, type: 'module', packageManager: 'pnpm@11.7.0', scripts: { playground: 'pnpm --dir ads-agent-playground start' } }, null, 2) + '\n',
 		);
-		await writeFile(resolve(stage, 'source/pnpm-workspace.yaml'), 'packages:\n  - typescript\n  - protocol\n');
+		await writeFile(resolve(stage, 'source/pnpm-workspace.yaml'), 'packages:\n  - typescript\n  - protocol\n  - ads-agent-playground\nallowBuilds:\n  esbuild: true\n');
 		if (origins) await writeFile(resolve(stage, 'source/approved-origins.json'), JSON.stringify(origins, null, 2) + '\n');
 		await writeFile(
 			resolve(stage, 'source/BUILD.md'),
-			`# SDK source ${VERSION}\n\nInstall with pnpm 11.7.0, Node 22+, Python 3 and Go 1.22+. Run \`pnpm install --frozen-lockfile\`, then \`node scripts/release/build.mjs${origins ? ' --origins approved-origins.json' : ''}\`. Source excludes runtime, credentials, maintainer-only Skill content and TypeScript tests. Go test/support files are retained for identical module checksums. This bundle contains public SDK implementations; the root lock retains dependency integrity metadata. No registry publication or Git repository is created.\n`,
+			`# SDK source ${VERSION}\n\nInstall with pnpm 11.7.0, Node 22+, Python 3 and Go 1.22+. Run \`pnpm install --frozen-lockfile\`, then \`node scripts/release/build.mjs${origins ? ' --origins approved-origins.json' : ''}\`. Source excludes runtime, credentials, maintainer-only Skill content and TypeScript tests. Go test/support files are retained for identical module checksums. This bundle contains public SDK implementations; the root lock retains dependency integrity metadata. Run \`pnpm playground\` to open the customer playground. No registry publication or Git repository is created.\n`,
 		);
 		run('python3', [resolve(ROOT, 'scripts/release/archives.py'), stage, output, VERSION, GO_MODULE]);
 		// Inventory only this build's outputs. Review bundles and other files beside them belong to their owner.

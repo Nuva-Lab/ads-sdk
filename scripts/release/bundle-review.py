@@ -62,6 +62,17 @@ checksums first. Open `docs/backend-go.html` for token issuance and Skill manage
 - `manifest.json`, `SHA256SUMS`, `BUNDLE-SHA256SUMS`: package inventory and file checksums.
 - `verification.json`: package installation checks.
 
+## Playground
+
+Extract `ads-sdk-source-{VERSION}.tar.gz`, then run:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm playground
+```
+
+Open `http://127.0.0.1:8995/` and connect with your user token and service URLs.
+
 ## Formats
 
 The public message protocol and Artifact schemas use version 1. `script.content` is the typed

@@ -15,6 +15,7 @@
     "release:build": "node scripts/release/build.mjs",
     "release:check": "node scripts/release/check.mjs",
     "release:bundle": "python3 scripts/release/bundle-review.py",
-    "verify": "pnpm test && pnpm docs:build && pnpm docs:check && pnpm release:build && pnpm release:check && pnpm release:bundle"
+    "verify": "pnpm test && pnpm docs:build && pnpm docs:check && pnpm release:build && pnpm release:check && pnpm release:bundle",
+    "playground": "pnpm --dir ads-agent-playground start"
   }
 }

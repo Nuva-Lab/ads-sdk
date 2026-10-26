@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Ads Agent Playground</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="wordmark" href="/" aria-label="Ads Agent Playground"
+        ><span class="brand-icon">a</span
+        ><span>ads<span class="wordmark-light"> playground</span></span></a
+      ><span class="header-divider"></span
+      ><span class="header-label">Your creative workspace</span
+      ><button id="connection-button" class="connection-button">
+        <span class="connection-dot"></span
+        ><span id="connection-label">Connect</span>
+      </button>
+    </header>
+    <nav class="mobile-nav" aria-label="Playground view">
+      <button id="mobile-workspace" class="active" type="button">
+        Workspace</button
+      ><button id="mobile-chat" type="button">Ads Agent</button>
+    </nav>
+    <div id="notice" role="status" hidden></div>
+    <main class="workspace-layout">
+      <section class="workspace" aria-label="Creation workspace">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">MAKE SOMETHING WORTH WATCHING</p>
+            <h1>From idea to ad.</h1>
+            <p class="workspace-description">
+              Your products, stories and finished work, together.
+            </p>
+          </div>
+          <button
+            id="refresh-workspace"
+            class="icon-button"
+            aria-label="Refresh workspace"
+            title="Refresh workspace"
+          >
+            ↻
+          </button>
+        </div>
+        <div id="tabs" class="tabs" role="tablist"></div>
+        <div id="resource-update"></div>
+        <div id="workspace-content">
+          <div class="welcome">
+            <div class="welcome-symbol">✳</div>
+            <h2>A little inspiration. A lot of possibility.</h2>
+            <p>Connect your workspace to bring your next ad to life.</p>
+            <button id="welcome-connect" class="primary">
+              Connect workspace <span>↗</span>
+            </button>
+            <div class="journey">
+              <span>01 &nbsp; Add a product</span
+              ><span>02 &nbsp; Shape the story</span
+              ><span>03 &nbsp; Make it move</span>
+            </div>
+          </div>
+        </div>
+      </section>
+      <aside class="chat-panel" aria-label="Ads Agent chat">
+        <div class="chat-heading">
+          <div class="agent-heading">
+            <span class="agent-mark">✳</span>
+            <h2>Ads Agent</h2>
+            <span id="chat-status" class="status-badge" data-state="offline"
+              >Offline</span
+            >
+          </div>
+          <button
+            id="new-session"
+            class="icon-button"
+            title="New conversation"
+            aria-label="New conversation"
+            disabled
+          >
+            ＋
+          </button>
+        </div>
+        <div class="session-toolbar">
+          <label class="session-select"
+            ><span class="sr-only">Conversation</span
+            ><select id="sessions" disabled>
+              <option>New conversation</option>
+            </select></label
+          >
+          <details class="chat-menu">
+            <summary
+              aria-label="Conversation options"
+              title="Conversation options"
+            >
+              •••
+            </summary>
+            <div class="menu-content">
+              <button id="earlier" disabled>Load earlier messages</button
+              ><button id="reconnect" disabled>Refresh conversation</button>
+            </div>
+          </details>
+        </div>
+        <div id="chat" role="log" aria-live="polite">
+          <div class="chat-welcome">
+            <div class="orb">✳</div>
+            <h3>What are we making?</h3>
+            <p>
+              Tell me about your product.<br />We’ll find its story together.
+            </p>
+            <button
+              class="suggestion"
+              data-prompt="Help me write a script for "
+            >
+              Write a script <span>↗</span></button
+            ><button class="suggestion" data-prompt="Create video prompts for ">
+              Plan my next video <span>↗</span>
+            </button>
+          </div>
+        </div>
+        <div id="agent-activity" class="agent-activity" role="status" hidden>
+          <span class="typing-dots"><i></i><i></i><i></i></span
+          ><span id="activity-label">Working on your request…</span>
+        </div>
+        <form id="composer" class="composer">
+          <div class="editor-wrap">
+            <div
+              id="message"
+              role="textbox"
+              aria-label="Message to Ads Agent"
+              aria-multiline="true"
+              contenteditable="false"
+              data-placeholder="Describe your idea, or @ mention a resource…"
+            ></div>
+            <div
+              id="mentions"
+              class="mentions"
+              role="listbox"
+              aria-label="Mention a resource"
+              hidden
+            ></div>
+          </div>
+          <div class="composer-footer">
+            <button
+              id="mention-button"
+              class="mention-trigger"
+              type="button"
+              aria-label="Mention a resource"
+              disabled
+            >
+              @</button
+            ><span class="keyboard-hint"
+              >Enter to send <span>·</span> Shift + Enter for a new line</span
+            ><button id="stop" class="stop-button" type="button" hidden>
+              ■ Stop</button
+            ><button
+              id="send"
+              class="send-button"
+              type="submit"
+              aria-label="Send message"
+              disabled
+            >
+              ↑
+            </button>
+          </div>
+        </form>
+        <p class="chat-footnote">Ideas are a conversation away.</p>
+      </aside>
+    </main>
+    <dialog id="connection-dialog">
+      <form id="connection-form">
+        <div class="dialog-heading">
+          <div>
+            <p class="eyebrow">WELCOME TO YOUR WORKSPACE</p>
+            <h2>Let’s get connected.</h2>
+          </div>
+          <button
+            type="button"
+            id="close-connection"
+            class="icon-button"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+        <p class="muted">
+          Use your service details and a user token to get started.
+        </p>
+        <label class="field"
+          ><span>User token</span
+          ><input
+            id="user-token"
+            type="password"
+            autocomplete="off"
+            required
+            placeholder="Paste your user token"
+        /></label>
+        <p class="field-help">Kept only while this page is open.</p>
+        <div class="connection-fields">
+          <label class="field"
+            ><span>Agent URL</span
+            ><input
+              id="agent-url"
+              type="url"
+              value="http://127.0.0.1:8980/api"
+              placeholder="https://your-agent.example/api"
+              required /></label
+          ><label class="field"
+            ><span>Resource Store URL</span
+            ><input
+              id="store-url"
+              type="url"
+              value="https://api-staging.nuvalab.ai"
+              placeholder="https://your-store.example"
+              required /></label
+          ><label class="field"
+            ><span>Generation URL</span
+            ><input
+              id="generation-url"
+              type="url"
+              value="http://127.0.0.1:8980"
+              placeholder="https://your-generation.example"
+              required
+          /></label>
+        </div>
+        <p id="connection-error" class="form-error" role="alert" hidden></p>
+        <div class="dialog-footer">
+          <button type="button" id="disconnect" hidden>Disconnect</button
+          ><button type="submit" class="primary" id="connect-submit">
+            Open workspace ↗
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <script type="module" src="/client.js"></script>
+  </body>
+</html>

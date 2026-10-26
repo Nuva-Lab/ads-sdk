@@ -24,6 +24,16 @@ GOPRIVATE=github.com/Nuva-Lab/ads-sdk go get github.com/Nuva-Lab/ads-sdk/go@v0.1
 
 See the [Go Admin guide](go/README.md) for user-token issuance and Skill management. Keep your Admin API key on your backend; the browser SDK uses user tokens.
 
+## Try the playground
+
+```sh
+pnpm install
+pnpm playground
+```
+
+Open `http://127.0.0.1:8995/` and connect with a user token. Explore products and saved work,
+chat with the Agent, and mention resources with **@**. See the [playground guide](ads-agent-playground/README.md).
+
 ## Guides and examples
 
 | Task | Guide |

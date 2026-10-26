@@ -2,3 +2,6 @@ packages:
   - typescript
   - protocol
   - docs
+  - ads-agent-playground
+allowBuilds:
+  esbuild: true
