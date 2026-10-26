@@ -6,7 +6,7 @@ trap 'rm -r "$consumer_dir"' EXIT HUP INT TERM
 python3 - "$sdk_dir" "$consumer_dir" <<'PY'
 import json,sys,zipfile
 from pathlib import Path
-sdk,root=map(Path,sys.argv[1:]);module='github.com/Nuva-Lab/ads-sdk/go';version='v0.1.0-preview.4'
+sdk,root=map(Path,sys.argv[1:]);module='github.com/Nuva-Lab/ads-sdk/go';version='v0.1.0-preview.1'
 escaped=''.join('!'+c.lower() if c.isupper() else c for c in module)
 proxy=root/'proxy'/escaped/'@v';proxy.mkdir(parents=True)
 (proxy/(version+'.mod')).write_bytes((sdk/'go.mod').read_bytes())
@@ -23,7 +23,7 @@ module example.com/independent-customer
 
 go 1.22.0
 
-require github.com/Nuva-Lab/ads-sdk/go v0.1.0-preview.4
+require github.com/Nuva-Lab/ads-sdk/go v0.1.0-preview.1
 MOD
 cat > "$consumer_dir/consumer/consumer_test.go" <<'GO'
 package customer

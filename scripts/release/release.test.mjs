@@ -69,7 +69,7 @@ test('repeat local builds produce identical delivered bytes and public-only inve
 		for (const item of Object.values(first.npm))
 			assert.ok(
 				item.files.every(
-					(path) => path === 'package.json' || path === 'README.md' || path.startsWith('dist/') || path.startsWith('schema/'),
+					(path) => path === 'package.json' || path === 'README.md' || path.startsWith('dist/') || path.startsWith('schema/') || path.startsWith('node_modules/@nuva/protocol/'),
 				),
 			);
 		assert.ok(

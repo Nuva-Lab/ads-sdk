@@ -46,7 +46,7 @@ def store_example(name):
 
 AGENT_SECTIONS = ('start', 'agent', 'session', 'messages', 'client-tools', 'host-calls', 'reference')
 STORE_SECTIONS = ('stores', 'products', 'artifacts', 'generation', 'media', 'ads', 'workspaces')
-PREVIEW = ('<p><code>@nuva/sdk@0.1.0-preview.4</code> uses <code>@nuva/protocol@0.1.0-preview.4</code>, wire revision 1 and public <code>/v1</code> resource APIs. '
+PREVIEW = ('<p><code>@nuva/sdk@0.1.0-preview.1</code> uses <code>@nuva/protocol@0.1.0-preview.1</code>, wire revision 1 and public <code>/v1</code> resource APIs. '
            'Packages are available as locally built preview archives; conventional npm/Go publication and hosted Agent/generation deployment remain pending; destinations and hostnames still need confirmation. '
            'The intended normal constructor is <code>createNuva({ getAccessToken })</code>. This unpublished build fails explicitly if the Agent origin is missing. '
            'Use endpoint overrides only with an explicitly configured development or preview host; no example localhost is an official service.</p>')
@@ -55,7 +55,7 @@ PREVIEW = ('<p><code>@nuva/sdk@0.1.0-preview.4</code> uses <code>@nuva/protocol@
 def _client_sections():
     sections = [
         ('start', 'Start with React', PREVIEW + react_example('client')
-         + disclosure('Install local preview archives', code('npm install /path/to/nuva-protocol-0.1.0-preview.4.tgz /path/to/nuva-sdk-0.1.0-preview.4.tgz', 'sh'))
+         + disclosure('Install local preview archives', code('pnpm add /path/to/nuva-sdk-0.1.0-preview.1.tgz', 'sh'))
          + '<p>Create one client for the authenticated user, and close it on logout or account change. Your backend returns <code>{token, expiresAt, principal?}</code>. The SDK renews expiry-aware tokens, shares concurrent refresh requests and reauthenticates the WebSocket as the same identity. Legacy string tokens lack proactive expiry information.</p><p>User display names are optional presentation metadata. Verified customer/user IDs determine authority and scope; a UI may show “User” when a name is absent. Existing named identities remain compatible.</p>'
          + react_example('token-provider') + disclosure('Create an Agent Session', react_example('open-session'))
          + '<p>Agent and direct Store calls share the user client. The Agent uses its own signed delegated credentials for backend work; its private key and your Admin API key never enter the browser. The independent <a href="backend-go.html">Go Admin SDK</a> issues user tokens from your authenticated backend.</p>'

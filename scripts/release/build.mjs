@@ -26,6 +26,9 @@ export async function buildRelease({ output = DIST, origins } = {}) {
 				await copy(resolve(source, path), resolve(target, path));
 			if (directory === 'typescript') {
 				manifest.dependencies['@nuva/protocol'] = VERSION;
+				manifest.bundledDependencies = ['@nuva/protocol'];
+				for (const name of await files(resolve(stage, 'protocol')))
+					await copy(resolve(stage, 'protocol', name), resolve(target, 'node_modules/@nuva/protocol', name));
 				if (origins)
 					await writeFile(
 						resolve(target, 'dist/service-origins.js'),

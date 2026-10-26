@@ -6,7 +6,7 @@ import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
-VERSION = "0.1.0-preview.4"
+VERSION = "0.1.0-preview.1"
 RELEASE = ROOT / "scripts/release/dist" / VERSION
 
 
@@ -43,7 +43,7 @@ This is a review bundle, not proof of registry publication or hosted Agent relea
 From the customer application directory:
 
 ```sh
-npm install /absolute/path/nuva-protocol-{VERSION}.tgz /absolute/path/nuva-sdk-{VERSION}.tgz
+pnpm add /absolute/path/nuva-sdk-{VERSION}.tgz
 ```
 
 When manifest.json reports unconfigured Agent/generation origins, the preview requires explicit approved endpoint overrides. The intended released constructor needs only getAccessToken after verified service origins are baked into the package. A localhost URL is not a customer service. Repack and rerun the exact-archive checks once origins are approved.

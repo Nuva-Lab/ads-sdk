@@ -27,7 +27,7 @@ def build_customer():
     (DEST / 'store.html').write_text(page('store.html', store_sections()))
     (DEST / 'backend-go.html').write_text(page('backend-go.html', go_sections(code, table)))
     (DEST / 'README.txt').write_text(
-        'Ads SDK 0.1.0-preview.4 — API/wire v1\nLocal preview reference. Packages and hosted Agent services are not yet published/deployed.\n\n'
+        'Ads SDK 0.1.0-preview.1 — API/wire v1\nLocal preview reference. Packages and hosted Agent services are not yet published/deployed.\n\n'
         'frontend.html: Client Agent SDK reference with React / TypeScript examples\n'
         'store.html: Client Store SDK reference with plain TypeScript examples\n'
         'backend-go.html: Go Admin SDK reference\n'

@@ -35,10 +35,10 @@ version, err := reader.GetSkillVersion(ctx, skill.Skill.ID, skill.Version.Versio
 if err != nil { return err }
 _ = version'''
     return [
-        ('overview', 'Backend integration', '<p>The Go Admin module targets <code>github.com/Nuva-Lab/ads-sdk/go@v0.1.0-preview.4</code>, uses the Go standard library and is delivered as a local preview module archive. The module lives in the private Nuva-Lab/ads-sdk repository under go/. Repository tags use go/v0.1.0-preview.4. The supplied local proxy also permits installation from the review bundle.</p>'
+        ('overview', 'Backend integration', '<p>The Go Admin module targets <code>github.com/Nuva-Lab/ads-sdk/go@v0.1.0-preview.1</code>, uses the Go standard library and is delivered as a local preview module archive. The module lives in the private Nuva-Lab/ads-sdk repository under go/. Repository tags use go/v0.1.0-preview.1. The supplied local proxy also permits installation from the review bundle.</p>'
          '<ol><li>Your backend verifies the application login.</li><li>It exchanges its customer Admin API key for that user’s Nuva token.</li><li>It returns token/expiry to the browser SDK and separately manages Skill registration and activation.</li></ol>'
          '<p>Admin keys never enter browsers or chat tools. The Agent uses a different delegated service identity. Confirm the approved backend origin before integrating; a documented URL is not proof that the new hosted routes are live.</p>'),
-        ('client', 'Initialize the Admin client', code('GOPROXY=file:///absolute/path/to/0.1.0-preview.4/go-proxy GOSUMDB=off go get github.com/Nuva-Lab/ads-sdk/go@v0.1.0-preview.4', 'sh') + code(initialize, 'go') + table(['Argument', 'Purpose'], [
+        ('client', 'Initialize the Admin client', code('GOPROXY=file:///absolute/path/to/0.1.0-preview.1/go-proxy GOSUMDB=off go get github.com/Nuva-Lab/ads-sdk/go@v0.1.0-preview.1', 'sh') + code(initialize, 'go') + table(['Argument', 'Purpose'], [
             ('<code>backendURL</code>', 'Explicit approved backend origin.'), ('<code>apiKey</code>', 'Customer-backend Admin API key.')])
          + '<p>Use context cancellation and deadlines. The client does not automatically follow redirects or replay uncertain writes. Import the module with the <code>nuva</code> alias shown in the downloadable example.</p>'),
         ('tokens', 'Issue a user token', code(token, 'go')

@@ -4,7 +4,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-export const VERSION = '0.1.0-preview.4';
+export const VERSION = '0.1.0-preview.1';
 export const GO_VERSION = `v${VERSION}`;
 export const GO_MODULE = 'github.com/Nuva-Lab/ads-sdk/go';
 export const DIST = resolve(ROOT, 'scripts/release/dist', VERSION);

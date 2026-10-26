@@ -97,7 +97,7 @@ def page(current_file, sections):
   </aside>
   <main id="main-content" tabindex="-1">
     <div class="page-heading"><h1>{escape(title)}</h1><span class="preview-label">Preview</span></div>
-    <p class="development-notice">SDK 0.1.0-preview.4 · Public API / wire v1. Local preview; registry publication and hosted Agent services are pending.</p>
+    <p class="development-notice">SDK 0.1.0-preview.1 · Public API / wire v1. Local preview; registry publication and hosted Agent services are pending.</p>
     <div class="mobile-toc"><details><summary>On this page</summary><nav>{toc}</nav></details></div>
     <article>{body}</article>
     <nav class="page-footer" aria-label="Other SDK documentation"><a href="{escape(peer)}">{escape(peer_title)} <span aria-hidden="true">→</span></a></nav>

@@ -21,16 +21,30 @@ export async function checkRelease(output = DIST) {
 			const entries = run('tar', ['-tzf', archive]).trim().split('\n');
 			assert.ok(
 				entries.every(
-					(path) => !/(^|\/)(?:tests?|node_modules|services|forks|skills|recipes|\.local|\.secrets)(\/|$)|\.dev\.vars|\.pem$/.test(path),
+					(path) => !/(^|\/)(?:tests?|services|forks|skills|recipes|\.local|\.secrets)(\/|$)|\.dev\.vars|\.pem$/.test(path) && (!path.includes('/node_modules/') || path.startsWith('package/node_modules/@nuva/protocol/')),
 				),
 			);
 			const metadata = JSON.parse(run('tar', ['-xOf', archive, 'package/package.json']));
 			assert.equal(metadata.version, VERSION);
 			assert.ok(Object.values(metadata.dependencies).every((version) => !version.startsWith('workspace:')));
-			if (metadata.name === '@nuva/sdk') assert.equal(metadata.dependencies['@nuva/protocol'], VERSION);
+			if (metadata.name === '@nuva/sdk') {
+				assert.equal(metadata.dependencies['@nuva/protocol'], VERSION);
+				assert.deepEqual(metadata.bundledDependencies, ['@nuva/protocol']);
+				const nested = JSON.parse(run('tar', ['-xOf', archive, 'package/node_modules/@nuva/protocol/package.json']));
+				assert.equal(nested.version, VERSION);
+			}
 		}
 		await writeFile(resolve(consumer, 'package.json'), JSON.stringify({ private: true, type: 'module' }));
-		run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--prefer-offline', ...archives], consumer);
+		run('pnpm', ['add', '--ignore-scripts', '--prefer-offline', archives[1]], consumer);
+		await writeFile(resolve(consumer, 'sdk-only.mjs'), "import assert from 'node:assert/strict'; import {Message,createNuva} from '@nuva/sdk'; assert.ok(Message.create().text('pnpm bundled protocol')); assert.equal(typeof createNuva,'function');");
+		run(process.execPath, ['sdk-only.mjs'], consumer);
+		await writeFile(resolve(consumer, 'sdk-only.ts'), "import {createNuva,Message,type ScriptPackage} from '@nuva/sdk'; const client=createNuva({baseUrl:'https://fixture.invalid/api',storeBaseUrl:'https://fixture.invalid',getAccessToken:async()=> 'unused'}); declare const script:ScriptPackage; const version:2=script.schema_version; Message.create().text('Typed pnpm consumer'); client.close();");
+		const sdkOnlyRequire = createRequire(resolve(ROOT, 'typescript/package.json'));
+		const sdkOnlyCompiler = resolve(dirname(sdkOnlyRequire.resolve('typescript/package.json')), 'bin/tsc');
+		run(process.execPath, [sdkOnlyCompiler, '--noEmit', '--strict', '--skipLibCheck', 'false', '--target', 'ES2022', '--module', 'NodeNext', '--moduleResolution', 'NodeNext', '--lib', 'ES2023,DOM', 'sdk-only.ts'], consumer);
+
+		// Direct protocol consumers may opt into the separate package.
+		run('pnpm', ['add', '--ignore-scripts', '--prefer-offline', archives[0]], consumer);
 		await writeFile(
 			resolve(consumer, 'consumer.mjs'),
 			`import assert from 'node:assert/strict';
@@ -94,8 +108,8 @@ Message.create().text('Hello');
 		const compiler = resolve(dirname(require.resolve('typescript/package.json')), 'bin/tsc');
 		run(process.execPath, [compiler, '-p', 'tsconfig.json'], consumer);
 		run(
-			'npm',
-			['install', '--ignore-scripts', '--no-audit', '--no-fund', '--prefer-offline', 'react@18.3.1', '@types/react@18.3.27'],
+			'pnpm',
+			['add', '--ignore-scripts', '--prefer-offline', 'react@18.3.1', '@types/react@18.3.27'],
 			consumer,
 		);
 		await writeFile(
@@ -153,6 +167,8 @@ func TestDeliveredSDK(t *testing.T){if admin.Version!="${GO_VERSION}"{t.Fatal(ad
 			archivesUnchanged: true,
 			npm: {
 				exactDeliveredTarballs: true,
+				packageManager: 'pnpm',
+				singleSdkWithBundledProtocol: true,
 				physicalInstallNoWorkspaceLinks: true,
 				headlessWithoutReact: true,
 				strictTypeScript: true,

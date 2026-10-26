@@ -1,15 +1,15 @@
-# Nuva TypeScript SDK — 0.1.0-preview.4
+# Nuva TypeScript SDK — 0.1.0-preview.1
 
-`@nuva/sdk` is an ESM Agent and Store client with optional React bindings. This release pins `@nuva/protocol@0.1.0-preview.4`. Package versions are distinct from the public HTTP/wire and Artifact schema revision **1** and the inner ScriptPackage version **2**.
+`@nuva/sdk` is an ESM Agent and Store client with optional React bindings. This release pins `@nuva/protocol@0.1.0-preview.1`. Package versions are distinct from the public HTTP/wire and Artifact schema revision **1** and the inner ScriptPackage version **2**.
 
 ## Install the review bundle
 
-The packages are delivered as local archives; registry publication is separate. Install both unchanged archives together:
+The packages are delivered as local archives; registry publication is separate. Use pnpm to install the SDK tarball; it includes the matching protocol package:
 
 ```sh
-npm install /path/to/release/nuva-protocol-0.1.0-preview.4.tgz /path/to/release/nuva-sdk-0.1.0-preview.4.tgz
+pnpm add /path/to/release/nuva-sdk-0.1.0-preview.1.tgz
 # Only applications using the React entrypoint need React:
-npm install react
+pnpm add react
 ```
 
 The release directory includes `SHA256SUMS`, a complete file manifest, and independent-consumer verification. The SDK has no private Agent-runtime, Cloudflare or model-provider dependency. React is an optional peer dependency; headless imports do not install it.

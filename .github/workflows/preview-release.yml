@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing reviewed release tag, such as v0.1.0-preview.4
+        description: Existing reviewed release tag, such as v0.1.0-preview.1
         required: true
         type: string
 permissions:

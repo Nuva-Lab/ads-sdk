@@ -1,6 +1,6 @@
 # Nuva client protocol
 
-`@nuva/protocol@0.1.0-preview.4` defines the client-visible Agent API contract: resource/message references, public messages and content parts, client input, client-tool calls/responses, Session state, pagination, public errors and transport envelopes. It also provides their runtime validation schemas.
+`@nuva/protocol@0.1.0-preview.1` defines the client-visible Agent API contract: resource/message references, public messages and content parts, client input, client-tool calls/responses, Session state, pagination, public errors and transport envelopes. It also provides their runtime validation schemas.
 
 The TypeScript SDK, gateway and Agent runtime consume this package. The SDK re-exports the public types, so applications can keep importing them from `@nuva/sdk`. This package depends on Zod; it has no React, SDK, agent-framework or model-provider dependency.
 
@@ -42,7 +42,7 @@ pnpm --dir agents/ads-agent --filter @nuva/sdk-mock-server... install --ignore-s
 pnpm --dir agents/ads-agent/protocol test
 ```
 
-This release aligns the npm package version with the SDK at `0.1.0-preview.4`; this does not renumber wire or stored-data schemas. `CLIENT_PROTOCOL_REVISION` is `1`. All public transport envelopes—request, authentication, reauthentication, ready, result, error and state—accept optional `version: 1`. Omitting it preserves the original implicit v1 contract. An explicitly different version, including a string such as `"1"`, is rejected by runtime validation. This rule applies to both inbound gateway requests and outbound frames decoded by the SDK; unknown versions cannot be silently discarded as extra metadata. This is version validation, not automatic negotiation or downgrade. The current SDK continues sending the compatible unversioned form.
+This release aligns the npm package version with the SDK at `0.1.0-preview.1`; this does not renumber wire or stored-data schemas. `CLIENT_PROTOCOL_REVISION` is `1`. All public transport envelopes—request, authentication, reauthentication, ready, result, error and state—accept optional `version: 1`. Omitting it preserves the original implicit v1 contract. An explicitly different version, including a string such as `"1"`, is rejected by runtime validation. This rule applies to both inbound gateway requests and outbound frames decoded by the SDK; unknown versions cannot be silently discarded as extra metadata. This is version validation, not automatic negotiation or downgrade. The current SDK continues sending the compatible unversioned form.
 
 ```ts
 requestFrameSchema.parse({ version: 1, id: 'read-1', method: 'sessions.history', params: { sessionId: 'session-1' } });
@@ -54,7 +54,7 @@ Artifact `schemaVersion` describes its content and is separate from envelope `ve
 SDK packages pin this exact protocol release when packed. Install the two delivered npm tarballs together; no registry publication is implied:
 
 ```sh
-npm install /path/to/nuva-protocol-0.1.0-preview.4.tgz /path/to/nuva-sdk-0.1.0-preview.4.tgz
+pnpm add /path/to/nuva-sdk-0.1.0-preview.1.tgz
 ```
 
 The release manifest and checksums identify the exact delivered files. Independent consumer checks exercise those archives rather than workspace links.

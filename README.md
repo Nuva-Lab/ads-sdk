@@ -2,7 +2,7 @@
 
 Private client and Admin SDKs for authorized Nuva integrations. This repository contains the SDK implementation, public protocol, documentation, examples and local release tooling. Access to this repository does not issue service credentials or grant access to customer data.
 
-Current preview: **0.1.0-preview.4**. Public API/wire/Artifact schemas remain **v1**; the structured ScriptPackage remains **v2** inside `script@1.data.text`.
+Current preview: **0.1.0-preview.1**. Public API/wire/Artifact schemas remain **v1**; the structured ScriptPackage remains **v2** inside `script@1.data.text`.
 
 ## Repository
 
@@ -18,15 +18,15 @@ The Agent runtime, backend, private Skills, credentials and local test sessions 
 
 ## Install a preview
 
-Download the matching review ZIP from [Releases](https://github.com/Nuva-Lab/ads-sdk/releases), verify `BUNDLE-SHA256SUMS`, and extract it. The current release is a draft pending maintainer review. Preview.4 supersedes the initial preview.3 draft to align offline Go archives with the complete Git module tree.
+Download the matching review ZIP from [Releases](https://github.com/Nuva-Lab/ads-sdk/releases), verify `BUNDLE-SHA256SUMS`, and extract it. The current release is a draft pending maintainer review.
 
 From a customer JavaScript application directory:
 
 ```sh
-npm install /absolute/path/nuva-protocol-0.1.0-preview.4.tgz /absolute/path/nuva-sdk-0.1.0-preview.4.tgz
+pnpm add /absolute/path/nuva-sdk-0.1.0-preview.1.tgz
 ```
 
-Both tarballs are needed when no npm registry hosts the protocol dependency. The installed SDK is used normally:
+The SDK tarball includes its matching protocol dependency, so no private npm registry is required. Install the separate protocol tarball only if your application imports `@nuva/protocol` directly. The installed SDK is used normally:
 
 ```ts
 import { createNuva, Message } from '@nuva/sdk';
@@ -35,10 +35,10 @@ import { createNuva, Message } from '@nuva/sdk';
 For Go, first configure Git authentication for an account with repository read access (for example, `gh auth login` followed by `gh auth setup-git`). Then use a command-scoped private module setting:
 
 ```sh
-GOPRIVATE=github.com/Nuva-Lab/ads-sdk go get github.com/Nuva-Lab/ads-sdk/go@v0.1.0-preview.4
+GOPRIVATE=github.com/Nuva-Lab/ads-sdk go get github.com/Nuva-Lab/ads-sdk/go@v0.1.0-preview.1
 ```
 
-Because the module lives in `go/`, the corresponding repository tag is **`go/v0.1.0-preview.4`**. The overall SDK release tag is `v0.1.0-preview.4`. Keep both tags on the same reviewed commit. The review ZIP also contains an offline Go module proxy, with installation instructions inside.
+Because the module lives in `go/`, the corresponding repository tag is **`go/v0.1.0-preview.1`**. The overall SDK release tag is `v0.1.0-preview.1`. Keep both tags on the same reviewed commit. The review ZIP also contains an offline Go module proxy, with installation instructions inside.
 
 ## Current service compatibility
 
@@ -64,7 +64,7 @@ python3 -m http.server 8992 --bind 127.0.0.1 --directory docs/customer
 
 Open `http://127.0.0.1:8992/frontend.html`. Choose another port if it is already in use.
 
-Build outputs are ignored by Git. Archives appear under `scripts/release/dist/0.1.0-preview.4/`. The full Git checkout contains tests and docs; the smaller SDK source archive includes the files needed to reproduce package builds.
+Build outputs are ignored by Git. Archives appear under `scripts/release/dist/0.1.0-preview.1/`. The full Git checkout contains tests and docs; the smaller SDK source archive includes the files needed to reproduce package builds.
 
 ## Release process
 
