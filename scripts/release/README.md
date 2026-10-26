@@ -26,5 +26,4 @@ constant, and the release scripts. The repository tags `v0.1.0-preview.1` and
 
 Keep the chosen version while preparing an unpublished draft. Increment for the next issued
 release. Check the service configuration, examples, archive checksums and consumer verification
-before publishing a draft. The manual Preview release workflow builds packages and creates a
-draft GitHub release; it does not publish to npm.
+before publishing a draft.
