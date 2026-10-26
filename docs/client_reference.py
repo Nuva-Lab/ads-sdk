@@ -87,11 +87,11 @@ def _client_sections():
              ('<code>assets.register({url,kind})</code>', 'Register a supported external media source.'),
              ('<code>assets.get(id)</code>', 'Read metadata and fresh authorized download access.'),
              ('<code>videos.generate({prompt, ...})</code>', 'Submit a saved Prompt ID; return a Job handle.'),
-             ('<code>jobs.get / subscribe / cancel</code>', 'Read progress or request cancellation; subscription does not regenerate work.'),
+             ('<code>jobs.get / subscribe</code>', 'Read progress or subscribe to status updates; subscription does not regenerate work.'),
              ('<code>videos.assemble(input)</code>', 'Render explicit ordered clips and trims; return <code>{assetId,uri}</code>.'),
          ]) + store_example('asset-upload') + store_example('asset-read') + store_example('video-job')
          + '<p>Pass the saved Prompt ID to <code>videos.generate</code>. An explicit Batch can reuse an authorized Prompt; if omitted, the SDK carries the Prompt’s Batch when available. Seed and resolution belong to the Job.</p>'
-         + '<p><code>result()</code> waits for <code>completed</code> and returns the registered Asset. Job states are queued/running/completed/failed/cancelled. Cancelling a subscription or stopping a chat loop does not cancel a Job. Use <code>jobs.cancel</code>; completed/failed Jobs cannot be cancelled.</p>'
+         + '<p><code>result()</code> waits for <code>completed</code> and returns the registered Asset. Job states are queued/running/completed/failed/cancelled. Cancelling a subscription or stopping a chat loop does not cancel a Job. To request best-effort cancellation, ask the Agent. Only a confirmed backend status establishes that a Job was cancelled.</p>'
          + '<p>Asset IDs are durable; signed <code>download_url</code> and assembly <code>uri</code> expire. Direct Asset reads are uploader-scoped; an authorized shared Product or Ad can supply permitted Asset sidecars to other users. Keep those access paths distinct.</p>'
          + '<p>Assembly uses explicit <code>start_ms/end_ms</code>, width, height, fps and <code>audio: "preserve" | "mute"</code>. Preserve requires audio in every input clip; mute deliberately removes it.</p>'),
         ('ads', 'Final Ads', '<p>The public SDK exposes <code>ads.get/list</code> only. Assembly registers the final Asset and immutable Ad composition. Different edits create a new Ad; editor drafts remain in your application. A final Asset belongs to one Ad and prohibits assigning the same final Asset to two Ads; input reuse remains allowed.</p>'

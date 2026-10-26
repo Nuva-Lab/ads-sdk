@@ -76,7 +76,6 @@ export type Job<T = Asset> = B['JobOut'] & {
 };
 export interface JobsClient {
 	get(id: string): Promise<JobState>;
-	cancel(id: string, options?: CommandOptions): Promise<JobState>;
 	subscribe(id: string, listener: (state: JobState) => void, onError?: (error: NuvaErrorInfo) => void): Unsubscribe;
 }
 export type ScriptInput = GenerateScriptInput;

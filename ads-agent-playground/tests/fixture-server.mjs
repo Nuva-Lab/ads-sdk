@@ -15,8 +15,8 @@ const result = await build({
 const events = [];
 let stops = 0;
 const html = (await readFile(resolve(root, "index.html"), "utf8")).replace(
-  '<html lang="en">',
-  '<html lang="en" data-test-fixture>',
+  '<html lang="zh-CN">',
+  '<html lang="zh-CN" data-test-fixture>',
 );
 const svg =
   '<svg xmlns="http://www.w3.org/2000/svg" width="440" height="440"><defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#e5d9c4"/><stop offset="1" stop-color="#f6f2e9"/></linearGradient><linearGradient id="cup"><stop stop-color="#a9b296"/><stop offset=".55" stop-color="#c5cbb7"/><stop offset="1" stop-color="#a9b296"/></linearGradient></defs><rect width="440" height="440" fill="url(#bg)"/><ellipse cx="225" cy="369" rx="107" ry="17" fill="#d5ccb9"/><path d="M154 126h139l-12 223q-54 27-111 0z" fill="url(#cup)"/><rect x="151" y="108" width="144" height="28" rx="11" fill="#536153"/><rect x="170" y="99" width="106" height="17" rx="6" fill="#485246"/><text x="222" y="249" fill="#5a6651" font-size="17" text-anchor="middle" font-family="Georgia">morrow</text></svg>';
@@ -50,6 +50,15 @@ http
     if (req.url === "/style.css") {
       res.setHeader("Content-Type", "text/css");
       res.end(await readFile(resolve(root, "style.css")));
+      return;
+    }
+    if (req.url === "/reference.mp4" || req.url === "/reference.wav") {
+      const file = req.url.slice(1);
+      res.setHeader(
+        "Content-Type",
+        file.endsWith("mp4") ? "video/mp4" : "audio/wav",
+      );
+      res.end(await readFile(resolve(root, "tests/fixtures", file)));
       return;
     }
     if (req.url === "/cup.svg") {

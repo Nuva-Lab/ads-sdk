@@ -1,3 +1,6 @@
+import { getLocale, translate, type UiLabel } from "./i18n.js";
+import { option } from "./ui.js";
+import { msg, setAttribute, setText } from "./i18n.js";
 import type {
   NuvaClient,
   AgentHandle,
@@ -7,6 +10,9 @@ import type {
   DynamicToolUIPart,
   MessageView,
 } from "@nuva/sdk";
+import { ResourceCards } from "./resource-cards.js";
+import { readResource } from "./resources.js";
+import { usefulLabel, resourcePresentation } from "./resource-presentation.js";
 import { Composer, buildDraft } from "./composer.js";
 import { action, button, byId, node, notice, report, showPane } from "./ui.js";
 export interface ChatHost {
@@ -16,39 +22,75 @@ export interface ChatHost {
   resource(record: ResourceLink): void;
   open(record: ResourceLink): void;
   resources(): readonly ResourceLink[];
+  indexLabel?(record: ResourceLink): string | undefined;
 }
-export function sessionLabel(session: { title: string; createdAt: string }) {
+export function sessionLabel(session: {
+  title: string;
+  createdAt: string;
+}): UiLabel {
   const generated = /^(Workspace\s*·|New conversation$)/i.test(session.title);
   const date = new Date(session.createdAt);
   return generated
-    ? `Conversation · ${date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}, ${date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`
+    ? msg("Conversation · {date}", {
+        date: () =>
+          `${date.toLocaleDateString(getLocale() === "zh-CN" ? "zh-CN" : "en-US", { month: "short", day: "numeric" })}, ${date.toLocaleTimeString(getLocale() === "zh-CN" ? "zh-CN" : "en-US", { hour: "numeric", minute: "2-digit" })}`,
+      })
     : session.title;
 }
 export class ChatController {
   private agent?: AgentHandle;
   private unsubscribe?: () => void;
   private retry?: { draft: MessageDraft; requestId: string };
+  private attached: ResourceLink[] = [];
   private sending = false;
   private epoch = 0;
   private status = "loading";
   private closed = false;
   private hasEarlier = false;
+  private historyCursor: string | null = null;
+  private historyLoading = false;
+  private historyError = false;
+  private historyAnchor?: { id: string; offset: number };
+  private list = node("div", "", "message-list");
+  private historyNotice = node("div", "", "history-notice");
+  private cards: ResourceCards;
+  private viewEvents = new AbortController();
   readonly composer: Composer;
   sessionId = "";
   constructor(private host: ChatHost) {
-    this.composer = new Composer(host.resources);
+    this.historyNotice.hidden = true;
+    this.historyNotice.setAttribute("role", "status");
+    byId("chat").replaceChildren(this.historyNotice, this.list);
+    byId("chat").addEventListener(
+      "scroll",
+      () => {
+        if (this.historyLoading) {
+          this.historyAnchor = this.anchor();
+          return;
+        }
+        if (byId("chat").scrollTop < 65) void this.loadHistory();
+      },
+      { passive: true, signal: this.viewEvents.signal },
+    );
+    this.cards = this.makeCards();
+    this.composer = new Composer(() =>
+      host.resources().map((record) => this.cards.label(record)),
+    );
     this.composer.onSend = () => void this.send();
     this.composer.onChange = () => this.controls();
     byId("new-session").onclick = () => void action(() => this.create());
+    byId("copy-conversation-id").onclick = () =>
+      void action(async () => {
+        if (this.closed || !this.sessionId || this.status === "loading") return;
+        await navigator.clipboard.writeText(this.sessionId);
+        (byId("copy-conversation-id").closest("details") as HTMLDetailsElement).open = false;
+        notice(msg("Conversation ID copied."));
+      });
     byId("reconnect").onclick = () =>
       void action(async () => {
         await this.agent?.refresh();
         (byId("reconnect").closest("details") as HTMLDetailsElement).open =
           false;
-      });
-    byId("earlier").onclick = () =>
-      void action(async () => {
-        await this.agent?.loadEarlierMessages();
       });
     byId("stop").onclick = () =>
       void action(async () => {
@@ -92,9 +134,7 @@ export class ChatController {
     const selector = byId<HTMLSelectElement>("sessions"),
       page = await this.host.sdk.sessions.list({ limit: 100 });
     selector.replaceChildren(
-      ...page.items.map(
-        (session) => new Option(sessionLabel(session), session.id),
-      ),
+      ...page.items.map((session) => option(sessionLabel(session), session.id)),
     );
     selector.disabled = false;
     if (this.sessionId) selector.value = this.sessionId;
@@ -121,13 +161,22 @@ export class ChatController {
     await this.host.sdk.sessions.get(id);
     if (epoch !== this.epoch) return;
     this.unsubscribe?.();
+    this.cards.dispose();
+    this.cards = this.makeCards();
+    this.historyLoading = false;
+    this.historyError = false;
+    this.historyCursor = null;
+    this.historyAnchor = undefined;
+    this.renderHistoryNotice();
     this.sessionId = id;
     this.retry = undefined;
+    this.attached = [];
+    this.drawAttachments();
     this.composer.clear();
     localStorage.setItem(`${this.host.scope}:session`, id);
     byId<HTMLSelectElement>("sessions").value = id;
     this.host.selected(id);
-    byId("chat").replaceChildren(this.emptyState());
+    this.list.replaceChildren(this.emptyState());
     this.agent = this.host.sdk.agent({ sessionId: id });
     this.unsubscribe = this.agent.subscribe((state) => {
       if (epoch === this.epoch) this.render(state);
@@ -135,12 +184,53 @@ export class ChatController {
   }
   attach(record: ResourceLink) {
     showPane("chat");
-    this.composer.insertResource(record);
+    if (
+      !this.attached.some(
+        (item) =>
+          item.ref.kind === record.ref.kind && item.ref.id === record.ref.id,
+      )
+    ) {
+      this.attached.push({
+        ref: record.ref,
+        label: resourcePresentation(record, record).title,
+      });
+    }
+    this.drawAttachments();
+    this.controls();
+    this.composer.focus();
+  }
+  private drawAttachments() {
+    byId("composer-attachments").replaceChildren(
+      ...this.attached.map((record) => {
+        const remove = button(
+          `${this.cards.label(record).label} ×`,
+          () => {
+            this.attached = this.attached.filter((item) => item !== record);
+            this.drawAttachments();
+            this.controls();
+          },
+          "composer-attachment",
+        );
+        setAttribute(
+          remove,
+          "aria-label",
+          msg("Remove attachment: {p0}", {
+            p0: this.cards.label(record).label,
+          }),
+        );
+        remove.disabled = this.sending || !!this.retry;
+        return remove;
+      }),
+    );
   }
   destroy() {
     this.epoch++;
+    this.viewEvents.abort();
+    this.cards.dispose();
     this.unsubscribe?.();
     this.agent = undefined;
+    this.attached = [];
+    this.drawAttachments();
     this.composer.clear();
     this.composer.setLocked(true);
     this.composer.destroy();
@@ -152,11 +242,8 @@ export class ChatController {
     const empty = node("div", "", "chat-welcome");
     empty.append(
       node("div", "✳", "orb"),
-      node("h3", "What are we making?"),
-      node(
-        "p",
-        "Mention a product with @, then tell me what you have in mind.",
-      ),
+      node("h3", msg("Start a conversation")),
+      node("p", msg("Type a message or use @ to reference a saved resource.")),
     );
     for (const [label, prompt] of [
       ["Write a script", "Help me write a script for "],
@@ -164,8 +251,8 @@ export class ChatController {
     ])
       empty.append(
         button(
-          label + " ↗",
-          () => this.composer.insertPrompt(prompt),
+          msg("{label} ↗", { label: msg(label) }),
+          () => this.composer.insertPrompt(translate(prompt)),
           "suggestion",
         ),
       );
@@ -178,10 +265,13 @@ export class ChatController {
       ["running", "waiting_for_response", "loading"].includes(this.status)
     )
       return;
-    if (this.composer.empty() && !this.retry) return;
+    if (this.composer.empty() && !this.attached.length && !this.retry) return;
     const target = this.agent,
       request = this.retry ?? {
-        draft: buildDraft(this.composer.parts()),
+        draft: this.attached.reduce(
+          (draft, record) => draft.attach(record),
+          buildDraft(this.composer.parts()),
+        ),
         requestId: crypto.randomUUID(),
       };
     this.retry = request;
@@ -190,12 +280,16 @@ export class ChatController {
     try {
       await target.send(request.draft, { requestId: request.requestId });
       this.retry = undefined;
+      this.attached = [];
+      this.drawAttachments();
       this.composer.clear();
     } catch (error) {
       if (this.closed) return;
       report(error);
       notice(
-        "Could not confirm that your message was sent. Retry to check the same message.",
+        msg(
+          "Could not confirm that your message was sent. Retry to check the same message.",
+        ),
         true,
       );
     } finally {
@@ -211,6 +305,7 @@ export class ChatController {
   }
   private controls() {
     if (this.closed) return;
+    this.drawAttachments();
     const state = this.sending ? "sending" : this.status;
     const labels: Record<string, string> = {
       loading: "Connecting",
@@ -222,20 +317,28 @@ export class ChatController {
       offline: "Offline",
     };
     const status = byId("chat-status");
-    status.textContent = labels[state] ?? state;
+    setText(status, msg(labels[state] ?? state));
     status.dataset.state = state;
     const busy = ["running", "waiting_for_response"].includes(this.status),
       send = byId<HTMLButtonElement>("send");
     send.textContent = this.retry && !this.sending ? "↻" : "↑";
-    send.title = this.retry && !this.sending ? "Retry send" : "Send message";
-    send.setAttribute("aria-label", send.title);
+    setAttribute(
+      send,
+      "title",
+      this.retry && !this.sending ? msg("Retry send") : msg("Send message"),
+    );
+    setAttribute(
+      send,
+      "aria-label",
+      this.retry && !this.sending ? msg("Retry send") : msg("Send message"),
+    );
     send.hidden = busy;
     send.disabled =
       this.sending ||
       !this.agent ||
       this.status === "loading" ||
       this.status === "error" ||
-      (this.composer.empty() && !this.retry);
+      (this.composer.empty() && !this.attached.length && !this.retry);
     this.composer.setLocked(
       this.sending || !!this.retry || !this.agent || this.status === "loading",
     );
@@ -246,17 +349,128 @@ export class ChatController {
       this.sending || !this.agent;
     byId<HTMLSelectElement>("sessions").disabled = this.sending || !this.agent;
     byId<HTMLButtonElement>("reconnect").disabled = this.sending || !this.agent;
-    byId<HTMLButtonElement>("earlier").disabled =
-      !this.hasEarlier || !this.agent;
+    byId<HTMLButtonElement>("copy-conversation-id").disabled =
+      !this.agent || !this.sessionId || this.status === "loading";
     const activity = byId("agent-activity");
     activity.hidden = !(this.status === "running" || this.sending);
-    byId("activity-label").textContent = this.sending
-      ? "Sending your message…"
-      : "Working on your request…";
+    setText(
+      byId("activity-label"),
+      this.sending
+        ? msg("Sending your message…")
+        : msg("Working on your request…"),
+    );
     byId("chat").setAttribute(
       "aria-busy",
       String(this.status === "running" || this.status === "loading"),
     );
+  }
+  private makeCards() {
+    return new ResourceCards({
+      root: byId("chat"),
+      indexLabel: (record) => this.host.indexLabel?.(record),
+      read: (record) => readResource(this.host.sdk, record),
+      watchJob: (id, receive) => this.host.sdk.jobs.subscribe(id, receive),
+      open: (record) => this.host.open(record),
+      layout: (change) => this.withScrollAnchor(change),
+    });
+  }
+  private anchor() {
+    const chat = byId("chat"),
+      bounds = chat.getBoundingClientRect();
+    for (const element of this.list.querySelectorAll<HTMLElement>(
+      "[data-scroll-anchor]",
+    )) {
+      const rect = element.getBoundingClientRect();
+      if (
+        rect.height > 0 &&
+        rect.bottom > bounds.top + 1 &&
+        rect.top < bounds.bottom
+      )
+        return {
+          id: element.dataset.scrollAnchor!,
+          offset: rect.top - bounds.top,
+        };
+    }
+  }
+  private restoreAnchor(anchor: { id: string; offset: number } | undefined) {
+    if (!anchor) return;
+    const target = [
+      ...this.list.querySelectorAll<HTMLElement>("[data-scroll-anchor]"),
+    ].find((element) => element.dataset.scrollAnchor === anchor.id);
+    if (target) {
+      const chat = byId("chat");
+      chat.scrollTop +=
+        target.getBoundingClientRect().top -
+        chat.getBoundingClientRect().top -
+        anchor.offset;
+    }
+  }
+  private withScrollAnchor(change: () => void) {
+    if (this.closed) return;
+    const chat = byId("chat"),
+      atBottom =
+        !this.historyLoading &&
+        chat.scrollHeight - chat.scrollTop - chat.clientHeight < 65,
+      anchor = this.anchor();
+    change();
+    if (atBottom) chat.scrollTop = chat.scrollHeight;
+    else this.restoreAnchor(anchor);
+  }
+  private renderHistoryNotice() {
+    this.historyNotice.replaceChildren();
+    this.historyNotice.hidden = !this.historyLoading && !this.historyError;
+    const pill = node("div", "", "history-pill");
+    this.historyNotice.append(pill);
+    if (this.historyLoading)
+      pill.append(
+        node("span", "", "small-spinner"),
+        node("span", msg("Loading earlier messages…")),
+      );
+    else if (this.historyError)
+      pill.append(
+        node("span", msg("Could not load earlier messages.")),
+        button(msg("Retry"), () => {
+          this.historyError = false;
+          this.renderHistoryNotice();
+          void this.loadHistory();
+        }),
+      );
+  }
+  private async loadHistory() {
+    if (
+      !this.agent ||
+      !this.hasEarlier ||
+      this.historyLoading ||
+      this.historyError ||
+      this.closed
+    )
+      return;
+    const epoch = this.epoch,
+      agent = this.agent,
+      cursor = this.historyCursor;
+    this.historyAnchor = this.anchor();
+    this.historyLoading = true;
+    this.renderHistoryNotice();
+    try {
+      await agent.loadEarlierMessages();
+      if (epoch === this.epoch && this.historyCursor === cursor)
+        this.historyError = true;
+    } catch {
+      if (epoch === this.epoch) this.historyError = true;
+    } finally {
+      if (epoch !== this.epoch || this.closed) return;
+      const anchor = this.anchor();
+      this.historyLoading = false;
+      this.historyAnchor = undefined;
+      this.renderHistoryNotice();
+      this.restoreAnchor(anchor);
+      if (
+        !this.historyError &&
+        this.hasEarlier &&
+        byId("chat").scrollHeight <= byId("chat").clientHeight + 2
+      )
+        requestAnimationFrame(() => void this.loadHistory());
+    }
   }
   private render(state: AgentReadState) {
     this.status = state.status;
@@ -264,6 +478,14 @@ export class ChatController {
       state.status !== "loading" &&
       state.status !== "error" &&
       !!state.messages.nextCursor;
+    this.historyCursor =
+      state.status !== "loading" && state.status !== "error"
+        ? state.messages.nextCursor
+        : null;
+    if (!this.hasEarlier && !this.historyLoading && this.historyError) {
+      this.historyError = false;
+      this.renderHistoryNotice();
+    }
     this.controls();
     if (state.status === "loading") return;
     if (state.status === "error") {
@@ -272,113 +494,162 @@ export class ChatController {
     }
     if (state.error) report(state.error);
     const chat = byId("chat"),
-      nearBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 100;
+      atBottom =
+        !this.historyLoading &&
+        chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
+    const anchor = this.historyAnchor ?? this.anchor();
     const existing = new Map(
-      [...chat.querySelectorAll<HTMLElement>(".message")].map((el) => [
-        el.dataset.id!,
-        el,
-      ]),
+      [...this.list.querySelectorAll<HTMLElement>(".message")].map(
+        (element) => [element.dataset.id!, element],
+      ),
     );
     if (state.messages.items.length)
-      chat.querySelector(".chat-welcome")?.remove();
+      this.list.querySelector(".chat-welcome")?.remove();
     for (const [index, message] of state.messages.items.entries()) {
       let wrapper = existing.get(message.ref.messageId);
       if (!wrapper) {
         wrapper = node("article", "", `message ${message.role}`);
         wrapper.dataset.id = message.ref.messageId;
+        const bubble = node("div", "", "message-bubble");
+        bubble.append(node("div", "", "message-content"));
         wrapper.append(
           node("div", "", "author"),
-          node("div", "", "body"),
-          node("div", "", "cards"),
-          node("div", "", "questions"),
+          node("div", "", "message-attachments"),
+          bubble,
         );
-        chat.append(wrapper);
+        this.list.append(wrapper);
       }
-      wrapper.querySelector(".author")!.textContent =
+      setText(
+        wrapper.querySelector(".author")!,
         message.role === "user"
-          ? message.metadata.user.displayName?.trim() || "User"
-          : "Ads Agent";
-      const signature = JSON.stringify([
-        message.content,
-        message.state,
-        message.state === "failed" ? message.error : null,
+          ? message.metadata.user.displayName?.trim() || msg("User")
+          : msg("Ads Agent"),
+      );
+      const attached = [
+        ...message.attachments,
+        ...(message.role === "user"
+          ? message.content.flatMap((part) =>
+              part.type === "resource" ? [part.record] : [],
+            )
+          : []),
+      ];
+      const attachments = wrapper.querySelector<HTMLElement>(
+        ".message-attachments",
+      )!;
+      attachments.dataset.scrollAnchor = JSON.stringify([
+        message.ref.messageId,
+        "attachments",
       ]);
-      const body = wrapper.querySelector<HTMLElement>(".body")!;
-      if (body.dataset.signature !== signature) {
-        body.dataset.signature = signature;
-        body.replaceChildren();
-        this.renderContent(body, message);
-      }
-      const cards = wrapper.querySelector<HTMLElement>(".cards")!,
-        resources = [
-          ...message.attachments,
-          ...message.content.flatMap((part) =>
-            part.type === "resource" ? [part.record] : [],
-          ),
-        ];
-      const resourceSignature = JSON.stringify(resources);
-      if (cards.dataset.signature !== resourceSignature) {
-        for (const resource of resources) this.host.resource(resource);
-        cards.dataset.signature = resourceSignature;
-        cards.replaceChildren(
-          ...resources.map((record) =>
-            button(
-              `${record.label} ↗`,
-              () => this.host.open(record),
-              "resource-button",
-            ),
-          ),
+      const attachmentKey = JSON.stringify(attached);
+      if (attachments.dataset.signature !== attachmentKey) {
+        attachments.dataset.signature = attachmentKey;
+        for (const record of attached) this.host.resource(record);
+        attachments.replaceChildren(
+          ...attached.map((record) => this.cards.create(record, true)),
         );
       }
-      const calls = message.content.filter(
-          (part): part is DynamicToolUIPart => part.type === "dynamic-tool",
-        ),
-        questions = wrapper.querySelector<HTMLElement>(".questions")!,
-        q = JSON.stringify([calls, message.state]);
-      if (questions.dataset.signature !== q) {
-        questions.dataset.signature = q;
-        questions.replaceChildren();
-        for (const call of calls)
-          this.question(
-            questions,
-            call,
-            message.state === "interrupted" || message.state === "failed",
+      const body = wrapper.querySelector<HTMLElement>(".message-content")!;
+      const parts = new Map(
+        [...body.children].map((element) => [
+          (element as HTMLElement).dataset.partId!,
+          element as HTMLElement,
+        ]),
+      );
+      let position = 0;
+      for (const part of message.content) {
+        if (message.role === "user" && part.type === "resource") continue;
+        const key = `${part.type}:${part.type === "dynamic-tool" ? part.toolCallId : part.id}`;
+        const signature = JSON.stringify([
+          part,
+          part.type === "dynamic-tool"
+            ? message.state === "failed" || message.state === "interrupted"
+            : null,
+        ]);
+        let element = parts.get(key);
+        if (!element) {
+          element = node("div", "", `message-part part-${part.type}`);
+          element.dataset.partId = key;
+          element.classList.toggle(
+            "part-compact",
+            part.type === "resource" &&
+              ["prompt", "batch", "ad", "job"].includes(part.record.ref.kind),
           );
+          element.dataset.scrollAnchor = JSON.stringify([
+            message.ref.messageId,
+            key,
+          ]);
+        }
+        if (element.dataset.signature !== signature) {
+          element.dataset.signature = signature;
+          element.replaceChildren();
+          if (part.type === "text")
+            this.renderText(element, part.text, part.format);
+          else if (part.type === "resource") {
+            this.host.resource(part.record);
+            element.append(this.cards.create(part.record));
+          } else if (part.type === "quote") {
+            if ("ref" in part.target) {
+              const record = part.target;
+              element.append(
+                button(
+                  `@${usefulLabel(record) ?? resourcePresentation(record).kind}`,
+                  () => this.host.open(record),
+                  "inline-reference",
+                ),
+              );
+            } else if (part.text) element.append(node("span", part.text));
+          } else if (part.type === "dynamic-tool")
+            this.question(
+              element,
+              part,
+              message.state === "interrupted" || message.state === "failed",
+            );
+        }
+        if (body.children[position] !== element)
+          body.insertBefore(element, body.children[position] ?? null);
+        position++;
+        parts.delete(key);
       }
-      if (chat.children[index] !== wrapper)
-        chat.insertBefore(wrapper, chat.children[index] ?? null);
+      for (const element of parts.values()) element.remove();
+      const bubble = wrapper.querySelector<HTMLElement>(".message-bubble")!;
+      let failure = bubble.querySelector<HTMLElement>(".message-failure");
+      if (message.state === "failed") {
+        if (!failure) {
+          failure = node("p", "", "form-error message-failure");
+          bubble.append(failure);
+        }
+        failure.textContent = message.error.message;
+      } else failure?.remove();
+      bubble.hidden =
+        body.childElementCount === 0 && message.state !== "failed";
+      if (this.list.children[index] !== wrapper)
+        this.list.insertBefore(wrapper, this.list.children[index] ?? null);
       existing.delete(message.ref.messageId);
     }
     for (const element of existing.values()) element.remove();
-    if (nearBottom) chat.scrollTop = chat.scrollHeight;
+    this.cards.prune();
+    if (atBottom) chat.scrollTop = chat.scrollHeight;
+    else this.restoreAnchor(anchor);
+    if (
+      this.hasEarlier &&
+      !this.historyLoading &&
+      !this.historyError &&
+      chat.scrollHeight <= chat.clientHeight + 2
+    )
+      requestAnimationFrame(() => void this.loadHistory());
   }
-  private renderContent(body: HTMLElement, message: MessageView) {
-    for (const part of message.content) {
-      if (part.type === "text") {
-        if (part.format === "markdown")
-          for (const chunk of part.text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g)) {
-            if (chunk.startsWith("**") && chunk.endsWith("**"))
-              body.append(node("strong", chunk.slice(2, -2)));
-            else if (chunk.startsWith("`") && chunk.endsWith("`"))
-              body.append(node("code", chunk.slice(1, -1)));
-            else body.append(document.createTextNode(chunk));
-          }
-        else body.append(document.createTextNode(part.text));
-      } else if (part.type === "quote") {
-        if ("ref" in part.target) {
-          const record = part.target;
-          body.append(
-            button(
-              `@${record.label}`,
-              () => this.host.open(record),
-              "inline-reference",
-            ),
-          );
-        } else if (part.text) body.append(node("span", part.text));
-      }
+  private renderText(element: HTMLElement, text: string, format: string) {
+    if (format !== "markdown") {
+      element.textContent = text;
+      return;
     }
-    if (message.state === "failed")
-      body.append(node("p", message.error.message, "form-error"));
+    for (const chunk of text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g)) {
+      if (chunk.startsWith("**") && chunk.endsWith("**"))
+        element.append(node("strong", chunk.slice(2, -2)));
+      else if (chunk.startsWith("`") && chunk.endsWith("`"))
+        element.append(node("code", chunk.slice(1, -1)));
+      else element.append(document.createTextNode(chunk));
+    }
   }
   private question(
     container: HTMLElement,
@@ -394,7 +665,7 @@ export class ChatController {
             : "Your input is needed";
     if (call.state !== "input-available" || ended) {
       if (call.state === "output-available")
-        container.append(node("span", "Response sent", "badge"));
+        container.append(node("span", msg("Response sent"), "badge"));
       else if (call.state === "output-error")
         container.append(node("p", call.errorText));
       return;
@@ -406,7 +677,7 @@ export class ChatController {
       container.append(
         node(
           "p",
-          "This action needs to be handled in your application.",
+          msg("This action needs to be handled in your application."),
           "muted",
         ),
       );
@@ -414,8 +685,16 @@ export class ChatController {
     }
     const form = node("form"),
       answer = node("textarea");
-    answer.placeholder = review ? "Add feedback (optional)…" : "Your answer…";
-    answer.setAttribute("aria-label", review ? "Review feedback" : "Answer");
+    setAttribute(
+      answer,
+      "placeholder",
+      review ? msg("Add feedback (optional)…") : msg("Your answer…"),
+    );
+    setAttribute(
+      answer,
+      "aria-label",
+      review ? msg("Review feedback") : msg("Answer"),
+    );
     form.append(answer);
     container.append(form);
     const respond = async (output: Record<string, string>) => {
@@ -431,11 +710,11 @@ export class ChatController {
     if (review) {
       const row = node("div", "", "row");
       row.append(
-        button("Request changes", () =>
+        button(msg("Request changes"), () =>
           action(() => respond({ decision: "reject", text: answer.value })),
         ),
         button(
-          "Approve",
+          msg("Approve"),
           () =>
             action(() => respond({ decision: "approve", text: answer.value })),
           "primary",
@@ -443,7 +722,7 @@ export class ChatController {
       );
       form.append(row);
     } else {
-      const submit = node("button", "Reply", "primary");
+      const submit = node("button", msg("Reply"), "primary");
       submit.type = "submit";
       form.append(submit);
       form.onsubmit = (event) => {

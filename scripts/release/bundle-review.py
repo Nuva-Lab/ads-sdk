@@ -71,7 +71,8 @@ pnpm install --frozen-lockfile
 pnpm playground
 ```
 
-Open `http://127.0.0.1:8995/` and connect with your user token and service URLs.
+Set `NUVA_CUSTOMER_API_KEY` and `NUVA_EXTERNAL_USER_ID` in `.env` or your environment first.
+Open `http://127.0.0.1:8995/`; the local Go backend manages user tokens.
 
 ## Formats
 

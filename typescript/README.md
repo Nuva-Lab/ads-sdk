@@ -64,7 +64,7 @@ Scripts use `script@1`; `data.text` contains the validated version-2 ScriptPacka
 
 Use `scripts.generate` for a direct request or ask the Agent to write and revise within a conversation. `prompts.generate` takes a saved Script ID and returns `{prompts}` in clip order. Each Prompt is saved independently. If a later save fails, `PartialCreationError.saved.prompts` contains the records already saved; inspect them before retrying.
 
-`videos.generate({prompt: prompt.id})` submits a saved Prompt for video generation. Jobs expose status, error and an eventual Asset. `jobs.subscribe`, `jobs.cancel` and `job.result` keep submission separate from completion; stopping chat does not cancel a Job.
+`videos.generate({prompt: prompt.id})` submits a saved Prompt for video generation. Jobs expose status, error and an eventual Asset. `jobs.get`, `jobs.subscribe` and `job.result` keep submission separate from completion. Stopping chat or unsubscribing does not cancel a Job. To request best-effort cancellation, ask the Agent; cancellation is only confirmed by the backend Job status.
 
 `videos.assemble({batch_id,composition},{idempotencyKey?})` accepts ordered clips `{asset_id,start_ms,end_ms}` plus explicit `version:1`, dimensions, fps and audio policy. It returns `{assetId,uri}`. The result includes the registered final Asset. Use `ads.get/list` and `batches.get/list` to read the associated work.
 

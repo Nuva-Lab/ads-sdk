@@ -1,142 +1,186 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Ads Agent Playground</title>
+    <title data-i18n="Ads Agent Playground">Ads Agent 工作台</title>
     <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
     <header class="app-header">
-      <a class="wordmark" href="/" aria-label="Ads Agent Playground"
-        ><span class="brand-icon">a</span
-        ><span>ads<span class="wordmark-light"> playground</span></span></a
-      ><span class="header-divider"></span
-      ><span class="header-label">Your creative workspace</span
-      ><button id="connection-button" class="connection-button">
-        <span class="connection-dot"></span
-        ><span id="connection-label">Connect</span>
-      </button>
+      <a
+        class="wordmark"
+        href="/"
+        aria-label="Ads Agent 工作台"
+        data-i18n-attrs='{"aria-label": "Ads Agent Playground"}'
+        ><span
+          ><span data-i18n="Ads">广告</span
+          ><span class="wordmark-light">
+            <span data-i18n="Playground">工作台</span></span
+          ></span
+        ></a
+      >
+      <div class="header-actions">
+        <button id="connection-button" class="connection-button">
+          <span class="connection-dot"></span
+          ><span id="connection-label"
+            ><span data-i18n="Connect">连接</span></span
+          >
+        </button>
+        <label class="language-control">
+          <span id="language-icon" aria-hidden="true"></span>
+          <select
+            id="ui-language"
+            aria-label="界面语言"
+            data-i18n-attrs='{"aria-label":"Interface language"}'
+          >
+            <option value="zh-CN">中文</option>
+            <option value="en">English</option>
+          </select>
+        </label>
+      </div>
     </header>
-    <nav class="mobile-nav" aria-label="Playground view">
+    <nav
+      class="mobile-nav"
+      aria-label="工作台视图"
+      data-i18n-attrs='{"aria-label": "Playground view"}'
+    >
       <button id="mobile-workspace" class="active" type="button">
-        Workspace</button
-      ><button id="mobile-chat" type="button">Ads Agent</button>
+        <span data-i18n="Workspace">工作区</span></button
+      ><button id="mobile-chat" type="button">
+        <span data-i18n="Ads Agent">Ads Agent</span>
+      </button>
     </nav>
     <div id="notice" role="status" hidden></div>
     <main class="workspace-layout">
-      <section class="workspace" aria-label="Creation workspace">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">MAKE SOMETHING WORTH WATCHING</p>
-            <h1>From idea to ad.</h1>
-            <p class="workspace-description">
-              Your products, stories and finished work, together.
-            </p>
-          </div>
+      <section
+        class="workspace"
+        aria-label="创作工作区"
+        data-i18n-attrs='{"aria-label": "Creation workspace"}'
+      >
+        <div class="workspace-toolbar">
+          <div id="tabs" class="tabs" role="tablist"></div>
           <button
             id="refresh-workspace"
             class="icon-button"
-            aria-label="Refresh workspace"
-            title="Refresh workspace"
+            aria-label="刷新工作区"
+            title="刷新工作区"
+            data-i18n-attrs='{"aria-label": "Refresh workspace", "title": "Refresh workspace"}'
           >
             ↻
           </button>
         </div>
-        <div id="tabs" class="tabs" role="tablist"></div>
-        <div id="resource-update"></div>
-        <div id="workspace-content">
-          <div class="welcome">
-            <div class="welcome-symbol">✳</div>
-            <h2>A little inspiration. A lot of possibility.</h2>
-            <p>Connect your workspace to bring your next ad to life.</p>
-            <button id="welcome-connect" class="primary">
-              Connect workspace <span>↗</span>
-            </button>
-            <div class="journey">
-              <span>01 &nbsp; Add a product</span
-              ><span>02 &nbsp; Shape the story</span
-              ><span>03 &nbsp; Make it move</span>
-            </div>
-          </div>
-        </div>
+        <div id="workspace-content"></div>
       </section>
-      <aside class="chat-panel" aria-label="Ads Agent chat">
+      <aside
+        class="chat-panel"
+        aria-label="Ads Agent 对话"
+        data-i18n-attrs='{"aria-label": "Ads Agent chat"}'
+      >
         <div class="chat-heading">
           <div class="agent-heading">
             <span class="agent-mark">✳</span>
-            <h2>Ads Agent</h2>
+            <h2><span data-i18n="Ads Agent">Ads Agent</span></h2>
             <span id="chat-status" class="status-badge" data-state="offline"
-              >Offline</span
+              ><span data-i18n="Offline">未连接</span></span
             >
           </div>
           <button
             id="new-session"
             class="icon-button"
-            title="New conversation"
-            aria-label="New conversation"
+            title="新对话"
+            aria-label="新对话"
             disabled
+            data-i18n-attrs='{"title": "New conversation", "aria-label": "New conversation"}'
           >
             ＋
           </button>
         </div>
         <div class="session-toolbar">
           <label class="session-select"
-            ><span class="sr-only">Conversation</span
+            ><span class="sr-only"
+              ><span data-i18n="Conversation">对话</span></span
             ><select id="sessions" disabled>
-              <option>New conversation</option>
+              <option data-i18n="New conversation">新对话</option>
             </select></label
           >
           <details class="chat-menu">
             <summary
-              aria-label="Conversation options"
-              title="Conversation options"
+              aria-label="对话选项"
+              title="对话选项"
+              data-i18n-attrs='{"aria-label": "Conversation options", "title": "Conversation options"}'
             >
               •••
             </summary>
             <div class="menu-content">
-              <button id="earlier" disabled>Load earlier messages</button
-              ><button id="reconnect" disabled>Refresh conversation</button>
+              <button id="copy-conversation-id" disabled>
+                <span data-i18n="Copy conversation ID">复制对话 ID</span>
+              </button>
+              <button id="reconnect" disabled>
+                <span data-i18n="Refresh conversation">刷新对话</span>
+              </button>
             </div>
           </details>
         </div>
         <div id="chat" role="log" aria-live="polite">
           <div class="chat-welcome">
             <div class="orb">✳</div>
-            <h3>What are we making?</h3>
+            <h3><span data-i18n="Start a conversation">开始对话</span></h3>
             <p>
-              Tell me about your product.<br />We’ll find its story together.
+              <span
+                data-i18n="Type a message or use @ to reference a saved resource."
+                >输入消息，或使用 @ 引用已保存的资源。</span
+              >
             </p>
             <button
               class="suggestion"
-              data-prompt="Help me write a script for "
+              data-prompt="请帮我编写广告脚本："
+              data-i18n-attrs='{"data-prompt": "Help me write a script for "}'
             >
-              Write a script <span>↗</span></button
-            ><button class="suggestion" data-prompt="Create video prompts for ">
-              Plan my next video <span>↗</span>
+              <span data-i18n="Write a script">编写脚本</span>
+              <span>↗</span></button
+            ><button
+              class="suggestion"
+              data-prompt="请为以下内容生成视频提示词："
+              data-i18n-attrs='{"data-prompt": "Create video prompts for "}'
+            >
+              <span data-i18n="Plan my next video">规划视频</span>
+              <span>↗</span>
             </button>
           </div>
         </div>
         <div id="agent-activity" class="agent-activity" role="status" hidden>
           <span class="typing-dots"><i></i><i></i><i></i></span
-          ><span id="activity-label">Working on your request…</span>
+          ><span id="activity-label"
+            ><span data-i18n="Working on your request…"
+              >正在处理你的请求…</span
+            ></span
+          >
         </div>
         <form id="composer" class="composer">
+          <div
+            id="composer-attachments"
+            class="composer-attachments"
+            aria-label="已附加的资源"
+            data-i18n-attrs='{"aria-label": "Attached resources"}'
+          ></div>
           <div class="editor-wrap">
             <div
               id="message"
               role="textbox"
-              aria-label="Message to Ads Agent"
+              aria-label="发送给 Ads Agent 的消息"
               aria-multiline="true"
               contenteditable="false"
-              data-placeholder="Describe your idea, or @ mention a resource…"
+              data-placeholder="描述你的想法，或用 @ 引用资源…"
+              data-i18n-attrs='{"aria-label": "Message to Ads Agent", "data-placeholder": "Describe your idea, or @ mention a resource…"}'
             ></div>
             <div
               id="mentions"
               class="mentions"
               role="listbox"
-              aria-label="Mention a resource"
+              aria-label="引用资源"
               hidden
+              data-i18n-attrs='{"aria-label": "Mention a resource"}'
             ></div>
           </div>
           <div class="composer-footer">
@@ -144,89 +188,86 @@
               id="mention-button"
               class="mention-trigger"
               type="button"
-              aria-label="Mention a resource"
+              aria-label="引用资源"
               disabled
+              data-i18n-attrs='{"aria-label": "Mention a resource"}'
             >
               @</button
             ><span class="keyboard-hint"
-              >Enter to send <span>·</span> Shift + Enter for a new line</span
+              ><span data-i18n="Enter to send">按 Enter 发送</span>
+              <span>·</span>
+              <span data-i18n="Shift + Enter for a new line"
+                >Shift + Enter 换行</span
+              ></span
             ><button id="stop" class="stop-button" type="button" hidden>
-              ■ Stop</button
+              <span data-i18n="■ Stop">■ 停止</span></button
             ><button
               id="send"
               class="send-button"
               type="submit"
-              aria-label="Send message"
+              aria-label="发送消息"
               disabled
+              data-i18n-attrs='{"aria-label": "Send message"}'
             >
               ↑
             </button>
           </div>
         </form>
-        <p class="chat-footnote">Ideas are a conversation away.</p>
       </aside>
     </main>
     <dialog id="connection-dialog">
       <form id="connection-form">
         <div class="dialog-heading">
           <div>
-            <p class="eyebrow">WELCOME TO YOUR WORKSPACE</p>
-            <h2>Let’s get connected.</h2>
+            <p class="eyebrow">
+              <span data-i18n="YOUR WORKSPACE">工作区</span>
+            </p>
+            <h2><span data-i18n="Connection settings">连接设置</span></h2>
           </div>
           <button
             type="button"
             id="close-connection"
             class="icon-button"
-            aria-label="Close"
+            aria-label="关闭"
+            data-i18n-attrs='{"aria-label": "Close"}'
           >
             ×
           </button>
         </div>
         <p class="muted">
-          Use your service details and a user token to get started.
+          <span data-i18n="Choose the service endpoints for your workspace."
+            >设置工作区使用的服务地址。</span
+          >
         </p>
-        <label class="field"
-          ><span>User token</span
-          ><input
-            id="user-token"
-            type="password"
-            autocomplete="off"
-            required
-            placeholder="Paste your user token"
-        /></label>
-        <p class="field-help">Kept only while this page is open.</p>
         <div class="connection-fields">
           <label class="field"
-            ><span>Agent URL</span
+            ><span><span data-i18n="Agent URL">智能体服务地址</span></span
             ><input
               id="agent-url"
               type="url"
-              value="http://127.0.0.1:8980/api"
               placeholder="https://your-agent.example/api"
               required /></label
           ><label class="field"
-            ><span>Resource Store URL</span
+            ><span
+              ><span data-i18n="Resource Store URL">资源服务地址</span></span
             ><input
               id="store-url"
               type="url"
-              value="https://api-staging.nuvalab.ai"
               placeholder="https://your-store.example"
               required /></label
           ><label class="field"
-            ><span>Generation URL</span
+            ><span><span data-i18n="Generation URL">生成服务地址</span></span
             ><input
               id="generation-url"
               type="url"
-              value="http://127.0.0.1:8980"
               placeholder="https://your-generation.example"
               required
           /></label>
         </div>
         <p id="connection-error" class="form-error" role="alert" hidden></p>
         <div class="dialog-footer">
-          <button type="button" id="disconnect" hidden>Disconnect</button
-          ><button type="submit" class="primary" id="connect-submit">
-            Open workspace ↗
+          <button type="submit" class="primary" id="connect-submit">
+            <span data-i18n="Apply settings ↗">应用设置 ↗</span>
           </button>
         </div>
       </form>

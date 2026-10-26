@@ -1,0 +1,18 @@
+subject_definitions:
+<Subject 1> is the travel cup in <Picture 1>. Preserve its shape, lid and muted green finish.
+
+summary:
+A twelve-second morning scene follows <Subject 1> from the kitchen counter to the first sip. Use <Picture 1> as the product reference.
+
+retention_analysis:
+Keep the product design and proportions unchanged. The setting and camera movement may change.
+
+detailed_description:
+[Shot 1] Warm window light falls across the counter. The camera moves toward <Subject 1> as a hand reaches for the cup.
+[Shot 2] A close shot of the lid opening, followed by the cup resting beside a notebook.
+
+overall_soundscape:
+Soft room ambience and a quiet lid click. No dialogue.
+
+non_diegetic_music:
+A light, restrained instrumental bed.

@@ -15,8 +15,13 @@ for (const name of ["workspace", "resources"])
     format: "esm",
     platform: "node",
   });
-const { productFields, productData, mergeResources, resourcesForSession } =
-  await import(pathToFileURL(join(directory, "workspace.mjs")));
+const {
+  productFields,
+  productData,
+  mergeResources,
+  resourcesForSession,
+  resourcesForTab,
+} = await import(pathToFileURL(join(directory, "workspace.mjs")));
 const { keyed } = await import(pathToFileURL(join(directory, "resources.mjs")));
 test("editing a product preserves its captured optional data and version base", () => {
   const product = {
@@ -92,4 +97,51 @@ test("a lost response keeps the original operation key and refuses changed input
     if (prior === undefined) delete globalThis.localStorage;
     else globalThis.localStorage = prior;
   }
+});
+
+test("gallery tabs keep clip and input Assets out of Finals and deduplicate registered final videos", () => {
+  const records = [
+    { ref: { kind: "script", id: "script" }, label: "Script", sessionId: "s" },
+    { ref: { kind: "job", id: "job" }, label: "Clip", sessionId: "s" },
+    {
+      ref: { kind: "asset", id: "input" },
+      label: "Reference image",
+      sessionId: "s",
+    },
+    {
+      ref: { kind: "asset", id: "clip" },
+      label: "Generated clip",
+      purpose: "clip",
+      sessionId: "s",
+    },
+    {
+      ref: { kind: "asset", id: "final" },
+      label: "Final",
+      purpose: "final",
+      sessionId: "s",
+    },
+    {
+      ref: { kind: "ad", id: "ad" },
+      label: "Final ad",
+      finalAssetId: "final",
+      sessionId: "s",
+    },
+  ];
+  assert.deepEqual(
+    resourcesForTab(records, "script").map((r) => r.ref.id),
+    ["script"],
+  );
+  assert.deepEqual(
+    resourcesForTab(records, "job").map((r) => r.ref.id),
+    ["job"],
+  );
+  assert.deepEqual(
+    resourcesForTab(records, "asset").map((r) => r.ref.id),
+    ["ad"],
+  );
+  const [refreshed] = mergeResources(
+    [records[3]],
+    [{ ref: records[3].ref, label: "Clip", sessionId: "s" }],
+  );
+  assert.equal(refreshed.purpose, "clip");
 });

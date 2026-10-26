@@ -25,7 +25,6 @@ const writes = new Set([
 	'ads.submitMapping',
 	'videos.generate',
 	'videos.assemble',
-	'jobs.cancel',
 	'prompts.generate',
 	'products.create',
 	'products.update',

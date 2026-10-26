@@ -409,7 +409,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 					o?.idempotencyKey,
 				),
 		},
-		jobs: { get: getJob, cancel: (id, o) => dto('jobs.cancel', { id }, 'JobOut', o?.requestId), subscribe },
+		jobs: { get: getJob, subscribe },
 		videos: {
 			assemble: async (input, o) =>
 				request('videos.assemble', checked(assembleVideoSchema, input, true), assembledVideoSchema, o?.requestId, o?.idempotencyKey),

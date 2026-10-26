@@ -43,7 +43,6 @@ export function dataRequest(
 		return { method: 'POST', path: '/v1/generate/' + collection!.slice(0, -1), body: p, generation: collection !== 'videos' };
 	if (method === 'assets.uploadIntent') return { method: 'POST', path: '/v1/assets/uploads', body: p };
 	if (method === 'assets.register') return { method: 'POST', path: '/v1/assets', body: p };
-	if (method === 'jobs.cancel') return { method: 'POST', path: `/v1/jobs/${resourceId(p.id)}/cancel` };
 	if (method === 'skills.version') return { method: 'GET', path: `/v1/skills/${resourceId(p.id)}/versions/${p.version}` };
 	if (method === 'batches.appendLog') return { method: 'POST', path: `/v1/batches/${resourceId(p.id)}/log`, body: p.input };
 	if (['products', 'brands', 'characters', 'assets', 'jobs', 'ads', 'batches', 'skills', 'sessions'].includes(collection!)) {

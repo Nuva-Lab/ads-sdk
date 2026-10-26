@@ -1,4 +1,5 @@
 import { bootWorkspace } from "../src/client.js";
+import { msg, setText } from "../src/i18n.js";
 import type { NuvaClient, AgentReadState, MessageView } from "@nuva/sdk";
 // This fixture is built only by fixture-server.mjs; the customer bundle never imports it.
 import { draftValue } from "../../typescript/dist/message.js";
@@ -25,6 +26,7 @@ const product = {
   },
   assets: { cup: { download_url: location.origin + "/cup.svg" } },
 };
+const productList: any[] = [product];
 let session = {
   id: sId,
   kind: "work",
@@ -50,6 +52,76 @@ let messages: MessageView[] = [
     attachments: [],
   } as MessageView,
 ];
+const referencePromptId = "44444444-4444-4444-8444-444444444444";
+const referenceJobId = "55555555-5555-4555-8555-555555555555";
+const referenceAsset = (id: string, kind: string, path: string) => ({
+  id,
+  kind,
+  mime:
+    kind === "image"
+      ? "image/svg+xml"
+      : kind === "video"
+        ? "video/mp4"
+        : "audio/wav",
+  source: "uploaded",
+  size_bytes: 1000,
+  metadata: { duration_ms: 1000 },
+  created_at: "2026-10-26T09:40:00Z",
+  download_url: location.origin + path,
+  download_url_expires_at: "2099-01-01T00:00:00Z",
+});
+const referenceAssets = {
+  cup: referenceAsset("cup", "image", "/cup.svg"),
+  motion: referenceAsset("motion", "video", "/reference.mp4"),
+  sound: referenceAsset("sound", "audio", "/reference.wav"),
+};
+const referencePrompt = {
+  id: referencePromptId,
+  kind: "prompt",
+  ref: { kind: "prompt", id: referencePromptId },
+  label: "Reference preview",
+  lineage_id: referencePromptId,
+  base_id: null,
+  schema_version: 1,
+  batch_id: null,
+  created_at: "2026-10-26T09:40:00Z",
+  assets: referenceAssets,
+  entities: {},
+  skills: {},
+  data: {
+    seconds: 4,
+    ratio: "16:9",
+    image_asset_ids: ["cup"],
+    video_asset_ids: ["motion"],
+    audio_asset_ids: ["sound"],
+    prompt:
+      "subject_definitions:\n<Subject 7> is the cup in <Picture 1>.\n\nsummary:\nKeep <Picture 1> recognizable. Use <Video 1> for camera movement and <Audio 1> for the sound reference.\n\ndetailed_description:\n[Shot 1] Move around <Subject 7> slowly. Match <Video 1> while keeping <Picture 1> unchanged.\n\noverall_soundscape:\nUse <Audio 1>.\n\nnon_diegetic_music:\nNone.",
+  },
+};
+const referenceJob = {
+  id: referenceJobId,
+  status: "completed",
+  prompt: referencePromptId,
+  seed: 0,
+  resolution: "768P",
+  checkpoint: "Fixture video model",
+  batch_id: null,
+  asset: referenceAssets.motion,
+  error: null,
+  callback: null,
+  created_at: "2026-10-26T09:41:00Z",
+};
+messages[0].content.push(
+  { id: "reference-prompt", type: "resource", record: referencePrompt } as any,
+  {
+    id: "reference-job",
+    type: "resource",
+    record: {
+      ref: { kind: "job", id: referenceJobId },
+      label: "Reference clip",
+    },
+  } as any,
+);
 let status = "idle";
 const listeners = new Set<(s: AgentReadState) => void>();
 function emit() {
@@ -134,13 +206,61 @@ const sdk = {
     },
   },
   products: {
-    list: async () => ({ items: [product], next_cursor: null }),
-    get: async () => product,
-    update: async (input: any) => {
-      product.data = { ...product.data, ...input.data };
-      return product;
+    list: async () => ({ items: productList.slice(), next_cursor: null }),
+    get: async (id: string) => {
+      const saved = productList.find((product) => product.id === id);
+      if (!saved) throw new Error("Product not found");
+      return saved;
     },
-    create: async () => product,
+    update: async (input: any) => {
+      const index = productList.findIndex(
+        (product) => product.id === input.base.id,
+      );
+      if (index < 0 || productList[index].version !== input.base.version)
+        throw new Error("Product version conflict");
+      const saved = {
+        ...productList[index],
+        data: input.data,
+        brand_id: input.brand_id,
+        version: input.base.version + 1,
+        revision: crypto.randomUUID(),
+        label: input.data.name,
+      };
+      productList[index] = saved;
+      void fetch("/test-events", {
+        method: "POST",
+        body: JSON.stringify({
+          action: "product.updated",
+          id: saved.id,
+          data: saved.data,
+        }),
+      });
+      return saved;
+    },
+    create: async (input: any) => {
+      const id = crypto.randomUUID();
+      const saved = {
+        ...product,
+        id,
+        ref: { kind: "product", id },
+        label: input.data.name,
+        revision: id,
+        data: input.data,
+        brand_id: input.brand_id,
+        assets: {},
+        version: 1,
+      };
+      productList.push(saved);
+      void fetch("/test-events", {
+        method: "POST",
+        body: JSON.stringify({
+          action: "product.created",
+          id,
+          data: saved.data,
+        }),
+      });
+      return saved;
+    },
   },
   brands: {
     list: async () => ({
@@ -148,10 +268,16 @@ const sdk = {
       next_cursor: null,
     }),
   },
+  prompts: { get: async () => referencePrompt },
+  jobs: { get: async () => referenceJob },
+  assets: {
+    get: async (id: string) =>
+      referenceAssets[id as keyof typeof referenceAssets],
+  },
   agent: () => agent,
   close: () => {},
 } as unknown as NuvaClient;
 const app = bootWorkspace(sdk, "playground-fixture");
 await app.ready;
-document.getElementById("connection-label")!.textContent = "Connected";
+setText(document.getElementById("connection-label")!, msg("Connected"));
 document.getElementById("connection-button")!.classList.add("connected");

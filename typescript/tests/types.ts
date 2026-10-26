@@ -50,3 +50,6 @@ client.workflows;
 client.workflowRuns;
 
 void createNuva({ getAccessToken: async () => 'customer-token' });
+
+// @ts-expect-error Job cancellation is an internal Agent capability, not a customer SDK operation.
+client.jobs.cancel('00000000-0000-4000-8000-000000000001');

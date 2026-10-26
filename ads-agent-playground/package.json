@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "pnpm --dir ../typescript build && node server.mjs",
+    "start": "node start.mjs",
     "build": "pnpm --dir ../typescript build && node build.mjs",
     "typecheck": "pnpm --dir ../typescript build && tsc --noEmit",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs && cd server && go test -race ./..."
   },
   "dependencies": {
     "@nuva/sdk": "workspace:*",

@@ -10,3 +10,6 @@ __pycache__/
 *.pem
 .local/
 .secrets/
+
+!ads-agent-playground/.env.example
+*.env

@@ -1,7 +1,10 @@
+import { msg, UiError } from "./i18n.js";
 import type { Product, ResourceLink, JsonObject } from "@nuva/sdk";
 export type KnownResource = ResourceLink & {
   sessionId: string;
   sourceScriptId?: string;
+  purpose?: "clip" | "final";
+  finalAssetId?: string;
   order?: number;
 };
 export function mergeResources(
@@ -14,8 +17,10 @@ export function mergeResources(
       record,
     ]),
   );
-  for (const record of incoming)
-    map.set(`${record.sessionId}:${record.ref.kind}:${record.ref.id}`, record);
+  for (const record of incoming) {
+    const key = `${record.sessionId}:${record.ref.kind}:${record.ref.id}`;
+    map.set(key, { ...map.get(key), ...record });
+  }
   return [...map.values()].slice(-500);
 }
 export function resourcesForSession(
@@ -24,10 +29,28 @@ export function resourcesForSession(
 ) {
   return records.filter((record) => record.sessionId === sessionId);
 }
+export function resourcesForTab(
+  records: KnownResource[],
+  tab: "script" | "prompt" | "job" | "asset",
+) {
+  const registeredFinals = new Set(
+    records
+      .filter((record) => record.ref.kind === "ad")
+      .map((record) => record.finalAssetId),
+  );
+  return records.filter((record) =>
+    tab === "asset"
+      ? record.ref.kind === "ad" ||
+        (record.ref.kind === "asset" &&
+          record.purpose === "final" &&
+          !registeredFinals.has(record.ref.id))
+      : record.ref.kind === tab,
+  );
+}
 export function attributes(text: string): JsonObject {
   const value: unknown = JSON.parse(text);
   if (value === null || typeof value !== "object" || Array.isArray(value))
-    throw new Error("Attributes must be a JSON object.");
+    throw new UiError(msg("Attributes must be a JSON object."));
   return value as JsonObject;
 }
 export const lines = (text: string) =>
@@ -58,7 +81,7 @@ export function productData(
   base: Product | undefined,
   fields: ProductFields,
 ): Product["data"] {
-  if (!fields.name.trim()) throw new Error("Product name is required.");
+  if (!fields.name.trim()) throw new UiError(msg("Product name is required."));
   const before = productFields(base);
   const data: Product["data"] = base
     ? { ...base.data }
@@ -80,8 +103,8 @@ export function secondsToMs(text: string) {
     value < 0 ||
     !Number.isSafeInteger(value * 1000)
   )
-    throw new Error(
-      "Times require non-negative seconds with at most three decimals.",
+    throw new UiError(
+      msg("Times require non-negative seconds with at most three decimals."),
     );
   return value * 1000;
 }

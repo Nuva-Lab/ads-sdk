@@ -28,10 +28,10 @@ See the [Go Admin guide](go/README.md) for user-token issuance and Skill managem
 
 ```sh
 pnpm install
-pnpm playground
+cp ads-agent-playground/.env.example .env
 ```
 
-Open `http://127.0.0.1:8995/` and connect with a user token. Explore products and saved work,
+Set the two required values in `.env`, then run `pnpm playground`. See the playground guide for details. Open `http://127.0.0.1:8995/` to explore products and saved work,
 chat with the Agent, and mention resources with **@**. See the [playground guide](ads-agent-playground/README.md).
 
 ## Guides and examples

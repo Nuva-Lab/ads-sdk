@@ -1,3 +1,4 @@
+import { msg } from "./i18n.js";
 import { Message, type MessageDraft, type ResourceLink } from "@nuva/sdk";
 import { byId, node } from "./ui.js";
 export type ComposerPart =
@@ -216,7 +217,7 @@ export class Composer {
       this.picker.append(
         node(
           "p",
-          "No matching resources. Select or create a product first.",
+          msg("No matching resources. Select or create a product first."),
           "empty",
         ),
       );
@@ -227,7 +228,7 @@ export class Composer {
       option.setAttribute("role", "option");
       option.setAttribute("aria-selected", String(index === this.active));
       option.append(
-        node("span", record.ref.kind, "mention-kind"),
+        node("span", msg(record.ref.kind), "mention-kind"),
         node("span", record.label, "mention-label"),
       );
       option.onpointerdown = (event) => event.preventDefault();
