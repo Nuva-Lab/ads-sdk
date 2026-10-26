@@ -80,22 +80,21 @@ def _client_sections():
          + '<h3>Create independent clip Prompts</h3>' + store_example('prompt-generate')
          + '<p>Prompt generation uses the saved Script, reference images and selected Skill. Each clip needs at least one accessible reference image. Read its generation instructions from <code>prompt.data.prompt</code>.</p>'
          + '<p>The result is <code>{prompts}</code>, with saved Prompts in clip order. <code>PartialCreationError.saved.prompts</code> retains successfully saved records when a later save fails. Inspect those records before retrying.</p>'
-         + '<p><a href="examples/creation-chain.ts">Complete creation example</a>: Brand → Product → uploadImage → Script/revision → Prompts → video Jobs → assembly. Running the example creates resources and submits video-generation Jobs.</p>'),
-        ('media', 'Assets, video Jobs and assembly',
+         + '<p><a href="examples/creation-chain.ts">Complete creation example</a>: Brand → Product → uploadImage → Script/revision → Prompts → video Jobs → editable clips. Running the example creates resources and submits video-generation Jobs.</p>'),
+        ('media', 'Assets and video Jobs',
          table(['Method', 'Behavior'], [
              ('<code>assets.upload(file, {kind})</code>', 'Upload intent → credential-free signed PUT → Asset registration.'),
              ('<code>assets.register({url,kind})</code>', 'Register a supported external media source.'),
              ('<code>assets.get(id)</code>', 'Read metadata and fresh authorized download access.'),
              ('<code>videos.generate({prompt, ...})</code>', 'Submit a saved Prompt ID; return a Job handle.'),
-             ('<code>jobs.get / subscribe / cancel</code>', 'Read progress or request cancellation; subscription does not regenerate work.'),
-             ('<code>videos.assemble(input)</code>', 'Render explicit ordered clips and trims; return <code>{assetId,uri}</code>.'),
+             ('<code>jobs.get / subscribe</code>', 'Read progress or subscribe to status updates; subscription does not regenerate work.'),
          ]) + store_example('asset-upload') + store_example('asset-read') + store_example('video-job')
          + '<p>Pass the saved Prompt ID to <code>videos.generate</code>. An explicit Batch can reuse an authorized Prompt; if omitted, the SDK carries the Prompt’s Batch when available. Seed and resolution belong to the Job.</p>'
-         + '<p><code>result()</code> waits for <code>completed</code> and returns the registered Asset. Job states are queued/running/completed/failed/cancelled. Cancelling a subscription or stopping a chat loop does not cancel a Job. Use <code>jobs.cancel</code>; completed/failed Jobs cannot be cancelled.</p>'
-         + '<p>Asset IDs are durable; signed <code>download_url</code> and assembly <code>uri</code> expire. Direct Asset reads are uploader-scoped; an authorized shared Product or Ad can supply permitted Asset sidecars to other users. Keep those access paths distinct.</p>'
-         + '<p>Assembly uses explicit <code>start_ms/end_ms</code>, width, height, fps and <code>audio: "preserve" | "mute"</code>. Preserve requires audio in every input clip; mute deliberately removes it.</p>'),
-        ('ads', 'Final Ads', '<p>The public SDK exposes <code>ads.get/list</code> only. Assembly registers the final Asset and immutable Ad composition. Different edits create a new Ad; editor drafts remain in your application. A final Asset belongs to one Ad and prohibits assigning the same final Asset to two Ads; input reuse remains allowed.</p>'
-         + store_example('ad-read') + '<p>Composition contains ordered clips with Asset IDs and trim bounds, optional audio Asset IDs, and editor data. There is no <code>ads.update</code> or public Ad creation method.</p>'),
+         + '<p><code>result()</code> waits for <code>completed</code> and returns the registered Asset. Job states are queued/running/completed/failed/cancelled. Cancelling a subscription or stopping a chat loop does not cancel a Job. To request best-effort cancellation, ask the Agent. Only a confirmed backend status establishes that a Job was cancelled.</p>'
+         + '<p>Asset IDs are durable; signed <code>download_url</code> values expire. Direct Asset reads are uploader-scoped; an authorized shared Product or Ad can supply permitted Asset sidecars to other users. Keep those access paths distinct.</p>'
+         + '<p>Edit clips in your own editor, including subtitles and playback-speed changes. Upload the completed video and attach it to the same Agent Session, with any editing notes you want to preserve.</p>'),
+        ('ads', 'Final Ads', '<p>The public SDK exposes <code>ads.get/list</code> only. The Agent registers a supplied final video and returns its Ad ID. A different final video creates a new Ad; editor drafts remain in your application. A final Asset belongs to one Ad and prohibits assigning the same final Asset to two Ads; input reuse remains allowed.</p>'
+         + store_example('ad-read') + '<p>The current backend requires structured composition and a Batch. User hints and incomplete editing details belong in private creation trace. The existing structured Composition format stays unchanged and can be inferred later. There is no <code>ads.update</code> or public Ad creation method.</p>'),
         ('workspaces', 'Batches', '<p>Use <code>batches.get/list</code> for intent, Ads and Job counts. Batch creation and mutation are Agent-only.</p>'
          + store_example('workspaces-read')),
         ('agent', 'Start work with the Agent', '<p><code>send()</code> success acknowledges saved input. Subscribe for subsequent text, resources and client interactions. Use <code>quote()</code> and <code>replyTo()</code> to identify the exact resource or message.</p>'

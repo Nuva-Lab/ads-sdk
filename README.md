@@ -1,6 +1,6 @@
 # Ads SDK
 
-Add ad creation and Agent chat to your application. The TypeScript SDK manages products and media, writes Scripts and clip Prompts, generates videos, and assembles clips. The Go Admin SDK lets your backend issue user tokens and manage Skills.
+Add ad creation and Agent chat to your application. The TypeScript SDK manages products and media, writes Scripts and clip Prompts, generates clips, and reads Agent-registered Ads. The Go Admin SDK lets your backend issue user tokens and manage Skills.
 
 Version: **0.1.0-preview.1**.
 
@@ -31,7 +31,7 @@ See the [Go Admin guide](go/README.md) for user-token issuance and Skill managem
 | Connect the client and handle authentication | [TypeScript SDK](typescript/README.md) |
 | Build an Agent chat interface | [React examples](docs/examples/react-usage.tsx) |
 | Create products, upload media, and read saved work | [Store examples](docs/examples/store-usage.ts) |
-| Generate a Script, clip Prompts, videos, and an assembly | [Creation example](docs/examples/creation-chain.ts) |
+| Generate a Script, clip Prompts, and editable videos | [Creation example](docs/examples/creation-chain.ts) |
 | Issue user tokens and manage Skills | [Go Admin SDK](go/README.md) |
 | Read public message types and validation schemas | [Protocol package](protocol/README.md) |
 

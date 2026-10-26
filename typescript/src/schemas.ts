@@ -51,5 +51,3 @@ export const compositionSchema = z
 export { backendSchema } from './backend-schema.js';
 export type { BackendSchemas, DeployedBackendSchemas } from './backend-target.js';
 export { encodeScriptPackage, decodeScriptPackage } from './script-content.js';
-export { assembleVideoSchema, assembledVideoSchema } from './assembly-schemas.js';
-export type { AssembleVideoInput, AssembledVideoResult } from './assembly-schemas.js';
