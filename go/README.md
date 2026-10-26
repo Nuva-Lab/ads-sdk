@@ -1,4 +1,4 @@
-# Nuva Go Admin SDK — v0.1.0-preview.3
+# Nuva Go Admin SDK — v0.1.0-preview.4
 
 This standalone Go module implements customer token issuance and Skill registration/read APIs. It uses only the Go standard library and Go 1.22+. `github.com/Nuva-Lab/ads-sdk/go` is the module path in this private SDK repository. Go versions resolve through `go/v*` repository tags; repository read access is required. Local packaging is independently checked without importing the Agent runtime or TypeScript source.
 
@@ -74,7 +74,7 @@ The release bundle contains the versioned Go zip and a local module proxy. A fre
 
 ```sh
 GOPROXY=file:///absolute/path/to/release/go-proxy GOSUMDB=off \
-  go get github.com/Nuva-Lab/ads-sdk/go@v0.1.0-preview.3
+  go get github.com/Nuva-Lab/ads-sdk/go@v0.1.0-preview.4
 ```
 
 `GOSUMDB=off` is scoped to this explicitly supplied unpublished local bundle; verify `SHA256SUMS` before using it. It is not guidance for disabling verification of ordinary published modules. `node scripts/release/check.mjs <release-directory>` tests the exact zip from that proxy in a new module cache and checks that no `replace` or source-copy shortcut is used.

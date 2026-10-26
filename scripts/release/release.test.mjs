@@ -59,6 +59,9 @@ test('repeat local builds produce identical delivered bytes and public-only inve
 		assert.equal(first.npm['@nuva/sdk'].version, VERSION);
 		assert.equal(first.npm['@nuva/protocol'].version, VERSION);
 		assert.equal(first.go.version, GO_VERSION);
+		assert.ok(first.go.files.includes('client_test.go'));
+		assert.ok(first.go.files.includes('examples/learning/publisher_test.go'));
+		assert.ok(first.go.files.includes('scripts/check-package.sh'));
 		assert.equal(first.wireRevision, 1);
 		assert.equal(first.httpSchemaVersion, 1);
 		assert.equal(first.artifactSchemaVersion, 1);
@@ -71,11 +74,11 @@ test('repeat local builds produce identical delivered bytes and public-only inve
 			);
 		assert.ok(
 			first.source.files.every(
-				(path) => !/(^|\/)(services|forks|tests|skills|recipes|\.local|\.secrets|node_modules)(\/|$)|_test\.go$|\.dev\.vars/.test(path),
+				(path) => !/(^|\/)(services|forks|tests|skills|recipes|\.local|\.secrets|node_modules)(\/|$)|\.dev\.vars/.test(path),
 			),
 		);
 		const sourceList = run('tar', ['-tzf', resolve(temporary, 'first', `ads-sdk-source-${VERSION}.tar.gz`)]);
-		assert.doesNotMatch(sourceList, /research-iteration-guide|staging-smoke\.json|\.dev\.vars|client_test\.go/);
+		assert.doesNotMatch(sourceList, /research-iteration-guide|staging-smoke\.json|\.dev\.vars/);
 		assert.ok((await readFile(resolve(temporary, 'first', 'SHA256SUMS'), 'utf8')).includes('manifest.json'));
 	} finally {
 		await rm(temporary, { recursive: true, force: true });

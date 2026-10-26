@@ -63,7 +63,8 @@ export async function buildRelease({ output = DIST, origins } = {}) {
 			}
 		}
 		const goRoot = resolve(ROOT, 'go');
-		const goFiles = ['go.mod', 'client.go', 'types.go', 'README.md', 'examples/learning/publisher.go', 'examples/learning/README.md'];
+		// Go checksums include tests and support files: use the complete module tree.
+		const goFiles = await files(goRoot);
 		if (!(await readFile(resolve(goRoot, 'client.go'), 'utf8')).includes(`const Version = "${GO_VERSION}"`))
 			throw new Error('Go version mismatch.');
 		for (const path of goFiles) {
@@ -87,7 +88,7 @@ export async function buildRelease({ output = DIST, origins } = {}) {
 		if (origins) await writeFile(resolve(stage, 'source/approved-origins.json'), JSON.stringify(origins, null, 2) + '\n');
 		await writeFile(
 			resolve(stage, 'source/BUILD.md'),
-			`# SDK source ${VERSION}\n\nInstall with pnpm 11.7.0, Node 22+, Python 3 and Go 1.22+. Run \`pnpm install --frozen-lockfile\`, then \`node scripts/release/build.mjs${origins ? ' --origins approved-origins.json' : ''}\`. Source excludes runtime, credentials, maintainer-only Skill content and tests. This bundle contains public SDK implementations; the root lock retains dependency integrity metadata. No registry publication or Git repository is created.\n`,
+			`# SDK source ${VERSION}\n\nInstall with pnpm 11.7.0, Node 22+, Python 3 and Go 1.22+. Run \`pnpm install --frozen-lockfile\`, then \`node scripts/release/build.mjs${origins ? ' --origins approved-origins.json' : ''}\`. Source excludes runtime, credentials, maintainer-only Skill content and TypeScript tests. Go test/support files are retained for identical module checksums. This bundle contains public SDK implementations; the root lock retains dependency integrity metadata. No registry publication or Git repository is created.\n`,
 		);
 		run('python3', [resolve(ROOT, 'scripts/release/archives.py'), stage, output, VERSION, GO_MODULE]);
 		// Inventory only this build's outputs. Review bundles and other files beside them belong to their owner.
@@ -120,7 +121,6 @@ export async function buildRelease({ output = DIST, origins } = {}) {
 					'services/',
 					'forks/',
 					'tests/',
-					'*_test.go',
 					'.local/',
 					'.dev.vars*',
 					'.secrets/',
