@@ -12,8 +12,6 @@ Download the SDK bundle provided for your integration, then install the client p
 pnpm add /path/to/nuva-sdk-0.1.0-preview.1.tgz
 ```
 
-The matching protocol package is included.
-
 Start with the [TypeScript guide](typescript/README.md), [React examples](docs/examples/react-usage.tsx), or the [complete creation example](docs/examples/creation-chain.ts).
 
 ## Go

@@ -32,9 +32,6 @@ This bundle contains the TypeScript client, Go Admin module and integration docu
 pnpm add /path/to/nuva-sdk-{VERSION}.tgz
 ```
 
-The client tarball includes its matching protocol dependency. Install the separate protocol
-tarball only if you import `@nuva/protocol` directly. React applications also need `pnpm add react`.
-
 Open `docs/frontend.html` for Agent chat and React examples, or `docs/store.html` for resource
 management and video creation. Use the service URLs and credentials provided for your environment.
 

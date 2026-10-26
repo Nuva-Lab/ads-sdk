@@ -1,18 +1,14 @@
 # TypeScript SDK (0.1.0-preview.1)
 
-`@nuva/sdk` is an ESM Agent and Store client with optional React bindings. This release pins `@nuva/protocol@0.1.0-preview.1`. Package versions are distinct from the public HTTP/wire and Artifact schema revision **1** and the inner ScriptPackage version **2**.
+`@nuva/sdk` provides Agent chat, resource management and ad-creation APIs for TypeScript applications.
 
-## Install the review bundle
+## Install
 
-Install the SDK tarball supplied with your integration. It includes the matching protocol package:
+Install the SDK package supplied with your integration:
 
 ```sh
 pnpm add /path/to/release/nuva-sdk-0.1.0-preview.1.tgz
-# Only applications using the React entrypoint need React:
-pnpm add react
 ```
-
-The bundle includes `SHA256SUMS` for file verification. React is optional; applications using only the core client do not need it.
 
 ## Connect and authenticate
 
