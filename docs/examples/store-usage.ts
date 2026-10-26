@@ -11,9 +11,9 @@ import {
 } from '@nuva/sdk';
 import { encodeScriptPackage, type BackendSchemas } from '@nuva/sdk/schemas';
 
-export function initialize(getAccessToken: () => Promise<string | AccessToken>) {
+export function initialize(getAccessToken: () => Promise<string | AccessToken>, endpoints: { agent: string; generation: string; store: string }) {
 	// #region initialize
-	const nuva = createNuva({ getAccessToken });
+	const nuva = createNuva({ getAccessToken, baseUrl: endpoints.agent, generationBaseUrl: endpoints.generation, storeBaseUrl: endpoints.store });
 	// #endregion initialize
 	return nuva;
 }
@@ -146,7 +146,7 @@ export function initializePreview(
 	origins: { agent: string; generation: string; store: string },
 ) {
 	// #region preview-initialize
-	// Use only the approved origins supplied with this preview release.
+	// Service URLs supplied for your environment.
 	const nuva = createNuva({
 		getAccessToken,
 		baseUrl: origins.agent,

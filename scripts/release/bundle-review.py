@@ -22,45 +22,53 @@ def main():
         assert not path.is_absolute() and ".." not in path.parts
         assert hashlib.sha256((RELEASE / path).read_bytes()).hexdigest() == digest, name
         artifacts.append(path)
-    readme = f"""# Ads SDK 0.1 preview — review bundle
+    readme = f"""# Ads SDK {VERSION}
 
-Version: {VERSION} (Go tag v{VERSION}).
+This bundle contains the TypeScript client, Go Admin module and integration documentation.
 
-This is a review bundle, not proof of registry publication or hosted Agent release. Inspect manifest.json for service-origin configuration and confirm approved service origins and customer access with your Nuva contact before sending a final customer release. No service credentials or internal handoff documents are included.
-
-## Contents
-
-- nuva-sdk-{VERSION}.tgz — client Agent/Store SDK and optional React entrypoint.
-- nuva-protocol-{VERSION}.tgz — matching public protocol dependency.
-- go-proxy/ — exact versioned Go Admin module zip/mod/info and local proxy layout.
-- ads-sdk-source-{VERSION}.tar.gz — allowlisted SDK sources and build tooling.
-- docs/frontend.html, docs/store.html, docs/backend-go.html — customer reference and examples.
-- manifest.json, SHA256SUMS, verification.json — inventories, hashes and consumer evidence.
-- BUNDLE-SHA256SUMS — checksums for all files in this bundle.
-
-## Install the exact TypeScript archives
-
-From the customer application directory:
+## TypeScript
 
 ```sh
-pnpm add /absolute/path/nuva-sdk-{VERSION}.tgz
+pnpm add /path/to/nuva-sdk-{VERSION}.tgz
 ```
 
-When manifest.json reports unconfigured Agent/generation origins, the preview requires explicit approved endpoint overrides. The intended released constructor needs only getAccessToken after verified service origins are baked into the package. A localhost URL is not a customer service. Repack and rerun the exact-archive checks once origins are approved.
+The client tarball includes its matching protocol dependency. Install the separate protocol
+tarball only if you import `@nuva/protocol` directly. React applications also need `pnpm add react`.
 
-## Install the exact Go module archive
+Open `docs/frontend.html` for Agent chat and React examples, or `docs/store.html` for resource
+management and video creation. Use the service URLs and credentials provided for your environment.
 
-From the customer Go application directory:
+## Go
+
+With authenticated repository access:
 
 ```sh
-GOPROXY="file:///absolute/path/to/bundle/go-proxy,https://proxy.golang.org,direct" GONOSUMDB=github.com/Nuva-Lab/ads-sdk/go go get github.com/Nuva-Lab/ads-sdk/go@v{VERSION}
+GOPRIVATE=github.com/Nuva-Lab/ads-sdk go get github.com/Nuva-Lab/ads-sdk/go@v{VERSION}
 ```
 
-This uses the supplied versioned module proxy. It needs neither a replace directive nor access to an unpublished repository. The private repository also supports authenticated Go installation through its go/v* tags.
+For offline installation from this bundle:
 
-## Version boundaries
+```sh
+GOPROXY="file:///absolute/path/to/bundle/go-proxy" GONOPROXY=none GOSUMDB=off go get github.com/Nuva-Lab/ads-sdk/go@v{VERSION}
+```
 
-Public wire revision and resource API/schema versions are 1. ScriptPackage version 2 remains inside script@1.data.text; existing data is not renumbered. Raw-input video submission and generic Artifact relationships require a coordinated backend/SDK update and are not exposed by this preview. Current video generation uses a saved Prompt ID.
+The checksum setting above applies only to that private archive command. Verify the bundle's
+checksums first. Open `docs/backend-go.html` for token issuance and Skill management.
+
+## Files
+
+- `nuva-sdk-{VERSION}.tgz`: TypeScript Agent/Store client and optional React entrypoint.
+- `nuva-protocol-{VERSION}.tgz`: public protocol types and schemas.
+- `go-proxy/`: Go module archive and offline proxy metadata.
+- `ads-sdk-source-{VERSION}.tar.gz`: SDK source and build tools.
+- `docs/`: HTML guides and TypeScript, React and Go examples.
+- `manifest.json`, `SHA256SUMS`, `BUNDLE-SHA256SUMS`: package inventory and file checksums.
+- `verification.json`: package installation checks.
+
+## Formats
+
+The public message protocol and Artifact schemas use version 1. `script.content` is the typed
+ScriptPackage v2 representation of a saved Script. Use `videos.generate` with a saved Prompt ID.
 """
     with tempfile.TemporaryDirectory(prefix="ads-sdk-review-") as temporary:
         stage = Path(temporary)

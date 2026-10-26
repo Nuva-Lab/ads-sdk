@@ -13,4 +13,4 @@ Private watcher candidate
 
 The HTTP fixture test verifies source text preservation, Admin-only authentication, registration before activation, tenant mismatch and policy rejection before network dispatch. This can run automatically under the customer's policy; no Agent tool gets the Admin key or main-switch permission.
 
-If activation fails, `Result.Registered` preserves the saved version so the host can retry activation directly. The host must persist its work/receipt as appropriate; this small integration example is not a scheduler or a durable customer job queue. The observed backend has no compare-and-swap main-version precondition, so concurrent activation policy still needs coordination. No external candidate endpoint or production publication is configured by this example.
+If activation fails, `Result.Registered` preserves the saved version so the host can retry activation directly. The host must persist its work/receipt as appropriate; this small integration example is not a scheduler or a durable customer job queue. Serialize activation for a given Skill when multiple publishers may update it. Supply your own source adapter and publication policy.

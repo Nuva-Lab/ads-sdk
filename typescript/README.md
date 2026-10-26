@@ -1,10 +1,10 @@
-# Nuva TypeScript SDK — 0.1.0-preview.1
+# TypeScript SDK (0.1.0-preview.1)
 
 `@nuva/sdk` is an ESM Agent and Store client with optional React bindings. This release pins `@nuva/protocol@0.1.0-preview.1`. Package versions are distinct from the public HTTP/wire and Artifact schema revision **1** and the inner ScriptPackage version **2**.
 
 ## Install the review bundle
 
-The packages are delivered as local archives; registry publication is separate. Use pnpm to install the SDK tarball; it includes the matching protocol package:
+Install the SDK tarball supplied with your integration. It includes the matching protocol package:
 
 ```sh
 pnpm add /path/to/release/nuva-sdk-0.1.0-preview.1.tgz
@@ -12,12 +12,11 @@ pnpm add /path/to/release/nuva-sdk-0.1.0-preview.1.tgz
 pnpm add react
 ```
 
-The release directory includes `SHA256SUMS`, a complete file manifest, and independent-consumer verification. The SDK has no private Agent-runtime, Cloudflare or model-provider dependency. React is an optional peer dependency; headless imports do not install it.
+The bundle includes `SHA256SUMS` for file verification. React is optional; applications using only the core client do not need it.
 
 ## Connect and authenticate
 
-The normal API is `createNuva({getAccessToken})`. Agent/generation origins must be explicitly confirmed in the release manifest before a bundle can support that form. The current source leaves those origins unconfigured; the Store source default is `https://api.nuvalab.ai`. Development/test services can supply explicit overrides:
-
+Use the service URLs provided for your environment. Supply a token callback that calls your authenticated backend:
 ```ts
 import { createNuva, Message } from '@nuva/sdk';
 const nuva = createNuva({
@@ -67,15 +66,15 @@ Backend resource IDs are canonical GUID-shaped identifiers, including backend Or
 
 Scripts use `script@1`; `data.text` contains the validated version-2 ScriptPackage encoding. Typed Script readers expose decoded `.content` and preserve backend metadata. Both codec directions enforce the backend 65,536-character limit. `scripts.update(ref,{content,...})` creates an immutable revision. A source Product reference in Script data identifies the saved entity revision; use its `entities` sidecar to resolve the continuing Product ID and version.
 
-Direct Script generation uses a standalone writer Agent and default Skill. The Session Agent uses its own conversation and loaded Script Skill to author/save Scripts directly. Prompt generation uses the saved Script and returns `{prompts}` in clip order. It does not create a DirectingPlan; `plan`/`clip_key` are absent or null. `PartialCreationError.saved.prompts` retains validated partial records—preserve them and reconcile before deciding to retry.
+Use `scripts.generate` for a direct request or ask the Agent to write and revise within a conversation. `prompts.generate` takes a saved Script ID and returns `{prompts}` in clip order. Each Prompt is saved independently. If a later save fails, `PartialCreationError.saved.prompts` contains the records already saved; inspect them before retrying.
 
-`videos.generate` currently accepts a saved Prompt ID. It does not accept raw video prompts. Jobs expose status, error and an eventual Asset. `jobs.subscribe`, `jobs.cancel` and `job.result` keep submission separate from completion; stopping chat does not cancel a Job.
+`videos.generate({prompt: prompt.id})` submits a saved Prompt for video generation. Jobs expose status, error and an eventual Asset. `jobs.subscribe`, `jobs.cancel` and `job.result` keep submission separate from completion; stopping chat does not cancel a Job.
 
-`videos.assemble({batch_id,composition},{idempotencyKey?})` accepts ordered clips `{asset_id,start_ms,end_ms}` plus explicit `version:1`, dimensions, fps and audio policy. It returns `{assetId,uri}`. The service performs final Asset/Ad registration internally. Customer SDK methods do not expose Batch or Ad writes.
+`videos.assemble({batch_id,composition},{idempotencyKey?})` accepts ordered clips `{asset_id,start_ms,end_ms}` plus explicit `version:1`, dimensions, fps and audio policy. It returns `{assetId,uri}`. The result includes the registered final Asset. Use `ads.get/list` and `batches.get/list` to read the associated work.
 
 ## Reads, media and operation identity
 
-Use `assets.get`, `scripts.get(ref)`, `prompts.get(ref)`, `jobs.get`, `ads.get/list`, `batches.get/list` and `skills.get/list/version`. Lists expose both `next_cursor` and `nextCursor`. There are no Script/Prompt/Asset/Job catalogue methods; retain returned IDs and Session resource cards. There is no public Artifact relationship-tree API.
+Use `assets.get`, `scripts.get(ref)`, `prompts.get(ref)`, `jobs.get`, `ads.get/list`, `batches.get/list` and `skills.get/list/version`. Lists expose both `next_cursor` and `nextCursor`. Retain the Script, Prompt, Asset and Job IDs returned by calls or Agent resource cards so you can read them later.
 
 Asset uploads send bytes to the authorized upload URL without backend bearer headers or redirects. Expired media URLs should be refreshed through an authorized read of the same resource, including entity sidecars where applicable. Metadata is not a new access grant.
 

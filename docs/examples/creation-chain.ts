@@ -1,9 +1,6 @@
 import type { NuvaClient, Asset } from '@nuva/sdk';
 
-/** Explicitly invoked example. Running this function can submit generation work.
- * Requires configured generation and assembly services; it is not executed by
- * the documentation build. Product attributes are available on Core staging;
- * the Agent/writer/assembly deployment is a separate step. */
+/** Create a Product video from an image. Calling this function creates resources and submits generation Jobs. */
 export async function createProductVideo(nuva: NuvaClient, file: File, revisionInstruction?: string) {
 	const brand = await nuva.brands.create({ data: { name: 'Example Brand' } });
 	const product = await nuva.products.create({
@@ -11,7 +8,7 @@ export async function createProductVideo(nuva: NuvaClient, file: File, revisionI
 		data: {
 			name: 'Travel cup',
 			facts: ['350 ml capacity'],
-			// Nested JSON supported by the staging Product contract.
+			// Additional Product fields expressed as JSON.
 			attributes: { catalog: { color: 'ocean blue', capacityMl: 350 } },
 		},
 	});

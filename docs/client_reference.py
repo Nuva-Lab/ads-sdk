@@ -46,44 +46,41 @@ def store_example(name):
 
 AGENT_SECTIONS = ('start', 'agent', 'session', 'messages', 'client-tools', 'host-calls', 'reference')
 STORE_SECTIONS = ('stores', 'products', 'artifacts', 'generation', 'media', 'ads', 'workspaces')
-PREVIEW = ('<p><code>@nuva/sdk@0.1.0-preview.1</code> uses <code>@nuva/protocol@0.1.0-preview.1</code>, wire revision 1 and public <code>/v1</code> resource APIs. '
-           'Packages are available as locally built preview archives; conventional npm/Go publication and hosted Agent/generation deployment remain pending; destinations and hostnames still need confirmation. '
-           'The intended normal constructor is <code>createNuva({ getAccessToken })</code>. This unpublished build fails explicitly if the Agent origin is missing. '
-           'Use endpoint overrides only with an explicitly configured development or preview host; no example localhost is an official service.</p>')
+PREVIEW = '<p>Ads SDK 0.1.0-preview.1. Use the client to create ads, manage saved resources, and build an Agent chat interface.</p>'
 
 
 def _client_sections():
     sections = [
         ('start', 'Start with React', PREVIEW + react_example('client')
-         + disclosure('Install local preview archives', code('pnpm add /path/to/nuva-sdk-0.1.0-preview.1.tgz', 'sh'))
-         + '<p>Create one client for the authenticated user, and close it on logout or account change. Your backend returns <code>{token, expiresAt, principal?}</code>. The SDK renews expiry-aware tokens, shares concurrent refresh requests and reauthenticates the WebSocket as the same identity. Legacy string tokens lack proactive expiry information.</p><p>User display names are optional presentation metadata. Verified customer/user IDs determine authority and scope; a UI may show “User” when a name is absent. Existing named identities remain compatible.</p>'
+         + disclosure('Install with pnpm', code('pnpm add /path/to/nuva-sdk-0.1.0-preview.1.tgz', 'sh'))
+         + '<p>Create one client for the authenticated user, and close it on logout or account change. Your backend returns <code>{token, expiresAt, principal?}</code>. The SDK renews expiry-aware tokens, shares concurrent refresh requests and reauthenticates the WebSocket as the same identity. Return an expiry with the token to enable proactive renewal.</p><p>User display names are optional presentation metadata. Verified customer/user IDs determine authority and scope; a UI may show “User” when a name is absent. </p>'
          + react_example('token-provider') + disclosure('Create an Agent Session', react_example('open-session'))
-         + '<p>Agent and direct Store calls share the user client. The Agent uses its own signed delegated credentials for backend work; its private key and your Admin API key never enter the browser. The independent <a href="backend-go.html">Go Admin SDK</a> issues user tokens from your authenticated backend.</p>'
+         + '<p>Agent and direct Store calls share the user client. Keep your Admin API key on your backend. The independent <a href="backend-go.html">Go Admin SDK</a> issues user tokens from your authenticated backend.</p>'
          + '<p>Full checked source: <a href="examples/react-usage.tsx">React example</a>. Page layout and rendering are supplied by your application.</p>'),
         *business_sections(table),
         ('products', 'Products, Brands and Characters',
-         '<p>Create a Brand before a Product; no default Brand is invented. Entities retain continuing <code>id</code>, numeric <code>version</code> and exact <code>revision</code>. Brand and Character use the same create/get/update pattern.</p>'
+         '<p>Create a Brand before a Product. Entities retain continuing <code>id</code>, numeric <code>version</code> and exact <code>revision</code>. Brand and Character use the same create/get/update pattern.</p>'
          + store_example('brand-create') + store_example('product-create') + store_example('product-read') + store_example('product-update')
          + '<p>Pass the record you read as <code>base</code>. On a version conflict, retain the edit and compare it with a fresh read. The SDK does not retry a conflicting update against a new version.</p>'
          + '<h3>Upload and attach an image</h3>' + store_example('product-upload-image')
-         + '<p><code>uploadImage</code> uploads/registers the Asset, then attaches its ID with an optimistic Product update. It returns <code>{productId, assetId, product, asset}</code>. If attachment fails after upload, <code>ProductImageUploadError</code> preserves the uploaded Asset reference; it does not silently retry the Product edit. Nested <code>data.attributes</code> is supported by the staging backend extension; deployment to other environments must be checked separately.</p>'),
+         + '<p><code>uploadImage</code> uploads/registers the Asset, then attaches its ID with an optimistic Product update. It returns <code>{productId, assetId, product, asset}</code>. If attachment fails after upload, <code>ProductImageUploadError</code> preserves the uploaded Asset reference; it does not silently retry the Product edit. Use <code>data.attributes</code> for additional Product fields expressed as JSON.</p>'),
         ('artifacts', 'Artifacts and versions',
-         '<p>The backend stores <code>script</code>, <code>directing_plan</code> and <code>prompt</code> Artifacts. This SDK creation flow generates Scripts and independent Prompts; it does not create a Directing Plan. Analysis and Snapshot clients are not part of this preview.</p>'
+         '<p>The backend stores <code>script</code>, <code>directing_plan</code> and <code>prompt</code> Artifacts. Script and Prompt generation return independent saved Artifacts.</p>'
          + table(['Method', 'Input', 'Result'], [
              ('<code>get(ref)</code>', '<code>{kind,id}</code>', 'The authorized Artifact.'),
              ('<code>create(input)</code>', '<code>kind, schema_version, data</code>; optional <code>batch_id</code>', 'A new immutable Artifact.'),
              ('<code>update(ref, input)</code>', 'Existing reference and new <code>data</code>', 'A new version ID with the original as <code>base_id</code>.'),
          ]) + store_example('artifact-read') + store_example('artifact-create') + store_example('artifact-update')
-         + '<p><code>schema_version: 1</code> is the backend content schema. Script <code>data.text</code> stores the explicitly marked <code>nuva.script-package</code> version-2 JSON envelope; <code>scripts.get()</code> exposes its validated <code>content</code>. This is not script@2. Entity references use exact revisions; Skill references use exact Skill-version IDs.</p>'
-         + '<p><code>base_id</code> is version ancestry. Existing kind-specific dependencies such as <code>data.script</code> or <code>data.plan</code> are separate. A generic optional relationship envelope is implemented in the separate backend PR worktree but is not merged, deployed or exposed by this SDK.</p>'),
+         + '<p><code>schema_version: 1</code> is the backend content schema. Script <code>data.text</code> stores the explicitly marked <code>nuva.script-package</code> version-2 JSON envelope; <code>scripts.get()</code> exposes its validated <code>content</code>. Entity references use exact revisions; Skill references use exact Skill-version IDs.</p>'
+         + '<p><code>base_id</code> is version ancestry. Fields such as <code>data.script</code> or <code>data.plan</code> identify the source Artifact for the kinds that use them.</p>'),
         ('generation', 'Direct Script and Prompt generation',
-         '<p>Direct calls work without a chat Session. The Script endpoint runs a standalone Writer Agent with an explicit or configured default Script Skill. In chat, the Session Agent loads that Skill and authors/revises directly using its conversation. Both share Script validation and authorized durable persistence. Customers register text Skills, not executable workflow entities.</p>'
+         '<p>Generate Scripts and Prompts directly from your application, or ask the Agent to work with them in a conversation. An optional Skill selection controls writing guidance.</p>'
          + '<h3>Write and revise a Script</h3>' + store_example('script-generate') + store_example('script-revise')
          + '<p>Pass the Product ID and an acceptable duration range. The service reads the authorized Product revision and its media; callers do not duplicate facts and image URLs. The optional <code>base</code> is an existing Script ID for revision. The returned Script has a creation Batch.</p>'
          + '<h3>Create independent clip Prompts</h3>' + store_example('prompt-generate')
-         + '<p>The Prompt Writer receives the saved Script, typed authorized images, SKILL.md and the selected Skill’s <code>attributes.preload</code> files. It validates clip structure, references, speech and timing before saving. All generation instructions are stored in <code>prompt.data.prompt</code>; no directing-only text is discarded. The current image-only creation path requires at least one authorized reference image per clip.</p>'
-         + '<p>The result is <code>{prompts}</code>. There is no generated Plan; public <code>plan</code>/<code>clip_key</code> are absent or backend-materialized null. Ordered Script-to-Prompt mapping is private. <code>PartialCreationError.saved.prompts</code> retains successfully saved records when a later save fails. Inspect those IDs before retrying; acceptance is unknown.</p>'
-         + '<p><a href="examples/creation-chain.ts">Complete checked creation example</a>: Brand → Product → uploadImage → Script/revision → Prompts → video Jobs → assembly. Executing that function can submit billable work; documentation builds only typecheck it.</p>'),
+         + '<p>Prompt generation uses the saved Script, reference images and selected Skill. Each clip needs at least one accessible reference image. Read its generation instructions from <code>prompt.data.prompt</code>.</p>'
+         + '<p>The result is <code>{prompts}</code>, with saved Prompts in clip order. <code>PartialCreationError.saved.prompts</code> retains successfully saved records when a later save fails. Inspect those records before retrying.</p>'
+         + '<p><a href="examples/creation-chain.ts">Complete creation example</a>: Brand → Product → uploadImage → Script/revision → Prompts → video Jobs → assembly. Running the example creates resources and submits video-generation Jobs.</p>'),
         ('media', 'Assets, video Jobs and assembly',
          table(['Method', 'Behavior'], [
              ('<code>assets.upload(file, {kind})</code>', 'Upload intent → credential-free signed PUT → Asset registration.'),
@@ -93,14 +90,14 @@ def _client_sections():
              ('<code>jobs.get / subscribe / cancel</code>', 'Read progress or request cancellation; subscription does not regenerate work.'),
              ('<code>videos.assemble(input)</code>', 'Render explicit ordered clips and trims; return <code>{assetId,uri}</code>.'),
          ]) + store_example('asset-upload') + store_example('asset-read') + store_example('video-job')
-         + '<p>Video submission currently accepts a saved Prompt ID, not raw prompt text. An explicit Batch can reuse an authorized Prompt; if omitted, the SDK carries the Prompt’s Batch when available. Seed and resolution belong to the Job. Raw video input with internal Prompt creation is implemented for backend PR review. It is not merged, deployed or exposed by the current SDK; keep using the saved-ID form here.</p>'
+         + '<p>Pass the saved Prompt ID to <code>videos.generate</code>. An explicit Batch can reuse an authorized Prompt; if omitted, the SDK carries the Prompt’s Batch when available. Seed and resolution belong to the Job.</p>'
          + '<p><code>result()</code> waits for <code>completed</code> and returns the registered Asset. Job states are queued/running/completed/failed/cancelled. Cancelling a subscription or stopping a chat loop does not cancel a Job. Use <code>jobs.cancel</code>; completed/failed Jobs cannot be cancelled.</p>'
          + '<p>Asset IDs are durable; signed <code>download_url</code> and assembly <code>uri</code> expire. Direct Asset reads are uploader-scoped; an authorized shared Product or Ad can supply permitted Asset sidecars to other users. Keep those access paths distinct.</p>'
-         + '<p>Assembly uses explicit <code>start_ms/end_ms</code>, width, height, fps and <code>audio: "preserve" | "mute"</code>. Preserve requires audio in every input clip; mute deliberately removes it. The local native Sandbox implementation is tested, but a hosted assembly Worker is not yet deployed.</p>'),
-        ('ads', 'Final Ads', '<p>The public SDK exposes <code>ads.get/list</code> only. Agent-owned assembly registers the final Asset and immutable Ad composition. Different edits create a new Ad; editor drafts remain in your application. The staged backend enforces one final Asset per Ad and prohibits assigning the same final Asset to two Ads; input reuse remains allowed.</p>'
+         + '<p>Assembly uses explicit <code>start_ms/end_ms</code>, width, height, fps and <code>audio: "preserve" | "mute"</code>. Preserve requires audio in every input clip; mute deliberately removes it.</p>'),
+        ('ads', 'Final Ads', '<p>The public SDK exposes <code>ads.get/list</code> only. Assembly registers the final Asset and immutable Ad composition. Different edits create a new Ad; editor drafts remain in your application. A final Asset belongs to one Ad and prohibits assigning the same final Asset to two Ads; input reuse remains allowed.</p>'
          + store_example('ad-read') + '<p>Composition contains ordered clips with Asset IDs and trim bounds, optional audio Asset IDs, and editor data. There is no <code>ads.update</code> or public Ad creation method.</p>'),
-        ('workspaces', 'Batches', '<p>Use <code>batches.get/list</code> for intent, Ads and Job counts. Batch creation and mutation are Agent-only. Private creation trace is never customer telemetry or public chat content.</p>'
-         + store_example('workspaces-read') + '<p>The current staged backend still returns a compatibility <code>log</code> field. Removing public Batch.log is a pending privacy migration; do not use it for private context or build new customer features around it.</p>'),
+        ('workspaces', 'Batches', '<p>Use <code>batches.get/list</code> for intent, Ads and Job counts. Batch creation and mutation are Agent-only.</p>'
+         + store_example('workspaces-read')),
         ('agent', 'Start work with the Agent', '<p><code>send()</code> success acknowledges saved input. Subscribe for subsequent text, resources and client interactions. Use <code>quote()</code> and <code>replyTo()</code> to identify the exact resource or message.</p>'
          + react_example('create-scripts') + disclosure('Revise or reply', react_example('message-actions')) + disclosure('Continue a Batch', react_example('continue-batch'))
          + '<p>A busy Session rejects another normal send; there is no message queue/Steer API. Stop targets the current loop. A manually resent chat message is a new input and can repeat work; its request ID is correlation, not permanent backend deduplication.</p>'),
@@ -138,10 +135,9 @@ def agent_sections():
 
 def store_sections():
     sections = _client_sections()
-    return [('start', 'Start with the Store SDK', PREVIEW + store_example('initialize') + disclosure('Configured local or approved preview host', store_example('preview-initialize'))
-             + '<p>Use the same renewable user token for direct Store access. Admin credentials stay on your backend. The SDK’s documented Store default is <code>https://api.nuvalab.ai</code>, but its public OpenAPI still identifies the older generation API. Confirm the new Store routes and approved origins before customer use. The backend extensions were exercised at <code>https://api-staging.nuvalab.ai</code>; that does not establish production rollout or an Agent deployment.</p>'),
+    return [('start', 'Start with the Store SDK', PREVIEW + store_example('initialize')
+             + '<p>Use the service URLs provided for your environment and the same renewable user token for Store and Agent calls. Admin credentials stay on your backend.</p>'),
             *[sections[key] for key in STORE_SECTIONS],
-            ('reference', 'Errors and replay', '<p><code>requestId</code> correlates requests. Optional <code>idempotencyKey</code> is a separate write contract implemented by the staging backend for supported operations: same customer/user/method/path/key and effective input returns the original resource; changed input conflicts. A new intent uses a new key even when input matches.</p>'
+            ('reference', 'Errors and replay', '<p><code>requestId</code> correlates requests. Optional <code>idempotencyKey</code> is a separate write contract available on supported write operations: same customer/user/method/path/key and effective input returns the original resource; changed input conflicts. A new intent uses a new key even when input matches.</p>'
              + '<p>The SDK does not automatically replay unknown writes or resolve optimistic conflicts. It may refresh and retry once after an authentication response explicitly proves the write was not accepted. A lost upload registration response needs its original key and upload snapshot, not a new upload. Preserve saved references in partial failures.</p>'
-             + '<p>Current staging REST and signed-transfer CORS use origin allowlists. Wildcard public browser access is planned but not yet deployed. Hosted Agent routes, approved origins and package publication must be confirmed before customer launch.</p>'
              + '<div class="downloads"><a href="examples/store-usage.ts">Store examples</a><a href="examples/creation-chain.ts">Complete creation example</a></div>')]
