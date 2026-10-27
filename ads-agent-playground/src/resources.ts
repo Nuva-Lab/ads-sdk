@@ -409,12 +409,6 @@ export async function renderResources(
       "",
       title === "Open by ID" ? "folder" : iconName,
     );
-  if (tab === "script")
-    toolbar.append(agentWorkButton("Generate Script", "script", host, host.product));
-  if (tab === "prompt")
-    toolbar.append(agentWorkButton("Generate prompts", "prompts", host));
-  if (tab === "job")
-    toolbar.append(agentWorkButton("Generate clip", "clip", host));
   toolbar.append(
     create("Open by ID", (body) => {
       const lookup = field(
