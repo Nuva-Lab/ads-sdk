@@ -32,7 +32,8 @@ def source_example(name, locale, prelude='', source='guide.tsx'):
     snippet = dedent(matches[0]).strip()
     if prelude:
         snippet = prelude + '\n\n' + snippet
-    return code(snippet, 'go' if source.endswith('.go') else 'tsx', locale)
+    owner = ('后端代码' if source.endswith('.go') else '应用代码') if locale == 'zh' else ('Your backend' if source.endswith('.go') else 'Your application')
+    return code(snippet, 'go' if source.endswith('.go') else 'tsx', locale, filename=f'{owner} · {source}')
 
 
 def guide_pages(locale='zh'):
