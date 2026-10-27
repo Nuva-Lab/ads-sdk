@@ -68,7 +68,7 @@ export async function buildRelease({ output = DIST, origins } = {}) {
 			}
 		}
 		const playgroundRoot = resolve(ROOT, 'ads-agent-playground');
-		const playgroundFiles = ['package.json', 'README.md', 'TESTING.md', 'tsconfig.json', 'build.mjs', 'start.mjs', '.env.example', 'index.html', 'style.css', ...(await files(resolve(playgroundRoot, 'src'))).map(name => `src/${name}`), ...(await files(resolve(playgroundRoot, 'server'))).filter(name => /(?:\.go|go\.mod|go\.sum)$/.test(name)).map(name => `server/${name}`)];
+		const playgroundFiles = ['package.json', 'README.md', 'tsconfig.json', 'build.mjs', 'start.mjs', '.env.example', 'index.html', 'style.css', ...(await files(resolve(playgroundRoot, 'src'))).map(name => `src/${name}`), ...(await files(resolve(playgroundRoot, 'server'))).filter(name => /(?:\.go|go\.mod|go\.sum)$/.test(name)).map(name => `server/${name}`)];
 		for (const name of playgroundFiles) await copy(resolve(playgroundRoot, name), resolve(stage, 'source/ads-agent-playground', name));
 		const goRoot = resolve(ROOT, 'go');
 		// Go checksums include tests and support files: use the complete module tree.

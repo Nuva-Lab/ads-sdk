@@ -20,10 +20,10 @@ for (const item of manifest.artifacts) {
 }
 const assets = [
   `ads-sdk-review-${VERSION}.zip`, `nuva-sdk-${VERSION}.tgz`, `nuva-protocol-${VERSION}.tgz`,
-  `ads-sdk-source-${VERSION}.tar.gz`, 'manifest.json', 'SHA256SUMS', 'verification.json',
+  `ads-sdk-source-${VERSION}.tar.gz`, 'manifest.json', 'SHA256SUMS',
 ].map(name => resolve(DIST, name));
 assets.push(resolve(DIST, '../../../..', 'docs/customer-sdk-docs.zip'));
 for (const file of assets) await readFile(file);
 const notes = resolve(DIST, 'RELEASE-NOTES.md');
-await writeFile(notes, `# Ads SDK ${VERSION}\n\nTypeScript client and Go Admin SDK for ad creation, resource management and Agent chat.\n\n## Install\n\nDownload the SDK bundle and run:\n\n\`\`\`sh\npnpm add /path/to/nuva-sdk-${VERSION}.tgz\n\`\`\`\n\nWith private repository access, Go applications can use \`${manifest.go.module}@${manifest.go.version}\`.\n\n## Documentation\n\nThe bundle includes frontend.html, store.html and backend-go.html, plus examples and checksums. See verification.json for package installation checks.\n`);
+await writeFile(notes, `# Ads SDK ${VERSION}\n\nTypeScript client and Go Admin SDK for ad creation, resource management and Agent chat.\n\n## Install\n\nDownload the SDK bundle and run:\n\n\`\`\`sh\npnpm add /path/to/nuva-sdk-${VERSION}.tgz\n\`\`\`\n\nWith private repository access, Go applications can use \`${manifest.go.module}@${manifest.go.version}\`.\n\n## Documentation\n\nThe bundle includes frontend.html, store.html and backend-go.html, plus examples and checksums.\n`);
 console.log(run('gh', ['release', 'create', tag, '--repo', repository, '--verify-tag', '--draft', '--prerelease', '--title', `Ads SDK ${VERSION}`, '--notes-file', notes, ...assets]));

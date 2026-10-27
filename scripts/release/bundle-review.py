@@ -60,7 +60,6 @@ checksums first. Open `docs/backend-go.html` for token issuance and Skill manage
 - `ads-sdk-source-{VERSION}.tar.gz`: SDK source and build tools.
 - `docs/`: HTML guides and TypeScript, React and Go examples.
 - `manifest.json`, `SHA256SUMS`, `BUNDLE-SHA256SUMS`: package inventory and file checksums.
-- `verification.json`: package installation checks.
 
 ## Playground
 
@@ -73,7 +72,6 @@ pnpm playground
 
 Set `NUVA_CUSTOMER_API_KEY` and `NUVA_EXTERNAL_USER_ID` in `.env` or your environment first.
 Open `http://127.0.0.1:8995/`; the local Go backend manages user tokens.
-Follow `MANUAL-TESTING.md` for the creation walkthrough and expected results.
 
 ## Formats
 
@@ -83,7 +81,7 @@ or raw input containing prompt text and Asset IDs.
 """
     with tempfile.TemporaryDirectory(prefix="ads-sdk-review-") as temporary:
         stage = Path(temporary)
-        for path in [*artifacts, Path("SHA256SUMS"), Path("verification.json")]:
+        for path in [*artifacts, Path("SHA256SUMS")]:
             target = stage / path
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes((RELEASE / path).read_bytes())
@@ -95,7 +93,6 @@ or raw input containing prompt text and Asset IDs.
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(docs.read(name))
         (stage / "README.md").write_text(readme)
-        (stage / "MANUAL-TESTING.md").write_bytes((ROOT / "ads-agent-playground/TESTING.md").read_bytes())
         checksums = [
             f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.relative_to(stage).as_posix()}"
             for path in sorted(stage.rglob("*")) if path.is_file()
