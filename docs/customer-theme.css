@@ -96,6 +96,9 @@ th { color: var(--heading); font-weight: 550; }
 th:first-child, td:first-child { padding-left: 0; }
 th:last-child, td:last-child { padding-right: 0; }
 td code { font-size: 12px; }
+#options table { table-layout: fixed; min-width: 560px; }
+#options th:first-child, #options td:first-child { width: 14rem; }
+#options td:first-child code { overflow-wrap: normal; word-break: normal; }
 
 /* Keep field identifiers intact and leave room for explanations. */
 #session table { table-layout: fixed; min-width: 560px; }
