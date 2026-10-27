@@ -1,53 +1,54 @@
-"""Customer reference for the standalone Go Admin SDK preview."""
+"""Backend instructions using the same checked examples in both languages."""
+from customer_layout import code, filename
+from client_reference import source_example
+from build import table
 
 
-def go_sections(code, table):
-    initialize = '''admin, err := nuva.NewAdminClient(
-    backendURL,
-    os.Getenv("NUVA_CUSTOMER_API_KEY"),
-)
-if err != nil { return err }'''
-    token = '''// authenticatedUser.ID comes from your verified login session.
-grant, err := admin.IssueUserToken(ctx, authenticatedUser.ID)
-if err != nil { return err }
-
-// Return this only to the same authenticated user's browser.
-response := struct {
-    Token string `json:"token"`
-    ExpiresAt time.Time `json:"expiresAt"`
-}{grant.AccessToken, grant.ExpiresAt}'''
-    register = '''skill, err := admin.RegisterSkill(ctx, "product-writer", nuva.SkillRegistration{
-    Files: map[string]string{
-        "SKILL.md": "# Product writer\\nPreserve supplied product facts.",
-        "references/style.md": "Use concise, factual product descriptions.",
-    },
-    Attributes: map[string]any{"preload": []string{"references/style.md"}},
-})
-if err != nil { return err }
-// Skill.ID is the continuing definition; Version.ID is this exact version.'''
-    activate = '''// Your backend's policy authorizes activation; this is not a chat tool.
-main, err := admin.SetSkillMain(ctx, "product-writer", skill.Version.Version)
-if err != nil { return err }
-_ = main'''
-    read = '''reader, err := nuva.NewUserClient(backendURL, grant.AccessToken)
-if err != nil { return err }
-version, err := reader.GetSkillVersion(ctx, skill.Skill.ID, skill.Version.Version)
-if err != nil { return err }
-_ = version'''
+def go_sections(locale='zh'):
+    t = lambda en, zh: zh if locale == 'zh' else en
+    p = lambda en, zh: '<p>' + t(en, zh) + '</p>'
+    c = lambda text, language='go': code(text, language, locale)
+    ex = lambda key, prelude='': source_example(key, locale, prelude, 'guide_backend.go')
     return [
-        ('overview', 'Backend integration', '<p>Use the Go Admin SDK on your backend to issue user tokens and manage Skills. It requires Go 1.22+ and uses the Go standard library.</p>'
-         '<ol><li>Your backend verifies the application login.</li><li>It exchanges its customer Admin API key for that user’s Nuva token.</li><li>It returns token/expiry to the browser SDK and separately manages Skill registration and activation.</li></ol>'
-         '<p>Keep the Admin API key on your backend. Return an issued user token only to the matching authenticated user.</p>'),
-        ('client', 'Initialize the Admin client', code('GOPRIVATE=github.com/Nuva-Lab/ads-sdk go get github.com/Nuva-Lab/ads-sdk/go@v0.1.0-preview.1', 'sh') + code(initialize, 'go') + table(['Argument', 'Purpose'], [
-            ('<code>backendURL</code>', 'The service URL for your environment.'), ('<code>apiKey</code>', 'Customer-backend Admin API key.')])
-         + '<p>Use context cancellation and deadlines. The client does not automatically follow redirects or replay uncertain writes. Import the module with the <code>nuva</code> alias shown in the downloadable example.</p>'),
-        ('tokens', 'Issue a user token', code(token, 'go')
-         + '<p><code>POST /v1/admin/tokens {external_user_id}</code> returns access_token, expires_at and the real Nuva user identity. User tokens expire after one hour; use the returned expiry. Only verified application identity may choose the external user ID; arbitrary browser permission claims are not accepted.</p>'
-         + '<p>The TypeScript SDK renews <code>{token,expiresAt,principal?}</code> results using your callback. Go JSON encodes time.Time as an accepted ISO datetime. This Go reader does not automatically renew; create a reader with a newly issued token for the same user as needed.</p>'),
-        ('skills', 'Register and activate a Skill', code(register, 'go')
-         + '<p>Files are UTF-8 text and must include SKILL.md. Paths, counts and byte limits are validated. The selected writer always loads SKILL.md and preloads each file in <code>attributes.preload</code>; that attribute is a list of paths, not a boolean. Other verified files remain available on demand. Missing declared files fail before inference.</p>'
-         + code(activate, 'go') + '<p>The first version becomes main; subsequent registration does not switch it. Artifact data.skill uses the exact Version.ID. Registration is text/data storage, not execution of customer workflow code. Background learning may propose changes, but publication and activation remain your authorized backend’s responsibility.</p>'),
-        ('reads', 'Read within user scope', code(read, 'go') + '<p>ListSkills, GetSkill and GetSkillVersion use a user token. Admin keys are not forwarded to ordinary resource routes. Returned manifests include hashes, expiring file URLs, nullable metadata and the exact selected version.</p>'),
-        ('errors', 'Handle errors', '<p>Use errors.As to inspect APIError: StatusCode, Code, Message, RequestID, Details and Acceptance. Unknown acceptance after a write timeout requires recovery or inspection; it does not authorize blind replay.</p>'
-         '<div class="downloads"><a href="examples/backend_client.go">Go integration example</a></div>'),
+        ('install', t('Install the Go Admin SDK', '安装 Go Admin SDK'),
+         p('Use Go 1.22 or newer and authenticated access to the private SDK repository.',
+           '使用 Go 1.22 或更新版本，并确保有权访问私有 SDK 仓库。')
+         + c('GOPRIVATE=github.com/Nuva-Lab/ads-sdk \\\n  go get github.com/Nuva-Lab/ads-sdk/go@v0.1.0-preview.1', 'sh')),
+        ('client', t('Create the Admin client', '创建 Admin 客户端'),
+         p('Set the customer Admin API key in your server environment as <code>NUVA_CUSTOMER_API_KEY</code>. Create the Admin client once during server initialization.',
+           '在服务端环境变量 <code>NUVA_CUSTOMER_API_KEY</code> 中设置客户 Admin API key。服务初始化时创建一次 Admin 客户端。')
+         + ex('admin-client', 'import (\n    "os"\n    nuva "github.com/Nuva-Lab/ads-sdk/go"\n)')
+         + p('Handle a configuration error before serving requests. Use the service address for your environment; the example uses staging.',
+           '开始处理请求前应处理配置错误。使用当前环境的服务地址；示例使用 staging。')),
+        ('tokens', t('Implement the user-token route', '实现用户令牌接口'),
+         p('Implement this route in your backend. <code>POST /api/ads/token</code> is an example path; use your own route if preferred. Supply <code>userID</code> from your application’s authenticated session or middleware. Do not let a request body choose another user’s identity.',
+           '在你的后端实现此接口。<code>POST /api/ads/token</code> 是示例路径，也可使用你自己的路径。由应用的登录会话或认证中间件提供 <code>userID</code>，不要让请求体指定其他用户的身份。')
+         + ex('token-handler', 'import (\n    "encoding/json"\n    "net/http"\n    "time"\n)')
+         + p('The response is <code>{token, expiresAt}</code>. User tokens expire after one hour; always return the expiry provided by the service. The client SDK calls this route again when it needs to renew access.',
+           '返回结构为 <code>{token, expiresAt}</code>。用户令牌一小时后过期；始终返回服务提供的过期时间。客户端 SDK 需要刷新访问凭证时会再次调用此接口。')
+         + p(f'Connect it to <a href="{filename("frontend", locale)}#authentication">getAccessToken</a> in the client. Apply your application’s usual session and CSRF protections to this route.',
+             f'将此接口接入客户端的 <a href="{filename("frontend", locale)}#authentication">getAccessToken</a>。对该接口应用你现有的登录会话和 CSRF 防护。')),
+        ('skills', t('Register a Skill', '注册 Skill'),
+         ex('register-skill', 'import "context"')
+         + p('Provide UTF-8 text files, including <code>SKILL.md</code>. Add required reference paths to <code>attributes.preload</code>; the writer loads them before generating. Other Skill files remain available on demand.',
+           '提供 UTF-8 文本文件，其中必须包含 <code>SKILL.md</code>。将必需的参考文件路径写入 <code>attributes.preload</code>，编写服务会在生成前加载；其他 Skill 文件可按需读取。')
+         + p('Save <code>registered.Skill.ID</code> and <code>registered.Version.Version</code> when the client needs to select that guidance. Registering a Skill stores text and metadata; it does not execute scripts.',
+           '客户端需要选择这份指导时，保存 <code>registered.Skill.ID</code> 和 <code>registered.Version.Version</code>。注册 Skill 只保存文本和元数据，不执行脚本。')),
+        ('activate', t('Select the main Skill version', '选择 Skill 主版本'),
+         ex('activate-skill')
+         + p('The first version becomes main. Later registrations create versions without switching main. Call <code>SetSkillMain</code> after your backend approves the new version. A user token or Agent conversation cannot activate it.',
+           '首个版本会成为主版本。后续注册只创建版本，不自动切换主版本。后端确认采用新版本后，再调用 <code>SetSkillMain</code>。用户令牌和 Agent 对话不能执行激活。')),
+        ('read', t('Read Skills with a user token', '使用用户令牌读取 Skill'),
+         ex('read-skill')
+         + p('<code>UserClient</code> also exposes <code>ListSkills</code> and <code>GetSkill</code>. It does not refresh tokens automatically; create a new reader with a fresh token for the same user when needed.',
+           '<code>UserClient</code> 还提供 <code>ListSkills</code> 和 <code>GetSkill</code>。它不会自动刷新令牌；需要时签发同一用户的新令牌并创建新的 reader。')),
+        ('errors', t('Handle backend errors', '处理后端错误'),
+         table([t('Field', '字段'), t('Use', '用途')], [
+             ['<code>StatusCode / Code</code>', t('Identify the HTTP status and service error.', '识别 HTTP 状态和服务错误。')],
+             ['<code>RequestID</code>', t('Correlate a failed request when available.', '在可用时关联失败请求。')],
+             ['<code>Acceptance</code>', t('Distinguish a rejected write from an uncertain result.', '区分被拒绝的写入与结果不确定的写入。')],
+         ])
+         + p('Use <code>errors.As</code> with <code>*nuva.APIError</code>. Inspect state before retrying an uncertain write. Use context deadlines; <code>errors.Is</code> can identify cancellation or timeout. The Go client does not automatically replay writes.',
+           '通过 <code>errors.As</code> 获取 <code>*nuva.APIError</code>。重试结果不确定的写入前先检查状态。设置 context 截止时间，并用 <code>errors.Is</code> 判断取消或超时。Go 客户端不会自动重放写入。')
+         + p('Download the <a href="examples/guide_backend.go">complete backend example</a>.', '下载<a href="examples/guide_backend.go">完整后端示例</a>。')),
     ]

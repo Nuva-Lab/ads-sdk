@@ -1,12 +1,17 @@
 (() => {
   const root = document.documentElement;
+  const tr = (en, zh) => root.dataset.locale === 'zh' ? zh : en;
+  document.querySelector('[data-language]').addEventListener('change', event => {
+    const section = document.querySelector('.page-toc [aria-current="location"]');
+    location.assign(event.target.value + (section?.hash || location.hash));
+  });
   const themeButton = document.querySelector('[data-theme-toggle]');
   const announcement = document.querySelector('[data-announcement]');
   const themeKey = 'nuva-sdk-docs-theme';
 
   function setTheme(theme) {
     root.dataset.theme = theme;
-    const label = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+    const label = theme === 'dark' ? tr('Switch to light mode', '切换浅色模式') : tr('Switch to dark mode', '切换深色模式');
     themeButton.setAttribute('aria-label', label);
     themeButton.setAttribute('title', label);
   }
@@ -27,11 +32,11 @@
     const original = caption.textContent;
     try {
       await navigator.clipboard.writeText(text);
-      caption.textContent = ' copied';
-      announcement.textContent = `${label} copied`;
+      caption.textContent = tr('Copied', '已复制');
+      announcement.textContent = tr(`${label} copied`, '已复制');
     } catch {
-      caption.textContent = 'Copy failed';
-      announcement.textContent = 'Clipboard access failed. Select the text and copy it manually.';
+      caption.textContent = tr('Copy failed', '复制失败');
+      announcement.textContent = tr('Clipboard access failed. Select the text and copy it manually.', '无法访问剪贴板，请选中文本后手动复制。');
     }
     setTimeout(() => { caption.textContent = original; }, 1800);
   }
@@ -91,12 +96,12 @@
   function closeMenu() {
     root.removeAttribute('data-nav-open');
     menuButton.setAttribute('aria-expanded', 'false');
-    menuButton.setAttribute('aria-label', 'Open navigation');
+    menuButton.setAttribute('aria-label', tr('Open navigation', '打开导航'));
   }
   menuButton.addEventListener('click', () => {
     const open = root.toggleAttribute('data-nav-open');
     menuButton.setAttribute('aria-expanded', String(open));
-    menuButton.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
+    menuButton.setAttribute('aria-label', open ? tr('Close navigation', '关闭导航') : tr('Open navigation', '打开导航'));
   });
   document.querySelectorAll('.docs-sidebar a').forEach(link => link.addEventListener('click', closeMenu));
 
@@ -113,7 +118,7 @@
     const term = input.value.trim().toLocaleLowerCase();
     const matches = searchIndex.filter(item => item.text.toLocaleLowerCase().includes(term));
     results.replaceChildren();
-    count.textContent = matches.length ? `${matches.length} sections` : 'No matching content.';
+    count.textContent = matches.length ? tr(`${matches.length} sections`, `${matches.length} 个章节`) : tr('No matching content.', '没有匹配内容。');
     matches.forEach(item => {
       const link = document.createElement('a');
       link.href = `#${item.id}`;

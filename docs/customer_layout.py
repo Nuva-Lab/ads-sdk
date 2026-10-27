@@ -28,93 +28,106 @@ def highlight(source):
     return "".join(rendered)
 
 
-def code(text, language="ts"):
-    label = {"ts": "TypeScript", "tsx": "React / TypeScript", "go": "Go", "json": "JSON", "http": "HTTP"}.get(language, language)
+def code(text, language="ts", locale="en", filename=None):
+    label = {"ts": "TypeScript", "tsx": "TypeScript", "go": "Go", "json": "JSON", "http": "HTTP", "sh": "Shell"}.get(language, language)
     # Highlight complete tokens first, including multiline comments and strings.
     source = text.strip()
+    label = filename or label
+    copy_label = "复制" if locale == "zh" else "Copy"
+    copy_aria = "复制代码" if locale == "zh" else "Copy code"
     decorated = highlight(source)
     lines = "\n".join(f'<span aria-hidden="true">{n}</span>' for n in range(1, source.count("\n") + 2))
     return (
         '<div class="code-block">'
         f'<div class="code-toolbar"><span>{escape(label)}</span>'
-        f'<button type="button" class="copy-button" data-copy-code aria-label="Copy code">{COPY_ICON}<span>Copy</span></button></div>'
+        f'<button type="button" class="copy-button" data-copy-code aria-label="{copy_aria}">{COPY_ICON}<span>{copy_label}</span></button></div>'
         f'<div class="code-body"><div class="line-numbers" aria-hidden="true">{lines}</div>'
         f'<pre tabindex="0"><code class="language-{escape(language)}">{decorated}</code></pre></div></div>'
     )
 
 
 DOCUMENTS = (
-    ("frontend.html", "Client Agent SDK", "TypeScript"),
-    ("store.html", "Client Store SDK", "TypeScript"),
-    ("backend-go.html", "Go Admin SDK", "Go"),
+    ('frontend', 'Get started', '开始使用'),
+    ('agent', 'Agent conversations', 'Agent 对话'),
+    ('store', 'Manage resources', '管理资源'),
+    ('generation', 'Generate content', '生成内容'),
+    ('backend-go', 'Backend setup', '后端接入'),
+    ('reference', 'Methods and errors', '方法与错误'),
 )
 
 
-def page(current_file, sections):
-    current_index = next(i for i, doc in enumerate(DOCUMENTS) if doc[0] == current_file)
-    _, title, _ = DOCUMENTS[current_index]
-    peer, peer_title, _ = DOCUMENTS[(current_index + 1) % len(DOCUMENTS)]
-    nav = "".join(
-        f'<a class="document-link{" current" if filename == current_file else ""}" href="{filename}"'
-        + (' aria-current="page"' if filename == current_file else '')
-        + f'>{escape(name)}<small>{escape(stack)}</small></a>'
-        for filename, name, stack in DOCUMENTS
+def filename(page_id, locale):
+    return page_id + ('.en.html' if locale == 'en' else '.html')
+
+
+def page(page_id, sections, locale='zh'):
+    tr = lambda en, zh: zh if locale == 'zh' else en
+    position = next(i for i, doc in enumerate(DOCUMENTS) if doc[0] == page_id)
+    title = DOCUMENTS[position][2 if locale == 'zh' else 1]
+    nav = ''.join(
+        f'<a class="document-link{" current" if key == page_id else ""}" href="{filename(key, locale)}"'
+        + (' aria-current="page"' if key == page_id else '')
+        + f'>{escape(tr(en, zh))}</a>' for key, en, zh in DOCUMENTS
     )
-    toc = "".join(f'<a href="#{escape(key)}">{escape(name)}</a>' for key, name, _ in sections)
-    body = "".join(
+    toc = ''.join(f'<a href="#{escape(key)}">{escape(name)}</a>' for key, name, _ in sections)
+    body = ''.join(
         f'<section id="{escape(key)}"><h2>{escape(name)}'
-        f'<a class="heading-link" href="#{escape(key)}" aria-label="Link to {escape(name)}">{LINK_ICON}</a></h2>{content}</section>'
+        f'<a class="heading-link" href="#{escape(key)}" aria-label="{tr("Link to", "链接到")} {escape(name)}">{LINK_ICON}</a></h2>{content}</section>'
         for key, name, content in sections
     )
+    peers = []
+    for index, label in ((position - 1, tr('Previous', '上一页')), (position + 1, tr('Next', '下一页'))):
+        if 0 <= index < len(DOCUMENTS):
+            key, en, zh = DOCUMENTS[index]
+            peers.append(f'<a href="{filename(key, locale)}"><small>{label}</small>{escape(tr(en, zh))}</a>')
+    language_options = ''.join(
+        f'<option value="{filename(page_id, lang)}"{" selected" if locale == lang else ""}>{label}</option>'
+        for lang, label in (('zh', '中文'), ('en', 'English'))
+    )
     return f'''<!doctype html>
-<html lang="en" data-theme="light">
+<html lang="{tr('en', 'zh-CN')}" data-theme="light" data-locale="{locale}" data-page="{page_id}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>{escape(title)} | Ads SDK</title>
 <link rel="stylesheet" href="style.css">
+<link rel="alternate" hreflang="en" href="{filename(page_id, 'en')}">
+<link rel="alternate" hreflang="zh-CN" href="{filename(page_id, 'zh')}">
 <script src="docs.js" defer></script>
 </head>
 <body>
-<a class="skip-link" href="#main-content">Skip to content</a>
-<header class="site-header">
-  <div class="header-inner">
-    <button type="button" class="icon-button menu-toggle" aria-label="Open navigation" aria-controls="docs-sidebar" aria-expanded="false">{MENU_ICON}</button>
-    <a class="brand" href="frontend.html">Ads SDK</a>
-    <div class="header-actions">
-      <button type="button" class="search-trigger" data-search-open aria-label="Search this document">{SEARCH_ICON}<span>Search this document</span><kbd>⌘ K</kbd></button>
-      <button type="button" class="icon-button" data-theme-toggle aria-label="Switch to dark mode" title="Switch to dark mode">{THEME_ICON}</button>
-    </div>
+<a class="skip-link" href="#main-content">{tr('Skip to content', '跳到正文')}</a>
+<header class="site-header"><div class="header-inner">
+  <button type="button" class="icon-button menu-toggle" aria-label="{tr('Open navigation', '打开导航')}" aria-controls="docs-sidebar" aria-expanded="false">{MENU_ICON}</button>
+  <a class="brand" href="{filename('frontend', locale)}">Ads SDK</a>
+  <span class="header-version">0.1.0-preview.1</span>
+  <div class="header-actions">
+    <button type="button" class="search-trigger" data-search-open aria-label="{tr('Search this page', '搜索当前页')}">{SEARCH_ICON}<span>{tr('Search', '搜索')}</span><kbd>⌘ K</kbd></button>
+    <select class="language-toggle" aria-label="{tr('Language', '语言')}" data-language>{language_options}</select>
+    <button type="button" class="icon-button" data-theme-toggle aria-label="{tr('Switch to dark mode', '切换深色模式')}" title="{tr('Switch to dark mode', '切换深色模式')}">{THEME_ICON}</button>
   </div>
-</header>
+</div></header>
 <div class="docs-layout">
-  <aside class="docs-sidebar" id="docs-sidebar" aria-label="SDK documentation navigation">
-    <div class="nav-group">
-      <p class="nav-heading">SDK documentation</p>
-      <nav>{nav}</nav>
-    </div>
+  <aside class="docs-sidebar" id="docs-sidebar" aria-label="{tr('Documentation navigation', '文档导航')}">
+    <div class="nav-group"><p class="nav-heading">{tr('Documentation', '文档')}</p><nav>{nav}</nav></div>
   </aside>
   <main id="main-content" tabindex="-1">
-    <div class="page-heading"><h1>{escape(title)}</h1><span class="preview-label">Preview</span></div>
-    <p class="development-notice">SDK 0.1.0-preview.1 · TypeScript and Go reference</p>
-    <div class="mobile-toc"><details><summary>On this page</summary><nav>{toc}</nav></details></div>
+    <div class="page-heading"><h1>{escape(title)}</h1></div>
+    <div class="mobile-toc"><details><summary>{tr('On this page', '本页内容')}</summary><nav>{toc}</nav></details></div>
     <article>{body}</article>
-    <nav class="page-footer" aria-label="Other SDK documentation"><a href="{escape(peer)}">{escape(peer_title)} <span aria-hidden="true">→</span></a></nav>
+    <nav class="page-footer" aria-label="{tr('Continue reading', '继续阅读')}">{''.join(peers)}</nav>
   </main>
-  <aside class="page-toc" aria-label="On this page">
-    <p class="nav-heading">On this page</p>
-    <nav>{toc}</nav>
-    <button type="button" class="page-copy" data-copy-page>{COPY_ICON}<span>Copy page</span></button>
+  <aside class="page-toc" aria-label="{tr('On this page', '本页内容')}">
+    <p class="nav-heading">{tr('On this page', '本页内容')}</p><nav>{toc}</nav>
+    <button type="button" class="page-copy" data-copy-page>{COPY_ICON}<span>{tr('Copy page', '复制页面')}</span></button>
   </aside>
 </div>
 <dialog class="search-dialog" aria-labelledby="search-title">
-  <form method="dialog" class="search-top"><h2 id="search-title">Search this document</h2><button class="dismiss-search" aria-label="Close search">Esc</button></form>
-  <input type="search" class="search-input" placeholder="Search methods, fields or sections" aria-label="Search methods, fields or sections" autocomplete="off">
-  <p class="search-count" aria-live="polite"></p>
-  <nav class="search-results" aria-label="Search results"></nav>
+  <form method="dialog" class="search-top"><h2 id="search-title">{tr('Search this page', '搜索当前页')}</h2><button class="dismiss-search" aria-label="{tr('Close search', '关闭搜索')}">Esc</button></form>
+  <input type="search" class="search-input" placeholder="{tr('Search methods, fields or sections', '搜索方法、字段或章节')}" aria-label="{tr('Search methods, fields or sections', '搜索方法、字段或章节')}" autocomplete="off">
+  <p class="search-count" aria-live="polite"></p><nav class="search-results" aria-label="{tr('Search results', '搜索结果')}"></nav>
 </dialog>
 <div class="sr-only" aria-live="polite" data-announcement></div>
-</body>
-</html>
+</body></html>
 '''

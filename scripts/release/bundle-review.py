@@ -32,8 +32,8 @@ This bundle contains the TypeScript client, Go Admin module and integration docu
 pnpm add /path/to/nuva-sdk-{VERSION}.tgz
 ```
 
-Open `docs/frontend.html` for Agent chat and React examples, or `docs/store.html` for resource
-management and video creation. Use the service URLs and credentials provided for your environment.
+Open `docs/frontend.html` for installation and setup. Use the header language selector for
+Chinese or English, then follow the Agent, resource, generation and backend guides.
 
 ## Go
 

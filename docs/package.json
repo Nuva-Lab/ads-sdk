@@ -5,7 +5,8 @@
   "packageManager": "pnpm@11.7.0",
   "scripts": {
     "build": "python3 build_customer.py",
-    "typecheck": "tsc -p tsconfig.examples.json"
+    "typecheck": "tsc -p tsconfig.examples.json",
+    "check": "python3 check_customer.py"
   },
   "devDependencies": {
     "@types/react": "19.1.16",
