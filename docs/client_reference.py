@@ -7,6 +7,7 @@ from textwrap import dedent
 from build import table
 from customer_layout import code
 from customer_layout import filename
+from response_examples import response_example
 
 
 def message_example():
@@ -41,6 +42,7 @@ def guide_pages(locale='zh'):
     p = lambda en, zh: '<p>' + t(en, zh) + '</p>'
     ex = lambda key, prelude='': source_example(key, locale, prelude)
     c = lambda text, language='ts': code(text, language, locale)
+    response = lambda name: response_example(name, locale)
     link = lambda page, anchor='': filename(page, locale) + ('#' + anchor if anchor else '')
     section = lambda key, en, zh, body: (key, t(en, zh), body)
     download = p('Download the <a href="examples/guide.tsx">complete TypeScript example</a>.', '下载<a href="examples/guide.tsx">完整 TypeScript 示例</a>。')
@@ -190,6 +192,7 @@ def guide_pages(locale='zh'):
             p(f'Use these methods for generation buttons in your application. Start with a saved Product containing its facts and reference images. <a href="{link("store", "products")}">Create the Product first</a> if needed.',
                 f'在应用的生成按钮中调用以下方法。输入应为已保存事实信息和参考图片的产品；需要时先<a href="{link("store", "products")}">创建产品</a>。')
             + ex('write-script', "import { useEffect, useState } from 'react';\nimport type { NuvaClient, Script, Job, JobState } from '@nuva/sdk';")
+            + response('script')
             + p('Pass the Product ID, not a copied set of facts or image URLs. The service reads the authorized Product revision. The response contains a saved Script ID and validated <code>content</code>. Read <code>content.clips</code> to review the proposed clips.',
                 '传入产品 ID，不要重复传入事实和图片地址。服务会读取已授权的产品版本。结果包含已保存的脚本 ID 和经过校验的 <code>content</code>；通过 <code>content.clips</code> 查看规划的片段。')),
         section('revision', 'Revise the Script', '修改脚本',
@@ -198,16 +201,19 @@ def guide_pages(locale='zh'):
                 '将待修改脚本的 ID 设为 <code>base</code>。编写服务会读取原内容并返回新脚本。界面需要对比版本时，应保留两个引用。')),
         section('prompts', 'Generate clip Prompts', '生成片段提示词',
             ex('write-prompts')
+            + response('prompts')
             + p('The response is <code>{prompts}</code> in clip order. Each Prompt is saved independently and contains its generation text in <code>data.prompt</code>. Each clip currently requires at least one authorized reference image. Review the returned text and settings before submitting video generation.',
                 '结果为按片段顺序排列的 <code>{prompts}</code>。每条提示词单独保存，生成文本位于 <code>data.prompt</code>。目前每个片段至少需要一张已授权参考图片。提交视频生成前，检查返回的文本和设置。')
             + p('If creation stops partway through, <code>PartialCreationError.saved.prompts</code> contains the already saved Prompts. Keep them and inspect the failure before retrying.',
                 '如果生成流程中途失败，<code>PartialCreationError.saved.prompts</code> 包含已保存的提示词。保留这些结果，并在重试前检查失败原因。')),
         section('video', 'Submit a video Job and display the result', '提交视频任务并展示结果',
             ex('generate-video')
+            + response('job')
             + p('Use a subscription for UI progress. Render <code>job.asset.download_url</code> in a video element after the Job completes. Mount the preview component with <code>key={jobId}</code>.', '界面需要显示进度时使用订阅。任务完成后，将 <code>job.asset.download_url</code> 传给视频元素，并使用 <code>key={jobId}</code> 挂载预览组件。')
             + ex('job-progress')
             + p('For code that needs to wait for the completed Asset, use <code>result()</code> instead of a separate subscription.', '代码需要等待已完成的 Asset 时，使用 <code>result()</code> 即可，无需另外订阅。')
             + ex('wait-video')
+            + response('asset')
             + p('Save <code>job.id</code> as soon as submission succeeds. Submission returns before the video is ready. <code>subscribe</code> polls status; <code>result</code> resolves to the registered Asset after completion.',
                 '提交成功后立即保存 <code>job.id</code>。接口返回时视频通常尚未完成。<code>subscribe</code> 轮询任务状态；<code>result</code> 在完成后返回已注册的 Asset。')
             + table([t('Job status', '任务状态'), t('Action', '处理方式')], [
