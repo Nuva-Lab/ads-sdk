@@ -50,7 +50,7 @@ def guide_pages(locale='zh'):
     start = [
         section('install', '1. Install', '1. 安装',
             p('Install the SDK archive supplied with your integration.', '安装随接入资料提供的 SDK 压缩包。')
-            + c('pnpm add /path/to/nuva-sdk-0.1.0-preview.1.tgz', 'sh')),
+            + c('pnpm add /path/to/nuva-sdk-0.1.0-preview.2.tgz', 'sh')),
         section('authentication', '2. Provide a user token', '2. 提供用户令牌',
             p('Expose <code>POST /api/ads/token</code> in your application backend. Authenticate the application user and return their Ads user token and expiry. Keep the customer Admin API key on your backend.',
               '在应用后端提供 <code>POST /api/ads/token</code>。验证应用用户身份后，返回该用户的 Ads 用户令牌和过期时间。客户 Admin API key 仅保存在后端。')
@@ -304,7 +304,7 @@ def guide_pages(locale='zh'):
             ])),
         section('versions', 'Versions and stored content', '版本与存储内容',
             table([t('Value', '值'), t('Meaning', '含义')], [
-                ['<code>0.1.0-preview.1</code>', t('SDK package version.', 'SDK 包版本。')],
+                ['<code>0.1.0-preview.2</code>', t('SDK package version.', 'SDK 包版本。')],
                 ['<code>/v1/…</code>', t('Public HTTP API version.', '公开 HTTP API 版本。')],
                 ['<code>version: 1</code>', t('Agent message-envelope protocol revision; omission also means v1.', 'Agent 消息封装协议版本；省略时同样按 v1 处理。')],
                 ['<code>schema_version: 1</code>', t('Current backend Artifact schema.', '当前后端产物 schema。')],

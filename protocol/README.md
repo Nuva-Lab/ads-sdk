@@ -1,11 +1,11 @@
 # Public message protocol
 
-`@nuva/protocol@0.1.0-preview.1` provides TypeScript types and Zod schemas for Agent messages, resource references, client interactions, Session state and API envelopes.
+`@nuva/protocol@0.1.0-preview.2` provides TypeScript types and Zod schemas for Agent messages, resource references, client interactions, Session state and API envelopes.
 
 The client SDK includes this package and re-exports the types most applications need. Install it separately only when importing protocol schemas directly:
 
 ```sh
-pnpm add /path/to/nuva-protocol-0.1.0-preview.1.tgz
+pnpm add /path/to/nuva-protocol-0.1.0-preview.2.tgz
 ```
 
 ## Validate messages
@@ -23,7 +23,7 @@ Client tools in the `input-available` state need a response through `agent.respo
 
 ## Versioning
 
-The package version is `0.1.0-preview.1`; `CLIENT_PROTOCOL_REVISION` is `1`. Public envelopes accept either an omitted version or `version: 1`. Other explicit versions are rejected.
+The package version is `0.1.0-preview.2`; `CLIENT_PROTOCOL_REVISION` is `1`. Public envelopes accept either an omitted version or `version: 1`. Other explicit versions are rejected.
 
 ```ts
 import { requestFrameSchema } from '@nuva/protocol';

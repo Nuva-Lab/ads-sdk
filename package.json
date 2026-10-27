@@ -1,6 +1,6 @@
 {
   "name": "ads-sdk-workspace",
-  "version": "0.1.0-preview.1",
+  "version": "0.1.0-preview.2",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.7.0",

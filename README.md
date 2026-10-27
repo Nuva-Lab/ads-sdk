@@ -2,7 +2,7 @@
 
 Build ad creation into your application with Agent chat, product and media management, Script and Prompt generation, and video Jobs.
 
-**Preview version: `0.1.0-preview.1`**
+**Preview version: `0.1.0-preview.2`**
 
 - **TypeScript client:** connect your frontend to Ads Agent and work with saved resources. Includes React hooks.
 - **Go Admin SDK:** issue user tokens and manage Skills from your backend.
@@ -56,7 +56,7 @@ See the [playground guide](ads-agent-playground/README.md) for setup, controls a
 Install the package from your SDK bundle:
 
 ```sh
-pnpm add /path/to/nuva-sdk-0.1.0-preview.1.tgz
+pnpm add /path/to/nuva-sdk-0.1.0-preview.2.tgz
 ```
 
 Configure a client with a `getAccessToken` callback that calls your authenticated backend. The preview uses the staging services by default. Return `{token, expiresAt}` so the SDK can refresh access when needed.
@@ -68,7 +68,7 @@ Start with the [TypeScript guide](typescript/README.md) or [React example](docs/
 Authenticate Git with an account that has access to this repository, then install:
 
 ```sh
-GOPRIVATE=github.com/Nuva-Lab/ads-sdk go get github.com/Nuva-Lab/ads-sdk/go@v0.1.0-preview.1
+GOPRIVATE=github.com/Nuva-Lab/ads-sdk go get github.com/Nuva-Lab/ads-sdk/go@v0.1.0-preview.2
 ```
 
 Use the [Go Admin SDK](go/README.md) to issue user tokens and register Skills. Your backend holds the Admin API key and returns a user token to the signed-in user's frontend.

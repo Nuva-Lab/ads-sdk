@@ -6,7 +6,7 @@ import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
-VERSION = "0.1.0-preview.1"
+VERSION = "0.1.0-preview.2"
 RELEASE = ROOT / "scripts/release/dist" / VERSION
 
 

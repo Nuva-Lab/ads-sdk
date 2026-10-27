@@ -13,7 +13,7 @@ def go_sections(locale='zh'):
         ('install', t('Install the Go Admin SDK', '安装 Go Admin SDK'),
          p('Use Go 1.22 or newer and authenticated access to the private SDK repository.',
            '使用 Go 1.22 或更新版本，并确保有权访问私有 SDK 仓库。')
-         + c('GOPRIVATE=github.com/Nuva-Lab/ads-sdk \\\n  go get github.com/Nuva-Lab/ads-sdk/go@v0.1.0-preview.1', 'sh')),
+         + c('GOPRIVATE=github.com/Nuva-Lab/ads-sdk \\\n  go get github.com/Nuva-Lab/ads-sdk/go@v0.1.0-preview.2', 'sh')),
         ('client', t('Create the Admin client', '创建 Admin 客户端'),
          p('Set the customer Admin API key in your server environment as <code>NUVA_CUSTOMER_API_KEY</code>. Create the Admin client once during server initialization.',
            '在服务端环境变量 <code>NUVA_CUSTOMER_API_KEY</code> 中设置客户 Admin API key。服务初始化时创建一次 Admin 客户端。')
