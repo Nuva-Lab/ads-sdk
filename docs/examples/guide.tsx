@@ -15,6 +15,7 @@ import {
   type AgentHandle,
   type AgentState,
   type Product,
+  type Asset,
   type MessageView,
   type MessageRef,
   type ResourceLink,
@@ -341,15 +342,26 @@ export async function createProduct(client: NuvaClient, file: File) {
 
 // #region list-products
 export async function listProducts(client: NuvaClient) {
-  const first = await client.products.list({ limit: 20 });
-  if (first.nextCursor === null) return first.items;
-  const second = await client.products.list({
-    limit: 20,
-    cursor: first.nextCursor,
-  });
-  return [...first.items, ...second.items];
+  const products: Product[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await client.products.list({ limit: 20, ...(cursor === undefined ? {} : { cursor }) });
+    products.push(...page.items);
+    cursor = page.nextCursor ?? undefined;
+  } while (cursor !== undefined);
+  return products;
 }
 // #endregion list-products
+
+// #region request-assembly
+export async function requestAssembly(agent: AgentHandle, clips: Asset[]) {
+  let message = Message.create().text(
+    'Assemble these clips in attachment order. Use 9:16 and preserve their audio.',
+  );
+  for (const clip of clips) message = message.attach(clip);
+  return agent.send(message);
+}
+// #endregion request-assembly
 
 // #region update-product
 export async function renameProduct(

@@ -4,6 +4,8 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { runInNewContext } from 'node:vm';
 import * as sdk from '../../typescript/dist/index.js';
+import * as schemas from '../../typescript/dist/schemas.js';
+import { draftValue } from '../../typescript/dist/message.js';
 
 const requireDocs = createRequire(new URL('../package.json', import.meta.url));
 const requireSDK = createRequire(new URL('../../typescript/package.json', import.meta.url));
@@ -37,6 +39,7 @@ function example(file) {
     if (name === 'react') return react;
     if (name === 'react/jsx-runtime') return jsx;
     if (name === '@nuva/sdk') return sdk;
+    if (name === '@nuva/sdk/schemas') return schemas;
     throw new Error(`Unexpected import: ${name}`);
   } });
   return {
@@ -68,6 +71,40 @@ function find(node, type) {
 }
 
 const failure = { code: 'CONNECTION_ERROR', message: 'Connection lost', retryable: true };
+
+test('Product listing follows every returned cursor', async () => {
+  const component = example('guide.tsx');
+  const calls = [];
+  const products = await component.exports.listProducts({ products: { async list(query) {
+    calls.push(JSON.parse(JSON.stringify(query)));
+    const index = query.cursor === undefined ? 1 : Number(query.cursor);
+    return { items: [{ id: 'product-' + index }], nextCursor: index < 3 ? String(index + 1) : null };
+  } } });
+  assert.deepEqual(Array.from(products, item => item.id), ['product-1', 'product-2', 'product-3']);
+  assert.deepEqual(calls, [{ limit: 20 }, { limit: 20, cursor: '2' }, { limit: 20, cursor: '3' }]);
+});
+
+test('followVideo forwards polling errors and returns the unsubscribe function', () => {
+  const component = example('store-usage.ts');
+  const errors = [], progress = [];
+  const stop = () => {};
+  const client = { jobs: { subscribe(id, listener, onError) {
+    assert.equal(id, 'saved-job'); listener({ status: 'running' }); onError(failure); return stop;
+  } } };
+  assert.equal(component.exports.followVideo(client, 'saved-job', value => progress.push(value), value => errors.push(value)), stop);
+  assert.equal(progress[0].status, 'running');
+  assert.deepEqual(errors, [failure]);
+});
+
+test('assembly example sends ordered saved resources through the Agent', async () => {
+  const component = example('guide.tsx');
+  const clips = ['first', 'second'].map(id => ({ ref: { kind: 'asset', id }, label: id }));
+  let submitted;
+  const receipt = await component.exports.requestAssembly({ async send(message) { submitted = draftValue(message); return { accepted: true }; } }, clips);
+  assert.equal(receipt.accepted, true);
+  assert.deepEqual(submitted.attachments, clips);
+  assert.match(submitted.content[0].text, /attachment order/);
+});
 const message = {
   ref: { sessionId: 'session', messageId: 'reply' },
   createdAt: '2026-10-26T12:00:00Z', role: 'assistant', state: 'failed',

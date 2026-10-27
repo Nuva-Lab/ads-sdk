@@ -182,9 +182,14 @@ def guide_pages(locale='zh'):
                 '更新产物会返回新 ID，原记录保持不变。后续操作应使用返回的新引用，<code>base_id</code> 指向前一版本。结构化脚本使用 <code>script.content</code>；存储编码由类型化客户端处理。')
             + c("const prompt = await client.prompts.get({ kind: 'prompt', id: promptId });\nconst text = prompt.data.prompt;\nconst referenceImages = prompt.data.image_asset_ids;")
             + p('Use <code>artifacts.get({kind, id})</code> when you need a generic reader. Use <code>scripts</code> and <code>prompts</code> for typed reads and writes.',
-                '需要通用读取入口时使用 <code>artifacts.get({kind, id})</code>；需要类型化读写时使用 <code>scripts</code> 和 <code>prompts</code>。')),
+                '需要通用读取入口时使用 <code>artifacts.get({kind, id})</code>；需要类型化读写时使用 <code>scripts</code> 和 <code>prompts</code>。')
+            + p('Returned <code>relationships</code> describe source provenance. The Agent maintains them; customer SDK create/update calls do not accept explicit relationship writes. Pass editable content rather than copying the entire returned record into a write.',
+                '返回的 <code>relationships</code> 描述来源关系，由 Agent 维护；客户 SDK 的创建和更新操作不接受直接写入这些关系。写入时传递可编辑内容，不要复制整条返回记录。')),
         section('ads-batches', 'Read final Ads and Batches', '读取成片广告与批次',
             c("const batch = await client.batches.get(batchId);\nconst ads = await client.ads.list({ batch_id: batchId });\nconst ad = await client.ads.get(adId);\nconst video = ad.asset;")
+            + p('To have Ads Agent assemble completed video Assets, attach them in the desired order and state the editing requirements in the same Session. This sends a conversation request; progress and the saved Ad arrive through the Agent subscription.',
+                '需要 Ads Agent 合成已完成的视频 Asset 时，按顺序附加片段，并在同一个 Session 中说明编辑要求。这会发送一条对话请求；通过 Agent 订阅接收进度和已保存的广告。')
+            + ex('request-assembly', "import { Message } from '@nuva/sdk';\nimport type { AgentHandle, Asset } from '@nuva/sdk';")
             + p('Batch and Ad creation are handled by the Agent. To finish work in your own editor, upload the final video and attach it to the same Session with its source clips and editing settings. The Agent registers the Ad and returns its reference. A final-video Asset can belong to only one Ad.',
                 '批次和广告由 Agent 创建。若使用自己的编辑器完成制作，请上传成片，并连同来源片段和编辑设置附加到同一个 Session。Agent 注册广告后返回其引用；同一个成片 Asset 只能属于一个 Ad。') + download),
     ]
