@@ -50,6 +50,14 @@ func (a *app) local(r *http.Request) bool {
 	site := r.Header.Get("Sec-Fetch-Site")
 	return site != "cross-site" && site != "same-site"
 }
+
+// A link from another site may open the static page, but cannot use local APIs.
+func (a *app) documentNavigation(r *http.Request) bool {
+	origin, _ := url.Parse(a.origin)
+	return r.Host == origin.Host && r.Method == "GET" && r.URL.Path == "/" &&
+		r.Header.Get("Origin") == "" && r.Header.Get("Sec-Fetch-Mode") == "navigate" &&
+		r.Header.Get("Sec-Fetch-Dest") == "document"
+}
 func publicPath(service, path, method string) bool {
 	if strings.ContainsAny(path, "%\\") || strings.Contains(path, "..") {
 		return false
@@ -80,7 +88,7 @@ func publicPath(service, path, method string) bool {
 	return false
 }
 func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if !a.local(r) {
+	if !a.local(r) && !a.documentNavigation(r) {
 		failure(w, 403, "Open the playground from its local address.")
 		return
 	}

@@ -39,6 +39,7 @@ Open **http://127.0.0.1:8995/**.
 Create a Product and upload its reference images, then mention it with **@** in chat and ask Ads Agent to write a Script. Review the Script, Prompt references and generated clips in the workspace. The interface defaults to Chinese; use **中文 / English** in the header to switch.
 
 See the [playground guide](ads-agent-playground/README.md) for setup, controls and troubleshooting.
+Follow the [manual test guide](ads-agent-playground/TESTING.md) to check the full creation flow and your own integration.
 
 ## Add the SDK to your application
 

@@ -322,7 +322,9 @@ export class Transport {
 		for (const [key, value] of Object.entries(route.query ?? {})) if (value !== undefined) url.searchParams.set(key, String(value));
 		const controller = new AbortController();
 		this.httpControllers.add(controller);
-		const timer = setTimeout(() => controller.abort(), this.timeout);
+		const timeoutMs = this.options.requestTimeoutMs ?? (route.generation || method === 'assets.register' ? 180000 : this.timeout);
+		let timedOut = false;
+		const timer = setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs);
 		let sent = false;
 		try {
 			const token = await Promise.race([
@@ -417,7 +419,9 @@ export class Transport {
 				throw new NuvaError({ ...error.toJSON(), ...(route.method !== 'GET' && !sent ? { acceptance: 'not_accepted' as const } : {}) });
 			throw new NuvaError({
 				code: 'CONNECTION_ERROR',
-				message: error instanceof Error ? error.message : 'Backend request failed.',
+				message: timedOut
+					? (sent && route.method !== 'GET' ? 'Request timed out; the operation may still complete. Inspect its result before retrying.' : 'Request timed out.')
+					: error instanceof Error ? error.message : 'Backend request failed.',
 				retryable: true,
 				requestId: id,
 				...(route.method === 'GET' ? {} : { acceptance: sent ? 'unknown' : 'not_accepted' }),
@@ -433,7 +437,7 @@ export class Transport {
 		if (!['http:', 'https:'].includes(target.protocol) || target.username || target.password) throw new TypeError('Invalid upload URL.');
 		const controller = new AbortController();
 		this.httpControllers.add(controller);
-		const timer = setTimeout(() => controller.abort(), this.timeout);
+		const timer = setTimeout(() => controller.abort(), this.options.requestTimeoutMs ?? 180000);
 		try {
 			const response = await fetch(target, {
 				method: 'PUT',

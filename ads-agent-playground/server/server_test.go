@@ -293,3 +293,57 @@ func TestBridgeCORSAndSessionREST(t *testing.T) {
 		t.Fatal("foreign browser origin reached proxy")
 	}
 }
+
+func TestExternalNavigationOnlyOpensStaticDocument(t *testing.T) {
+	var issued atomic.Int64
+	broker := newTokenBroker(func(context.Context, string) (admin.TokenResponse, error) {
+		issued.Add(1)
+		return grant("private-user-token", "user", time.Now().Add(time.Hour)), nil
+	}, "alice")
+	server, _ := testApp(t, configuration{Endpoints: defaultEndpoints}, broker)
+	for _, tc := range []struct {
+		name, method, path, mode, dest, origin, host string
+		want                                         int
+	}{
+		{name: "external link", method: "GET", path: "/", mode: "navigate", dest: "document", want: 200},
+		{name: "fetch", method: "GET", path: "/", mode: "cors", dest: "empty", want: 403},
+		{name: "iframe", method: "GET", path: "/", mode: "navigate", dest: "iframe", want: 403},
+		{name: "foreign origin", method: "GET", path: "/", mode: "navigate", dest: "document", origin: "https://other.example", want: 403},
+		{name: "foreign host", method: "GET", path: "/", mode: "navigate", dest: "document", host: "other.example", want: 403},
+		{name: "token navigation", method: "GET", path: "/playground/token", mode: "navigate", dest: "document", want: 403},
+		{name: "config navigation", method: "GET", path: "/playground/config", mode: "navigate", dest: "document", want: 403},
+		{name: "connect navigation", method: "POST", path: "/playground/connect", mode: "navigate", dest: "document", want: 403},
+		{name: "script navigation", method: "GET", path: "/client.js", mode: "navigate", dest: "document", want: 403},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			request, _ := http.NewRequest(tc.method, server.URL+tc.path, nil)
+			request.Header.Set("Sec-Fetch-Site", "cross-site")
+			request.Header.Set("Sec-Fetch-Mode", tc.mode)
+			request.Header.Set("Sec-Fetch-Dest", tc.dest)
+			if tc.origin != "" {
+				request.Header.Set("Origin", tc.origin)
+			}
+			if tc.host != "" {
+				request.Host = tc.host
+			}
+			response, err := server.Client().Do(request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer response.Body.Close()
+			body, _ := io.ReadAll(response.Body)
+			if response.StatusCode != tc.want {
+				t.Fatalf("got %d, want %d", response.StatusCode, tc.want)
+			}
+			if strings.Contains(string(body), "private-user-token") {
+				t.Fatal("navigation exposed a token")
+			}
+			if tc.want == 200 && !strings.Contains(response.Header.Get("Content-Security-Policy"), "frame-ancestors 'none'") {
+				t.Fatal("document framing protection missing")
+			}
+		})
+	}
+	if issued.Load() != 0 {
+		t.Fatal("external navigation issued a user token")
+	}
+}

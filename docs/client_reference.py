@@ -289,7 +289,7 @@ def guide_pages(locale='zh'):
                 ['<code>getAccessToken</code>', t('Application-provided callback returning {token, expiresAt}; the SDK calls it for authentication and refresh.', '由应用实现的回调，返回 {token, expiresAt}；SDK 在认证和刷新时调用。')],
                 ['<code>environment</code>', t('sandbox (default, staging) or production. Selects the paired Agent and API addresses.', 'sandbox（默认值，对应 staging）或 production，选择配套的 Agent 和 API 地址。')],
                 ['<code>baseUrl / storeBaseUrl / generationBaseUrl</code>', t('Override service addresses for another environment.', '为其他环境覆盖服务地址。')],
-                ['<code>requestTimeoutMs</code>', t('Set the client request timeout.', '设置客户端请求超时。')],
+                ['<code>requestTimeoutMs</code>', t('Override request deadlines. Writers, Asset registration and uploads default to 180 seconds; control and read requests default to 8 seconds.', '覆盖请求超时。编写服务、素材注册和上传默认 180 秒；控制与读取请求默认 8 秒。')],
                 ['<code>jobPollIntervalMs</code>', t('Set the interval between Job status polls.', '设置任务状态轮询间隔。')],
                 ['<code>tokenRefreshSkewMs</code>', t('Set how early expiry-aware tokens refresh.', '设置令牌在过期前多久刷新。')],
                 ['<code>onTrace / onWireTrace</code>', t('Inspect SDK diagnostics. Redact credentials and private content before retaining or sharing traces.', '查看 SDK 诊断信息。保存或分享前应去除凭证和私有内容。')],

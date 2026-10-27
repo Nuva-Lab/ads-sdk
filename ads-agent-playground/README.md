@@ -47,6 +47,8 @@ The API URL handles Products, artifacts, media, Script/Prompt writing, video Job
 
 ## Try a creation flow
 
+For a repeatable walkthrough with expected results, use the [manual test guide](TESTING.md).
+
 1. Open **Products**, choose **New product**, select or create a Brand, and enter the product details. Upload reference images from the Product view.
 2. Type **@** in chat to reference the Product. Ask Ads Agent to write a Script, including your audience, duration and creative requirements.
 3. Open the returned Script in the workspace. Ask for revisions in chat or use **Revise script**.

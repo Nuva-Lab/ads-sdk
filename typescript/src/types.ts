@@ -95,6 +95,7 @@ export interface NuvaClientOptions {
 	readonly onTrace?: (trace: TraceEntry) => void;
 	/** Observe raw transport bodies. Opt-in; observer failures cannot interrupt requests. */
 	readonly onWireTrace?: (trace: import('./protocol.js').WireTraceEntry) => void | Promise<void>;
+	/** Override request deadlines. Defaults: 8s for control/reads; 180s for writers, Asset registration and uploads. */
 	readonly requestTimeoutMs?: number;
 	readonly jobPollIntervalMs?: number;
 	/** Legacy strings have no proactive expiry guarantee. */

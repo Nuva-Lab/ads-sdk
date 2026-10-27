@@ -65,6 +65,8 @@ Use `scripts.generate` for a direct request or ask the Agent to write and revise
 
 Edit and postprocess clips in your own editor. Upload the finished video and attach its Asset reference to the same Agent Session, with any optional editing notes or structured details. The Agent handles Ad registration and returns the Ad ID. Include the source clips, trim ranges and editing settings needed to describe the final composition.
 
+Script/Prompt writing, Asset registration and direct uploads default to a 180-second timeout; control requests and reads default to 8 seconds. Set `requestTimeoutMs` to override these deadlines. A timed-out write may still complete on the server: keep its operation key and inspect or retry that same operation before starting another.
+
 ## Reads, media and operation identity
 
 Use `assets.get`, `scripts.get(ref)`, `prompts.get(ref)`, `jobs.get`, `ads.get/list`, `batches.get/list` and `skills.get/list/version`. Lists expose both `next_cursor` and `nextCursor`. Retain the Script, Prompt, Asset and Job IDs returned by calls or Agent resource cards so you can read them later.
