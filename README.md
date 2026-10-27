@@ -10,7 +10,7 @@ Build ad creation into your application with Agent chat, product and media manag
 
 ## Try the playground
 
-You need Node.js 22+, pnpm 11.7.0, Go 1.22+, and a customer Admin API key.
+You need Node.js 22.13 or newer, pnpm 11.7.0, Go 1.22+, and a customer Admin API key.
 
 From this repository:
 
@@ -28,7 +28,16 @@ NUVA_EXTERNAL_USER_ID=your-test-user-id
 
 Use the user ID from your own application. The local Go server issues and refreshes that user's access token; the Admin key stays on the server.
 
-The playground uses the staging services by default. Start it with:
+The playground uses the staging services by default (`NUVA_ENVIRONMENT=sandbox`). To use production, set the environment and its matching Admin API key in `.env`:
+
+```dotenv
+NUVA_ENVIRONMENT=production
+NUVA_CUSTOMER_API_KEY=your-production-customer-admin-api-key
+```
+
+Explicit `NUVA_AGENT_URL` and `NUVA_API_URL` overrides take precedence over the selected environment; remove them to use its defaults. Changing URLs in the page's **Connection settings** does not change the server's token issuer. Restart the playground after changing the environment, Admin key or user identity.
+
+Start it with:
 
 ```sh
 pnpm playground

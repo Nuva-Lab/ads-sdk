@@ -45,7 +45,9 @@ Handle every error in application code; the abbreviated example omits applicatio
 | `UserClient.GetSkill(ctx, id)` | GET `/v1/skills/{id}` | Issued user token |
 | `UserClient.GetSkillVersion(ctx, id, version)` | GET `/v1/skills/{id}/versions/{version}` | Issued user token |
 
-Registration validates the required `SKILL.md`, path/name rules, UTF-8, file count and size limits, attributes and source provenance before dispatch. Responses retain nullable description/note/source/main fields, file hashes, download URLs, expiry and arbitrary attributes. Attribute numbers use `json.Number` so generic JSON does not lose integer precision. Definition publication is distinct from activation: registering later versions does not implicitly move `main`.
+Registration validates the required `SKILL.md`, path/name rules, UTF-8, file count and size limits, attributes and source provenance before dispatch. For Skills used by the writer, every file must use one of its supported extensions: `.md`, `.txt`, `.json`, `.yaml` or `.yml`. The writer checks every file in the version, including files outside `attributes.preload`; registration alone does not establish writer compatibility.
+
+Responses retain nullable description/note/source/main fields, file hashes, download URLs, expiry and arbitrary attributes. Attribute numbers use `json.Number` so generic JSON does not lose integer precision. The first registered version becomes `main`; later registrations do not implicitly move `main`.
 
 ## Error and transport contract
 
@@ -57,6 +59,8 @@ Errors do not include raw response bodies or transport errors, and echoed curren
 
 ## Local verification
 
+From the `go/` directory in the full Git checkout:
+
 ```sh
 GOTOOLCHAIN=local go test -race ./...
 sh scripts/check-package.sh
@@ -65,10 +69,10 @@ sh scripts/check-package.sh
 For offline installation, verify the bundle checksums and use its included Go module proxy:
 
 ```sh
-GOPROXY=file:///absolute/path/to/release/go-proxy GOSUMDB=off \
+GOPROXY=file:///absolute/path/to/release/go-proxy GONOPROXY=none GOSUMDB=off \
   go get github.com/Nuva-Lab/ads-sdk/go@v0.1.0-preview.1
 ```
 
-`GOSUMDB=off` applies only to this command for the supplied private module archive. Verify `SHA256SUMS` before installing.
+`GONOPROXY=none` ensures this command uses the included proxy even if you have configured `GOPRIVATE`. `GOSUMDB=off` applies only to this command for the supplied private module archive. Verify `SHA256SUMS` before installing.
 
 Tests use local HTTP fixtures.

@@ -4,7 +4,7 @@ Review Products, Scripts, Prompts and videos in a visual workspace alongside Ads
 
 ## Start
 
-Install Node.js 22+, pnpm 11.7.0 and Go 1.22+. From the SDK repository:
+Install Node.js 22.13 or newer, pnpm 11.7.0 and Go 1.22+. From the SDK repository:
 
 ```sh
 pnpm install --frozen-lockfile
@@ -36,14 +36,23 @@ pnpm playground --env-file ./my-playground.env --port 8997
 
 ## Service settings
 
-The preview connects to staging by default. Override these two settings in `.env` when using another environment:
+The preview connects to staging by default (`NUVA_ENVIRONMENT=sandbox`). To switch to production, set these values in `.env` and restart `pnpm playground`:
+
+```dotenv
+NUVA_ENVIRONMENT=production
+NUVA_CUSTOMER_API_KEY=your-production-customer-admin-api-key
+```
+
+Use an Admin API key for the selected environment. `NUVA_ENVIRONMENT` selects both service URLs:
 
 | Variable | Staging default | Production |
 | --- | --- | --- |
 | `NUVA_AGENT_URL` | `https://agent-staging.nuvalab.ai/api` | `https://agent.nuvalab.ai/api` |
 | `NUVA_API_URL` | `https://api-staging.nuvalab.ai` | `https://api.nuvalab.ai` |
 
-The API URL handles Products, artifacts, media, Script/Prompt writing, video Jobs and token issuance. **Connection settings** lets you change the Agent and API URLs for the current browser connection. Changing the token issuer or user identity requires updating the environment and restarting `pnpm playground`.
+Explicit `NUVA_AGENT_URL` and `NUVA_API_URL` settings override the selected environment's defaults. Remove those overrides to use the URLs selected by `NUVA_ENVIRONMENT`. Settings supplied as process environment variables also take precedence over `.env`.
+
+The API URL handles Products, artifacts, media, Script/Prompt writing, video Jobs and token issuance. **Connection settings** changes the Agent and API URLs for the current browser connection only; it does not change the local server's token issuer. Keep the browser's services and the server's token issuer in the same environment. After changing the environment, server URL overrides, Admin key or `NUVA_EXTERNAL_USER_ID`, restart `pnpm playground` and reload the page.
 
 ## Try a creation flow
 
@@ -83,7 +92,7 @@ The interface defaults to Chinese and remembers your **中文 / English** select
 | --- | --- |
 | Startup reports a missing setting | Set `NUVA_CUSTOMER_API_KEY` and `NUVA_EXTERNAL_USER_ID` in `.env` or your environment. |
 | Connection fails | Check the configured Agent and API URLs and whether those services are reachable. |
-| Token issuance fails | Check that the Admin key is valid for the configured Store service. |
+| Token issuance fails | Check that the Admin key matches the environment selected by `NUVA_ENVIRONMENT` or the explicit `NUVA_API_URL` override, then restart the playground. |
 | An image upload fails in the browser | Check the upload service's CORS settings for the playground origin. |
 | An old media preview has expired | Refresh the resource to obtain current media access. |
 

@@ -93,6 +93,8 @@ def guide_pages(locale='zh'):
             + ex('subscribe', "import { useEffect, useMemo, useState, type FormEvent } from 'react';\nimport { Message, type NuvaClient, type AgentHandle, type AgentState } from '@nuva/sdk';")
             + p('Mount the conversation component with <code>key={sessionId}</code>. Unsubscribing stops local updates; it does not stop server work.',
                 '使用 <code>key={sessionId}</code> 挂载对话组件。取消订阅只停止本地状态更新，不会停止服务端工作。')
+            + p('After initial loading, a synchronization error can appear in <code>state.error</code> while the last known execution status and messages remain available. Show that error alongside the conversation, preserve the draft, and offer explicit refresh after connectivity or sign-in is restored. Also render failed-message errors without discarding partial content.',
+                '首次加载后，同步错误可能出现在 <code>state.error</code> 中，同时保留上次已知的运行状态和消息。应在对话旁显示错误并保留草稿，在网络或登录恢复后允许用户主动刷新；失败消息也应显示错误并保留部分内容。')
             + table([t('State', '状态'), t('Display / behavior', '展示与行为')], [
                 ['<code>loading</code>', t('Wait for the initial Session state.', '等待首次加载 Session。')],
                 ['<code>idle</code>', t('Allow a new user message.', '允许发送新消息。')],
@@ -235,7 +237,8 @@ def guide_pages(locale='zh'):
                 '每次明确发起新的生成时创建此对象。重试 <code>submit()</code> 会复用相同输入和操作 key。需要跨页面刷新重试时，将两者一并持久化。即使提示词不变，主动重新生成也应创建新对象。')
             + p('The SDK does not automatically replay a write with unknown acceptance. See <a href="' + link('reference', 'errors') + '">errors and retry behavior</a>.',
                 'SDK 不会自动重放接受状态不明的写入。参见<a href="' + link('reference', 'errors') + '">错误与重试行为</a>。')
-            + p('Download the <a href="examples/creation-chain.ts">complete Product-to-clips example</a>.', '下载<a href="examples/creation-chain.ts">从产品到视频片段的完整示例</a>。')),
+            + p('Download the <a href="examples/creation-chain.ts">complete Product-to-clips example</a>. Keep its caller-owned progress object and implement saveProgress in your application. createProductVideo starts a new flow once and records accepted resources and video operation keys; submitPendingVideos explicitly resumes saved submissions; waitForProductVideos resumes reads without submitting new Jobs. For interrupted preparation, inspect the retained IDs and SDK error details before deciding the next operation.',
+                '下载<a href="examples/creation-chain.ts">从产品到视频片段的完整示例</a>。保留由调用方持有的 progress 对象，并在应用中实现 saveProgress。createProductVideo 只启动一次新流程并记录已接受的资源及视频操作 key；submitPendingVideos 用于主动恢复已保存的提交；waitForProductVideos 只恢复查询，不创建新任务。准备阶段中断时，先检查保留的 ID 和 SDK 错误详情，再决定下一项操作。')),
     ]
 
     reference = [
@@ -289,7 +292,7 @@ def guide_pages(locale='zh'):
                 ['<code>getAccessToken</code>', t('Application-provided callback returning {token, expiresAt}; the SDK calls it for authentication and refresh.', '由应用实现的回调，返回 {token, expiresAt}；SDK 在认证和刷新时调用。')],
                 ['<code>environment</code>', t('sandbox (default, staging) or production. Selects the paired Agent and API addresses.', 'sandbox（默认值，对应 staging）或 production，选择配套的 Agent 和 API 地址。')],
                 ['<code>baseUrl / storeBaseUrl / generationBaseUrl</code>', t('Override service addresses for another environment.', '为其他环境覆盖服务地址。')],
-                ['<code>requestTimeoutMs</code>', t('Override request deadlines. Writers, Asset registration and uploads default to 180 seconds; control and read requests default to 8 seconds.', '覆盖请求超时。编写服务、素材注册和上传默认 180 秒；控制与读取请求默认 8 秒。')],
+                ['<code>requestTimeoutMs</code>', t('Override per-request deadlines. scripts.generate, prompts.generate, assets.register and file-byte uploads default to 180 seconds. All other requests, including Script/Prompt create/update, upload-intent creation and video submission, default to 8 seconds. job.result({timeoutMs}) separately bounds completion waiting.', '覆盖单次请求超时。scripts.generate、prompts.generate、assets.register 和文件字节上传默认 180 秒。其他请求（包括脚本/提示词创建与更新、上传意图创建和视频任务提交）默认 8 秒。job.result({timeoutMs}) 另行控制等待任务完成的时长。')],
                 ['<code>jobPollIntervalMs</code>', t('Set the interval between Job status polls.', '设置任务状态轮询间隔。')],
                 ['<code>tokenRefreshSkewMs</code>', t('Set how early expiry-aware tokens refresh.', '设置令牌在过期前多久刷新。')],
                 ['<code>onTrace / onWireTrace</code>', t('Inspect SDK diagnostics. Redact credentials and private content before retaining or sharing traces.', '查看 SDK 诊断信息。保存或分享前应去除凭证和私有内容。')],
@@ -297,6 +300,8 @@ def guide_pages(locale='zh'):
         section('versions', 'Versions and stored content', '版本与存储内容',
             table([t('Value', '值'), t('Meaning', '含义')], [
                 ['<code>0.1.0-preview.1</code>', t('SDK package version.', 'SDK 包版本。')],
+                ['<code>/v1/…</code>', t('Public HTTP API version.', '公开 HTTP API 版本。')],
+                ['<code>version: 1</code>', t('Agent message-envelope protocol revision; omission also means v1.', 'Agent 消息封装协议版本；省略时同样按 v1 处理。')],
                 ['<code>schema_version: 1</code>', t('Current backend Artifact schema.', '当前后端产物 schema。')],
                 ['<code>ScriptPackage schema_version: 2</code>', t('Structured Script content exposed as script.content.', '通过 script.content 返回的结构化脚本格式。')],
             ])

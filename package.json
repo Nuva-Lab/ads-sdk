@@ -5,13 +5,13 @@
   "type": "module",
   "packageManager": "pnpm@11.7.0",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.13.0"
   },
   "scripts": {
     "build": "pnpm --dir typescript build",
     "test": "pnpm --dir protocol test && pnpm --dir typescript test && cd go && go test ./...",
     "docs:build": "pnpm --dir docs build",
-    "docs:check": "pnpm --dir docs typecheck",
+    "docs:check": "pnpm --dir docs typecheck && pnpm --dir docs test && pnpm --dir docs check",
     "release:build": "node scripts/release/build.mjs",
     "release:check": "node scripts/release/check.mjs",
     "release:bundle": "python3 scripts/release/bundle-review.py",

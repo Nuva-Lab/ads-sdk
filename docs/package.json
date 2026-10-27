@@ -6,7 +6,8 @@
   "scripts": {
     "build": "python3 build_customer.py",
     "typecheck": "tsc -p tsconfig.examples.json",
-    "check": "python3 check_customer.py"
+    "check": "python3 check_customer.py",
+    "test": "node --test examples/*.test.mjs"
   },
   "devDependencies": {
     "@types/react": "19.1.16",

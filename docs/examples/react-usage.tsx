@@ -48,23 +48,69 @@ export function useSessionExample(nuva: NuvaClient, sessionId: string) {
 export function useMessageInputExample(agent: AgentHandle) {
 	// #region conversation
 	const [text, setText] = useState('');
+	const [sending, setSending] = useState(false);
+	const [error, setError] = useState('');
 
 	async function send() {
-		await agent.send(Message.text(text));
-		setText((current) => (current === text ? '' : current));
+		if (sending || !text.trim()) return;
+		const submitted = text;
+		setSending(true);
+		setError('');
+		try {
+			await agent.send(Message.text(submitted));
+			setText((current) => (current === submitted ? '' : current));
+		} catch (error) {
+			setError(error instanceof Error ? error.message : String(error));
+		} finally {
+			setSending(false);
+		}
 	}
 	// #endregion conversation
-	return { text, setText, send };
+	return { text, setText, send, sending, error };
 }
 
-export function MessageListExample({ state, renderMessage }: { state: AgentState; renderMessage: (message: MessageView) => ReactNode }) {
+export function MessageListExample({
+	agent,
+	state,
+	renderMessage,
+}: {
+	agent: AgentHandle;
+	state: AgentState;
+	renderMessage: (message: MessageView) => ReactNode;
+}) {
 	// #region messages
-	if (state.status === 'loading') return <p>Loading…</p>;
-	if (state.status === 'error') return <p>{state.error.message}</p>;
+	const [refreshing, setRefreshing] = useState(false);
+	const [refreshError, setRefreshError] = useState('');
+	const error = 'error' in state ? state.error : undefined;
 
-	return state.messages.items.map((message) => (
-		<Fragment key={`${message.ref.sessionId}:${message.ref.messageId}`}>{renderMessage(message)}</Fragment>
-	));
+	async function refresh() {
+		setRefreshing(true);
+		setRefreshError('');
+		try {
+			await agent.refresh(); // Refetch state; never resend a message.
+		} catch (error) {
+			setRefreshError(error instanceof Error ? error.message : String(error));
+		} finally {
+			setRefreshing(false);
+		}
+	}
+
+	return (
+		<>
+			{state.status === 'loading' && <p>Loading…</p>}
+			{error && <p role="alert">{error.message}</p>}
+			<button type="button" disabled={refreshing} onClick={refresh}>
+				{refreshing ? 'Refreshing…' : 'Refresh conversation'}
+			</button>
+			{refreshError && <p role="alert">Refresh failed: {refreshError}</p>}
+			{'messages' in state && state.messages.items.map((message) => (
+				<Fragment key={`${message.ref.sessionId}:${message.ref.messageId}`}>
+					{renderMessage(message)}
+					{message.state === 'failed' && <p role="alert">Message failed: {message.error.message}</p>}
+				</Fragment>
+			))}
+		</>
+	);
 	// #endregion messages
 }
 

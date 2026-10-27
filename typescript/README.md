@@ -53,7 +53,7 @@ const state = await nuva.jobs.get(job.id);
 // Acceptance is not completion. Poll/subscribe or await job.result({timeoutMs}).
 ```
 
-Brand/Product/Character records retain continuing `id`, numeric `version`, exact `revision`, typed `data` and authorized Asset sidecars. Updates take `{base,data}`; Products also accept `brand_id`. `get(id,{version})` reads an exact historic version. `uploadImage` uploads/registers then attaches against the captured base without refetching or silently rebasing. A duplicate already-attached Asset is a no-op; stale bases still conflict. `ProductImageUploadError.asset` and `.assetId` retain the uploaded Asset when attachment fails.
+Brand/Product/Character records retain continuing `id`, numeric `version`, exact `revision`, typed `data` and authorized Asset sidecars. Updates take `{base,data}`; Product updates also require `brand_id`. `get(id,{version})` reads an exact historic version. `uploadImage` uploads/registers then attaches against the captured base without refetching or silently rebasing. A duplicate already-attached Asset is a no-op; stale bases still conflict. `ProductImageUploadError.asset` and `.assetId` retain the uploaded Asset when attachment fails.
 
 Backend resource IDs are canonical GUID-shaped identifiers, including backend OrderedUUID values without RFC version/variant bits. `backendIdSchema` accepts that shape. Session/request identifiers retain their separate protocol rules.
 
@@ -65,7 +65,14 @@ Use `scripts.generate` for a direct request or ask the Agent to write and revise
 
 Edit and postprocess clips in your own editor. Upload the finished video and attach its Asset reference to the same Agent Session, with any optional editing notes or structured details. The Agent handles Ad registration and returns the Ad ID. Include the source clips, trim ranges and editing settings needed to describe the final composition.
 
-Script/Prompt writing, Asset registration and direct uploads default to a 180-second timeout; control requests and reads default to 8 seconds. Set `requestTimeoutMs` to override these deadlines. A timed-out write may still complete on the server: keep its operation key and inspect or retry that same operation before starting another.
+Request deadlines are separate from waiting for a video Job:
+
+| Operation | Default request timeout |
+| --- | --- |
+| `scripts.generate`, `prompts.generate`, `assets.register`, and uploading file bytes | 180 seconds |
+| Other requests, including Script/Prompt create/update, upload-intent creation, video submission, control requests and reads | 8 seconds |
+
+Set `requestTimeoutMs` to override these request deadlines. `job.result({timeoutMs})` controls how long the client waits for completion; it does not change the Job's lifetime. Save each accepted Job ID before waiting. A timed-out write may still complete on the server: keep its operation key and inspect that operation before deciding whether to retry.
 
 ## Reads, media and operation identity
 
@@ -87,7 +94,3 @@ await agent.stop(); // Current loop only; does not cancel existing Jobs.
 Use `sessions.create/get/list/history`, `loadEarlierMessages` and `refresh` for Session state. `respond` sends output for a registered pending client call; `fail` reports inability to obtain the result. Keep drafts when an acknowledgement is lost and retry with the original request ID only when appropriate. Clients cannot submit trusted author metadata or internal tool calls.
 
 `@nuva/sdk/react` exports `NuvaProvider` and `useAgent`. It uses the same client and state contract; it does not introduce a second conversation owner. Opt-in `onWireTrace` observes transport bodies; treat them as sensitive application data and redact before storing or sharing.
-
-## Verification
-
-From the source workspace: `pnpm --dir typescript test`. For delivered artifacts: `node scripts/release/check.mjs <release-directory>` installs the exact npm archives into an isolated consumer, checks strict TypeScript/headless/React imports, and verifies the separately delivered Go zip. No registry publication or service/model invocation is performed by the release check.

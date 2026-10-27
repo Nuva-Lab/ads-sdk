@@ -34,8 +34,10 @@ def go_sections(locale='zh'):
              f'将此接口接入客户端的 <a href="{filename("frontend", locale)}#authentication">getAccessToken</a>。对该接口应用你现有的登录会话和 CSRF 防护。')),
         ('skills', t('Register a Skill', '注册 Skill'),
          ex('register-skill', 'import "context"')
-         + p('Provide UTF-8 text files, including <code>SKILL.md</code>. Add required reference paths to <code>attributes.preload</code>; the writer loads them before generating. Other Skill files remain available on demand.',
-           '提供 UTF-8 文本文件，其中必须包含 <code>SKILL.md</code>。将必需的参考文件路径写入 <code>attributes.preload</code>，编写服务会在生成前加载；其他 Skill 文件可按需读取。')
+         + p('Provide UTF-8 text files, including <code>SKILL.md</code>. The writer supports <code>.md</code>, <code>.txt</code>, <code>.json</code>, <code>.yaml</code> and <code>.yml</code> files. It checks every file in the version, including files outside <code>attributes.preload</code>; registration alone does not establish writer compatibility.',
+           '提供 UTF-8 文本文件，其中必须包含 <code>SKILL.md</code>。编写服务支持 <code>.md</code>、<code>.txt</code>、<code>.json</code>、<code>.yaml</code> 和 <code>.yml</code> 文件。它会检查版本中的全部文件，包括未列入 <code>attributes.preload</code> 的文件；注册成功不代表该版本一定能被编写服务加载。')
+         + p('Add required reference paths to <code>attributes.preload</code>; the writer loads them before generating. Other supported Skill files remain available on demand.',
+           '将必需的参考文件路径写入 <code>attributes.preload</code>，编写服务会在生成前加载；其他受支持的 Skill 文件可按需读取。')
          + p('Save <code>registered.Skill.ID</code> and <code>registered.Version.Version</code> when the client needs to select that guidance. Registering a Skill stores text and metadata; it does not execute scripts.',
            '客户端需要选择这份指导时，保存 <code>registered.Skill.ID</code> 和 <code>registered.Version.Version</code>。注册 Skill 只保存文本和元数据，不执行脚本。')),
         ('activate', t('Select the main Skill version', '选择 Skill 主版本'),

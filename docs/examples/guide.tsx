@@ -207,6 +207,9 @@ export function MessageContent({
           {resource.label}
         </button>
       ))}
+      {message.state === "failed" && (
+        <p role="alert">Message failed: {message.error.message}</p>
+      )}
     </article>
   );
 }
@@ -273,19 +276,48 @@ function Conversation({
   sessionId: string;
 }) {
   const { agent, state } = useConversation(client, sessionId);
-  if (state.status === "loading") return <p>Loading…</p>;
-  if (state.status === "error") return <p role="alert">{state.error.message}</p>;
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState("");
+  const error = "error" in state ? state.error : undefined;
+
+  async function refresh() {
+    setRefreshing(true);
+    setRefreshError("");
+    try {
+      await agent.refresh(); // Refetch state; never resend a message.
+    } catch (error) {
+      setRefreshError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   return (
     <>
-      {state.messages.items.map((message) => (
-        <p key={message.ref.messageId}>
-          {message.content
-            .filter((part) => part.type === "text")
-            .map((part) => part.text)
-            .join("\n")}
-        </p>
-      ))}
-      <MessageInput agent={agent} busy={state.status !== "idle"} />
+      {state.status === "loading" && <p>Loading…</p>}
+      {error && <p role="alert">{error.message}</p>}
+      <button type="button" disabled={refreshing} onClick={refresh}>
+        {refreshing ? "Refreshing…" : "Refresh conversation"}
+      </button>
+      {refreshError && <p role="alert">Refresh failed: {refreshError}</p>}
+      {"messages" in state &&
+        state.messages.items.map((message) => (
+          <article key={`${message.ref.sessionId}:${message.ref.messageId}`}>
+            <p>
+              {message.content
+                .filter((part) => part.type === "text")
+                .map((part) => part.text)
+                .join("\n")}
+            </p>
+            {message.state === "failed" && (
+              <p role="alert">Message failed: {message.error.message}</p>
+            )}
+          </article>
+        ))}
+      <MessageInput
+        agent={agent}
+        busy={state.status !== "idle" || Boolean(error) || refreshing}
+      />
     </>
   );
 }

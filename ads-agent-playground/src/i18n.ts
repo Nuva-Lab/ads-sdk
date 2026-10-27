@@ -93,8 +93,8 @@ export const zh: Record<string, string> = {
   Connecting: "正在连接",
   "Connecting…": "正在连接…",
   "Connection settings": "连接设置",
-  "Choose the service endpoints for your workspace.":
-    "设置工作区使用的服务地址。",
+  "These URLs only change this browser's connection. To switch environments or users, update the server settings and matching Admin key, then restart the playground.":
+    "这些地址仅更改当前浏览器的连接。切换环境或用户时，请更新服务端设置，确认 Admin 密钥与环境匹配，然后重启工作台。",
   "YOUR WORKSPACE": "工作区",
   "Agent URL": "智能体服务地址",
   "API URL": "API 服务地址",

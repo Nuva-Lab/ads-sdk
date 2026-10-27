@@ -74,16 +74,17 @@ export async function readAsset(nuva: NuvaClient, assetId: string) {
 	// #endregion asset-read
 	return asset;
 }
-export async function generateVideo(nuva: NuvaClient, promptId: string, onProgress: (state: JobState) => void) {
+export async function submitVideo(nuva: NuvaClient, promptId: string, requestKey: string) {
 	// #region video-job
-	const job = await nuva.videos.generate({ prompt: promptId });
-	const unsubscribe = job.subscribe(onProgress);
-	try {
-		return await job.result();
-	} finally {
-		unsubscribe();
-	}
+	// Persist promptId and requestKey before calling; keep the returned Job ID.
+	const job = await nuva.videos.generate({ prompt: promptId }, { idempotencyKey: requestKey });
+	return job;
 	// #endregion video-job
+}
+export function followVideo(nuva: NuvaClient, jobId: string, onProgress: (state: JobState) => void) {
+	// Reopen progress using the saved ID, without submitting another Job.
+	// Return the unsubscribe function to the UI owner; unsubscribing does not cancel the Job.
+	return nuva.jobs.subscribe(jobId, onProgress);
 }
 export async function generateScript(nuva: NuvaClient, productId: string) {
 	// #region script-generate
@@ -111,7 +112,7 @@ export async function readAd(nuva: NuvaClient, adId: string) {
 export async function readWorkspaces(nuva: NuvaClient, batchId: string) {
 	// #region workspaces-read
 	const batch = await nuva.batches.get(batchId);
-	// Read intent, Ads and Job counts. Do not depend on the legacy public log field.
+	// Read intent, Ads and Job counts.
 	// #endregion workspaces-read
 	return batch;
 }

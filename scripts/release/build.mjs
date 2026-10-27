@@ -97,7 +97,7 @@ export async function buildRelease({ output = DIST, origins } = {}) {
 		if (origins) await writeFile(resolve(stage, 'source/approved-origins.json'), JSON.stringify(origins, null, 2) + '\n');
 		await writeFile(
 			resolve(stage, 'source/BUILD.md'),
-			`# SDK source ${VERSION}\n\nInstall with pnpm 11.7.0, Node 22+, Python 3 and Go 1.22+. Run \`pnpm install --frozen-lockfile\`, then \`node scripts/release/build.mjs${origins ? ' --origins approved-origins.json' : ''}\`. Source excludes runtime, credentials, maintainer-only Skill content and TypeScript tests. Go test/support files are retained for identical module checksums. This bundle contains public SDK implementations; the root lock retains dependency integrity metadata. Run \`pnpm playground\` to open the customer playground. No registry publication or Git repository is created.\n`,
+			`# SDK source ${VERSION}\n\nInstall with pnpm 11.7.0, Node 22.13+, Python 3 and Go 1.22+. Run \`pnpm install --frozen-lockfile\`, then \`node scripts/release/build.mjs${origins ? ' --origins approved-origins.json' : ''}\`. Run \`pnpm playground\` to open the customer playground; see \`ads-agent-playground/README.md\` for credentials and environment selection. Full repository test commands require the Git checkout. This archive provides the SDK source, package builder and playground.\n`,
 		);
 		run('python3', [resolve(ROOT, 'scripts/release/archives.py'), stage, output, VERSION, GO_MODULE]);
 		// Inventory only this build's outputs. Review bundles and other files beside them belong to their owner.

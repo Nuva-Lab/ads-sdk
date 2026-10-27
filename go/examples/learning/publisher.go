@@ -17,11 +17,15 @@ type Candidate struct {
 type Publication struct {
 	SkillName  string
 	Definition nuva.SkillRegistration
-	Activate   bool
+	// Activate requests an explicit main switch after registration. The first
+	// version of a new Skill becomes main even when Activate is false.
+	Activate bool
 }
 type Result struct {
 	Registered nuva.RegisteredSkill
-	Activated  bool
+	// Activated reports whether the registered version is main in the last
+	// successful API response, including registration's first-version selection.
+	Activated bool
 }
 type Publisher struct {
 	Admin      *nuva.AdminClient
@@ -30,6 +34,8 @@ type Publisher struct {
 	Read func(context.Context, string) (Candidate, error)
 	// Prepare enforces customer policy and constructs the COMPLETE next Skill.
 	// A watcher suggestion alone is not a replacement for the existing Skill files.
+	// If publication must remain inactive, reject creation of a new Skill: its
+	// first registered version automatically becomes main.
 	Prepare func(context.Context, Candidate) (Publication, error)
 }
 
@@ -54,12 +60,14 @@ func (p Publisher) Publish(ctx context.Context, id string) (Result, error) {
 		return result, err
 	}
 	result.Registered = registered
+	result.Activated = registered.Skill.MainVersion != nil && *registered.Skill.MainVersion == registered.Version.Version
 	if publication.Activate {
-		_, err = p.Admin.SetSkillMain(ctx, publication.SkillName, registered.Version.Version)
+		main, err := p.Admin.SetSkillMain(ctx, publication.SkillName, registered.Version.Version)
 		if err != nil {
 			return result, err
 		} // Preserve registration receipt even when activation fails.
-		result.Activated = true
+		result.Registered.Skill = main
+		result.Activated = main.MainVersion != nil && *main.MainVersion == registered.Version.Version
 	}
 	return result, nil
 }
