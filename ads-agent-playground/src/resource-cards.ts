@@ -241,19 +241,6 @@ export class ResourceCards {
     if (view.status) element.dataset.jobStatus = view.status;
     open.append(visual, content);
     element.replaceChildren(open);
-    if (state === "error") {
-      const retry = node(
-        "button",
-        msg("Retry preview"),
-        "resource-preview-retry",
-      );
-      retry.type = "button";
-      retry.onclick = () => {
-        this.paint(slot, view, "loading");
-        void this.hydrate(slot);
-      };
-      element.append(retry);
-    }
   }
   private watch(id: string) {
     if (this.disposed || this.jobs.has(id) || !this.options.watchJob) return;

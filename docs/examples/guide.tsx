@@ -364,8 +364,6 @@ export async function saveEditedScript(client: NuvaClient, script: Script) {
       ...script.content,
       concept: { ...script.content.concept, name: "Morning commute" },
     },
-    ...(script.data.product === undefined ? {} : { product: script.data.product }),
-    ...(script.data.skill === undefined ? {} : { skill: script.data.skill }),
     batch_id: script.batch_id,
   });
 }
@@ -412,6 +410,26 @@ export async function generateClip(client: NuvaClient, promptId: string) {
   return job; // Save job.id before waiting for the video.
 }
 // #endregion generate-video
+
+// #region generate-video-raw
+export async function generateClipFromText(
+  client: NuvaClient,
+  imageAssetId: string,
+  requestKey: string,
+) {
+  return client.videos.generate({
+    input: {
+      schema_version: 1,
+      data: {
+        prompt: "Show the product in <Picture 1> on a clean studio background.",
+        image_asset_ids: [imageAssetId],
+        seconds: 5,
+        ratio: "9:16",
+      },
+    },
+  }, { idempotencyKey: requestKey });
+}
+// #endregion generate-video-raw
 
 // #region job-progress
 export function useClip(client: NuvaClient, jobId: string) {

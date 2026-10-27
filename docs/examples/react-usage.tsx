@@ -15,14 +15,14 @@ import {
 	type Product,
 } from '@nuva/sdk';
 
-export function useClientExample(getAccessToken: () => Promise<AccessToken>, endpoints: { agent: string; generation: string; store: string }) {
+export function useClientExample(getAccessToken: () => Promise<AccessToken>) {
 	// #region client
 	const [nuva, setNuva] = useState<NuvaClient | null>(null);
 	useEffect(() => {
-		const client = createNuva({ getAccessToken, baseUrl: endpoints.agent, generationBaseUrl: endpoints.generation, storeBaseUrl: endpoints.store });
+		const client = createNuva({ getAccessToken });
 		setNuva(client);
 		return () => client.close();
-	}, [getAccessToken, endpoints.agent, endpoints.generation, endpoints.store]);
+	}, [getAccessToken]);
 	// #endregion client
 	return nuva;
 }

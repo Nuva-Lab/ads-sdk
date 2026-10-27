@@ -117,12 +117,7 @@ export function bootWorkspace(sdk: NuvaClient, scope: string) {
       ...(selectedProduct ? { product: selectedProduct } : {}),
       remember: (record, extra) => remember(record, extra, owner),
       attach: (record) => chat.attach(record),
-      changed: () => {
-        if (owner !== sessionId || destroyed) return;
-        tab = "prompt";
-        void action(render);
-      },
-      videoSubmissionEnabled: true,
+      requestAgent: (text, resources) => chat.requestAgent(text, resources, owner),
     };
   }
   const chat = new ChatController({
@@ -282,8 +277,7 @@ async function main() {
       error = byId("connection-error");
     const settings = {
       agent: byId<HTMLInputElement>("agent-url").value.trim(),
-      store: byId<HTMLInputElement>("store-url").value.trim(),
-      generation: byId<HTMLInputElement>("generation-url").value.trim(),
+      api: byId<HTMLInputElement>("api-url").value.trim(),
     };
     submit.disabled = true;
     setText(submit, msg("Connecting…"));
@@ -307,8 +301,7 @@ async function main() {
         id: string;
         scope: string;
         agent: string;
-        store: string;
-        generation: string;
+        api: string;
       } = await response.json();
       if (!connection.id || !connection.scope)
         throw new UiError(
@@ -318,8 +311,7 @@ async function main() {
       let requested = false;
       const sdk = createNuva({
         baseUrl: connection.agent,
-        storeBaseUrl: connection.store,
-        generationBaseUrl: connection.generation,
+        storeBaseUrl: connection.api,
         getAccessToken: async (): Promise<AccessToken> => {
           const path = requested
             ? "/playground/token?force=1"
@@ -382,7 +374,7 @@ async function main() {
       ),
     );
   const defaults: Record<string, string> = await response.json();
-  for (const key of ["agent", "store", "generation"]) {
+  for (const key of ["agent", "api"]) {
     if (typeof defaults[key] !== "string" || !defaults[key])
       throw new UiError(msg("The playground has incomplete service settings."));
     byId<HTMLInputElement>(`${key}-url`).value = defaults[key];

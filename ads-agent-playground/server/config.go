@@ -8,20 +8,29 @@ import (
 )
 
 type endpoints struct {
-	Agent      string `json:"agent"`
-	Store      string `json:"store"`
-	Generation string `json:"generation"`
+	Agent string `json:"agent"`
+	API   string `json:"api"`
 }
 
-// Replace the two loopback defaults with the customer-facing staging hosts when available.
-// These are the only default service addresses used by the playground.
+// Customer preview services. The private Ads Agent dev launcher supplies local overrides.
 var defaultEndpoints = endpoints{
-	Agent:      "http://127.0.0.1:8980/api",
-	Store:      "https://api-staging.nuvalab.ai",
-	Generation: "http://127.0.0.1:8980",
+	Agent: "https://agent-staging.nuvalab.ai/api",
+	API:   "https://api-staging.nuvalab.ai",
+}
+
+func environmentEndpoints(environment string) (endpoints, error) {
+	switch environment {
+	case "sandbox":
+		return defaultEndpoints, nil
+	case "production":
+		return endpoints{Agent: "https://agent.nuvalab.ai/api", API: "https://api.nuvalab.ai"}, nil
+	default:
+		return endpoints{}, errors.New("NUVA_ENVIRONMENT must be sandbox or production")
+	}
 }
 
 type configuration struct {
+	Environment    string
 	Endpoints      endpoints
 	APIKey         string
 	ExternalUserID string
@@ -36,6 +45,15 @@ func endpoint(value string) (string, error) {
 }
 func readConfig(getenv func(string) string) (configuration, error) {
 	var cfg configuration
+	cfg.Environment = strings.TrimSpace(getenv("NUVA_ENVIRONMENT"))
+	if cfg.Environment == "" {
+		cfg.Environment = "sandbox"
+	}
+	var err error
+	cfg.Endpoints, err = environmentEndpoints(cfg.Environment)
+	if err != nil {
+		return cfg, err
+	}
 	cfg.APIKey = strings.TrimSpace(getenv("NUVA_CUSTOMER_API_KEY"))
 	cfg.ExternalUserID = getenv("NUVA_EXTERNAL_USER_ID")
 	var missing []string
@@ -48,11 +66,10 @@ func readConfig(getenv func(string) string) (configuration, error) {
 	if len(missing) > 0 {
 		return cfg, fmt.Errorf("missing required settings: %s; set them in the environment or .env", strings.Join(missing, ", "))
 	}
-	cfg.Endpoints = defaultEndpoints
 	for _, setting := range []struct {
 		Name   string
 		Target *string
-	}{{"NUVA_AGENT_URL", &cfg.Endpoints.Agent}, {"NUVA_STORE_URL", &cfg.Endpoints.Store}, {"NUVA_GENERATION_URL", &cfg.Endpoints.Generation}} {
+	}{{"NUVA_AGENT_URL", &cfg.Endpoints.Agent}, {"NUVA_API_URL", &cfg.Endpoints.API}} {
 		if v := strings.TrimSpace(getenv(setting.Name)); v != "" {
 			*setting.Target = v
 		}
@@ -62,9 +79,9 @@ func readConfig(getenv func(string) string) (configuration, error) {
 		}
 		*setting.Target = normalized
 	}
-	issuer, _ := url.Parse(cfg.Endpoints.Store)
+	issuer, _ := url.Parse(cfg.Endpoints.API)
 	if issuer.Scheme != "https" && issuer.Hostname() != "localhost" && issuer.Hostname() != "127.0.0.1" && issuer.Hostname() != "::1" {
-		return cfg, errors.New("NUVA_STORE_URL must use HTTPS unless it is a local development server")
+		return cfg, errors.New("NUVA_API_URL must use HTTPS unless it is a local development server")
 	}
 	return cfg, nil
 }

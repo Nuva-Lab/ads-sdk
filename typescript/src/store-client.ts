@@ -34,6 +34,10 @@ function checked<T>(schema: { parse(v: unknown): T }, value: unknown, input = fa
 	}
 }
 const link = <T extends { id: string }, K extends string>(v: T, kind: K, label: string) => ({ ...v, ref: { kind, id: v.id }, label });
+function assertClientRelationships(input: unknown): void {
+	if (input !== null && typeof input === 'object' && Object.hasOwn(input, 'relationships'))
+		throw new NuvaError({ code: 'UNSUPPORTED_OPERATION', message: 'Artifact relationships are managed by the Agent.', retryable: false, acceptance: 'not_accepted' });
+}
 export function createStores(transport: Transport, options: NuvaClientOptions) {
 	let closed = false;
 	const stops = new Set<() => void>();
@@ -49,6 +53,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 	): Promise<T> {
 		let received = false;
 		try {
+			if (method === 'artifacts.create' || method === 'artifacts.update') assertClientRelationships(params);
 			const response = await transport.data(method, params, requestId, idempotencyKey);
 			received = true;
 			const result = checked(schema, response);
@@ -139,6 +144,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 				},
 			),
 		create: (input, o) => {
+			assertClientRelationships(input);
 			const name = kinds[input.kind];
 			if (!name) throw new NuvaError({ code: 'UNSUPPORTED_SCHEMA', message: 'Unsupported Artifact kind.', retryable: false });
 			const { kind, ...body } = input;
@@ -158,6 +164,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 			);
 		},
 		update: (ref, input, o) => {
+			assertClientRelationships(input);
 			const name = kinds[ref.kind as keyof typeof kinds];
 			if (!name) throw new NuvaError({ code: 'UNSUPPORTED_SCHEMA', message: 'Unsupported Artifact kind.', retryable: false });
 			checked(backendSchema(`${name}VersionCreate`), input, true);
@@ -202,6 +209,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 					input: { data: D; batch_id?: string | null },
 					o?: { requestId?: string; idempotencyKey?: string },
 				) => {
+					assertClientRelationships(input);
 					await reader.get(ref);
 					return decode(await artifacts.update(ref, { ...input, data: checked(z.json(), checked(schema, input.data, true), true) }, o));
 				},
@@ -279,12 +287,14 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 	};
 	const writeScript = (input: {
 		content: import('./stores.js').ScriptPackage;
-		product?: string | null;
-		skill?: string | null;
+		relationships?: never;
 		batch_id?: string | null;
 	}) => {
-		const { content, batch_id, ...refs } = input;
-		return { data: { ...refs, text: encodeScriptPackage(content) }, ...(batch_id === undefined ? {} : { batch_id }) };
+		assertClientRelationships(input);
+		const { content, batch_id, ...unexpected } = input;
+		if (Object.keys(unexpected).length)
+			throw new NuvaError({ code: 'INVALID_INPUT', message: 'Script inputs accept content and an optional batch_id.', retryable: false });
+		return { data: { text: encodeScriptPackage(content) }, ...(batch_id === undefined ? {} : { batch_id }) };
 	};
 	const prompts = artifacts.forSchema(PromptSchema);
 	const api: StoreClients = {
@@ -393,7 +403,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 								.parse(v);
 							if (
 								new Set(raw.prompts.map((prompt) => prompt.id)).size !== raw.prompts.length ||
-								raw.prompts.some((prompt) => prompt.data.plan != null || prompt.data.clip_key != null)
+								raw.prompts.some((prompt) => prompt.relationships.some((relationship) => relationship.target.kind === 'directing_plan'))
 							)
 								throw new NuvaError({
 									code: 'SERVICE_ERROR',
@@ -411,6 +421,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 		jobs: { get: getJob, subscribe },
 		videos: {
 			generate: async (input, o) => {
+				assertClientRelationships(input.input);
 				const receipt = await dto(
 					'videos.generate',
 					checked(backendSchema('GenerateVideo'), input, true),

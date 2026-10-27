@@ -84,7 +84,7 @@ func TestGoHostUsesAdminSDKAndNeverExposesKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg := configuration{Endpoints: endpoints{Agent: issuer.URL + "/api", Store: issuer.URL, Generation: issuer.URL}, APIKey: apiKey, ExternalUserID: external}
+	cfg := configuration{Endpoints: endpoints{Agent: issuer.URL + "/api", API: issuer.URL}, APIKey: apiKey, ExternalUserID: external}
 	server, _ := testApp(t, cfg, newTokenBroker(adminClient.IssueUserToken, external))
 	status, config := fetchJSON(t, server.Client(), "GET", server.URL+"/playground/config", "")
 	if status != 200 {
@@ -152,12 +152,12 @@ func TestPublicProxyDoesNotRedirectAdminCredentials(t *testing.T) {
 	defer destination.Close()
 	cfg := configuration{APIKey: "never-send-this-admin-key", Endpoints: defaultEndpoints}
 	server, _ := testApp(t, cfg, broker)
-	body, _ := json.Marshal(endpoints{Agent: destination.URL + "/api", Store: destination.URL, Generation: destination.URL})
+	body, _ := json.Marshal(endpoints{Agent: destination.URL + "/api", API: destination.URL})
 	status, connection := fetchJSON(t, server.Client(), "POST", server.URL+"/playground/connect", string(body))
 	if status != 200 {
 		t.Fatal(status)
 	}
-	request, _ := http.NewRequest("GET", connection["store"].(string)+"/v1/products", nil)
+	request, _ := http.NewRequest("GET", connection["api"].(string)+"/v1/products", nil)
 	request.Header.Set("Authorization", "Bearer user-token")
 	request.Header.Set("Cookie", "private=value")
 	response, err := server.Client().Do(request)
@@ -182,7 +182,7 @@ func TestPublicProxyDoesNotRedirectAdminCredentials(t *testing.T) {
 	if status != 204 {
 		t.Fatal(status)
 	}
-	if response, err := server.Client().Get(connection["store"].(string) + "/v1/products"); err == nil {
+	if response, err := server.Client().Get(connection["api"].(string) + "/v1/products"); err == nil {
 		response.Body.Close()
 		t.Fatal("removed connection still reachable")
 	}
@@ -208,7 +208,7 @@ func TestWebSocketUpgradeIsProxied(t *testing.T) {
 	broker := newTokenBroker(func(context.Context, string) (admin.TokenResponse, error) {
 		return grant("user-token", "user-1", time.Now().Add(time.Hour)), nil
 	}, "alice")
-	cfg := configuration{Endpoints: endpoints{Agent: upstream.URL + "/api", Store: upstream.URL, Generation: upstream.URL}}
+	cfg := configuration{Endpoints: endpoints{Agent: upstream.URL + "/api", API: upstream.URL}}
 	server, _ := testApp(t, cfg, broker)
 	body, _ := json.Marshal(cfg.Endpoints)
 	_, connection := fetchJSON(t, server.Client(), "POST", server.URL+"/playground/connect", string(body))
@@ -256,7 +256,7 @@ func TestBridgeCORSAndSessionREST(t *testing.T) {
 	broker := newTokenBroker(func(context.Context, string) (admin.TokenResponse, error) {
 		return grant("token", "user", time.Now().Add(time.Hour)), nil
 	}, "alice")
-	cfg := configuration{Endpoints: endpoints{Agent: upstream.URL + "/api", Store: upstream.URL, Generation: upstream.URL}}
+	cfg := configuration{Endpoints: endpoints{Agent: upstream.URL + "/api", API: upstream.URL}}
 	ui, _ := testApp(t, cfg, broker)
 	body, _ := json.Marshal(cfg.Endpoints)
 	_, connection := fetchJSON(t, ui.Client(), "POST", ui.URL+"/playground/connect", string(body))

@@ -185,13 +185,14 @@ const agent = {
     const value = draftValue(draft);
     await fetch("/test-send", { method: "POST", body: JSON.stringify(value) });
     messages.push({
-      ref: { sessionId: session.id, messageId: "sent-user" },
+      ref: { sessionId: session.id, messageId: `sent-user-${crypto.randomUUID()}` },
       createdAt: session.createdAt,
       role: "user",
       state: "complete",
       metadata: { user: { userId: "user", displayName: "Alex" } },
       content: value.content,
       attachments: value.attachments,
+      ...(value.replyTo ? { replyTo: value.replyTo } : {}),
     } as MessageView);
     emit();
   },
@@ -292,12 +293,12 @@ const controller = new ChatController({
       indexLabel,
       remember: () => {},
       attach: (r) => controller.attach(r),
-      changed: () => {},
-      videoSubmissionEnabled: false,
+      requestAgent: (text, resources) => controller.requestAgent(text, resources, session.id),
     }),
 });
 await controller.start();
-await renderResources(root, "prompt", {
+const tab = new URLSearchParams(location.search).get("tab");
+await renderResources(root, tab === "script" ? "script" : tab === "job" ? "job" : "prompt", {
   sdk,
   scope: "chat-render-fixture",
   sessionId: session.id,
@@ -305,7 +306,6 @@ await renderResources(root, "prompt", {
   indexLabel,
   remember: () => {},
   attach: (record) => controller.attach(record),
-  changed: () => {},
-  videoSubmissionEnabled: false,
+  requestAgent: (text, resources) => controller.requestAgent(text, resources, session.id),
 });
 document.getElementById("connection-label")!.textContent = "Connected";

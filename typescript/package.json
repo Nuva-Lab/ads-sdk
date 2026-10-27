@@ -6,7 +6,8 @@
   "files": [
     "dist",
     "README.md",
-    "schema/backend.source.json"
+    "schema/backend.source.json",
+    "schema/backend-video.source.json"
   ],
   "exports": {
     ".": {

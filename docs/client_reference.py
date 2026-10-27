@@ -209,6 +209,8 @@ def guide_pages(locale='zh'):
         section('video', 'Submit a video Job and display the result', '提交视频任务并展示结果',
             ex('generate-video')
             + response('job')
+            + p('You can also submit raw prompt text with registered Asset IDs. The backend creates the Prompt and returns its ID in <code>job.prompt</code>. Use exactly one source mode. Keep <code>requestKey</code> stable for retries; generate a new key for a new video.', '也可以直接传入提示词文本和已注册的素材 ID。后端会创建提示词，并通过 <code>job.prompt</code> 返回其 ID。两种输入方式只能选一种；重试时保留同一个 <code>requestKey</code>，重新生成视频时使用新请求标识。')
+            + ex('generate-video-raw')
             + p('Use a subscription for UI progress. Render <code>job.asset.download_url</code> in a video element after the Job completes. Mount the preview component with <code>key={jobId}</code>.', '界面需要显示进度时使用订阅。任务完成后，将 <code>job.asset.download_url</code> 传给视频元素，并使用 <code>key={jobId}</code> 挂载预览组件。')
             + ex('job-progress')
             + p('For code that needs to wait for the completed Asset, use <code>result()</code> instead of a separate subscription.', '代码需要等待已完成的 Asset 时，使用 <code>result()</code> 即可，无需另外订阅。')

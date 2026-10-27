@@ -1,78 +1,91 @@
 # Ads Agent Playground
 
-Explore products, scripts, prompts and videos alongside an Agent conversation.
+Review Products, Scripts, Prompts and videos in a visual workspace alongside Ads Agent chat.
 
 ## Start
 
-Use Node 22+, pnpm, and Go 1.22+. From the SDK repository:
+Install Node.js 22+, pnpm 11.7.0 and Go 1.22+. From the SDK repository:
 
 ```sh
-pnpm install
+pnpm install --frozen-lockfile
 cp ads-agent-playground/.env.example .env
 ```
 
-Set these two values in `.env`:
+Set these values in `.env`:
 
 ```dotenv
 NUVA_CUSTOMER_API_KEY=your-customer-admin-api-key
-NUVA_EXTERNAL_USER_ID=your-user-id
+NUVA_EXTERNAL_USER_ID=your-test-user-id
 ```
 
-`NUVA_EXTERNAL_USER_ID` is the user's ID in your own application. The Go backend uses the Admin SDK to issue a user token for that identity. It caches the token, refreshes it before expiry, and serves the playground. The Admin key stays in the backend.
+`NUVA_EXTERNAL_USER_ID` is the user's ID in your own application. The local Go server uses the Admin SDK to issue and refresh access tokens for that user. The Admin key stays on the server.
+
+Run:
 
 ```sh
 pnpm playground
 ```
 
-Open **http://127.0.0.1:8995/**. The workspace connects automatically. Use **Connection settings** to view or edit service URLs for the open page. A new launch uses the environment defaults again. There is no token field in the page.
+Open **http://127.0.0.1:8995/**. The workspace connects automatically.
 
-You can set the variables in your shell instead of using `.env`. Environment variables take precedence over the file. Startup fails with the missing variable names if either required value is absent.
-
-## Service settings
-
-The connection screen starts with the service defaults. Override them at startup when needed:
-
-```dotenv
-NUVA_STORE_URL=https://api-staging.nuvalab.ai
-NUVA_AGENT_URL=http://127.0.0.1:8980/api
-NUVA_GENERATION_URL=http://127.0.0.1:8980
-```
-
-Token issuance always uses the server's `NUVA_STORE_URL`; changing a URL in the page never redirects the Admin key. To change the token issuer or user identity, update the environment and restart the playground.
-
-For another file or local port:
+You can also supply settings as environment variables; they take precedence over `.env`. To choose another environment file or port:
 
 ```sh
 pnpm playground --env-file ./my-playground.env --port 8997
 ```
 
-## Use the workspace
+## Service settings
 
-The interface starts in Chinese. Choose **中文 / English** in the top-right corner to change it; your browser remembers the choice. Switching languages preserves your draft and existing conversation and artifact content. For new replies and creative content, the Agent follows the language of your message, or the output language you explicitly request.
+The preview connects to staging by default. Override these two settings in `.env` when using another environment:
 
-Prompt details show numbered media references inline. Click a reference to preview its image,
-video, or audio. Saved generation settings appear beside the prompt text. Use the refresh button
-in the workspace tab bar to reload the current gallery or detail view.
+| Variable | Staging default | Production |
+| --- | --- | --- |
+| `NUVA_AGENT_URL` | `https://agent-staging.nuvalab.ai/api` | `https://agent.nuvalab.ai/api` |
+| `NUVA_API_URL` | `https://api-staging.nuvalab.ai` | `https://api.nuvalab.ai` |
 
-Products opens as a gallery of accessible products. Select a card to review its images and
-saved details alongside the Agent chat. Use New product or Edit product when you want to make
-changes manually; their forms open in dialogs.
+The API URL handles Products, artifacts, media, Script/Prompt writing, video Jobs and token issuance. **Connection settings** lets you change the Agent and API URLs for the current browser connection. Changing the token issuer or user identity requires updating the environment and restarting `pnpm playground`.
 
-Scripts, Prompts, Clips and Finals show saved work from the selected conversation. Cards open
-read-only detail views. Manual Script, Prompt and clip generation are available from explicit actions;
-browsing a tab does not start generation. Clip cards show Job status until a video is ready.
+## Try a creation flow
 
+1. Open **Products**, choose **New product**, select or create a Brand, and enter the product details. Upload reference images from the Product view.
+2. Type **@** in chat to reference the Product. Ask Ads Agent to write a Script, including your audience, duration and creative requirements.
+3. Open the returned Script in the workspace. Ask for revisions in chat or use **Revise script**.
+4. Generate Prompts and review their numbered image, video and audio references. Click a reference to preview its media.
+5. Request video generation. Open a clip to see its Job status and play the video when it is ready.
+6. Ask Ads Agent to assemble selected clips. Registered final videos appear under **Finals**.
 
-- Type **@** to mention a product or saved resource inline. Use **Attach to chat** in the workspace to add a separate attachment.
-- Press **Enter** to send, or **Shift + Enter** for a new line.
-- Use arrow keys and Enter to select a mention; Escape closes the list.
-- Create or edit products and upload reference images in the workspace.
-- Open saved Scripts, Prompts, clips and final videos from their tabs.
-- Match numbered labels such as **Prompt 01** between the conversation and workspace.
-- Use **+** for a new conversation. Scroll up to load earlier messages. Refresh is in the conversation menu.
-- **Stop** ends the current Agent loop without cancelling submitted video Jobs. Ask the Agent if you want it to attempt cancellation. **Watch status** only refreshes the displayed Job status; pausing these updates does not stop generation.
+Workspace generation buttons send requests to Ads Agent in the selected conversation. Actions on a Script or Prompt include that resource; gallery actions let the Agent help you choose the source.
 
-Ask the Agent to assemble clips, or edit them in your own editor and attach the finished video to the conversation. Generating scripts or videos creates work in the connected services. Closing the page does not cancel submitted Jobs. Your services must allow the playground's browser origin for Agent WebSockets and direct media uploads.
+Generation creates work in the connected services. Closing the page or stopping chat does not cancel submitted video Jobs. Ask the Agent if you want it to attempt cancellation.
+
+## Workspace and chat controls
+
+| Control | What it does |
+| --- | --- |
+| **Products** | Browse accessible Products and review their images and details. |
+| **Scripts / Prompts / Clips / Finals** | Review saved work from the selected conversation. |
+| **@** | Insert a reference to a Product or saved resource into your message. |
+| **Attach to chat** | Add the open resource as an attachment. |
+| **Refresh** in the workspace tab bar | Reload the current gallery or resource. |
+| **Watch status** on a clip | Refresh its Job status until it finishes. Pausing updates leaves generation running. |
+| **+** beside Ads Agent | Start a new conversation. |
+| **Stop** | End the current Agent loop. |
+
+On Ads Agent messages, use **Reply**, or select text and choose **Add to chat**. The annotation box opens beside the selection; add an optional comment and confirm with **✓**. Confirmed annotations stay in a compact chip—hover to preview, or click to edit/remove.
+
+Press **Enter** to send or **Shift + Enter** for a new line. Use the arrow keys and Enter to select an **@** reference; Escape closes the list. Scroll up in chat to load earlier messages.
+
+The interface defaults to Chinese and remembers your **中文 / English** selection. Existing messages and artifact content keep their original language. Ads Agent follows the language of your message for new replies and creative content, unless you request another output language.
+
+## Troubleshooting
+
+| Symptom | Check |
+| --- | --- |
+| Startup reports a missing setting | Set `NUVA_CUSTOMER_API_KEY` and `NUVA_EXTERNAL_USER_ID` in `.env` or your environment. |
+| Connection fails | Check the configured Agent and API URLs and whether those services are reachable. |
+| Token issuance fails | Check that the Admin key is valid for the configured Store service. |
+| An image upload fails in the browser | Check the upload service's CORS settings for the playground origin. |
+| An old media preview has expired | Refresh the resource to obtain current media access. |
 
 ## Local checks
 

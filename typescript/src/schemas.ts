@@ -51,3 +51,5 @@ export const compositionSchema = z
 export { backendSchema } from './backend-schema.js';
 export type { BackendSchemas, DeployedBackendSchemas } from './backend-target.js';
 export { encodeScriptPackage, decodeScriptPackage } from './script-content.js';
+
+export type { GenerateVideoInput, RawPromptInput } from './stores.js';

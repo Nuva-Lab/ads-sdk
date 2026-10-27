@@ -18,15 +18,14 @@ test(
       const envFile = resolve(temporary, ".env");
       await writeFile(
         envFile,
-        `NUVA_CUSTOMER_API_KEY=local-admin-fixture\nNUVA_EXTERNAL_USER_ID=playground-fixture-user\nNUVA_STORE_URL=${backend.origin}\nNUVA_AGENT_URL=${backend.origin}/api\nNUVA_GENERATION_URL=${backend.origin}\n`,
+        `NUVA_CUSTOMER_API_KEY=local-admin-fixture\nNUVA_EXTERNAL_USER_ID=playground-fixture-user\nNUVA_API_URL=${backend.origin}\nNUVA_AGENT_URL=${backend.origin}/api\n`,
       );
       const env = { ...process.env };
       for (const name of [
         "NUVA_CUSTOMER_API_KEY",
         "NUVA_EXTERNAL_USER_ID",
-        "NUVA_STORE_URL",
+        "NUVA_API_URL",
         "NUVA_AGENT_URL",
-        "NUVA_GENERATION_URL",
       ])
         delete env[name];
       child = spawn(
@@ -67,7 +66,7 @@ test(
       const defaults = await (
         await fetch(origin + "/playground/config")
       ).json();
-      assert.equal(defaults.store, backend.origin);
+      assert.equal(defaults.api, backend.origin);
       const connection = await (
         await fetch(origin + "/playground/connect", {
           method: "POST",
@@ -76,8 +75,7 @@ test(
       ).json();
       sdk = createNuva({
         baseUrl: connection.agent,
-        storeBaseUrl: connection.store,
-        generationBaseUrl: connection.generation,
+        storeBaseUrl: connection.api,
         getAccessToken: async () =>
           await (await fetch(origin + "/playground/token")).json(),
       });

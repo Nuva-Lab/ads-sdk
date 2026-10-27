@@ -112,7 +112,7 @@ func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			failure(w, 400, "Invalid connection settings.")
 			return
 		}
-		for _, value := range []*string{&input.Agent, &input.Store, &input.Generation} {
+		for _, value := range []*string{&input.Agent, &input.API} {
 			normalized, err := endpoint(*value)
 			if err != nil {
 				failure(w, 400, err.Error())
@@ -121,7 +121,7 @@ func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			*value = normalized
 		}
 		// The browser may edit public destinations; Admin credentials are never sent to these.
-		// Token issuance always uses cfg.Endpoints.Store selected in the server environment.
+		// Token issuance always uses cfg.Endpoints.API selected in the server environment.
 		token, err := a.tokens.get(r.Context(), false)
 		if err != nil {
 			failure(w, 503, "Could not obtain a user token.")
@@ -148,8 +148,8 @@ func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		a.connections[id] = bridge
 		a.mu.Unlock()
 		settings, _ := json.Marshal(input)
-		digest := sha256.Sum256([]byte(a.cfg.Endpoints.Store + "\x00" + token.User.ID + "\x00" + string(settings)))
-		writeJSON(w, 200, map[string]string{"id": id, "scope": hex.EncodeToString(digest[:]), "agent": bridge.origin + "/api", "store": bridge.origin + "/store", "generation": bridge.origin + "/generation"})
+		digest := sha256.Sum256([]byte(a.cfg.Endpoints.API + "\x00" + token.User.ID + "\x00" + string(settings)))
+		writeJSON(w, 200, map[string]string{"id": id, "scope": hex.EncodeToString(digest[:]), "agent": bridge.origin + "/api", "api": bridge.origin + "/data"})
 		return
 	case r.Method == "DELETE" && strings.HasPrefix(r.URL.Path, "/playground/connections/"):
 		a.mu.Lock()

@@ -1,5 +1,4 @@
 import { msg, UiError, translate, setAttribute, setText } from "./i18n.js";
-import { option } from "./ui.js";
 import { indexedTitle, promptExcerpt } from "./resource-index.js";
 import { icon } from "./icons.js";
 import { renderPromptViewer } from "./prompt-view.js";
@@ -11,7 +10,6 @@ import type {
   Script,
   Asset,
 } from "@nuva/sdk";
-import { generateScriptSchema, generatePromptSchema } from "@nuva/sdk/schemas";
 import {
   action,
   button,
@@ -25,13 +23,11 @@ import {
   setButtonText,
 } from "./ui.js";
 import {
-  secondsToMs,
   resourcesForTab,
   type KnownResource,
 } from "./workspace.js";
 export type ResourceTab = "script" | "prompt" | "job" | "asset";
 export interface ResourceHost {
-  videoSubmissionEnabled: boolean;
   sdk: NuvaClient;
   sessionId: string;
   scope: string;
@@ -49,7 +45,7 @@ export interface ResourceHost {
     },
   ): void;
   attach(record: ResourceLink): void;
-  changed(): void;
+  requestAgent(text: string, resources: readonly ResourceLink[]): Promise<void>;
 }
 export async function readResource(
   sdk: NuvaClient,
@@ -179,11 +175,6 @@ function pendingRequests(container: HTMLElement, host: ResourceHost) {
 }
 function reference(kind: string, id: string, label: string): ResourceLink {
   return { ref: { kind, id }, label };
-}
-function resourceButton(record: ResourceLink, open: () => void) {
-  const b = button("", open, "resource-button");
-  b.append(node("strong", record.label), node("code", `${record.ref.kind}`));
-  return b;
 }
 const galleryLabels: Record<ResourceTab, string> = {
   script: "Scripts",
@@ -419,19 +410,11 @@ export async function renderResources(
       title === "Open by ID" ? "folder" : iconName,
     );
   if (tab === "script")
-    toolbar.append(create("New script", (body) => scriptGenerator(body, host)));
+    toolbar.append(agentWorkButton("Generate Script", "script", host, host.product));
   if (tab === "prompt")
-    toolbar.append(
-      create(
-        "Generate prompts",
-        (body) => promptGenerator(body, host),
-        "spark",
-      ),
-    );
+    toolbar.append(agentWorkButton("Generate prompts", "prompts", host));
   if (tab === "job")
-    toolbar.append(
-      create("Generate clip", (body) => clipGenerator(body, host), "video"),
-    );
+    toolbar.append(agentWorkButton("Generate clip", "clip", host));
   toolbar.append(
     create("Open by ID", (body) => {
       const lookup = field(
@@ -495,104 +478,35 @@ export async function renderResources(
     }
   }
 }
-function sourcePicker(
-  container: HTMLElement,
-  kind: "script" | "prompt",
+/** Workspace actions become normal Agent messages; the Agent owns generation. */
+export function agentWorkButton(
+  label: string,
+  work: "script" | "prompts" | "clip" | "revise",
   host: ResourceHost,
+  source?: ResourceLink,
+  className = "",
 ) {
-  const choice = node("select");
-  setAttribute(choice, "aria-label", msg("Choose {p0}", { p0: msg(kind) }));
-  choice.append(option(msg("Choose a saved {p0}", { p0: msg(kind) }), ""));
-  for (const item of host.records.filter((r) => r.ref.kind === kind))
-    choice.append(new Option(item.label, item.ref.id));
-  const input = field(msg(kind === "script" ? "Script ID" : "Prompt ID"));
-  choice.onchange = () => {
-    input.input.value = choice.value;
+  const instructions = {
+    script: source
+      ? "Write an advertising Script for the attached Product. Ask me for any missing creative requirements."
+      : "Help me write an advertising Script. Ask me which Product to use and for any missing creative requirements.",
+    prompts: source
+      ? "Generate video Prompts from the attached Script."
+      : "Help me generate video Prompts. Ask me which Script to use.",
+    clip: source
+      ? "Generate a video clip using the attached Prompt and its saved generation settings."
+      : "Help me generate a video clip. Ask me which Prompt to use.",
+    revise: "Help me revise the attached Script. Ask me what changes I want.",
   };
-  container.append(choice, input.wrapper);
-  return input.input;
-}
-function promptGenerator(container: HTMLElement, host: ResourceHost) {
-  const source = sourcePicker(container, "script", host);
-  const submit = button(
-    msg("Generate prompts"),
-    () =>
-      action(async () => {
-        const input = generatePromptSchema.parse({
-          script: source.value.trim(),
-        });
-        submit.disabled = true;
-        try {
-          const result = await keyed(host, "prompts", input, (key) =>
-            host.sdk.prompts.generate(input, { idempotencyKey: key }),
-          );
-          result.prompts.forEach((prompt, order) =>
-            host.remember(prompt, { sourceScriptId: input.script, order }),
-          );
-          host.changed();
-          notice(msg("{p0} Prompts saved.", { p0: result.prompts.length }));
-        } catch (error) {
-          const partial = error as { saved?: { prompts?: { id: string }[] } };
-          partial.saved?.prompts?.forEach((prompt, order) =>
-            host.remember(
-              reference(
-                "prompt",
-                prompt.id,
-                `Saved partial Prompt ${order + 1}`,
-              ),
-              { sourceScriptId: input.script, order },
-            ),
-          );
-          throw error;
-        } finally {
-          submit.disabled = false;
-          pendingRequests(container, host);
-        }
-      }),
-    "primary",
-  );
-  submit.prepend(icon("spark"));
-  submit.classList.add("button-with-icon");
-  const footer = node("div", "", "form-actions");
-  footer.append(submit);
-  container.append(footer);
-}
-function clipGenerator(container: HTMLElement, host: ResourceHost) {
-  const source = sourcePicker(container, "prompt", host);
-  const submit = button(
-    msg("Generate clip"),
-    () =>
-      action(async () => {
-        if (!host.videoSubmissionEnabled)
-          throw new UiError(msg("Video generation is unavailable."));
-        submit.disabled = true;
-        try {
-          const prompt = await host.sdk.prompts.get({
-            kind: "prompt",
-            id: source.value.trim(),
-          });
-          const input = {
-            prompt: prompt.id,
-            ...(prompt.batch_id ? { batch_id: prompt.batch_id } : {}),
-          };
-          const job = await keyed(host, "video", input, (key) =>
-            host.sdk.videos.generate(input, { idempotencyKey: key }),
-          );
-          const record = reference("job", job.id, "Video clip");
-          host.remember(record);
-          await renderResourceDetail(container, record, host);
-        } finally {
-          submit.disabled = false;
-          pendingRequests(container, host);
-        }
-      }),
-    "primary",
-  );
-  submit.prepend(icon("video"));
-  submit.classList.add("button-with-icon");
-  const footer = node("div", "", "form-actions");
-  footer.append(submit);
-  container.append(footer);
+  const submit = button(msg(label), () => void action(async () => {
+    submit.disabled = true;
+    try {
+      await host.requestAgent(translate(instructions[work]), source ? [source] : []);
+    } finally {
+      submit.disabled = false;
+    }
+  }), className, work === "clip" ? "video" : work === "revise" ? "edit" : "spark");
+  return submit;
 }
 export async function openResource(
   container: HTMLElement,
@@ -629,78 +543,6 @@ export async function openResource(
     body.replaceChildren(node("p", (error as Error).message, "empty"));
     throw error;
   }
-}
-function scriptGenerator(
-  container: HTMLElement,
-  host: ResourceHost,
-  base?: Script,
-) {
-  const panel = node("div", "", "form-stack");
-  const product = base ? undefined : node("select");
-  if (product) {
-    setAttribute(product, "aria-label", msg("Product"));
-    product.append(option(msg("Choose a Product"), ""));
-    const available = [...(host.products ?? [])];
-    if (host.product && !available.some((item) => item.id === host.product!.id))
-      available.push(host.product);
-    for (const item of available)
-      product.append(new Option(item.data.name, item.id));
-    product.value = host.product?.id ?? "";
-    const label = node("label", "", "field");
-    label.append(node("span", msg("Product")), product);
-    panel.append(label);
-  }
-  const instruction = field(msg("Instructions"), "", true),
-    min = field(msg("Minimum seconds"), "5"),
-    max = field(msg("Maximum seconds"), "15");
-  const grid = node("div", "", "grid");
-  grid.append(min.wrapper, max.wrapper);
-  panel.append(instruction.wrapper, grid);
-  const create = button(
-    base ? msg("Generate revision") : msg("Generate Script"),
-    () =>
-      action(async () => {
-        const source = base?.data.product
-          ? base.entities[base.data.product]
-          : undefined;
-        const productId = base ? source?.id : product!.value;
-        if (!productId)
-          throw new UiError(
-            base
-              ? msg("This Script has no resolvable Product source.")
-              : msg("Select and save a Product first."),
-          );
-        const input = {
-          product: productId,
-          ...(base ? { base: base.ref.id } : {}),
-          instruction: instruction.input.value,
-          acceptable_duration_ms: {
-            min: secondsToMs(min.input.value),
-            max: secondsToMs(max.input.value),
-          },
-        };
-        generateScriptSchema.parse(input);
-        create.disabled = true;
-        try {
-          const result = await keyed(host, "script", input, (key) =>
-            host.sdk.scripts.generate(input, { idempotencyKey: key }),
-          );
-          host.remember(result);
-          await renderResourceDetail(container, result, host);
-          notice(msg("Script saved."));
-        } finally {
-          create.disabled = false;
-          pendingRequests(panel, host);
-        }
-      }),
-    "primary",
-  );
-  create.prepend(icon("spark"));
-  create.classList.add("button-with-icon");
-  const footer = node("div", "", "form-actions");
-  footer.append(create);
-  panel.append(footer);
-  container.append(panel);
 }
 async function renderResourceDetail(
   container: HTMLElement,
@@ -857,81 +699,10 @@ async function renderResourceDetail(
       batch_id: script.batch_id,
       lineage_id: script.lineage_id,
     });
-    const prompts = button(
-      msg("Create prompts"),
-      () =>
-        action(async () => {
-          const input = generatePromptSchema.parse({ script: script.ref.id });
-          prompts.disabled = true;
-          try {
-            const result = await keyed(host, "prompts", input, (key) =>
-              host.sdk.prompts.generate(input, { idempotencyKey: key }),
-            );
-            result.prompts.forEach((p, order) =>
-              host.remember(p, { sourceScriptId: script.ref.id, order }),
-            );
-            host.changed();
-            notice(
-              msg("{p0} independent Prompts saved.", {
-                p0: result.prompts.length,
-              }),
-            );
-          } catch (error) {
-            const partial = error as { saved?: { prompts?: { id: string }[] } };
-            partial.saved?.prompts?.forEach((p, order) =>
-              host.remember(
-                reference("prompt", p.id, `Saved partial Prompt ${order + 1}`),
-                { sourceScriptId: script.ref.id, order },
-              ),
-            );
-            if (partial.saved?.prompts?.length) {
-              const saved = node("div", "", "inline-note");
-              saved.append(
-                node(
-                  "p",
-                  msg(
-                    "Partial result: saved Prompts are retained. The full request did not finish; retry uses the same operation key.",
-                  ),
-                ),
-              );
-              for (const p of partial.saved.prompts)
-                saved.append(
-                  resourceButton(
-                    reference("prompt", p.id, "Saved partial Prompt"),
-                    () =>
-                      void action(() =>
-                        renderResourceDetail(
-                          container,
-                          reference("prompt", p.id, "Saved partial Prompt"),
-                          host,
-                        ),
-                      ),
-                  ),
-                );
-              card.append(saved);
-            }
-            throw error;
-          } finally {
-            prompts.disabled = false;
-            pendingRequests(card, host);
-          }
-        }),
-      "primary",
-    );
     controls.append(
-      button(
-        msg("Revise script"),
-        () => {
-          const popup = modal(container, msg("Revise script"));
-          scriptGenerator(popup.body, host, script);
-        },
-        "",
-        "edit",
-      ),
+      agentWorkButton("Revise script", "revise", host, script),
+      agentWorkButton("Create prompts", "prompts", host, script, "primary"),
     );
-    prompts.prepend(icon("spark"));
-    prompts.classList.add("button-with-icon");
-    controls.append(prompts);
     card.append(provenance);
   } else if (record.ref.kind === "prompt") {
     const prompt = value as Awaited<ReturnType<NuvaClient["prompts"]["get"]>>;
@@ -976,35 +747,7 @@ async function renderResourceDetail(
       jobs.sort((a, b) => a.created_at.localeCompare(b.created_at));
       promptView.setJobs(jobs, incomplete);
     });
-    const generate = button(
-      msg("Generate video"),
-      () =>
-        action(async () => {
-          if (!host.videoSubmissionEnabled)
-            throw new UiError(msg("Video generation is unavailable."));
-          generate.disabled = true;
-          const input = {
-            prompt: record.ref.id,
-            ...(prompt.batch_id ? { batch_id: prompt.batch_id } : {}),
-          };
-          try {
-            const job = await keyed(host, "video", input, (key) =>
-              host.sdk.videos.generate(input, { idempotencyKey: key }),
-            );
-            const ref = reference("job", job.id, `Video Job ${job.id}`);
-            host.remember(ref);
-            await renderResourceDetail(container, ref, host);
-          } finally {
-            generate.disabled = false;
-            pendingRequests(card, host);
-          }
-        }),
-      "primary",
-    );
-    generate.disabled = !host.videoSubmissionEnabled;
-    generate.prepend(icon("video"));
-    generate.classList.add("button-with-icon");
-    controls.append(generate);
+    controls.append(agentWorkButton("Generate video", "clip", host, record, "primary"));
   } else if (record.ref.kind === "job") {
     const job = value as Awaited<ReturnType<NuvaClient["jobs"]["get"]>>;
     const phase = node("p", msg(job.status), "badge"),

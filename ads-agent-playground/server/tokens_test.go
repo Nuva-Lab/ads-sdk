@@ -112,11 +112,11 @@ func TestConfigurationRequiresKeyAndExplicitUser(t *testing.T) {
 	if cfg.Endpoints != defaultEndpoints {
 		t.Fatal("defaults mismatch")
 	}
-	env["NUVA_STORE_URL"] = "http://unsafe.example"
+	env["NUVA_API_URL"] = "http://unsafe.example"
 	if _, err = readConfig(func(k string) string { return env[k] }); err == nil {
 		t.Fatal("non-local plaintext Admin transport allowed")
 	}
-	env["NUVA_STORE_URL"] = "http://127.0.0.1:1234"
+	env["NUVA_API_URL"] = "http://127.0.0.1:1234"
 	if _, err = readConfig(func(k string) string { return env[k] }); err != nil {
 		t.Fatal(err)
 	}

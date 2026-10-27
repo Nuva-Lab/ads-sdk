@@ -21,7 +21,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	client, err := admin.NewAdminClient(cfg.Endpoints.Store, cfg.APIKey)
+	client, err := admin.NewAdminClient(cfg.Endpoints.API, cfg.APIKey)
 	if err != nil {
 		return fmt.Errorf("invalid playground configuration: %w", err)
 	}

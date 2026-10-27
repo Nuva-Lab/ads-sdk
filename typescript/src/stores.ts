@@ -19,7 +19,7 @@ export type Artifact<K extends string = string, D = JsonValue> = ResourceLink<K>
 export type BackendArtifact<K extends string = ArtifactKind, D = JsonValue> = Omit<B['Script'], 'kind' | 'data'> &
 	Artifact<K, D> & { kind: K };
 export type Script = BackendArtifact<'script', B['ScriptDataV1']> & { readonly content: ScriptPackage };
-export type Prompt = BackendArtifact<'prompt', B['PromptDataV1']>;
+export type Prompt = BackendArtifact<'prompt', B['PromptDataV1']> & Pick<B['Prompt'], 'relationships'>;
 export type DirectingPlan = BackendArtifact<'directing_plan', B['DirectingPlanDataV1']>;
 export interface ArtifactSchema<K extends string, D, W extends boolean = boolean> {
 	readonly kind: K;
@@ -31,17 +31,17 @@ export interface TypedArtifactReader<K extends string, D> {
 	get(ref: ResourceRef<K>): Promise<Artifact<K, D>>;
 }
 export interface TypedArtifactWriter<K extends string, D> extends TypedArtifactReader<K, D> {
-	create(input: { data: D; batch_id?: string | null }, options?: StoreCommandOptions): Promise<Artifact<K, D>>;
-	update(ref: ResourceRef<K>, input: { data: D; batch_id?: string | null }, options?: StoreCommandOptions): Promise<Artifact<K, D>>;
+	create(input: { data: D; batch_id?: string | null; relationships?: never }, options?: StoreCommandOptions): Promise<Artifact<K, D>>;
+	update(ref: ResourceRef<K>, input: { data: D; batch_id?: string | null; relationships?: never }, options?: StoreCommandOptions): Promise<Artifact<K, D>>;
 }
 export type TypedArtifacts<K extends string, D, W extends boolean> = W extends true ? TypedArtifactWriter<K, D> : TypedArtifactReader<K, D>;
 export interface ArtifactsClient {
 	get(ref: ResourceRef): Promise<Artifact>;
 	create(
-		input: { kind: ArtifactKind; schema_version: number; data: JsonValue; batch_id?: string | null },
+		input: { kind: ArtifactKind; schema_version: number; data: JsonValue; batch_id?: string | null; relationships?: never },
 		options?: StoreCommandOptions,
 	): Promise<BackendArtifact>;
-	update(ref: ResourceRef, input: { data: JsonValue; batch_id?: string | null }, options?: StoreCommandOptions): Promise<BackendArtifact>;
+	update(ref: ResourceRef, input: { data: JsonValue; batch_id?: string | null; relationships?: never }, options?: StoreCommandOptions): Promise<BackendArtifact>;
 	forSchema<K extends string, D, W extends boolean>(schema: ArtifactSchema<K, D, W>): TypedArtifacts<K, D, W>;
 }
 export interface ProfilesClient<T, C, U> {
@@ -83,22 +83,22 @@ export type PromptInput = GeneratePromptInput;
 export interface ScriptsClient {
 	get(ref: ResourceRef<'script'>): Promise<Script>;
 	create(
-		input: { content: ScriptPackage; product?: string | null; skill?: string | null; batch_id?: string | null },
+		input: { content: ScriptPackage; batch_id?: string | null; relationships?: never },
 		options?: StoreCommandOptions,
 	): Promise<Script>;
 	update(
 		ref: ResourceRef<'script'>,
-		input: { content: ScriptPackage; product?: string | null; skill?: string | null; batch_id?: string | null },
+		input: { content: ScriptPackage; batch_id?: string | null; relationships?: never },
 		options?: StoreCommandOptions,
 	): Promise<Script>;
 	generate(input: ScriptInput, options?: StoreCommandOptions): Promise<Script>;
 }
 export interface PromptsClient extends TypedArtifactWriter<'prompt', B['PromptDataV1']> {
 	get(ref: ResourceRef<'prompt'>): Promise<Prompt>;
-	create(input: { data: B['PromptDataV1']; batch_id?: string | null }, options?: StoreCommandOptions): Promise<Prompt>;
+	create(input: { data: B['PromptDataV1']; batch_id?: string | null; relationships?: never }, options?: StoreCommandOptions): Promise<Prompt>;
 	update(
 		ref: ResourceRef<'prompt'>,
-		input: { data: B['PromptDataV1']; batch_id?: string | null },
+		input: { data: B['PromptDataV1']; batch_id?: string | null; relationships?: never },
 		options?: StoreCommandOptions,
 	): Promise<Prompt>;
 	generate(input: PromptInput, options?: StoreCommandOptions): Promise<{ prompts: Prompt[] }>;
@@ -108,6 +108,8 @@ export interface StoreCommandOptions extends CommandOptions {
 	readonly idempotencyKey?: string;
 }
 export type VideoCommandOptions = StoreCommandOptions;
+export type RawPromptInput = Omit<B['RawPromptInput'], 'relationships'> & { relationships?: never };
+export type GenerateVideoInput = Omit<B['GenerateVideo'], 'prompt' | 'input'> & ({ prompt: string; input?: null } | { input: RawPromptInput; prompt?: null });
 export interface StoreClients {
 	readonly artifacts: ArtifactsClient;
 	readonly assets: AssetsClient;
@@ -117,7 +119,7 @@ export interface StoreClients {
 	readonly scripts: ScriptsClient;
 	readonly prompts: PromptsClient;
 	readonly videos: {
-		generate(input: B['GenerateVideo'], options?: VideoCommandOptions): Promise<Job<Asset>>;
+		generate(input: GenerateVideoInput, options?: VideoCommandOptions): Promise<Job<Asset>>;
 	};
 	readonly jobs: JobsClient;
 	readonly ads: {

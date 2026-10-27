@@ -39,11 +39,11 @@ export function readParts(
   root.childNodes.forEach(walk);
   return parts;
 }
-export function buildDraft(parts: readonly ComposerPart[]): MessageDraft {
+export function buildDraft(parts: readonly ComposerPart[], base: MessageDraft = Message.create()): MessageDraft {
   return parts.reduce(
     (draft, part) =>
       part.type === "quote" ? draft.quote(part.record) : draft.text(part.text),
-    Message.create(),
+    base,
   );
 }
 export class Composer {

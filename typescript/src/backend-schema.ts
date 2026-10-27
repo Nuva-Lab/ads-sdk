@@ -1,10 +1,31 @@
 import { z } from 'zod';
 import { backendIdPattern } from './backend-id.js';
 import { backendDefinitions } from './backend-definitions.js';
+import { backendDefinitions as videoDefinitions } from './backend-video-definitions.js';
 import type { BackendSchemas } from './backend-target.js';
 
-// Keep generated observed definitions unchanged; adapt backend OrderedUUID layout and optional target attributes here.
-const targetDefinitions = structuredClone(backendDefinitions);
+// Keep both generated sources unchanged. Apply the verified PR Artifact/Ad/Batch/Product/error overlay
+// in memory; its transitive Asset/Entity/Skill dependencies equal the observed source.
+const targetDefinitions = { ...structuredClone(backendDefinitions), ...structuredClone(videoDefinitions) };
+// A legacy public log indicates the wrong backend contract; do not expose or silently drop it.
+targetDefinitions.BatchOut!.properties!.log = false;
+// With sibling oneOf objects, Zod admits extra top-level keys despite the
+// source's additionalProperties:false (for example {input: ..., invented: true}).
+// Expand the two alternatives to complete strict objects without changing either
+// generated source. The compile-time overlay handles the corresponding bare-object type.
+const { oneOf: _alternatives, ...video } = targetDefinitions.GenerateVideo!;
+const properties = video.properties!;
+function nonNull(value: unknown): typeof video {
+	const branch = (value as typeof video).anyOf?.find((option) => option.type !== 'null');
+	if (!branch) throw new Error('Video target source must define a nullable Prompt source.');
+	return branch;
+}
+targetDefinitions.GenerateVideo = {
+	anyOf: [
+		{ ...video, required: ['prompt'], properties: { ...properties, prompt: nonNull(properties.prompt), input: { type: 'null' } } },
+		{ ...video, required: ['input'], properties: { ...properties, input: nonNull(properties.input), prompt: { type: 'null' } } },
+	],
+};
 // The observed OpenAPI uses format:uuid for its OrderedUUID storage type. Zod's RFC UUID
 // validator is narrower than that deployed type. Adapt only this in-memory schema clone.
 function orderedIds(value: unknown): void {
@@ -28,10 +49,10 @@ const product = targetDefinitions.ProductDataV1 as { properties: Record<string, 
 product.properties.attributes = {
 	type: 'object',
 	additionalProperties: true,
-	description: 'Proposed target-only arbitrary Product attributes.',
+	description: 'PR target JSON Product attributes; validated recursively below.',
 };
 const compiled = new Map<keyof BackendSchemas, z.ZodType>();
-/** Observed backend schemas with their documented OrderedUUID layout and Product-attributes overlay.
+/** Observed backend schemas with OrderedUUID and verified PR target overlays.
  * Authorization, reference existence and semantic rules remain server-owned. */
 export function backendSchema<K extends keyof BackendSchemas>(name: K): z.ZodType<BackendSchemas[K]> {
 	let schema = compiled.get(name);
@@ -57,7 +78,7 @@ export function backendSchema<K extends keyof BackendSchemas>(name: K): z.ZodTyp
 			});
 		compiled.set(name, schema);
 	}
-	// Generated source stays unchanged; backend OrderedUUID layout and target attributes are adapted above.
+	// Generated sources stay unchanged; OrderedUUID layout and target overlays are adapted above.
 	return schema as z.ZodType<BackendSchemas[K]>;
 }
 export type { BackendSchemas } from './backend-target.js';

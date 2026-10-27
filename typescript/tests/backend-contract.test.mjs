@@ -8,12 +8,12 @@ test('backend Product creation requires a Brand and rejects unsupported profile 
 	assert.equal(backendSchema('ProductCreate').safeParse({ data: { name: 'Bottle' } }).success, false);
 	assert.equal(backendSchema('ProductCreate').safeParse({ brand_id: id, data: { name: 'Bottle', invented: 'field' } }).success, false);
 });
-test('backend video generation takes a saved Prompt ID, not raw prompt text', () => {
+test('video prompt field remains a saved Prompt ID; raw content uses input', () => {
 	assert.equal(backendSchema('GenerateVideo').parse({ prompt: id }).prompt, id);
 	assert.equal(backendSchema('GenerateVideo').safeParse({ prompt: 'A bottle on a table' }).success, false);
 });
 test('backend Artifact v1 remains explicit rather than interpreting ScriptPackage as markdown', () => {
-	assert.equal(backendSchema('ScriptDataV1').parse({ text: 'An ad script', product: id }).product, id);
+	assert.equal(backendSchema('ScriptDataV1').parse({ text: 'An ad script' }).text, 'An ad script');
 	assert.equal(backendSchema('ScriptDataV1').safeParse({ schema_version: 2, concept: {}, clips: [] }).success, false);
 });
 test('backend Ad registration requires the final video and preserves editor data', () => {
@@ -58,7 +58,7 @@ test('backend OrderedUUID uses GUID shape without RFC version or variant restric
 	const job = '01a175e0-3000-cccc-1111-abcdefabcdef';
 	for (const value of [product, script, skill, asset, job]) assert.equal(backendIdSchema.parse(value), value);
 	assert.equal(backendSchema('ProductCreate').parse({ brand_id: product, data: { name: 'Ordered' } }).brand_id, product);
-	assert.equal(backendSchema('ScriptDataV1').parse({ text: 'Script', product, skill }).product, product);
+	assert.equal(backendSchema('ScriptCreate').parse({ schema_version: 1, data: { text: 'Script' }, relationships: [{ type: 'based_on', target: { kind: 'product', id: product } }] }).relationships[0].target.id, product);
 	assert.equal(backendSchema('SkillRef').parse({ skill_id: skill, name: 'writer', version: 1 }).skill_id, skill);
 	assert.equal(backendSchema('GenerateVideo').parse({ prompt: script, batch_id: job }).batch_id, job);
 	assert.equal(

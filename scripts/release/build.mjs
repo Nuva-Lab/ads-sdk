@@ -21,7 +21,7 @@ export async function buildRelease({ output = DIST, origins } = {}) {
 			for (const path of [
 				...(await files(resolve(source, 'dist'))).map((name) => `dist/${name}`),
 				'README.md',
-				...(directory === 'typescript' ? ['schema/backend.source.json'] : []),
+				...(directory === 'typescript' ? ['schema/backend.source.json', 'schema/backend-video.source.json'] : []),
 			])
 				await copy(resolve(source, path), resolve(target, path));
 			if (directory === 'typescript') {
@@ -55,6 +55,8 @@ export async function buildRelease({ output = DIST, origins } = {}) {
 					? [
 							'schema/backend.source.json',
 							'schema/backend.openapi.json',
+							'schema/backend-video.source.json',
+							'schema/backend-video.openapi.json',
 							...(await files(resolve(source, 'scripts'))).map((name) => `scripts/${name}`),
 						]
 					: []),
@@ -119,7 +121,7 @@ export async function buildRelease({ output = DIST, origins } = {}) {
 			httpSchemaVersion: 1,
 			artifactSchemaVersion: 1,
 			scriptPackageSchemaVersion: 2,
-			serviceOrigins: origins ?? { status: 'Agent/generation not configured; explicit endpoint overrides required' },
+			serviceOrigins: origins ?? (await import(pathToFileURL(resolve(ROOT, 'typescript/dist/service-origins.js')))).serviceOrigins,
 			npm: packageFiles,
 			go: { module: GO_MODULE, version: GO_VERSION, files: goFiles },
 			source: {

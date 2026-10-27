@@ -1,6 +1,8 @@
+import { Message } from "@nuva/sdk";
+import { ChatReferences } from "./chat-references.js";
 import { getLocale, translate, type UiLabel } from "./i18n.js";
 import { option } from "./ui.js";
-import { msg, setAttribute, setText } from "./i18n.js";
+import { msg, UiError, setAttribute, setText } from "./i18n.js";
 import type {
   NuvaClient,
   AgentHandle,
@@ -9,12 +11,13 @@ import type {
   MessageDraft,
   DynamicToolUIPart,
   MessageView,
+  MessageRef,
 } from "@nuva/sdk";
 import { ResourceCards } from "./resource-cards.js";
 import { readResource } from "./resources.js";
 import { usefulLabel, resourcePresentation } from "./resource-presentation.js";
 import { Composer, buildDraft } from "./composer.js";
-import { action, button, byId, node, notice, report, showPane } from "./ui.js";
+import { action, button, byId, node, notice, report, showPane, modal } from "./ui.js";
 export interface ChatHost {
   sdk: NuvaClient;
   scope: string;
@@ -40,10 +43,18 @@ export function sessionLabel(session: {
 export class ChatController {
   private agent?: AgentHandle;
   private unsubscribe?: () => void;
-  private retry?: { draft: MessageDraft; requestId: string };
+  private retry?: { draft: MessageDraft; requestId: string; preserveComposer?: boolean };
   private attached: ResourceLink[] = [];
   private sending = false;
   private epoch = 0;
+  private connectionEpoch = 0;
+  private sessionsEpoch = 0;
+  private sessionsCursor: string | null = null;
+  private sessionsLoading = false;
+  private sessionsError = false;
+  private olderSessions = button(msg("Load older conversations"), () =>
+    void action(() => this.loadSessions(true)),
+  );
   private status = "loading";
   private closed = false;
   private hasEarlier = false;
@@ -56,8 +67,12 @@ export class ChatController {
   private cards: ResourceCards;
   private viewEvents = new AbortController();
   readonly composer: Composer;
+  private messageReferences: ChatReferences;
   sessionId = "";
   constructor(private host: ChatHost) {
+    this.olderSessions.id = "load-older-sessions";
+    this.olderSessions.hidden = true;
+    byId("reconnect").parentElement!.append(this.olderSessions);
     this.historyNotice.hidden = true;
     this.historyNotice.setAttribute("role", "status");
     byId("chat").replaceChildren(this.historyNotice, this.list);
@@ -76,6 +91,15 @@ export class ChatController {
     this.composer = new Composer(() =>
       host.resources().map((record) => this.cards.label(record)),
     );
+    this.messageReferences = new ChatReferences({
+      chat: this.list,
+      viewport: byId("chat"),
+      composer: byId("composer"),
+      session: () => this.sessionId,
+      changed: () => this.controls(),
+      focus: () => { showPane("chat"); this.composer.focus(); },
+      open: ref => void action(() => this.openMessage(ref)),
+    });
     this.composer.onSend = () => void this.send();
     this.composer.onChange = () => this.controls();
     byId("new-session").onclick = () => void action(() => this.create());
@@ -120,9 +144,11 @@ export class ChatController {
   }
   async start() {
     const sessions = await this.loadSessions();
+    if (this.closed || !sessions) return;
     const saved = localStorage.getItem(`${this.host.scope}:session`);
-    if (saved && sessions.some((s) => s.id === saved))
-      await this.connect(saved);
+    // get() authorizes and restores saved sessions beyond the bounded first page.
+    // A failed lookup must remain visible instead of choosing another session.
+    if (saved) await this.connect(saved);
     else if (sessions.length) await this.connect(sessions[0].id);
     else {
       this.status = "idle";
@@ -130,36 +156,85 @@ export class ChatController {
       await this.create();
     }
   }
-  private async loadSessions() {
-    const selector = byId<HTMLSelectElement>("sessions"),
-      page = await this.host.sdk.sessions.list({ limit: 100 });
-    selector.replaceChildren(
-      ...page.items.map((session) => option(sessionLabel(session), session.id)),
-    );
-    selector.disabled = false;
-    if (this.sessionId) selector.value = this.sessionId;
-    return page.items;
+  private addSessionOptions(
+    sessions: Awaited<ReturnType<NuvaClient["sessions"]["list"]>>["items"],
+  ) {
+    const selector = byId<HTMLSelectElement>("sessions");
+    const selected = this.sessionId || selector.value;
+    const ids = new Set([...selector.options].map((item) => item.value));
+    for (const session of sessions) {
+      if (ids.has(session.id)) continue;
+      selector.append(option(sessionLabel(session), session.id));
+      ids.add(session.id);
+    }
+    if (selected) selector.value = selected;
+  }
+  private sessionListControls() {
+    this.olderSessions.hidden = !this.sessionsCursor;
+    this.olderSessions.disabled = this.sessionsLoading || this.closed;
+    setText(this.olderSessions, msg(this.sessionsLoading
+      ? "Loading older conversations…"
+      : this.sessionsError
+        ? "Retry loading older conversations"
+        : "Load older conversations"));
+  }
+  private async loadSessions(older = false) {
+    if (this.closed || (older && (this.sessionsLoading || !this.sessionsCursor))) return;
+    const epoch = older ? this.sessionsEpoch : ++this.sessionsEpoch;
+    const cursor = older ? this.sessionsCursor! : undefined;
+    this.sessionsLoading = true;
+    this.sessionsError = false;
+    this.sessionListControls();
+    try {
+      const page = await this.host.sdk.sessions.list({ limit: 100, ...(cursor ? { cursor } : {}) });
+      if (this.closed || epoch !== this.sessionsEpoch) return;
+      // Preserve options already loaded, including a saved or newly created session.
+      this.addSessionOptions(page.items);
+      this.sessionsCursor = page.nextCursor;
+      return page.items;
+    } catch (error) {
+      if (this.closed || epoch !== this.sessionsEpoch) return;
+      this.sessionsError = true;
+      throw error;
+    } finally {
+      if (!this.closed && epoch === this.sessionsEpoch) {
+        this.sessionsLoading = false;
+        this.sessionListControls();
+      }
+    }
   }
   async create() {
-    if (this.sending) return;
+    if (this.sending || this.closed) return;
     byId<HTMLButtonElement>("new-session").disabled = true;
     try {
       const session = await this.host.sdk.sessions.create({
         title: "New conversation",
       });
-      await this.loadSessions();
+      if (this.closed) return;
+      this.addSessionOptions([session]);
       await this.connect(session.id);
     } finally {
       this.controls();
     }
   }
   async connect(id: string) {
-    if (this.sending) return;
-    const epoch = ++this.epoch;
+    if (this.sending || this.closed) return;
+    const connectionEpoch = ++this.connectionEpoch;
     this.status = "loading";
     this.controls();
-    await this.host.sdk.sessions.get(id);
-    if (epoch !== this.epoch) return;
+    let session;
+    try {
+      session = await this.host.sdk.sessions.get(id);
+    } catch (error) {
+      if (this.closed || connectionEpoch !== this.connectionEpoch) return;
+      this.status = "error";
+      byId<HTMLSelectElement>("sessions").value = this.sessionId;
+      this.controls();
+      throw error;
+    }
+    if (this.closed || connectionEpoch !== this.connectionEpoch) return;
+    this.addSessionOptions([session]);
+    const epoch = ++this.epoch;
     this.unsubscribe?.();
     this.cards.dispose();
     this.cards = this.makeCards();
@@ -169,6 +244,7 @@ export class ChatController {
     this.historyAnchor = undefined;
     this.renderHistoryNotice();
     this.sessionId = id;
+    this.messageReferences.clear(true);
     this.retry = undefined;
     this.attached = [];
     this.drawAttachments();
@@ -224,6 +300,9 @@ export class ChatController {
     );
   }
   destroy() {
+    this.sessionsEpoch++;
+    this.connectionEpoch++;
+    this.olderSessions.remove();
     this.epoch++;
     this.viewEvents.abort();
     this.cards.dispose();
@@ -234,9 +313,30 @@ export class ChatController {
     this.composer.clear();
     this.composer.setLocked(true);
     this.composer.destroy();
+    this.messageReferences.destroy();
     this.status = "offline";
     this.controls();
     this.closed = true;
+  }
+  private async openMessage(ref: MessageRef) {
+    const visible = ref.sessionId === this.sessionId
+      ? [...this.list.querySelectorAll<HTMLElement>(".message")].find(element => element.dataset.id === ref.messageId)
+      : undefined;
+    if (visible) {
+      visible.scrollIntoView({ block: "center", behavior: "smooth" });
+      visible.classList.add("message-referenced");
+      setTimeout(() => visible.classList.remove("message-referenced"), 1400);
+      return;
+    }
+    const epoch = this.epoch;
+    const original = await this.host.sdk.sessions.getMessage(ref);
+    if (this.closed || epoch !== this.epoch) return;
+    const popup = modal(byId("chat"), msg("Original message"));
+    for (const part of original.content) {
+      if (part.type === "text") {
+        const text = node("div"); this.renderText(text, part.text, part.format); popup.body.append(text);
+      } else if (part.type === "resource") popup.body.append(this.cards.create(part.record));
+    }
   }
   private emptyState() {
     const empty = node("div", "", "chat-welcome");
@@ -258,19 +358,34 @@ export class ChatController {
       );
     return empty;
   }
-  private async send() {
+  async requestAgent(text: string, resources: readonly ResourceLink[], expectedSessionId: string) {
+    if (this.closed || !expectedSessionId || expectedSessionId !== this.sessionId)
+      throw new UiError(msg("Select the conversation again before sending this request."));
+    if (this.retry)
+      throw new UiError(msg("Resolve the pending message in chat before starting another request."));
+    if (this.messageReferences.hasPendingAnnotation())
+      throw new UiError(msg("Confirm or cancel your annotation before starting another request."));
+    if (!this.agent || this.sending || this.status !== "idle")
+      throw new UiError(msg("Wait until Ads Agent is ready before starting another request."));
+    const draft = resources.reduce((value, resource) => value.attach(resource), Message.create().text(text));
+    showPane("chat");
+    await this.send(draft);
+  }
+  private async send(workspaceDraft?: MessageDraft) {
     if (
       !this.agent ||
       this.sending ||
+      this.messageReferences.hasPendingAnnotation() ||
       ["running", "waiting_for_response", "loading"].includes(this.status)
     )
       return;
-    if (this.composer.empty() && !this.attached.length && !this.retry) return;
+    if (!workspaceDraft && this.composer.empty() && !this.attached.length && !this.messageReferences.hasQuotes() && !this.retry) return;
     const target = this.agent,
       request = this.retry ?? {
-        draft: this.attached.reduce(
+        preserveComposer: !!workspaceDraft,
+        draft: workspaceDraft ?? this.attached.reduce(
           (draft, record) => draft.attach(record),
-          buildDraft(this.composer.parts()),
+          buildDraft(this.composer.parts(), this.messageReferences.build()),
         ),
         requestId: crypto.randomUUID(),
       };
@@ -279,10 +394,17 @@ export class ChatController {
     this.controls();
     try {
       await target.send(request.draft, { requestId: request.requestId });
+      if (this.closed || target !== this.agent) return;
       this.retry = undefined;
-      this.attached = [];
-      this.drawAttachments();
-      this.composer.clear();
+      if (!request.preserveComposer) {
+        this.messageReferences.clear();
+        this.attached = [];
+        this.drawAttachments();
+        this.composer.clear();
+      } else {
+        const chat = byId("chat");
+        chat.scrollTop = chat.scrollHeight;
+      }
     } catch (error) {
       if (this.closed) return;
       report(error);
@@ -335,19 +457,22 @@ export class ChatController {
     send.hidden = busy;
     send.disabled =
       this.sending ||
+      this.messageReferences.hasPendingAnnotation() ||
       !this.agent ||
       this.status === "loading" ||
       this.status === "error" ||
-      (this.composer.empty() && !this.attached.length && !this.retry);
+      (this.composer.empty() && !this.attached.length && !this.messageReferences.hasQuotes() && !this.retry);
     this.composer.setLocked(
       this.sending || !!this.retry || !this.agent || this.status === "loading",
     );
+    this.messageReferences.setLocked(this.sending || !!this.retry || !this.agent || this.status === "loading");
     const stop = byId<HTMLButtonElement>("stop");
     stop.hidden = !busy;
     stop.disabled = !busy;
     byId<HTMLButtonElement>("new-session").disabled =
-      this.sending || !this.agent;
-    byId<HTMLSelectElement>("sessions").disabled = this.sending || !this.agent;
+      this.sending || this.status === "loading";
+    byId<HTMLSelectElement>("sessions").disabled =
+      this.sending || this.status === "loading";
     byId<HTMLButtonElement>("reconnect").disabled = this.sending || !this.agent;
     byId<HTMLButtonElement>("copy-conversation-id").disabled =
       !this.agent || !this.sessionId || this.status === "loading";
@@ -486,6 +611,7 @@ export class ChatController {
       this.historyError = false;
       this.renderHistoryNotice();
     }
+    if (state.status !== "loading" && state.status !== "error") this.messageReferences.setMessages(state.messages.items);
     this.controls();
     if (state.status === "loading") return;
     if (state.status === "error") {
@@ -519,6 +645,7 @@ export class ChatController {
         );
         this.list.append(wrapper);
       }
+      this.messageReferences.bind(wrapper, message);
       setText(
         wrapper.querySelector(".author")!,
         message.role === "user"
@@ -597,7 +724,11 @@ export class ChatController {
                   "inline-reference",
                 ),
               );
-            } else if (part.text) element.append(node("span", part.text));
+            } else {
+              const target = part.target;
+              element.append(button(msg("Quoted message"), () => void action(() => this.openMessage(target)), "quoted-message-source", "quote"));
+              if (part.text) element.append(node("blockquote", part.text, "quoted-message-text"));
+            }
           } else if (part.type === "dynamic-tool")
             this.question(
               element,

@@ -87,13 +87,9 @@ func (b *apiBridge) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if publicPath("agent", suffix, method) {
 				base = b.endpoints.Agent
 			}
-		case "store":
-			if publicPath(service, suffix, method) {
-				base = b.endpoints.Store
-			}
-		case "generation":
-			if publicPath(service, suffix, method) {
-				base = b.endpoints.Generation
+		case "data":
+			if publicPath("store", suffix, method) || publicPath("generation", suffix, method) {
+				base = b.endpoints.API
 			}
 		}
 		if base == "" {

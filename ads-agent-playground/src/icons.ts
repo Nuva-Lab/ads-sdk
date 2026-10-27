@@ -1,4 +1,8 @@
 const paths = {
+  annotation: ["M4 4h16v12H8l-4 4z", "M8 8h8M8 12h5"],
+  trash: ["M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14M10 10v7M14 10v7"],
+  reply: ["m9 4-6 6 6 6M3 10h10a7 7 0 0 1 7 7v3"],
+  quote: ["M4 5h6v6H4zM4 11v3a3 3 0 0 0 3 3M14 5h6v6h-6zM14 11v3a3 3 0 0 0 3 3"],
   language: [
     "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0M3 12h18M12 3a18 18 0 0 1 0 18 18 18 0 0 1 0-18",
   ],

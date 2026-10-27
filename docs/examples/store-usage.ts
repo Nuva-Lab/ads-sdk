@@ -11,9 +11,9 @@ import {
 } from '@nuva/sdk';
 import { encodeScriptPackage, type BackendSchemas } from '@nuva/sdk/schemas';
 
-export function initialize(getAccessToken: () => Promise<string | AccessToken>, endpoints: { agent: string; generation: string; store: string }) {
+export function initialize(getAccessToken: () => Promise<string | AccessToken>) {
 	// #region initialize
-	const nuva = createNuva({ getAccessToken, baseUrl: endpoints.agent, generationBaseUrl: endpoints.generation, storeBaseUrl: endpoints.store });
+	const nuva = createNuva({ getAccessToken });
 	// #endregion initialize
 	return nuva;
 }
@@ -48,7 +48,7 @@ export async function createArtifact(nuva: NuvaClient, content: ScriptPackage, p
 	const script = await nuva.artifacts.create({
 		kind: 'script',
 		schema_version: 1,
-		data: { product: product.revision, text: encodeScriptPackage(content) },
+		data: { text: encodeScriptPackage(content) },
 	});
 	// #endregion artifact-create
 	return script;

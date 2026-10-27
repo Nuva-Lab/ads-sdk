@@ -47,7 +47,7 @@ export class PartialCreationError extends NuvaError {
 		if (
 			!parsed.success ||
 			parsed.data.prompts.some(
-				(prompt) => prompt.schema_version !== 1 || prompt.data.plan != null || prompt.data.clip_key != null,
+				(prompt) => prompt.schema_version !== 1 || prompt.relationships.some((relationship) => relationship.target.kind === 'directing_plan'),
 			) ||
 			new Set(parsed.data.prompts.map((prompt) => prompt.id)).size !== parsed.data.prompts.length
 		)
