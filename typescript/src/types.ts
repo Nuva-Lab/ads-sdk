@@ -81,7 +81,11 @@ export interface AccessToken {
 	/** Optional stable identity metadata. The gateway verifies token identity independently. */
 	readonly principal?: { readonly customerId: string; readonly userId: string };
 }
+export type NuvaEnvironment = 'sandbox' | 'production';
+
 export interface NuvaClientOptions {
+	/** Paired Agent and API services. Defaults to sandbox (staging); use credentials issued by that environment. */
+	readonly environment?: NuvaEnvironment;
 	/** Optional Agent endpoint override for local development/testing. Release builds supply the official origin. */
 	readonly baseUrl?: string;
 	/** Optional Store endpoint override for local development/testing. */

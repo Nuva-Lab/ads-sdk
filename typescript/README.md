@@ -12,13 +12,10 @@ pnpm add /path/to/release/nuva-sdk-0.1.0-preview.1.tgz
 
 ## Connect and authenticate
 
-Use the service URLs provided for your environment. Supply a token callback that calls your authenticated backend:
+The SDK defaults to `environment: "sandbox"` (staging). Set `environment: "production"` to select production. Use a user token issued by the same environment. Explicit URL options take precedence over the selected environment. Supply a token callback that calls your authenticated backend:
 ```ts
 import { createNuva, Message } from '@nuva/sdk';
 const nuva = createNuva({
-  baseUrl: configuredAgentURL,
-  storeBaseUrl: configuredStoreURL,
-  generationBaseUrl: configuredGenerationURL,
   getAccessToken: async () => {
     const response = await fetch('/api/nuva-token');
     if (!response.ok) throw new Error('Sign-in is required.');

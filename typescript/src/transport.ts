@@ -1,4 +1,4 @@
-import { serviceOrigins } from './service-origins.js';
+import { originsForEnvironment } from './environments.js';
 import { Credentials } from './credentials.js';
 import { parseFrame } from './wire-schema.js';
 import { NuvaError, PartialCreationError, errorInfo } from './errors.js';
@@ -54,6 +54,7 @@ interface Watch {
 
 export class Transport {
 	private readonly base: URL;
+	private readonly origins: ReturnType<typeof originsForEnvironment>;
 	private readonly timeout: number;
 	private credentials: Credentials;
 	private socketToken: string | undefined;
@@ -83,7 +84,8 @@ export class Transport {
 	private watches = new Map<string, Watch>();
 	private httpControllers = new Set<AbortController>();
 	constructor(private readonly options: NuvaClientOptions) {
-		const agentOrigin = options?.baseUrl ?? serviceOrigins.agent;
+		this.origins = originsForEnvironment(options?.environment);
+		const agentOrigin = options?.baseUrl ?? this.origins.agent;
 		if (agentOrigin === undefined)
 			throw new TypeError(
 				'Agent service origin is not configured in this unpublished preview. Supply baseUrl only for an explicitly configured development/test service.',
@@ -302,9 +304,10 @@ export class Transport {
 			? this.base.origin
 			: route.generation
 				? (this.options.generationBaseUrl ??
-					serviceOrigins.generation ??
+					this.options.storeBaseUrl ??
+					this.origins.generation ??
 					(this.options.baseUrl === undefined ? undefined : this.base.origin))
-				: (this.options.storeBaseUrl ?? serviceOrigins.store);
+				: (this.options.storeBaseUrl ?? this.origins.store);
 		if (serviceBase === undefined)
 			throw new NuvaError({
 				code: 'UNSUPPORTED_OPERATION',

@@ -1,5 +1,6 @@
-/** Release-owned routing. Store is documented in ads_backend/README.md at the pinned backend source.
- * New Agent/writing origins have not been assigned to this unpublished preview. */
-export const serviceOrigins: { readonly agent?: string; readonly store: string; readonly generation?: string } = Object.freeze({
-	store: 'https://api.nuvalab.ai',
+/** Default destinations for the staging preview. Explicit options support other environments. */
+export const serviceOrigins = Object.freeze({
+	agent: 'https://agent-staging.nuvalab.ai/api',
+	store: 'https://api-staging.nuvalab.ai',
+	generation: 'https://api-staging.nuvalab.ai',
 });
