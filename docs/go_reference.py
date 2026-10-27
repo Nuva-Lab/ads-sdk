@@ -18,8 +18,12 @@ def go_sections(locale='zh'):
          p('Set the customer Admin API key in your server environment as <code>NUVA_CUSTOMER_API_KEY</code>. Create the Admin client once during server initialization.',
            '在服务端环境变量 <code>NUVA_CUSTOMER_API_KEY</code> 中设置客户 Admin API key。服务初始化时创建一次 Admin 客户端。')
          + ex('admin-client', 'import (\n    "os"\n    nuva "github.com/Nuva-Lab/ads-sdk/go"\n)')
-         + p('Handle a configuration error before serving requests. Use the service address for your environment; the example uses staging.',
-           '开始处理请求前应处理配置错误。使用当前环境的服务地址；示例使用 staging。')),
+         + table([t('Client environment', '客户端环境'), t('Go Admin API URL', 'Go Admin API 地址')], [
+             ['<code>"sandbox"</code> ' + t('(default)', '（默认）'), '<code>https://api-staging.nuvalab.ai</code>'],
+             ['<code>"production"</code>', '<code>https://api.nuvalab.ai</code>'],
+         ])
+         + p('Pass the matching API URL to <code>NewAdsAdmin</code> and configure an Admin key issued for that environment. Changing the frontend environment does not change your token backend. Handle initialization errors before serving requests.',
+           '将配套 API 地址传给 <code>NewAdsAdmin</code>，并配置由该环境签发的 Admin key。修改前端环境不会自动修改签发令牌的后端。开始处理请求前应处理初始化错误。')),
         ('tokens', t('Implement the user-token route', '实现用户令牌接口'),
          p('Implement this route in your backend. <code>POST /api/ads/token</code> is an example path; use your own route if preferred. Supply <code>userID</code> from your application’s authenticated session or middleware. Do not let a request body choose another user’s identity.',
            '在你的后端实现此接口。<code>POST /api/ads/token</code> 是示例路径，也可使用你自己的路径。由应用的登录会话或认证中间件提供 <code>userID</code>，不要让请求体指定其他用户的身份。')

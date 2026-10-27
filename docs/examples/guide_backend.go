@@ -11,9 +11,9 @@ import (
 )
 
 // #region admin-client
-func NewAdsAdmin() (*nuva.AdminClient, error) {
+func NewAdsAdmin(apiURL string) (*nuva.AdminClient, error) {
 	return nuva.NewAdminClient(
-		"https://api-staging.nuvalab.ai",
+		apiURL,
 		os.Getenv("NUVA_CUSTOMER_API_KEY"),
 	)
 }
