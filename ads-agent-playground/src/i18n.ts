@@ -92,6 +92,9 @@ export const zh: Record<string, string> = {
   Offline: "未连接",
   Connecting: "正在连接",
   "Connecting…": "正在连接…",
+  "Reconnecting…": "正在重新连接…",
+  "Connection interrupted. Reconnecting automatically…": "连接暂时中断，正在自动重新连接…",
+  "Connection interrupted. Open connection settings to reconnect.": "连接已中断，请打开连接设置重新连接。",
   "Connection settings": "连接设置",
   "These URLs only change this browser's connection. To switch environments or users, update the server settings and matching Admin key, then restart the playground.":
     "这些地址仅更改当前浏览器的连接。切换环境或用户时，请更新服务端设置，确认 Admin 密钥与环境匹配，然后重启工作台。",

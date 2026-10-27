@@ -17,7 +17,7 @@ import { ResourceCards } from "./resource-cards.js";
 import { readResource } from "./resources.js";
 import { usefulLabel, resourcePresentation } from "./resource-presentation.js";
 import { Composer, buildDraft } from "./composer.js";
-import { action, button, byId, node, notice, report, showPane, modal } from "./ui.js";
+import { action, button, byId, node, notice, dismissNotice, report, showPane, modal } from "./ui.js";
 export interface ChatHost {
   sdk: NuvaClient;
   scope: string;
@@ -41,6 +41,7 @@ export function sessionLabel(session: {
     : session.title;
 }
 export class ChatController {
+  private connectionError = "";
   private agent?: AgentHandle;
   private unsubscribe?: () => void;
   private retry?: { draft: MessageDraft; requestId: string; preserveComposer?: boolean };
@@ -243,6 +244,8 @@ export class ChatController {
     this.historyCursor = null;
     this.historyAnchor = undefined;
     this.renderHistoryNotice();
+    dismissNotice(`connection:${this.sessionId}`);
+    this.connectionError = "";
     this.sessionId = id;
     this.messageReferences.clear(true);
     this.retry = undefined;
@@ -597,8 +600,31 @@ export class ChatController {
         requestAnimationFrame(() => void this.loadHistory());
     }
   }
+  private renderConnection(state: AgentReadState) {
+    const error = state.status === "loading" ? undefined : state.error;
+    const healthy = state.status !== "loading" && state.status !== "error" && !error;
+    const retrying = error?.code === "CONNECTION_ERROR" && error.retryable;
+    const status = healthy ? "connected" : retrying ? "reconnecting" : state.status === "loading" ? "connecting" : "offline";
+    const control = byId("connection-button");
+    control.dataset.streamState = status;
+    control.classList.toggle("connected", healthy);
+    control.classList.toggle("reconnecting", !!retrying);
+    setText(byId("connection-label"), msg(healthy ? "Connected" : retrying ? "Reconnecting…" : state.status === "loading" ? "Connecting…" : "Offline"));
+    const key = `connection:${this.sessionId}`;
+    if (healthy) {
+      dismissNotice(key);
+      this.connectionError = "";
+    } else if (error?.code === "CONNECTION_ERROR") {
+      const signature = `${error.code}:${error.message}`;
+      if (signature !== this.connectionError) {
+        notice(msg(retrying ? "Connection interrupted. Reconnecting automatically…" : "Connection interrupted. Open connection settings to reconnect."), true, { key, durationMs: 6000, replace: false });
+        this.connectionError = signature;
+      }
+    }
+  }
   private render(state: AgentReadState) {
     this.status = state.status;
+    this.renderConnection(state);
     this.hasEarlier =
       state.status !== "loading" &&
       state.status !== "error" &&
@@ -615,10 +641,10 @@ export class ChatController {
     this.controls();
     if (state.status === "loading") return;
     if (state.status === "error") {
-      report(state.error);
+      if (state.error.code !== "CONNECTION_ERROR") report(state.error);
       return;
     }
-    if (state.error) report(state.error);
+    if (state.error && state.error.code !== "CONNECTION_ERROR") report(state.error);
     const chat = byId("chat"),
       atBottom =
         !this.historyLoading &&

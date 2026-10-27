@@ -29,6 +29,7 @@ import {
   byId,
   node,
   notice,
+  dismissNotice,
   report,
   showPane,
   refreshActiveView,
@@ -267,9 +268,7 @@ async function main() {
     connecting = false;
   byId("connection-button").onclick = () => dialog.showModal();
   byId("close-connection").onclick = () => dialog.close();
-  byId("notice").onclick = () => {
-    byId("notice").hidden = true;
-  };
+  byId("notice").onclick = () => dismissNotice();
   async function connect() {
     if (connecting) return;
     connecting = true;
@@ -341,8 +340,6 @@ async function main() {
       connectionId = connection.id;
       workspace = bootWorkspace(sdk, `ads-playground:${connection.scope}`);
       await workspace.ready;
-      setText(byId("connection-label"), msg("Connected"));
-      byId("connection-button").classList.add("connected");
       dialog.close();
     } catch (failure) {
       if (nextId && nextId !== connectionId)

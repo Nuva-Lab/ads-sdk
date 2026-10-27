@@ -65,11 +65,24 @@ export function details(
   );
   return element;
 }
-export function notice(message: UiLabel, error = false) {
+let noticeTimer: ReturnType<typeof setTimeout> | undefined;
+let noticeKey: string | undefined;
+export function dismissNotice(key?: string) {
+  if (key !== undefined && key !== noticeKey) return;
+  clearTimeout(noticeTimer);
+  noticeTimer = undefined;
+  noticeKey = undefined;
+  byId("notice").hidden = true;
+}
+export function notice(message: UiLabel, error = false, options: { key?: string; durationMs?: number; replace?: boolean } = {}) {
   const el = byId("notice");
+  if (options.replace === false && !el.hidden && noticeKey !== options.key) return;
+  clearTimeout(noticeTimer);
+  noticeKey = options.key;
   setText(el, message);
   el.className = error ? "notice error" : "notice";
   el.hidden = false;
+  noticeTimer = options.durationMs === undefined ? undefined : setTimeout(() => dismissNotice(options.key), options.durationMs);
 }
 export function report(error: unknown) {
   if (error instanceof UiError) {
