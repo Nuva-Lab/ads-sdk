@@ -11,9 +11,12 @@
   },
   "dependencies": {
     "@nuva/sdk": "workspace:*",
-    "esbuild": "0.25.12"
+    "dompurify": "3.4.17",
+    "esbuild": "0.25.12",
+    "marked": "18.1.1"
   },
   "devDependencies": {
+    "jsdom": "26.1.0",
     "typescript": "5.9.3",
     "ws": "8.18.3"
   }

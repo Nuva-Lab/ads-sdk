@@ -1,5 +1,6 @@
 import { Message } from "@nuva/sdk";
 import { ChatReferences } from "./chat-references.js";
+import { renderMarkdown } from "./markdown.js";
 import { getLocale, translate, type UiLabel } from "./i18n.js";
 import { option } from "./ui.js";
 import { msg, UiError, setAttribute, setText } from "./i18n.js";
@@ -796,17 +797,12 @@ export class ChatController {
       requestAnimationFrame(() => void this.loadHistory());
   }
   private renderText(element: HTMLElement, text: string, format: string) {
+    element.classList.toggle("markdown-content", format === "markdown");
     if (format !== "markdown") {
       element.textContent = text;
       return;
     }
-    for (const chunk of text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g)) {
-      if (chunk.startsWith("**") && chunk.endsWith("**"))
-        element.append(node("strong", chunk.slice(2, -2)));
-      else if (chunk.startsWith("`") && chunk.endsWith("`"))
-        element.append(node("code", chunk.slice(1, -1)));
-      else element.append(document.createTextNode(chunk));
-    }
+    renderMarkdown(element, text);
   }
   private question(
     container: HTMLElement,
