@@ -59,7 +59,6 @@ test('customer Artifact writes omit relationship control while returned relation
    for (const invoke of [
     () => client.artifacts.create({kind:'script',schema_version:1,data:{text:'Draft'},relationships:refs}),
     () => client.artifacts.update({kind:'script',id},{data:{text:'Draft'},relationships:refs}),
-    () => client.scripts.create({content,relationships:refs}),
     () => client.prompts.create({data:{prompt:'Clip',image_asset_ids:[id]},relationships:refs}),
     () => typed.update({kind:'script',id},{data:{text:'Draft'},relationships:refs}),
     () => client.videos.generate({input:{schema_version:1,data:{prompt:'Clip',image_asset_ids:[id]},relationships:refs}}),

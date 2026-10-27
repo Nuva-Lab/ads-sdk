@@ -50,10 +50,15 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 		schema: { parse(v: unknown): T },
 		requestId: string = crypto.randomUUID(),
 		idempotencyKey?: string,
+		allowScriptCreationRelationships = false,
 	): Promise<T> {
 		let received = false;
 		try {
-			if (method === 'artifacts.create' || method === 'artifacts.update') assertClientRelationships(params);
+			if (method === 'artifacts.create' || method === 'artifacts.update') {
+				const scriptCreation = allowScriptCreationRelationships && method === 'artifacts.create' &&
+					params !== null && typeof params === 'object' && 'kind' in params && params.kind === 'script';
+				if (!scriptCreation) assertClientRelationships(params);
+			}
 			const response = await transport.data(method, params, requestId, idempotencyKey);
 			received = true;
 			const result = checked(schema, response);
@@ -373,7 +378,16 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 		},
 		scripts: {
 			get: async (ref) => typedScript(await artifacts.get(ref)),
-			create: async (input, o) => typedScript(await artifacts.create({ kind: 'script', schema_version: 1, ...writeScript(input) }, o)),
+			create: async (input, o) => {
+				const { relationships, ...scriptInput } = input;
+				const body = checked(backendSchema('ScriptCreate'), {
+					schema_version: 1,
+					...writeScript(scriptInput),
+					...(relationships === undefined ? {} : { relationships }),
+				}, true);
+				return request('artifacts.create', { kind: 'script', ...body },
+					{ parse: value => typedScript(artifact(value)) }, o?.requestId, o?.idempotencyKey, true);
+			},
 			update: async (ref, input, o) => {
 				await api.scripts.get(ref);
 				return typedScript(await artifacts.update(ref, writeScript(input), o));

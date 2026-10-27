@@ -115,6 +115,7 @@ const oldScriptData: BackendSchemas['ScriptDataV1'] = { text: 'Draft', product: 
 const oldPlanData: BackendSchemas['DirectingPlanDataV1'] = { script: 'id', specs: [] };
 // @ts-expect-error The typed Script writer does not accept Product-source metadata.
 void client.scripts.create({ content: {} as import('@nuva/sdk').ScriptPackage, product: 'revision' });
+void client.scripts.create({ content: {} as import('@nuva/sdk').ScriptPackage, relationships: [{ type: 'based_on', target: { kind: 'product', id: 'revision-id' } }] });
 
 // @ts-expect-error Raw video clients cannot write relationship edges.
 void client.videos.generate({ input: { schema_version: 1, data: { prompt: 'clip', image_asset_ids: ['id'] }, relationships: artifactSources } });

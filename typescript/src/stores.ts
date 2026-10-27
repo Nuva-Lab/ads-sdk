@@ -83,7 +83,8 @@ export type PromptInput = GeneratePromptInput;
 export interface ScriptsClient {
 	get(ref: ResourceRef<'script'>): Promise<Script>;
 	create(
-		input: { content: ScriptPackage; batch_id?: string | null; relationships?: never },
+		/** Optional source links use exact Product revision and Skill version IDs. */
+		input: { content: ScriptPackage; batch_id?: string | null; relationships?: B['ScriptCreate']['relationships'] },
 		options?: StoreCommandOptions,
 	): Promise<Script>;
 	update(
