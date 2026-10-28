@@ -18,9 +18,6 @@ def message_example():
             {'id': 'text_1', 'type': 'text', 'format': 'markdown', 'text': 'The Script is saved and ready for review.'},
             {'id': 'result_1', 'type': 'resource', 'record': {
                 'ref': {'kind': 'script', 'id': '33333333-3333-4333-8333-333333333333'}, 'label': 'Script 1'}},
-            {'type': 'dynamic-tool', 'toolName': 'nuva.review', 'toolCallId': 'call_17',
-             'state': 'input-available', 'input': {'prompt': 'Approve this Script or describe the changes.',
-             'targets': [{'kind': 'script', 'id': '33333333-3333-4333-8333-333333333333'}]}}
         ], 'attachments': [],
     }
 
@@ -99,7 +96,7 @@ def guide_pages(locale='zh'):
                 ['<code>loading</code>', t('Wait for the initial Session state.', '等待首次加载 Session。')],
                 ['<code>idle</code>', t('Allow a new user message.', '允许发送新消息。')],
                 ['<code>running</code>', t('Render streamed updates. Keep a new draft until this loop finishes.', '展示流式更新；当前循环结束前保留新的草稿。')],
-                ['<code>waiting_for_response</code>', t('Show the pending interaction and submit its response.', '展示待答交互并提交答复。')],
+                ['<code>waiting_for_response</code>', t('Reserved for client tools. The Ads Agent declares none, so it does not enter this state.', '为客户端工具保留。Ads Agent 未声明客户端工具，因此不会进入此状态。')],
                 ['<code>error</code>', t('Show the synchronization error and retain the draft.', '展示同步错误并保留草稿。')],
             ])),
         section('send', 'Send a message', '发送消息',
@@ -122,20 +119,11 @@ def guide_pages(locale='zh'):
                 '由你的界面提供 <code>onOpenResource</code>、<code>onOpenMessage</code> 和 <code>renderInteraction</code>。文本可以是纯文本或 Markdown；当 <code>format === "markdown"</code> 时使用你的 Markdown 渲染器。引用可能没有摘录，应保留指向目标的入口。完整示例中的初始对话只展示文本；接入此渲染器后可展示资源和交互。')
             + p(f'Load Scripts with <code>client.scripts.get(record.ref)</code> and Products with <code>client.products.get(record.ref.id)</code>. See <a href="{link("store", "artifacts")}">artifact reads</a>.',
                 f'使用 <code>client.scripts.get(record.ref)</code> 读取脚本，使用 <code>client.products.get(record.ref.id)</code> 读取产品。参见<a href="{link("store", "artifacts")}">产物读取</a>。')),
-        section('interactions', 'Answer a pending request', '回答待答请求',
-            p('A <code>dynamic-tool</code> part with <code>state: "input-available"</code> needs a user or application response. Render the registered input and submit output matching that tool’s schema. For the built-in <code>nuva.review</code> request:',
-                '状态为 <code>input-available</code> 的 <code>dynamic-tool</code> 内容需要用户或应用答复。展示已注册的输入，并按该工具的 schema 提交输出。以内置 <code>nuva.review</code> 为例：')
-            + ex('review')
-            + p('Retain the original call object when responding. Disable its controls while submitting. For <code>CALL_ALREADY_RESOLVED</code> or <code>CALL_OBSOLETE</code>, refresh the Session state instead of submitting another answer. Use <code>agent.fail(call, failure)</code> when the application cannot obtain a result, not when the user rejects a review.',
-                '答复时保留原始 call 对象，提交期间禁用对应控件。收到 <code>CALL_ALREADY_RESOLVED</code> 或 <code>CALL_OBSOLETE</code> 时刷新 Session 状态，不要再提交另一份答复。应用无法取得结果时使用 <code>agent.fail(call, failure)</code>；用户否决审核不属于这种失败。')
-            + p('Use <code>agent.listPendingCalls()</code> to read pending requests after reopening a Session. <code>agent.onClientTool()</code> subscribes to their updates.',
-                '重新打开 Session 后，使用 <code>agent.listPendingCalls()</code> 读取待答请求，使用 <code>agent.onClientTool()</code> 订阅其更新。')),
-        section('host-actions', 'Handle application actions', '处理应用操作',
-            p('Subscribe to <code>onHostCall</code> for UI actions that do not require a reply. Handle only actions your application supports. This example assumes your registered Skill declares <code>workspace.openEditor</code> with an <code>assetId</code> input.',
-                '通过 <code>onHostCall</code> 接收不需要回传结果的界面操作。只处理应用支持的操作。下例假设已注册的 Skill 声明了 <code>workspace.openEditor</code>，输入包含 <code>assetId</code>。')
-            + ex('host-action')
-            + p('Do not call <code>respond()</code> for these notifications. Implement <code>openEditor</code> in your application.',
-                '此类通知不需要调用 <code>respond()</code>。<code>openEditor</code> 由你的应用实现。')),
+        section('interactions', 'Client tools and host calls', '客户端工具与宿主调用',
+            p('The SDK can receive client tools (<code>dynamic-tool</code> parts answered with <code>respond()</code> or <code>fail()</code>) and host calls (response-free UI actions received through <code>onHostCall()</code>). The Ads Agent currently declares no client tools or host calls, so these never fire. The Agent asks questions in ordinary assistant messages; the user answers with a normal message.',
+                'SDK 支持接收客户端工具（通过 <code>respond()</code> 或 <code>fail()</code> 答复的 <code>dynamic-tool</code> 内容）和宿主调用（通过 <code>onHostCall()</code> 接收、无需答复的界面操作）。Ads Agent 目前未声明任何客户端工具或宿主调用，因此它们不会触发。Agent 通过普通助手消息提问，用户以普通消息回答。')
+            + p('A Skill’s <code>attributes.hostCalls</code> is currently ignored. Registering it does not add actions to a conversation.',
+                'Skill 的 <code>attributes.hostCalls</code> 目前会被忽略，注册后不会为对话增加任何操作。')),
         section('stop-history', 'Stop and read history', '停止回复与读取历史',
             ex('controls')
             + p('Stop ends the current Agent loop. It does not delete messages or cancel submitted video Jobs. Ask the Agent to attempt Job cancellation. <code>loadEarlierMessages()</code> adds older messages to the subscribed state; <code>refresh()</code> resynchronizes without starting a new turn.',
@@ -261,10 +249,10 @@ def guide_pages(locale='zh'):
                 ['<code>send(message)</code>', t('A receipt for accepted input. Replies arrive through subscribe.', '已接受输入的回执；回复通过 subscribe 返回。')],
                 ['<code>subscribe(listener)</code>', t('Current state and updates; returns an unsubscribe function.', '当前状态及后续更新；返回取消订阅函数。')],
                 ['<code>stop()</code>', t('Stop the current loop; preserve submitted Jobs.', '停止当前循环，保留已提交任务。')],
-                ['<code>respond(call, output) / fail(call, failure)</code>', t('Resolve a registered pending client interaction.', '处理已注册的待答客户端交互。')],
-                ['<code>onClientTool(listener) / onHostCall(listener)</code>', t('Observe interactions requiring replies or response-free UI actions.', '接收需要答复的交互或无需答复的 UI 操作。')],
+                ['<code>respond(call, output) / fail(call, failure)</code>', t('Answer a pending client tool. The Ads Agent declares none today.', '答复待处理的客户端工具。Ads Agent 目前未声明任何客户端工具。')],
+                ['<code>onClientTool(listener) / onHostCall(listener)</code>', t('Observe client tools and host calls. These never fire while the Ads Agent declares none.', '接收客户端工具和宿主调用。Ads Agent 未声明时不会触发。')],
                 ['<code>refresh() / loadEarlierMessages()</code>', t('Resynchronize or page history without resending input.', '重新同步或加载历史，不重发输入。')],
-                ['<code>listPendingCalls() / getHostCall(id)</code>', t('Read stored interaction records.', '读取已保存的交互记录。')],
+                ['<code>listPendingCalls() / getHostCall(id)</code>', t('Read stored client-tool and host-call records. Both are empty for the Ads Agent today.', '读取已保存的客户端工具和宿主调用记录。Ads Agent 目前均为空。')],
             ])),
         section('resources', 'Resource and generation methods', '资源与生成方法',
             table([t('Module', '模块'), t('Methods', '方法')], [

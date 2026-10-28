@@ -21,21 +21,6 @@ func IssueForLoggedInUser(ctx context.Context, admin *nuva.AdminClient, authenti
 	return BrowserCredential{Token: grant.AccessToken, ExpiresAt: grant.ExpiresAt}, nil
 }
 
-// RegisterUIBehavior declares a text Skill plus a response-free host action.
-// This stores a definition; customer frontend code implements the UI action.
-func RegisterUIBehavior(ctx context.Context, admin *nuva.AdminClient, skillText string) (nuva.RegisteredSkill, error) {
-	return admin.RegisterSkill(ctx, "editor-guidance", nuva.SkillRegistration{
-		Files: map[string]string{"SKILL.md": skillText},
-		Attributes: map[string]any{"hostCalls": []any{
-			map[string]any{
-				"name": "open_editor", "publicName": "workspace.openEditor",
-				"description": "Open the editor for an authorized Asset.",
-				"inputSchema": map[string]any{"type": "object", "properties": map[string]any{"assetId": map[string]any{"type": "string"}}, "required": []string{"assetId"}, "additionalProperties": false},
-			},
-		}},
-	})
-}
-
 func ActivateWithBackendAuthority(ctx context.Context, admin *nuva.AdminClient, name string, version int) (nuva.Skill, error) {
 	return admin.SetSkillMain(ctx, name, version)
 }

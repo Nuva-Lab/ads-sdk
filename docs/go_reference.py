@@ -39,7 +39,9 @@ def go_sections(locale='zh'):
          + p('Add required reference paths to <code>attributes.preload</code>; the writer loads them before generating. Other supported Skill files remain available on demand.',
            '将必需的参考文件路径写入 <code>attributes.preload</code>，编写服务会在生成前加载；其他受支持的 Skill 文件可按需读取。')
          + p('Save <code>registered.Skill.ID</code> and <code>registered.Version.Version</code> when the client needs to select that guidance. Registering a Skill stores text and metadata; it does not execute scripts.',
-           '客户端需要选择这份指导时，保存 <code>registered.Skill.ID</code> 和 <code>registered.Version.Version</code>。注册 Skill 只保存文本和元数据，不执行脚本。')),
+           '客户端需要选择这份指导时，保存 <code>registered.Skill.ID</code> 和 <code>registered.Version.Version</code>。注册 Skill 只保存文本和元数据，不执行脚本。')
+         + p('<code>attributes.hostCalls</code> is currently ignored. A Skill cannot add client tools or UI actions to a conversation.',
+           '<code>attributes.hostCalls</code> 目前会被忽略。Skill 不能为对话增加客户端工具或界面操作。')),
         ('activate', t('Select the main Skill version', '选择 Skill 主版本'),
          ex('activate-skill')
          + p('The first version becomes main. Later registrations create versions without switching main. Call <code>SetSkillMain</code> after your backend approves the new version. A user token or Agent conversation cannot activate it.',

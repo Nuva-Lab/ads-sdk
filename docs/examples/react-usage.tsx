@@ -114,17 +114,7 @@ export function MessageListExample({
 	// #endregion messages
 }
 
-export function useReviewExample(agent: AgentHandle, part: Extract<DynamicToolUIPart, { state: 'input-available' }>) {
-	// #region review
-	const [feedback, setFeedback] = useState('');
-
-	async function review(decision: 'approve' | 'reject') {
-		await agent.respond(part, { decision, text: feedback });
-	}
-	// #endregion review
-	return { feedback, setFeedback, review };
-}
-
+// The Ads Agent currently declares no client tools or host calls, so these listeners do not fire.
 export function useClientToolExample(
 	agent: AgentHandle,
 	onRequest: (part: Extract<DynamicToolUIPart, { state: 'input-available' }>) => void,

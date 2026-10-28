@@ -2,7 +2,8 @@
 set -eu
 sdk_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 consumer_dir=$(mktemp -d)
-trap 'rm -r "$consumer_dir"' EXIT HUP INT TERM
+# Go marks module-cache files read-only; restore write access so cleanup never prompts.
+trap 'chmod -R u+w "$consumer_dir" 2>/dev/null; rm -rf "$consumer_dir"' EXIT HUP INT TERM
 python3 - "$sdk_dir" "$consumer_dir" <<'PY'
 import json,sys,zipfile
 from pathlib import Path

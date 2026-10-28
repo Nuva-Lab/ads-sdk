@@ -216,35 +216,6 @@ export function MessageContent({
 }
 // #endregion render-message
 
-// #region review
-export async function approveReview(
-  agent: AgentHandle,
-  call: Extract<DynamicToolUIPart, { state: "input-available" }>,
-) {
-  if (call.toolName !== "nuva.review")
-    throw new Error("Expected a review request.");
-  await agent.respond(call, { decision: "approve", text: "" });
-}
-// #endregion review
-
-// #region host-action
-export function useEditorAction(
-  agent: AgentHandle,
-  openEditor: (assetId: string) => void,
-) {
-  useEffect(
-    () =>
-      agent.onHostCall((part) => {
-        if (part.data.toolName === "workspace.openEditor") {
-          const assetId = part.data.input.assetId;
-          if (typeof assetId === "string") openEditor(assetId);
-        }
-      }),
-    [agent, openEditor],
-  );
-}
-// #endregion host-action
-
 // #region controls
 export async function stopReply(agent: AgentHandle) {
   await agent.stop();
