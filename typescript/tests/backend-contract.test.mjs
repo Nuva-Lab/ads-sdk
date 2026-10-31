@@ -25,10 +25,11 @@ test('backend Ad registration requires the final video and preserves editor data
 test('shared creation schemas accept exact service boundaries without tightening valid inputs', () => {
 	const instruction = 'x'.repeat(32000);
 	assert.equal(
-		generateScriptSchema.safeParse({ product: id, acceptable_duration_ms: { min: 1, max: 5000 }, instruction, skill: { id, version: 1 } })
-			.success,
+		generateScriptSchema.safeParse({ product: id, acceptable_duration_ms: { min: 1, max: 5000 }, instruction }).success,
 		true,
 	);
+	assert.equal(generateScriptSchema.safeParse({ product: id, acceptable_duration_ms: { min: 1, max: 5000 }, skill: { id } }).success, false, 'A request names no Skill.');
+	assert.equal(generatePromptSchema.safeParse({ script: id, skill: { id } }).success, false, 'A request names no Skill.');
 	assert.equal(skillSelectionSchema.safeParse({ id }).success, true);
 	for (const ratio of ['adaptive', '21:9', '16:9', '4:3', '1:1', '3:4', '9:16'])
 		assert.equal(generatePromptSchema.safeParse({ script: id, ratio, instruction }).success, true);
@@ -66,12 +67,11 @@ test('backend OrderedUUID uses GUID shape without RFC version or variant restric
 			product,
 			base: script,
 			batch_id: job,
-			skill: { id: skill },
 			acceptable_duration_ms: { min: 5000, max: 5000 },
 		}).base,
 		script,
 	);
-	assert.equal(generatePromptSchema.parse({ script, skill: { id: skill } }).script, script);
+	assert.equal(generatePromptSchema.parse({ script }).script, script);
 	for (const invalid of [
 		product + '\n',
 		product + '0',

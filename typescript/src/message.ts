@@ -1,4 +1,4 @@
-import type { MessagePart, ResourceLink, MessageView, MessageRef, ReviewDecisionValue } from './types.js';
+import type { MessagePart, ResourceLink, MessageView, MessageRef } from './types.js';
 
 export interface DraftValue {
 	content: MessagePart[];
@@ -61,7 +61,4 @@ export function draftValue(draft: MessageDraft): DraftValue {
 	return clone(value);
 }
 export const Message = Object.freeze({ create: () => MessageDraft.empty(), text: (text: string) => MessageDraft.empty().text(text) });
-export const ReviewDecision = Object.freeze({
-	approve: (text = ''): ReviewDecisionValue => ({ decision: 'approve', text }),
-	reject: (text = ''): ReviewDecisionValue => ({ decision: 'reject', text }),
-});
+

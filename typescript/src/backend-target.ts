@@ -5,7 +5,7 @@ import type { JsonObject } from './types.js';
 /** Source-verified PR target; recursive JSON attributes use the SDK JsonObject type. */
 export type ProductData = Deployed['ProductDataV1'] & { attributes?: JsonObject };
 type WithData<T> = Omit<T, 'data'> & { data: ProductData };
-// Verified PR #2371 at e2fe0f45f7940b16f31826ce4b4c34fc0d86e764.
+// Verified ads_backend source at 47b9f5fa0844fa1ccfd78d5c98e7ed7853fd8007 (PR #2374).
 // openapi-typescript renders the bare oneOf input object as Record<string, never>;
 // express the source's exactly-one constraint explicitly without narrowing raw data.
 export type RawPromptInput = VideoTarget['RawPromptInput'];
@@ -14,7 +14,7 @@ export type GenerateVideoInput = Omit<Deployed['GenerateVideo'], 'prompt'> & (
 	| { input: RawPromptInput; prompt?: null }
 );
 type VideoOverlay = Pick<VideoTarget,
-	'RawPromptInput' | 'PromptDataV1' | 'Prompt' | 'PromptCreate' | 'PromptVersionCreate' | 'ArtifactRelationship' | 'ArtifactTarget' | 'AdOut' | 'AdCreate' | 'AdPage' | 'BatchCreate' | 'Script' | 'ScriptCreate' | 'ScriptVersionCreate' | 'ScriptDataV1' | 'DirectingPlan' | 'DirectingPlanCreate' | 'DirectingPlanVersionCreate' | 'DirectingPlanDataV1' | 'Error' | 'ErrorResponse'
+	'RawPromptInput' | 'PromptDataV1' | 'Prompt' | 'PromptCreate' | 'PromptVersionCreate' | 'ArtifactRelationship' | 'ArtifactTarget' | 'AdOut' | 'AdCreate' | 'AdUpdate' | 'AdPage' | 'BatchCreate' | 'Script' | 'ScriptCreate' | 'ScriptVersionCreate' | 'ScriptDataV1' | 'DirectingPlan' | 'DirectingPlanCreate' | 'DirectingPlanVersionCreate' | 'DirectingPlanDataV1' | 'Error' | 'ErrorResponse'
 > & {
 	GenerateVideo: GenerateVideoInput;
 	BatchOut: VideoTarget['BatchOut'];

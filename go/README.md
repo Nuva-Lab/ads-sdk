@@ -2,10 +2,8 @@
 
 Use the Go Admin SDK on your backend to issue user tokens, register Skills and select their main versions. It requires Go 1.22+ and uses the Go standard library.
 
-With authenticated access to this private repository:
-
 ```sh
-GOPRIVATE=github.com/Nuva-Lab/ads-sdk go get github.com/Nuva-Lab/ads-sdk/go@v0.1.0-preview.2
+go get github.com/Nuva-Lab/ads-sdk/go@v0.1.0-preview.2
 ```
 
 `AdminClient` uses your customer Admin API key. `UserClient` uses an issued user token for Skill reads. Keep the Admin key on your backend.
@@ -73,6 +71,6 @@ GOPROXY=file:///absolute/path/to/release/go-proxy GONOPROXY=none GOSUMDB=off \
   go get github.com/Nuva-Lab/ads-sdk/go@v0.1.0-preview.2
 ```
 
-`GONOPROXY=none` ensures this command uses the included proxy even if you have configured `GOPRIVATE`. `GOSUMDB=off` applies only to this command for the supplied private module archive. Verify `SHA256SUMS` before installing.
+`GONOPROXY=none` ensures this command uses the included proxy even if you have configured `GOPRIVATE`. `GOSUMDB=off` applies only to this command for the supplied module archive. Verify `SHA256SUMS` before installing.
 
 Tests use local HTTP fixtures.

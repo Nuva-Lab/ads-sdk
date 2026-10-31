@@ -48,8 +48,8 @@ test('video target has separate provenance and leaves the observed contract inta
 	const observed = JSON.parse(await readFile(new URL('../schema/backend.openapi.json', import.meta.url), 'utf8'));
 	const target = JSON.parse(raw).components.schemas;
 	assert.equal(createHash('sha256').update(raw).digest('hex'), source.sha256);
-	assert.equal(source.commit, 'e2fe0f45f7940b16f31826ce4b4c34fc0d86e764');
-	assert.equal(source.pullRequest, 'https://github.com/Nuva-Lab/WhatIf/pull/2371');
+	assert.equal(source.commit, '47b9f5fa0844fa1ccfd78d5c98e7ed7853fd8007');
+	assert.equal(source.pullRequest, 'https://github.com/Nuva-Lab/WhatIf/pull/2374');
 	assert.match(source.status, /target-only/);
 	assert.equal(observed.components.schemas.GenerateVideo.properties.input, undefined);
 	assert.equal(target.GenerateVideo.oneOf.length, 2);

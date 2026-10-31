@@ -154,6 +154,91 @@
         ],
         "title": "AdPage"
       },
+      "AdUpdate": {
+        "anyOf": [
+          {
+            "properties": {
+              "version": {
+                "type": "integer",
+                "minimum": 1.0,
+                "title": "Version",
+                "description": "Current Ad metadata version, read from AdOut."
+              },
+              "batch_id": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Batch Id",
+                "description": "Omit to preserve; null removes membership; UUID attaches a Batch."
+              },
+              "composition": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/CompositionV1"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Omit to preserve; null marks unknown; otherwise replace ad@1."
+              }
+            },
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "version",
+              "batch_id"
+            ]
+          },
+          {
+            "properties": {
+              "version": {
+                "type": "integer",
+                "minimum": 1.0,
+                "title": "Version",
+                "description": "Current Ad metadata version, read from AdOut."
+              },
+              "batch_id": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Batch Id",
+                "description": "Omit to preserve; null removes membership; UUID attaches a Batch."
+              },
+              "composition": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/CompositionV1"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Omit to preserve; null marks unknown; otherwise replace ad@1."
+              }
+            },
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "version",
+              "composition"
+            ]
+          }
+        ],
+        "title": "AdUpdate"
+      },
       "ArtifactRelationship": {
         "properties": {
           "type": {
@@ -529,7 +614,7 @@
             },
             "type": "object",
             "title": "Assets",
-            "description": "The assets `data` refers to, with download URLs."
+            "description": "The assets `data` or `relationships` refer to, with download URLs."
           },
           "entities": {
             "additionalProperties": {
@@ -540,7 +625,7 @@
             },
             "type": "object",
             "title": "Entities",
-            "description": "The entity versions `data` refers to, by `revision`."
+            "description": "Entity versions in `data` or `relationships`, keyed by revision."
           },
           "skills": {
             "additionalProperties": {
@@ -551,7 +636,7 @@
             },
             "type": "object",
             "title": "Skills",
-            "description": "The Skill versions `data` refers to, by version id."
+            "description": "Skill versions in `data` or `relationships`, keyed by version id."
           }
         },
         "type": "object",
@@ -1042,7 +1127,7 @@
             },
             "type": "object",
             "title": "Assets",
-            "description": "The assets `data` refers to, with download URLs."
+            "description": "The assets `data` or `relationships` refer to, with download URLs."
           },
           "entities": {
             "additionalProperties": {
@@ -1053,7 +1138,7 @@
             },
             "type": "object",
             "title": "Entities",
-            "description": "The entity versions `data` refers to, by `revision`."
+            "description": "Entity versions in `data` or `relationships`, keyed by revision."
           },
           "skills": {
             "additionalProperties": {
@@ -1064,7 +1149,7 @@
             },
             "type": "object",
             "title": "Skills",
-            "description": "The Skill versions `data` refers to, by version id."
+            "description": "Skill versions in `data` or `relationships`, keyed by version id."
           }
         },
         "type": "object",
@@ -1358,7 +1443,7 @@
             },
             "type": "object",
             "title": "Assets",
-            "description": "The assets `data` refers to, with download URLs."
+            "description": "The assets `data` or `relationships` refer to, with download URLs."
           },
           "entities": {
             "additionalProperties": {
@@ -1369,7 +1454,7 @@
             },
             "type": "object",
             "title": "Entities",
-            "description": "The entity versions `data` refers to, by `revision`."
+            "description": "Entity versions in `data` or `relationships`, keyed by revision."
           },
           "skills": {
             "additionalProperties": {
@@ -1380,7 +1465,7 @@
             },
             "type": "object",
             "title": "Skills",
-            "description": "The Skill versions `data` refers to, by version id."
+            "description": "Skill versions in `data` or `relationships`, keyed by version id."
           }
         },
         "type": "object",

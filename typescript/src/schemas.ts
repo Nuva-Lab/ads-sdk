@@ -31,22 +31,6 @@ export const PerformanceSnapshotSchema = Object.freeze({
 export function defineArtifactSchema<K extends string, D, W extends boolean>(schema: ArtifactSchema<K, D, W>): ArtifactSchema<K, D, W> {
 	return Object.freeze({ ...schema });
 }
-export const compositionSchema = z
-	.object({
-		clips: z
-			.array(
-				z
-					.object({
-						assetId: backendIdSchema,
-						sourceStartMs: z.number().finite().nonnegative(),
-						sourceEndMs: z.number().finite().positive(),
-					})
-					.strict()
-					.refine((v) => v.sourceEndMs > v.sourceStartMs, 'End must follow start.'),
-			)
-			.min(1),
-	})
-	.strict();
 
 export { backendSchema } from './backend-schema.js';
 export type { BackendSchemas, DeployedBackendSchemas } from './backend-target.js';

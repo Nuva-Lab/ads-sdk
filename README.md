@@ -65,10 +65,8 @@ Start with the [TypeScript guide](typescript/README.md) or [React example](docs/
 
 ### Go
 
-Authenticate Git with an account that has access to this repository, then install:
-
 ```sh
-GOPRIVATE=github.com/Nuva-Lab/ads-sdk go get github.com/Nuva-Lab/ads-sdk/go@v0.1.0-preview.2
+go get github.com/Nuva-Lab/ads-sdk/go@v0.1.0-preview.2
 ```
 
 Use the [Go Admin SDK](go/README.md) to issue user tokens and register Skills. Your backend holds the Admin API key and returns a user token to the signed-in user's frontend.

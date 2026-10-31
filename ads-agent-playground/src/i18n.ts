@@ -329,12 +329,8 @@ export const zh: Record<string, string> = {
   "Your input is needed": "需要你的回复",
   "This action needs to be handled in your application.":
     "此操作需要在你的应用中处理。",
-  "Add feedback (optional)…": "补充反馈（选填）…",
   "Your answer…": "请输入回复…",
-  "Review feedback": "审核反馈",
   Answer: "回复",
-  Approve: "通过",
-  "Request changes": "要求修改",
   Reply: "回复",
   "Unfinished requests": "未完成的请求",
   "Unfinished {p0} request": "未完成的{p0}请求",

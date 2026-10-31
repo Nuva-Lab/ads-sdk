@@ -1,4 +1,4 @@
-// Generated from ads_backend/openapi.json at e2fe0f45f7940b16f31826ce4b4c34fc0d86e764. PR target only; deployment not asserted. Do not edit.
+// Generated from ads_backend/openapi.json at 47b9f5fa0844fa1ccfd78d5c98e7ed7853fd8007. PR target only; deployment not asserted. Do not edit.
 export type paths = Record<string, never>;
 export type webhooks = Record<string, never>;
 export interface components {
@@ -65,6 +65,34 @@ export interface components {
              * @description Pass as `cursor` for the next page.
              */
             next_cursor: string | null;
+        };
+        /** AdUpdate */
+        AdUpdate: {
+            /**
+             * Version
+             * @description Current Ad metadata version, read from AdOut.
+             */
+            version: number;
+            /**
+             * Batch Id
+             * @description Omit to preserve; null removes membership; UUID attaches a Batch.
+             */
+            batch_id: string | null;
+            /** @description Omit to preserve; null marks unknown; otherwise replace ad@1. */
+            composition?: components["schemas"]["CompositionV1"] | null;
+        } | {
+            /**
+             * Version
+             * @description Current Ad metadata version, read from AdOut.
+             */
+            version: number;
+            /**
+             * Batch Id
+             * @description Omit to preserve; null removes membership; UUID attaches a Batch.
+             */
+            batch_id?: string | null;
+            /** @description Omit to preserve; null marks unknown; otherwise replace ad@1. */
+            composition: components["schemas"]["CompositionV1"] | null;
         };
         /** ArtifactRelationship */
         ArtifactRelationship: {
@@ -273,21 +301,21 @@ export interface components {
             relationships: components["schemas"]["ArtifactRelationship"][];
             /**
              * Assets
-             * @description The assets `data` refers to, with download URLs.
+             * @description The assets `data` or `relationships` refer to, with download URLs.
              */
             assets: {
                 [key: string]: components["schemas"]["AssetOut"];
             };
             /**
              * Entities
-             * @description The entity versions `data` refers to, by `revision`.
+             * @description Entity versions in `data` or `relationships`, keyed by revision.
              */
             entities: {
                 [key: string]: components["schemas"]["EntityRef"];
             };
             /**
              * Skills
-             * @description The Skill versions `data` refers to, by version id.
+             * @description Skill versions in `data` or `relationships`, keyed by version id.
              */
             skills: {
                 [key: string]: components["schemas"]["SkillRef"];
@@ -490,21 +518,21 @@ export interface components {
             relationships: components["schemas"]["ArtifactRelationship"][];
             /**
              * Assets
-             * @description The assets `data` refers to, with download URLs.
+             * @description The assets `data` or `relationships` refer to, with download URLs.
              */
             assets: {
                 [key: string]: components["schemas"]["AssetOut"];
             };
             /**
              * Entities
-             * @description The entity versions `data` refers to, by `revision`.
+             * @description Entity versions in `data` or `relationships`, keyed by revision.
              */
             entities: {
                 [key: string]: components["schemas"]["EntityRef"];
             };
             /**
              * Skills
-             * @description The Skill versions `data` refers to, by version id.
+             * @description Skill versions in `data` or `relationships`, keyed by version id.
              */
             skills: {
                 [key: string]: components["schemas"]["SkillRef"];
@@ -630,21 +658,21 @@ export interface components {
             relationships: components["schemas"]["ArtifactRelationship"][];
             /**
              * Assets
-             * @description The assets `data` refers to, with download URLs.
+             * @description The assets `data` or `relationships` refer to, with download URLs.
              */
             assets: {
                 [key: string]: components["schemas"]["AssetOut"];
             };
             /**
              * Entities
-             * @description The entity versions `data` refers to, by `revision`.
+             * @description Entity versions in `data` or `relationships`, keyed by revision.
              */
             entities: {
                 [key: string]: components["schemas"]["EntityRef"];
             };
             /**
              * Skills
-             * @description The Skill versions `data` refers to, by version id.
+             * @description Skill versions in `data` or `relationships`, keyed by version id.
              */
             skills: {
                 [key: string]: components["schemas"]["SkillRef"];

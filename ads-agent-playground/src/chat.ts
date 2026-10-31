@@ -809,8 +809,7 @@ export class ChatController {
     call: DynamicToolUIPart,
     ended: boolean,
   ) {
-    const review = call.toolName === "nuva.review",
-      question =
+    const question =
         typeof call.input.question === "string"
           ? call.input.question
           : typeof call.input.prompt === "string"
@@ -826,7 +825,7 @@ export class ChatController {
     container.append(node("strong", question));
     const epoch = this.epoch,
       target = this.agent!;
-    if (!review && typeof call.input.question !== "string") {
+    if (typeof call.input.question !== "string") {
       container.append(
         node(
           "p",
@@ -838,16 +837,8 @@ export class ChatController {
     }
     const form = node("form"),
       answer = node("textarea");
-    setAttribute(
-      answer,
-      "placeholder",
-      review ? msg("Add feedback (optional)…") : msg("Your answer…"),
-    );
-    setAttribute(
-      answer,
-      "aria-label",
-      review ? msg("Review feedback") : msg("Answer"),
-    );
+    setAttribute(answer, "placeholder", msg("Your answer…"));
+    setAttribute(answer, "aria-label", msg("Answer"));
     form.append(answer);
     container.append(form);
     const respond = async (output: Record<string, string>) => {
@@ -860,28 +851,12 @@ export class ChatController {
         if (form.isConnected) buttons.forEach((b) => (b.disabled = false));
       }
     };
-    if (review) {
-      const row = node("div", "", "row");
-      row.append(
-        button(msg("Request changes"), () =>
-          action(() => respond({ decision: "reject", text: answer.value })),
-        ),
-        button(
-          msg("Approve"),
-          () =>
-            action(() => respond({ decision: "approve", text: answer.value })),
-          "primary",
-        ),
-      );
-      form.append(row);
-    } else {
-      const submit = node("button", msg("Reply"), "primary");
-      submit.type = "submit";
-      form.append(submit);
-      form.onsubmit = (event) => {
-        event.preventDefault();
-        void action(() => respond({ answer: answer.value }));
-      };
-    }
+    const submit = node("button", msg("Reply"), "primary");
+    submit.type = "submit";
+    form.append(submit);
+    form.onsubmit = (event) => {
+      event.preventDefault();
+      void action(() => respond({ answer: answer.value }));
+    };
   }
 }

@@ -1,4 +1,4 @@
-// Generated from ads_backend/openapi.json at e2fe0f45f7940b16f31826ce4b4c34fc0d86e764. PR target only; deployment not asserted. Do not edit.
+// Generated from ads_backend/openapi.json at 47b9f5fa0844fa1ccfd78d5c98e7ed7853fd8007. PR target only; deployment not asserted. Do not edit.
 import type { z } from "zod";
 export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.fromJSONSchema>[0], boolean>> = {
   "AdCreate": {
@@ -147,6 +147,91 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "next_cursor"
     ],
     "title": "AdPage"
+  },
+  "AdUpdate": {
+    "anyOf": [
+      {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "title": "Version",
+            "description": "Current Ad metadata version, read from AdOut."
+          },
+          "batch_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Batch Id",
+            "description": "Omit to preserve; null removes membership; UUID attaches a Batch."
+          },
+          "composition": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/CompositionV1"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Omit to preserve; null marks unknown; otherwise replace ad@1."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "version",
+          "batch_id"
+        ]
+      },
+      {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "title": "Version",
+            "description": "Current Ad metadata version, read from AdOut."
+          },
+          "batch_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Batch Id",
+            "description": "Omit to preserve; null removes membership; UUID attaches a Batch."
+          },
+          "composition": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/CompositionV1"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Omit to preserve; null marks unknown; otherwise replace ad@1."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "version",
+          "composition"
+        ]
+      }
+    ],
+    "title": "AdUpdate"
   },
   "ArtifactRelationship": {
     "properties": {
@@ -523,7 +608,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         },
         "type": "object",
         "title": "Assets",
-        "description": "The assets `data` refers to, with download URLs."
+        "description": "The assets `data` or `relationships` refer to, with download URLs."
       },
       "entities": {
         "additionalProperties": {
@@ -534,7 +619,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         },
         "type": "object",
         "title": "Entities",
-        "description": "The entity versions `data` refers to, by `revision`."
+        "description": "Entity versions in `data` or `relationships`, keyed by revision."
       },
       "skills": {
         "additionalProperties": {
@@ -545,7 +630,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         },
         "type": "object",
         "title": "Skills",
-        "description": "The Skill versions `data` refers to, by version id."
+        "description": "Skill versions in `data` or `relationships`, keyed by version id."
       }
     },
     "type": "object",
@@ -1036,7 +1121,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         },
         "type": "object",
         "title": "Assets",
-        "description": "The assets `data` refers to, with download URLs."
+        "description": "The assets `data` or `relationships` refer to, with download URLs."
       },
       "entities": {
         "additionalProperties": {
@@ -1047,7 +1132,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         },
         "type": "object",
         "title": "Entities",
-        "description": "The entity versions `data` refers to, by `revision`."
+        "description": "Entity versions in `data` or `relationships`, keyed by revision."
       },
       "skills": {
         "additionalProperties": {
@@ -1058,7 +1143,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         },
         "type": "object",
         "title": "Skills",
-        "description": "The Skill versions `data` refers to, by version id."
+        "description": "Skill versions in `data` or `relationships`, keyed by version id."
       }
     },
     "type": "object",
@@ -1352,7 +1437,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         },
         "type": "object",
         "title": "Assets",
-        "description": "The assets `data` refers to, with download URLs."
+        "description": "The assets `data` or `relationships` refer to, with download URLs."
       },
       "entities": {
         "additionalProperties": {
@@ -1363,7 +1448,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         },
         "type": "object",
         "title": "Entities",
-        "description": "The entity versions `data` refers to, by `revision`."
+        "description": "Entity versions in `data` or `relationships`, keyed by revision."
       },
       "skills": {
         "additionalProperties": {
@@ -1374,7 +1459,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         },
         "type": "object",
         "title": "Skills",
-        "description": "The Skill versions `data` refers to, by version id."
+        "description": "Skill versions in `data` or `relationships`, keyed by version id."
       }
     },
     "type": "object",

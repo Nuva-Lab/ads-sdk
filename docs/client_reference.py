@@ -220,10 +220,10 @@ def guide_pages(locale='zh'):
             ])
             + p('A timeout or AbortSignal stops waiting locally, not the Job. Resume reading with <code>client.jobs.get(jobId)</code> or <code>client.jobs.subscribe(jobId, listener)</code>. Ask the Agent for best-effort cancellation.',
                 '超时或 AbortSignal 只停止本地等待，不会停止任务。可使用 <code>client.jobs.get(jobId)</code> 或 <code>client.jobs.subscribe(jobId, listener)</code> 继续查询。需要取消时请让 Agent 尝试执行。')),
-        section('skill', 'Select writing guidance and output language', '选择编写指导与输出语言',
-            c("const script = await client.scripts.generate({\n  product: productId,\n  acceptable_duration_ms: { min: 8000, max: 15000 },\n  skill: { id: skillId, version: 2 },\n  instruction: 'Write in English. Keep the supplied product facts.',\n});")
-            + p('Omit <code>skill</code> to use the configured default. Select an authorized Skill ID and optional version when you need specific guidance. Use <code>instruction</code> for a requested output language or creative change. Product and brand names, approved dialogue, and saved source facts remain tied to their sources.',
-                '省略 <code>skill</code> 时使用已配置的默认 Skill。需要指定指导时，选择已授权的 Skill ID，并按需指定版本。使用 <code>instruction</code> 指定输出语言或创意修改。产品和品牌名称、已确认对白及已保存事实仍以来源内容为准。')),
+        section('skill', 'Set the output language and creative direction', '指定输出语言与创意方向',
+            c("const script = await client.scripts.generate({\n  product: productId,\n  acceptable_duration_ms: { min: 8000, max: 15000 },\n  instruction: 'Write in English. Keep the supplied product facts.',\n});")
+            + p('Nuva selects the writing guidance (Skills) configured for your account; a request does not name one. Use <code>instruction</code> for a requested output language or creative change. Product and brand names, approved dialogue, and saved source facts remain tied to their sources.',
+                'Nuva 使用为你的账户配置的编写指导（Skill），请求中不指定 Skill。使用 <code>instruction</code> 指定输出语言或创意修改。产品和品牌名称、已确认对白及已保存事实仍以来源内容为准。')),
         section('retry', 'Retry the same submission', '重试同一次提交',
             ex('idempotency')
             + p('Create this object once per deliberate generation. Retrying <code>submit()</code> reuses the same input and operation key. Persist both if retries must survive a page reload. Create a new object for a deliberate regeneration, even when the Prompt is unchanged.',

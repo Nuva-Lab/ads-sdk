@@ -124,11 +124,6 @@ export interface HostFailure {
 	readonly message: string;
 }
 
-export type ReviewDecisionValue = {
-	decision: 'approve' | 'reject';
-	text: string;
-};
-
 /** Available after the initial conversation load succeeds. */
 export interface AgentData {
 	readonly session: Session;

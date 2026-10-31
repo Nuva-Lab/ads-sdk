@@ -1,6 +1,6 @@
 import { backendIdSchema } from './backend-id.js';
 import { z } from 'zod';
-/** Shared Agent-owned creation inputs. They do not change the pinned backend DTOs. */
+/** Shared Agent-owned creation inputs. They do not change the pinned backend DTOs. The writers choose their Skills from their agent setups; a request names none. */
 export const skillSelectionSchema = z.object({ id: backendIdSchema, version: z.number().int().positive().optional() }).strict();
 export const generateScriptSchema = z
 	.object({
@@ -12,7 +12,6 @@ export const generateScriptSchema = z
 			.strict()
 			.refine((range) => range.min <= range.max, 'Minimum duration must not exceed maximum.'),
 		instruction: z.string().max(32000).optional(),
-		skill: skillSelectionSchema.optional(),
 	})
 	.strict();
 export const generatePromptSchema = z
@@ -21,7 +20,6 @@ export const generatePromptSchema = z
 		batch_id: backendIdSchema.optional(),
 		instruction: z.string().max(32000).optional(),
 		ratio: z.enum(['adaptive', '21:9', '16:9', '4:3', '1:1', '3:4', '9:16']).optional(),
-		skill: skillSelectionSchema.optional(),
 	})
 	.strict();
 export type SkillSelection = z.infer<typeof skillSelectionSchema>;
