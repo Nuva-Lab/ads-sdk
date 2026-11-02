@@ -25,7 +25,7 @@
   },
   "sideEffects": false,
   "scripts": {
-    "build": "pnpm --dir ../protocol build && tsc -p tsconfig.json",
+    "build": "node scripts/build-protocol.mjs && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:types": "tsc -p tsconfig.tests.json",
     "test": "pnpm build && pnpm test:types && pnpm check:backend && node --test tests/*.test.mjs",
