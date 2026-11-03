@@ -39,7 +39,7 @@ function fixture(t, saved) {
     getElementById: (id) => elements.get(id),
     createElement: () => element(), createTextNode: (text) => ({ textContent: text }),
   };
-  globalThis.localStorage = { getItem: (k) => values.get(k) ?? null, setItem: (k,v) => values.set(k,v) };
+  globalThis.localStorage = { getItem: (k) => values.get(k) ?? null, setItem: (k,v) => values.set(k,v), removeItem: (k) => values.delete(k) };
   t.after(() => { globalThis.document = priorDocument; globalThis.localStorage = priorStorage; });
   const requests = [], gets = [], selected = [];
   const controller = Object.create(ChatController.prototype);
@@ -108,6 +108,33 @@ test("saved lookup failure is surfaced without selecting another session or over
   assert.deepEqual(selected, []);
   assert.equal(c.status, "error");
   assert.equal(values.get("test:session"), "inaccessible");
+});
+
+test("a saved session that no longer exists is forgotten and the newest session opens", async (t) => {
+  const { controller: c, selector, gets, selected, values } = fixture(t, "deleted-session");
+  const get = c.host.sdk.sessions.get;
+  c.host.sdk.sessions.get = async (id) => {
+    if (id === "deleted-session") { gets.push(id); throw Object.assign(new Error("Session not found."), { code: "NOT_FOUND" }); }
+    return get(id);
+  };
+  await c.start();
+  assert.deepEqual(gets, ["deleted-session", sessions[0].id]);
+  assert.deepEqual(selected, [sessions[0].id]);
+  assert.equal(c.sessionId, sessions[0].id);
+  assert.equal(selector.value, sessions[0].id);
+  assert.equal(values.get("test:session"), sessions[0].id);
+});
+
+test("a saved session that no longer exists, with no other sessions, creates one", async (t) => {
+  const { controller: c, selected, values } = fixture(t, "deleted-session");
+  c.host.sdk.sessions.list = async () => ({ items: [], nextCursor: null });
+  c.host.sdk.sessions.get = async (id) => {
+    if (id === "deleted-session") throw Object.assign(new Error("Session not found."), { code: "NOT_FOUND" });
+    return { ...sessions[0], id };
+  };
+  await c.start();
+  assert.deepEqual(selected, ["created"]);
+  assert.equal(values.get("test:session"), "created");
 });
 
 test("duplicate load clicks coalesce; failed page retains cursor and can be retried", async (t) => {

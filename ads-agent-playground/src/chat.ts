@@ -147,11 +147,21 @@ export class ChatController {
   async start() {
     const sessions = await this.loadSessions();
     if (this.closed || !sessions) return;
-    const saved = localStorage.getItem(`${this.host.scope}:session`);
+    const key = `${this.host.scope}:session`;
+    const saved = localStorage.getItem(key);
     // get() authorizes and restores saved sessions beyond the bounded first page.
-    // A failed lookup must remain visible instead of choosing another session.
-    if (saved) await this.connect(saved);
-    else if (sessions.length) await this.connect(sessions[0].id);
+    // A Session that no longer exists (NOT_FOUND, e.g. after switching Agent or state) is forgotten and the
+    // newest one opens instead; any other failed lookup stays visible without choosing another session.
+    if (saved) {
+      try {
+        await this.connect(saved);
+        return;
+      } catch (error) {
+        if ((error as { code?: unknown } | null)?.code !== "NOT_FOUND" || this.closed) throw error;
+        if (localStorage.getItem(key) === saved) localStorage.removeItem(key);
+      }
+    }
+    if (sessions.length) await this.connect(sessions[0].id);
     else {
       this.status = "idle";
       byId<HTMLButtonElement>("new-session").disabled = false;
