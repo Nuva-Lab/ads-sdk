@@ -18,6 +18,14 @@ interface Slot {
   loaded: boolean;
   visible: boolean;
 }
+/**
+ * The label a chat shows and sends for `record`: its local number (`index`, e.g. "Script 01") with its title, or the
+ * number alone when the title is generic. `data` is the record's loaded content, when there is one.
+ */
+export function displayLabel(record: ResourceLink, index?: string, data?: unknown): ResourceLink {
+  const title = indexedTitle(record.ref.kind, resourcePresentation(record, data).title, index);
+  return { ...record, label: index && title !== index ? `${index} · ${title}` : title };
+}
 /** Names and previews are hydrated in place; network completion never reorders message parts. */
 export class ResourceCards {
   private cache = new Map<string, Entry>();
@@ -102,13 +110,7 @@ export class ResourceCards {
   }
   label(record: ResourceLink): ResourceLink {
     const data = this.cache.get(`${record.ref.kind}:${record.ref.id}`)?.data;
-    const view = resourcePresentation(record, data),
-      index = this.options.indexLabel?.(record),
-      title = indexedTitle(record.ref.kind, view.title, index);
-    return {
-      ...record,
-      label: index && title !== index ? `${index} · ${title}` : title,
-    };
+    return displayLabel(record, this.options.indexLabel?.(record), data);
   }
   private load(record: ResourceLink): Promise<unknown> {
     const key = `${record.ref.kind}:${record.ref.id}`,
