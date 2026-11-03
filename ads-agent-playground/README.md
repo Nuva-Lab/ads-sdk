@@ -1,6 +1,6 @@
 # Ads Agent Playground
 
-Review Products, Scripts, Prompts and videos in a visual workspace alongside Ads Agent chat.
+Review Products, Scripts, Storyboards, Characters and videos in a visual workspace alongside Ads Agent chat.
 
 ## Start
 
@@ -52,18 +52,20 @@ Use an Admin API key for the selected environment. `NUVA_ENVIRONMENT` selects bo
 
 Explicit `NUVA_AGENT_URL` and `NUVA_API_URL` settings override the selected environment's defaults. Remove those overrides to use the URLs selected by `NUVA_ENVIRONMENT`. Settings supplied as process environment variables also take precedence over `.env`.
 
-The API URL handles Products, artifacts, media, Script/Prompt writing, video Jobs and token issuance. **Connection settings** changes the Agent and API URLs for the current browser connection only; it does not change the local server's token issuer. Keep the browser's services and the server's token issuer in the same environment. After changing the environment, server URL overrides, Admin key or `NUVA_EXTERNAL_USER_ID`, restart `pnpm playground` and reload the page.
+The API URL handles Products, artifacts, media, Script and Storyboard writing, video Jobs and token issuance. **Connection settings** changes the Agent and API URLs for the current browser connection only; it does not change the local server's token issuer. Keep the browser's services and the server's token issuer in the same environment. After changing the environment, server URL overrides, Admin key or `NUVA_EXTERNAL_USER_ID`, restart `pnpm playground` and reload the page.
 
 ## Try a creation flow
 
-1. Open **Products**, choose **New product**, select or create a Brand, and enter the product details. Upload reference images from the Product view.
-2. Type **@** in chat to reference the Product. Ask Ads Agent to write a Script, including your audience, duration and creative requirements.
-3. Open the returned Script in the workspace. Ask for revisions in chat or use **Revise script**.
-4. Generate Prompts and review their numbered image, video and audio references. Click a reference to preview its media.
-5. Request video generation. Open a clip to see its Job status and play the video when it is ready.
-6. Ask Ads Agent to assemble selected clips. Registered final videos appear under **Finals**.
+1. Open **Products**, choose **New product**, select or create a Brand, and enter the product details. Upload reference images from the Product edit view, each with an optional label and description (for example which side of the package it shows).
+2. Optionally open **Characters** and create the people who will appear: a name, a description, one or more images (the first is the default; each can have a label and description) and an optional voice file.
+3. Type **@** in chat to reference the Product. Ask Ads Agent to write a Script, including your audience, duration and creative requirements.
+4. Open the returned Script in the workspace: its concept, length, beats, roles and panels with their lines. Ask for revisions in chat or use **Revise script**.
+5. Choose **New Storyboard** on the Script, pick a Character for any role (or leave it to the writer), and add an optional instruction. The written Storyboard opens: its cast, direction and clips, with each shot's people, images and lines shown as chips.
+6. **Edit** a Storyboard to change its cast, direction, clip lengths and shots. Shots are text with tokens (`{{role}}`, `{{role:<image id>}}`, `{{product}}`, `{{product:<image id>}}`, `{{L01}}`); **Insert…** adds one at the cursor. Problems show beside the clip or shot they name; **Save Storyboard** saves a new revision.
+7. Choose **Render clip** on a clip. Its video Job appears under **Clips**; open it to see its status and play the video when it is ready.
+8. Ask Ads Agent to assemble selected clips. Registered final videos appear under **Finals**.
 
-Workspace generation buttons send requests to Ads Agent in the selected conversation. Actions on a Script or Prompt include that resource; gallery actions let the Agent help you choose the source.
+**Revise script** sends a request to Ads Agent in the selected conversation, with the Script attached. **New Storyboard**, Storyboard edits and **Render clip** call the API directly. A Script saved before Storyboards is shown as a read-only legacy Script.
 
 Generation creates work in the connected services. Closing the page or stopping chat does not cancel submitted video Jobs. Ask the Agent if you want it to attempt cancellation.
 
@@ -72,7 +74,8 @@ Generation creates work in the connected services. Closing the page or stopping 
 | Control | What it does |
 | --- | --- |
 | **Products** | Browse accessible Products and review their images and details. |
-| **Scripts / Prompts / Clips / Finals** | Review saved work from the selected conversation. |
+| **Scripts / Storyboards / Clips / Finals** | Review saved work from the selected conversation. |
+| **Characters** | Browse, create and edit the Characters a Storyboard can cast. |
 | **@** | Insert a reference to a Product or saved resource into your message. |
 | **Attach to chat** | Add the open resource as an attachment. |
 | **Refresh** in the workspace tab bar | Reload the current gallery or resource. |

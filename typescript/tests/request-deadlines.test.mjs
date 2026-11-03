@@ -19,7 +19,7 @@ function fixture(t, options = {}) {
 	t.after(() => { transport.close(); globalThis.fetch = original; });
 	return { transport, request: () => request, complete: () => resolve(Response.json({ done: true })) };
 }
-for (const method of ['scripts.generate', 'prompts.generate', 'assets.register']) {
+for (const method of ['scripts.generate', 'storyboards.generate', 'assets.register']) {
 	test(`${method} waits past eight seconds for the real operation result`, async t => {
 		const f = fixture(t);
 		const result = f.transport.data(method, {}, 'same-request');
@@ -36,6 +36,16 @@ test('long writer deadline retains uncertain acceptance without automatic resubm
 	const rejected = assert.rejects(result, e => e.acceptance === 'unknown' && e.requestId === 'saved-request-id' && /may still complete/.test(e.message));
 	await setImmediate();
 	t.mock.timers.tick(180000);
+	await rejected;
+});
+test('Storyboard generation outlasts the Script deadline and expires at 300 seconds', async t => {
+	const f = fixture(t);
+	const result = f.transport.data('storyboards.generate', {}, 'storyboard-request-id');
+	const rejected = assert.rejects(result, e => e.acceptance === 'unknown' && e.requestId === 'storyboard-request-id' && /may still complete/.test(e.message));
+	await setImmediate();
+	t.mock.timers.tick(180000);
+	assert.equal(f.request().signal.aborted, false);
+	t.mock.timers.tick(120000);
 	await rejected;
 });
 test('explicit short deadlines still apply to generation', async t => {

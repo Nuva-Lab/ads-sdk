@@ -1,0 +1,46 @@
+{
+  "schema_version": 3,
+  "concept": {
+    "name": "桌面一杯",
+    "category": "other",
+    "purchase_task": "日常保温杯选购",
+    "proposition": "上班族在工位想喝热水时，打开就是热的",
+    "route": "人物对镜讲解+产品近景",
+    "route_reason": "需要看见倒水和热气",
+    "speaker_relation": "同事向观众直接推荐，口吻轻松"
+  },
+  "duration_ms": 8000,
+  "beats": [
+    { "id": "B01", "purpose": "提出工位喝热水的场景", "fact_ids": [] },
+    { "id": "B02", "purpose": "展示杯子并说出名称", "fact_ids": ["fact_product_name"] }
+  ],
+  "roles": [
+    { "id": "presenter", "name": "上班族", "description": "二十多岁女性，短发，灰色毛衣", "speaks": true }
+  ],
+  "panels": [
+    {
+      "id": "P01",
+      "beat_id": "B01",
+      "on_screen": ["presenter"],
+      "action": "在明亮工位拧开杯盖，热气冒出。",
+      "fact_ids": [],
+      "lines": [{ "id": "L01", "speaker": "presenter", "mode": "on_camera", "text": "上班想喝口热水？" }],
+      "notes": ""
+    },
+    {
+      "id": "P02",
+      "beat_id": "B02",
+      "on_screen": ["presenter", "product"],
+      "action": "举起杯子面向镜头。",
+      "fact_ids": ["fact_product_name"],
+      "lines": [{ "id": "L02", "speaker": "presenter", "mode": "on_camera", "text": "示例保温杯，打开就是热的。" }],
+      "notes": ""
+    }
+  ],
+  "facts": [
+    { "id": "fact_product_name", "claim": "示例保温杯", "source_field": "product.data.name", "source_excerpt": "示例保温杯" }
+  ],
+  "images": [
+    { "asset_id": "01a175e0-2000-0000-ffff-abcdefabcdef", "role": "product_appearance", "mime_type": "image/png", "url": "https://images.example.test/cup.png" }
+  ]
+}

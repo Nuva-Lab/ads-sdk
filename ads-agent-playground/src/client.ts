@@ -10,6 +10,7 @@ import {
 import { icon } from "./icons.js";
 import { ChatController } from "./chat.js";
 import { renderProduct, refreshProductGallery } from "./product.js";
+import { renderCharacters } from "./characters.js";
 import {
   openResource,
   renderResources,
@@ -43,8 +44,10 @@ export function bootWorkspace(sdk: NuvaClient, scope: string) {
   let sessionId = "",
     records: KnownResource[] = [],
     selectedProduct: Product | undefined,
-    tab: "product" | ResourceTab = "product",
-    catalog: Product[] = [];
+    selectedCharacter: string | undefined,
+    tab: "product" | "character" | ResourceTab = "product",
+    catalog: Product[] = [],
+    characterCount = 0;
   try {
     const value = JSON.parse(
       localStorage.getItem(`${scope}:resources`) ?? "[]",
@@ -119,6 +122,7 @@ export function bootWorkspace(sdk: NuvaClient, scope: string) {
       remember: (record, extra) => remember(record, extra, owner),
       attach: (record) => chat.attach(record),
       requestAgent: (text, resources) => chat.requestAgent(text, resources, owner),
+      open: (record) => open(record),
     };
   }
   const chat = new ChatController({
@@ -145,7 +149,8 @@ export function bootWorkspace(sdk: NuvaClient, scope: string) {
         [
           ["product", "Products"],
           ["script", "Scripts"],
-          ["prompt", "Prompts"],
+          ["storyboard", "Storyboards"],
+          ["character", "Characters"],
           ["job", "Clips"],
           ["asset", "Finals"],
         ] as const
@@ -164,7 +169,9 @@ export function bootWorkspace(sdk: NuvaClient, scope: string) {
         const count =
           kind === "product"
             ? catalog.length
-            : resourcesForTab(visible, kind).length;
+            : kind === "character"
+              ? characterCount
+              : resourcesForTab(visible, kind).length;
         if (count) b.append(node("span", String(count), "tab-count"));
         return b;
       }),
@@ -179,9 +186,14 @@ export function bootWorkspace(sdk: NuvaClient, scope: string) {
       selectedProduct = product;
       tab = "product";
       await render(true);
+    } else if (record.ref.kind === "character") {
+      selectedCharacter = record.ref.id;
+      tab = "character";
+      await render(true);
     } else {
+      // Prompts are internal: one opened from chat shows on its own, with no tab of its own.
       tab = (
-        ["script", "prompt", "job"].includes(record.ref.kind)
+        ["script", "storyboard", "prompt", "job"].includes(record.ref.kind)
           ? record.ref.kind
           : "asset"
       ) as ResourceTab;
@@ -220,6 +232,17 @@ export function bootWorkspace(sdk: NuvaClient, scope: string) {
           drawTabs();
         },
       );
+    else if (tab === "character")
+      await renderCharacters(panel, sdk, {
+        ...(selectedCharacter ? { selected: selectedCharacter } : {}),
+        openSelected: openProduct,
+        attach: (record) => chat.attach(record),
+        changed: (characters) => {
+          if (destroyed || epoch !== renderEpoch) return;
+          characterCount = characters.length;
+          drawTabs();
+        },
+      });
     else await renderResources(panel, tab, host());
   }
   const refresh = byId<HTMLButtonElement>("refresh-workspace");
@@ -248,6 +271,16 @@ export function bootWorkspace(sdk: NuvaClient, scope: string) {
         drawTabs();
       }
     }),
+    sdk.characters.list({ limit: 100 }).then(
+      (page) => {
+        if (!destroyed) {
+          characterCount = page.items.length;
+          drawTabs();
+        }
+      },
+      // The count is a convenience; the Characters tab reports its own read failure.
+      () => {},
+    ),
   ]);
   return {
     chat,

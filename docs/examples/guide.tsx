@@ -21,6 +21,7 @@ import {
   type ResourceLink,
   type DynamicToolUIPart,
   type Script,
+  type Storyboard,
   type JobState,
   type Job,
 } from "@nuva/sdk";
@@ -329,7 +330,8 @@ export async function requestAssembly(agent: AgentHandle, clips: Asset[]) {
   let message = Message.create().text(
     'Assemble these clips in attachment order. Use 9:16 and preserve their audio.',
   );
-  for (const clip of clips) message = message.attach(clip);
+  // An Asset's label is null unless the uploader gave one; show its ID instead.
+  for (const clip of clips) message = message.attach({ ref: clip.ref, label: clip.label ?? clip.id });
   return agent.send(message);
 }
 // #endregion request-assembly
@@ -368,21 +370,66 @@ export async function addProductImage(
 // #region read-script
 export async function readScript(client: NuvaClient, scriptId: string) {
   const script = await client.scripts.get({ kind: "script", id: scriptId });
-  return { title: script.content.concept.name, clips: script.content.clips };
+  if (script.format === 2) {
+    // Saved before Storyboards: readable, but it cannot be edited or shot.
+    return { legacy: script.legacy };
+  }
+  const { concept, roles, panels } = script.content;
+  return { title: concept.name, roles, panels };
 }
 // #endregion read-script
 
 // #region save-script
-export async function saveEditedScript(client: NuvaClient, script: Script) {
+export async function editLine(
+  client: NuvaClient,
+  script: Script,
+  lineId: string,
+  text: string,
+) {
+  if (script.format !== 3) throw new Error("This Script is read-only.");
+  const panels = script.content.panels.map((panel) => ({
+    ...panel,
+    lines: panel.lines.map((line) => (line.id === lineId ? { ...line, text } : line)),
+  }));
   return client.scripts.update(script.ref, {
-    content: {
-      ...script.content,
-      concept: { ...script.content.concept, name: "Morning commute" },
-    },
+    content: { ...script.content, panels },
     batch_id: script.batch_id,
   });
 }
 // #endregion save-script
+
+// #region create-character
+export async function createCharacter(client: NuvaClient, photo: File, voice: File) {
+  const image = await client.assets.upload(photo, {
+    kind: "image",
+    label: "Front, head and shoulders",
+  });
+  const recording = await client.assets.upload(voice, { kind: "audio" });
+  return client.characters.create({
+    data: {
+      name: "Mia",
+      description: "Late twenties, warm and direct, speaks standard Mandarin.",
+      image_asset_ids: [image.id],
+      voice_asset_id: recording.id,
+    },
+  });
+}
+// #endregion create-character
+
+// #region label-image
+export async function addLabeledImage(client: NuvaClient, base: Product, file: File) {
+  const asset = await client.assets.upload(file, {
+    kind: "image",
+    label: "Box, back",
+    description: "The back of the gift box, with the ingredient list.",
+  });
+  return client.products.update({
+    base,
+    brand_id: base.brand_id,
+    data: { ...base.data, images: [...(base.data.images ?? []), asset.id] },
+  });
+}
+// #endregion label-image
 
 // #region write-script
 export async function writeScript(client: NuvaClient, productId: string) {
@@ -409,19 +456,63 @@ export async function reviseScript(
 }
 // #endregion revise-script
 
-// #region write-prompts
-export async function writePrompts(client: NuvaClient, scriptId: string) {
-  const { prompts } = await client.prompts.generate({
-    script: scriptId,
-    ratio: "9:16",
-  });
-  return prompts;
+// #region write-storyboard
+export async function writeStoryboard(
+  client: NuvaClient,
+  script: Script,
+  characterId: string,
+  requestKey: string, // Save it to retry this request.
+) {
+  // "host" is a role ID from script.content.roles.
+  return client.storyboards.generate(
+    {
+      script: script.id,
+      cast: { host: characterId },
+      instruction: "Shoot it as a phone selfie in a bright kitchen.",
+      ratio: "9:16",
+    },
+    { idempotencyKey: requestKey },
+  );
 }
-// #endregion write-prompts
+// #endregion write-storyboard
+
+// #region read-storyboard
+export async function readStoryboard(client: NuvaClient, storyboardId: string) {
+  const storyboard = await client.storyboards.get({ kind: "storyboard", id: storyboardId });
+  const { cast, direction, clips } = storyboard.content;
+  return { cast, direction, clips };
+}
+// #endregion read-storyboard
+
+// #region revise-storyboard
+export async function reviseStoryboard(client: NuvaClient, base: Storyboard) {
+  return client.storyboards.generate({
+    base: base.id,
+    instruction: "Open on a close-up of the product before the host speaks.",
+  });
+}
+// #endregion revise-storyboard
+
+// #region edit-storyboard
+export async function editShot(
+  client: NuvaClient,
+  base: Storyboard,
+  clipId: string,
+  shot: number,
+  text: string,
+) {
+  const clips = base.content.clips.map((clip) =>
+    clip.id === clipId
+      ? { ...clip, shots: clip.shots.map((value, i) => (i === shot ? text : value)) }
+      : clip,
+  );
+  return client.storyboards.generate({ base: base.id, content: { ...base.content, clips } });
+}
+// #endregion edit-storyboard
 
 // #region generate-video
-export async function generateClip(client: NuvaClient, promptId: string) {
-  const job = await client.videos.generate({ prompt: promptId });
+export async function generateClip(client: NuvaClient, storyboard: Storyboard, clip: string) {
+  const job = await client.videos.generate({ storyboard: { id: storyboard.id, clip } });
   return job; // Save job.id before waiting for the video.
 }
 // #endregion generate-video
@@ -473,8 +564,8 @@ export async function waitForClip(job: Job) {
 // #endregion wait-video
 
 // #region idempotency
-export function videoSubmission(client: NuvaClient, promptId: string) {
-  const input = { prompt: promptId };
+export function videoSubmission(client: NuvaClient, storyboardId: string, clip: string) {
+  const input = { storyboard: { id: storyboardId, clip } };
   const options = { idempotencyKey: crypto.randomUUID() };
   return {
     input,

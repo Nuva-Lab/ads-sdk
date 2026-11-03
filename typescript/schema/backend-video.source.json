@@ -1,12 +1,12 @@
 {
   "repository": "Nuva-Lab/WhatIf",
-  "commit": "47b9f5fa0844fa1ccfd78d5c98e7ed7853fd8007",
+  "commit": "pending",
   "path": "ads_backend/openapi.json",
-  "pullRequest": "https://github.com/Nuva-Lab/WhatIf/pull/2374",
-  "verifiedAt": "2026-10-30",
-  "status": "target-only; PR source verified, deployment not asserted",
-  "upstreamSha256": "75c27b9c082ed7d46c5fc566ab00dcfb923d0710e69b147fec1ece734d7ea1d8",
-  "sha256": "9b2203402fbef822fc3bd6fb6903377a5e9236c3fadc5c58dd5f7620e397fc8b",
+  "pullRequest": "pending",
+  "verifiedAt": "2026-11-02",
+  "status": "target-only; adds the Storyboard kind (WhatIf branch script-v3-storyboard). Record its merge commit and pull request before releasing; deployment not asserted",
+  "upstreamSha256": "9277a91eac207966741c64520ebabae772d4d60ebc8ce11a85e5ac5fa4bb34c8",
+  "sha256": "7727c4979cf4dbd6ae85748697f4577e04ef2fa3285bdca0131b1b462fb604d8",
   "overlaySchemas": [
     "GenerateVideo",
     "RawPromptInput",
@@ -33,7 +33,14 @@
     "Error",
     "ErrorResponse",
     "ProductDataV1",
-    "JsonValue"
+    "JsonValue",
+    "Storyboard",
+    "StoryboardCreate",
+    "StoryboardVersionCreate",
+    "StoryboardDataV1",
+    "AssetCreate",
+    "AssetOut",
+    "StoryboardClip"
   ],
   "selection": "Exact named schemas and their transitive schema references from the upstream OpenAPI; no paths.",
   "compatibility": "Runtime BatchOut additionally preserves an optional observed LogEntry[] log when reading legacy records. It is not part of the PR target. AdOut.version remains required; no version or composition is invented for older records."

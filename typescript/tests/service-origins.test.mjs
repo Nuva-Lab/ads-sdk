@@ -12,8 +12,8 @@ test('the preview defaults route Agent, Store and writing to their staging servi
   await assert.rejects(client.sessions.list());
   await assert.rejects(client.products.list());
   await assert.rejects(client.scripts.generate({product:id,acceptable_duration_ms:{min:5000,max:10000}}));
-  await assert.rejects(client.prompts.generate({script:id}));
-  assert.deepEqual(requests, ['https://agent-staging.nuvalab.ai/v1/sessions','https://api-staging.nuvalab.ai/v1/products','https://api-staging.nuvalab.ai/v1/generate/script','https://api-staging.nuvalab.ai/v1/generate/prompt']);
+  await assert.rejects(client.storyboards.generate({script:id}));
+  assert.deepEqual(requests, ['https://agent-staging.nuvalab.ai/v1/sessions','https://api-staging.nuvalab.ai/v1/products','https://api-staging.nuvalab.ai/v1/generate/script','https://api-staging.nuvalab.ai/v1/generate/storyboard']);
   assert.equal(serviceOrigins.agent, 'https://agent-staging.nuvalab.ai/api');
  } finally { client.close(); globalThis.fetch = saved; }
 });

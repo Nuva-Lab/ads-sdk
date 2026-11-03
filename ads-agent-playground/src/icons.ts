@@ -34,6 +34,9 @@ const paths = {
   stop: ["M6 6h12v12H6z"],
   folder: ["M3 7V4h7l2 3h9v13H3z"],
   subject: ["M8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0M4 21v-2a8 8 0 0 1 16 0v2"],
+  up: ["m6 15 6-6 6 6"],
+  down: ["m6 9 6 6 6-6"],
+  board: ["M3 5h18v14H3zM3 10h18M9 10v9M15 10v9"],
 } as const;
 export type IconName = keyof typeof paths;
 export function icon(name: IconName) {

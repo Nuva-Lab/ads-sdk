@@ -2,13 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createNuva, PartialCreationError } from '../dist/index.js';
-import { backendSchema } from '../dist/schemas.js';
+import { backendSchema, encodeStoryboard } from '../dist/schemas.js';
 const id = '01a175e0-31b3-da69-176e-0842e6f6602e';
 const relationships = [{ type: 'based_on', target: { kind: 'product', id } }, { type: 'based_on', target: { kind: 'skill', id: '01a175e0-2000-0000-ffff-abcdefabcdef' } }];
+const other = '01a175e0-3000-cccc-1111-abcdefabcdef';
 const record = (kind, data) => ({ kind, id, lineage_id: id, base_id: null, schema_version: 1, data, relationships, batch_id: null, created_at: '2026-10-26T12:00:00Z', assets: {}, entities: {}, skills: {} });
 
-test('Script and Plan content is text; source relationships are explicit and required on reads', () => {
-	for (const [name, kind] of [['Script', 'script'], ['DirectingPlan', 'directing_plan']]) {
+test('Script, Storyboard and Plan content is text; source relationships are explicit and required on reads', () => {
+	for (const [name, kind] of [['Script', 'script'], ['Storyboard', 'storyboard'], ['DirectingPlan', 'directing_plan']]) {
 		const saved = record(kind, { text: 'Source text' });
 		assert.deepEqual(backendSchema(name).parse(saved), saved);
 		const { relationships: _, ...legacy } = saved;
@@ -24,13 +25,24 @@ test('Script and Plan content is text; source relationships are explicit and req
 	}
 });
 
-test('partial Prompt receipts retain null Batch and reject missing relationships or legacy plan data', () => {
-	const saved = record('prompt', { prompt: 'Clip', image_asset_ids: [id] });
+test('partial Storyboard receipts retain null Batch and reject Prompts not based on the saved Storyboard', () => {
+	const storyboard = record('storyboard', { text: 'Encoded Storyboard' });
+	const saved = { ...record('prompt', { prompt: 'Clip', image_asset_ids: [id] }), relationships: [{ type: 'based_on', target: { kind: 'storyboard', id } }] };
 	const info = { code: 'PARTIAL_CREATION', message: 'One saved', retryable: false };
-	assert.equal(new PartialCreationError(info, { prompts: [saved] }).saved.prompts[0].batch_id, null);
+	const receipt = new PartialCreationError(info, { storyboard, prompts: [saved] }).saved;
+	assert.equal(receipt.storyboard.id, id);
+	assert.equal(receipt.prompts[0].batch_id, null);
+	assert.deepEqual(new PartialCreationError(info, { storyboard, prompts: [] }).saved.prompts, [], 'A Storyboard may be saved before any clip compiles.');
 	const { relationships: _, ...legacy } = saved;
-	assert.throws(() => new PartialCreationError(info, { prompts: [legacy] }), error => error.code === 'SERVICE_ERROR');
-	assert.throws(() => new PartialCreationError(info, { prompts: [{ ...saved, data: { ...saved.data, plan: id } }] }), error => error.code === 'SERVICE_ERROR');
+	for (const invalid of [
+		{ prompts: [saved] },
+		{ storyboard, prompts: [legacy] },
+		{ storyboard, prompts: [{ ...saved, relationships }] },
+		{ storyboard, prompts: [{ ...saved, relationships: [{ type: 'based_on', target: { kind: 'storyboard', id: other } }] }] },
+		{ storyboard, prompts: [{ ...saved, data: { ...saved.data, plan: id } }] },
+		{ storyboard, prompts: [saved, saved] },
+	])
+		assert.throws(() => new PartialCreationError(info, invalid), error => error.code === 'SERVICE_ERROR', JSON.stringify(invalid));
 });
 
 test('PR error acceptance remains optional and nullable without inventing retry authority', () => {
@@ -42,7 +54,7 @@ test('PR error acceptance remains optional and nullable without inventing retry 
 
 test('customer Artifact writes omit relationship control while returned relationships remain readable', async () => {
  const original = globalThis.fetch, calls = [];
- const content = JSON.parse(await readFile(new URL('./fixtures/script-response.json', import.meta.url), 'utf8'));
+ const content = JSON.parse(await readFile(new URL('./fixtures/script-v3.json', import.meta.url), 'utf8'));
  globalThis.fetch = async (url, options) => {
   const body = JSON.parse(options.body); calls.push(body);
   const revised = String(url).endsWith('/versions');
@@ -50,7 +62,7 @@ test('customer Artifact writes omit relationship control while returned relation
  };
  const client = createNuva({ baseUrl: 'http://127.0.0.1:9010/api', storeBaseUrl: 'http://127.0.0.1:9011', getAccessToken: async () => 'local-test-only' });
  try {
-  const created = await client.scripts.create({ content }); assert.deepEqual(created.content, content);
+  const created = await client.scripts.create({ content }); assert.equal(created.format, 3); assert.deepEqual(created.content, content);
   assert.equal(Object.hasOwn(calls[0], 'relationships'), false);
   const revised = await client.artifacts.update({kind:'script',id}, {data:{text:'Revised'}});
   assert.deepEqual(revised.relationships, relationships); assert.equal(Object.hasOwn(calls[1], 'relationships'), false);
@@ -65,5 +77,35 @@ test('customer Artifact writes omit relationship control while returned relation
    ]) await assert.rejects(async () => invoke(), error => error.code==='UNSUPPORTED_OPERATION' && error.acceptance==='not_accepted');
   }
   assert.equal(calls.length, 2, 'Relationship writes must fail before any HTTP request');
+ } finally {client.close();globalThis.fetch=original;}
+});
+
+test('storyboards.generate posts to the writing service and returns the typed Storyboard; a partial failure carries its receipt', async () => {
+ const original = globalThis.fetch, requests = [];
+ const content = { script: other, cast: { presenter: { look: '短发女性', voice: '中音' } }, direction: '明亮工位', clips: [{ id: 'C01', duration_ms: 8000, shots: ['{{presenter}}举起{{product}}说{{L01}}'] }] };
+ const storyboard = record('storyboard', { text: encodeStoryboard(content) });
+ const prompt = { ...record('prompt', { prompt: 'Clip', image_asset_ids: [id] }), relationships: [{ type: 'based_on', target: { kind: 'storyboard', id } }] };
+ let partial = false;
+ globalThis.fetch = async (url, options) => {
+  requests.push([options.method ?? 'GET', String(url)]);
+  if (partial) return Response.json({ error: { code: 'PARTIAL_CREATION', message: 'C02 failed', retryable: false }, request_id: 'partial', saved: { storyboard, prompts: [prompt] } }, { status: 502 });
+  return Response.json(storyboard, { status: options.method === 'POST' ? 201 : 200 });
+ };
+ const client = createNuva({ baseUrl: 'http://127.0.0.1:9010/api', storeBaseUrl: 'http://127.0.0.1:9011', generationBaseUrl: 'http://127.0.0.1:9012', getAccessToken: async () => 'local-test-only' });
+ try {
+  const generated = await client.storyboards.generate({ script: other, cast: { presenter: other } });
+  assert.equal(generated.kind, 'storyboard');
+  assert.deepEqual(generated.content, content);
+  assert.deepEqual((await client.storyboards.get({ kind: 'storyboard', id })).content, content);
+  await assert.rejects(async () => client.storyboards.generate({ base: id }), error => error.code === 'INVALID_INPUT', 'A revision needs an instruction.');
+  partial = true;
+  await assert.rejects(client.storyboards.generate({ base: id, instruction: 'Shorter' }), error =>
+   error instanceof PartialCreationError && error.saved.storyboard.id === id && error.saved.prompts[0].id === id);
+  assert.deepEqual(requests, [
+   ['POST', 'http://127.0.0.1:9012/v1/generate/storyboard'],
+   ['GET', `http://127.0.0.1:9011/v1/artifacts/storyboard/${id}`],
+   ['POST', 'http://127.0.0.1:9012/v1/generate/storyboard'],
+  ]);
+  assert.equal('generate' in client.prompts, false, 'Prompts are compiled by Storyboards.');
  } finally {client.close();globalThis.fetch=original;}
 });

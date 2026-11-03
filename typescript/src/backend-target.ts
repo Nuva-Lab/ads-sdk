@@ -9,12 +9,14 @@ type WithData<T> = Omit<T, 'data'> & { data: ProductData };
 // openapi-typescript renders the bare oneOf input object as Record<string, never>;
 // express the source's exactly-one constraint explicitly without narrowing raw data.
 export type RawPromptInput = VideoTarget['RawPromptInput'];
-export type GenerateVideoInput = Omit<Deployed['GenerateVideo'], 'prompt'> & (
-	| { prompt: string; input?: null }
-	| { input: RawPromptInput; prompt?: null }
+export type StoryboardClip = VideoTarget['StoryboardClip'];
+export type GenerateVideoInput = Omit<VideoTarget['GenerateVideo'], 'prompt' | 'input' | 'storyboard'> & (
+	| { prompt: string; input?: null; storyboard?: null }
+	| { input: RawPromptInput; prompt?: null; storyboard?: null }
+	| { storyboard: StoryboardClip; prompt?: null; input?: null }
 );
 type VideoOverlay = Pick<VideoTarget,
-	'RawPromptInput' | 'PromptDataV1' | 'Prompt' | 'PromptCreate' | 'PromptVersionCreate' | 'ArtifactRelationship' | 'ArtifactTarget' | 'AdOut' | 'AdCreate' | 'AdUpdate' | 'AdPage' | 'BatchCreate' | 'Script' | 'ScriptCreate' | 'ScriptVersionCreate' | 'ScriptDataV1' | 'DirectingPlan' | 'DirectingPlanCreate' | 'DirectingPlanVersionCreate' | 'DirectingPlanDataV1' | 'Error' | 'ErrorResponse'
+	'RawPromptInput' | 'PromptDataV1' | 'Prompt' | 'PromptCreate' | 'PromptVersionCreate' | 'ArtifactRelationship' | 'ArtifactTarget' | 'AdOut' | 'AdCreate' | 'AdUpdate' | 'AdPage' | 'BatchCreate' | 'Script' | 'ScriptCreate' | 'ScriptVersionCreate' | 'ScriptDataV1' | 'DirectingPlan' | 'DirectingPlanCreate' | 'DirectingPlanVersionCreate' | 'DirectingPlanDataV1' | 'Error' | 'ErrorResponse' | 'Storyboard' | 'StoryboardCreate' | 'StoryboardVersionCreate' | 'StoryboardDataV1' | 'StoryboardClip' | 'AssetOut' | 'AssetCreate'
 > & {
 	GenerateVideo: GenerateVideoInput;
 	BatchOut: VideoTarget['BatchOut'];

@@ -36,7 +36,7 @@ requestFrameSchema.parse({
 });
 ```
 
-Artifact `schemaVersion` identifies its content format separately from the message envelope version. The SDK's Script reader exposes ScriptPackage v2 through `script.content`; the stored Script Artifact uses schema v1.
+Artifact `schemaVersion` identifies its content format separately from the message envelope version. The SDK's Script reader exposes Script v3 through `script.content` (a Script saved before Storyboards exposes its read-only ScriptPackage v2 through `script.legacy`); the stored Script Artifact uses schema v1.
 
 ## Authentication and Session behavior
 

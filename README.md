@@ -1,6 +1,6 @@
 # Ads SDK
 
-Build ad creation into your application with Agent chat, product and media management, Script and Prompt generation, and video Jobs.
+Build ad creation into your application with Agent chat, product and media management, Script and Storyboard generation, and video Jobs.
 
 **Preview version: `0.1.0-preview.3`**
 
@@ -45,7 +45,7 @@ pnpm playground
 
 Open **http://127.0.0.1:8995/**.
 
-Create a Product and upload its reference images, then mention it with **@** in chat and ask Ads Agent to write a Script. Review the Script, Prompt references and generated clips in the workspace. The interface defaults to Chinese; use **中文 / English** in the header to switch.
+Create a Product and upload its reference images, then mention it with **@** in chat and ask Ads Agent to write a Script. Review the Script, shoot it as a Storyboard and render its clips in the workspace. The interface defaults to Chinese; use **中文 / English** in the header to switch.
 
 See the [playground guide](ads-agent-playground/README.md) for setup, controls and troubleshooting.
 
@@ -78,7 +78,7 @@ Use the [Go Admin SDK](go/README.md) to issue user tokens and register Skills. Y
 | Connect a client and handle authentication | [TypeScript guide](typescript/README.md) |
 | Build Agent chat, stream replies and handle reviews | [React example](docs/examples/react-usage.tsx) |
 | Create Products, upload images and read saved artifacts | [Store examples](docs/examples/store-usage.ts) |
-| Generate Scripts, Prompts and video clips | [Creation example](docs/examples/creation-chain.ts) |
+| Generate Scripts, Storyboards and video clips | [Creation example](docs/examples/creation-chain.ts) |
 | Issue user tokens and manage Skills | [Go Admin guide](go/README.md) |
 
 The SDK bundle includes browsable HTML documentation. To view it from this repository, install Python 3 and run:

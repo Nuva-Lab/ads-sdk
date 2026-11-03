@@ -21,10 +21,10 @@ const product = {
     selling_points: ["Your coffee, still warm at noon."],
     constraints: [],
     target_audience: "A slower morning, wherever you go.",
-    images: ["cup"],
+    images: ["a1a1a1a1-0000-4000-8000-0000000000c0"],
     attributes: {},
   },
-  assets: { cup: { download_url: location.origin + "/cup.svg" } },
+  assets: { "a1a1a1a1-0000-4000-8000-0000000000c0": { download_url: location.origin + "/cup.svg", label: "Front of the cup" } },
 };
 const productList: any[] = [product];
 let session = {
@@ -121,6 +121,159 @@ messages[0].content.push(
       label: "Reference clip",
     },
   } as any,
+);
+// Script v3, a Storyboard of it and two Characters, so the Scripts, Storyboards and Characters tabs have content.
+const scriptId = "66666666-6666-4666-8666-666666666666",
+  storyboardId = "77777777-7777-4777-8777-777777777777",
+  miaId = "88888888-8888-4888-8888-888888888888",
+  leoId = "99999999-9999-4999-8999-999999999999";
+const image = (id: string, path: string, label: string | null) => ({
+  ...referenceAsset(id, "image", path),
+  label,
+  description: null,
+});
+const characters: any[] = [
+  {
+    id: miaId,
+    ref: { kind: "character", id: miaId },
+    label: "Mia",
+    version: 1,
+    revision: miaId,
+    schema_version: 1,
+    created_at: "2026-10-26T09:40:00Z",
+    data: {
+      name: "Mia",
+      description: "Late twenties, short black hair, grey wool sweater. Warm, unhurried, speaks Mandarin.",
+      image_asset_ids: ["a1a1a1a1-0000-4000-8000-000000000001", "a1a1a1a1-0000-4000-8000-000000000002"],
+      voice_asset_id: "sound",
+    },
+    assets: {
+      "a1a1a1a1-0000-4000-8000-000000000001": image("a1a1a1a1-0000-4000-8000-000000000001", "/person.svg", "Front"),
+      "a1a1a1a1-0000-4000-8000-000000000002": image("a1a1a1a1-0000-4000-8000-000000000002", "/person.svg?side", "Side"),
+      sound: referenceAssets.sound,
+    },
+  },
+  {
+    id: leoId,
+    ref: { kind: "character", id: leoId },
+    label: "Leo",
+    version: 1,
+    revision: leoId,
+    schema_version: 1,
+    created_at: "2026-10-26T09:40:00Z",
+    data: { name: "Leo", description: "Her colleague, thirties, tall.", image_asset_ids: ["a1a1a1a1-0000-4000-8000-000000000003"], voice_asset_id: null },
+    assets: { "a1a1a1a1-0000-4000-8000-000000000003": image("a1a1a1a1-0000-4000-8000-000000000003", "/person.svg?leo", null) },
+  },
+];
+const scriptV3 = {
+  id: scriptId,
+  kind: "script",
+  ref: { kind: "script", id: scriptId },
+  label: "Still warm at noon",
+  format: 3,
+  lineage_id: scriptId,
+  base_id: null,
+  batch_id: null,
+  schema_version: 1,
+  created_at: "2026-10-26T09:42:00Z",
+  data: { text: "{}" },
+  relationships: [{ type: "based_on", target: { kind: "product", id: pId } }],
+  entities: { [pId]: { kind: "product", id: pId, version: 1 } },
+  assets: {},
+  skills: {},
+  content: {
+    schema_version: 3,
+    concept: {
+      name: "Still warm at noon",
+      category: "other",
+      purchase_task: "Choose a travel cup for the commute",
+      proposition: "Coffee poured at seven is still warm at your noon meeting.",
+      route: "Presenter to camera, with product close-ups",
+      route_reason: "The steam has to be seen to be believed.",
+      speaker_relation: "A colleague recommending it, relaxed",
+    },
+    duration_ms: 20000,
+    beats: [
+      { id: "B01", purpose: "The cold-coffee moment everyone knows", fact_ids: [] },
+      { id: "B02", purpose: "The cup, named, still steaming", fact_ids: [] },
+    ],
+    roles: [
+      { id: "host", name: "Host", description: "A woman in her late twenties who commutes every day", speaks: true },
+      { id: "colleague", name: "Colleague", description: "Her colleague at the next desk", speaks: false },
+    ],
+    panels: [
+      {
+        id: "P01",
+        beat_id: "B01",
+        on_screen: ["host", "colleague"],
+        action: "At noon the host lifts the lid; her colleague glances over at his cold mug.",
+        fact_ids: [],
+        lines: [{ id: "L01", speaker: "host", mode: "on_camera", text: "Poured this at seven." }],
+        notes: "",
+      },
+      {
+        id: "P02",
+        beat_id: "B02",
+        on_screen: ["host", "product"],
+        action: "Steam rises; she turns the cup to camera.",
+        fact_ids: [],
+        lines: [
+          { id: "L02", speaker: "host", mode: "on_camera", text: "Still warm. It's the Morrow cup." },
+          { id: "L03", speaker: "narrator", mode: "voiceover", text: "Morrow. Warm all day." },
+        ],
+        notes: "On-screen text at the end: “Warm all day”.",
+      },
+    ],
+    facts: [],
+    images: [],
+  },
+};
+const storyboard = {
+  id: storyboardId,
+  kind: "storyboard",
+  ref: { kind: "storyboard", id: storyboardId },
+  label: "Storyboard",
+  lineage_id: storyboardId,
+  base_id: null,
+  batch_id: null,
+  schema_version: 1,
+  created_at: "2026-10-26T09:43:00Z",
+  data: { text: "{}" },
+  relationships: [],
+  entities: {},
+  assets: {},
+  skills: {},
+  content: {
+    script: scriptId,
+    cast: {
+      host: { character: miaId, voice: "character" },
+      colleague: { look: "A tall man in his thirties, navy shirt, sleeves rolled up" },
+      narrator: { voice: "A warm, low female voice, unhurried" },
+    },
+    direction: "A bright open-plan office at noon, soft window light. Natural room sound, no music. Keep the {{product}} logo readable.",
+    clips: [
+      {
+        id: "C01",
+        duration_ms: 10000,
+        shots: [
+          "Medium shot at her desk: {{host:a1a1a1a1-0000-4000-8000-000000000001}} lifts the lid of {{product}}; steam rises. {{L01}}",
+          "Over her shoulder, {{colleague}} looks at his cold mug and back at her cup.",
+        ],
+      },
+      {
+        id: "C02",
+        duration_ms: 10000,
+        shots: [
+          "Close-up: {{host}} turns {{product:a1a1a1a1-0000-4000-8000-0000000000c0}} to camera, smiling. {{L02}}",
+          "Pack shot of {{product}} on the desk. {{L03}}",
+        ],
+      },
+    ],
+  },
+};
+messages[0].content.push(
+  { id: "script-v3", type: "resource", record: { ref: scriptV3.ref, label: scriptV3.label } } as any,
+  { id: "storyboard", type: "resource", record: { ref: storyboard.ref, label: "Storyboard" } } as any,
 );
 let status = "idle";
 const listeners = new Set<(s: AgentReadState) => void>();
@@ -269,6 +422,29 @@ const sdk = {
     }),
   },
   prompts: { get: async () => referencePrompt },
+  scripts: { get: async () => scriptV3 },
+  storyboards: {
+    get: async () => storyboard,
+    generate: async (input: any) => {
+      void fetch("/test-events", { method: "POST", body: JSON.stringify({ action: "storyboards.generate", input }) });
+      if (input.content) return { ...storyboard, id: crypto.randomUUID(), base_id: storyboard.id, content: input.content };
+      return storyboard;
+    },
+  },
+  characters: {
+    list: async () => ({ items: characters.slice(), next_cursor: null }),
+    get: async (id: string) => {
+      const saved = characters.find((character) => character.id === id);
+      if (!saved) throw new Error("Character not found");
+      return saved;
+    },
+  },
+  videos: {
+    generate: async (input: any) => {
+      void fetch("/test-events", { method: "POST", body: JSON.stringify({ action: "videos.generate", input }) });
+      return { ...referenceJob, status: "queued", asset: null };
+    },
+  },
   jobs: { get: async () => referenceJob },
   assets: {
     get: async (id: string) =>

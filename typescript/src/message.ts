@@ -34,15 +34,16 @@ export class MessageDraft {
 	mention(record: ResourceLink): MessageDraft {
 		return this.quote(record);
 	}
-	attach(record: ResourceLink): MessageDraft {
-		const saved = validateResource(record);
+	/** Attaches a resource. A record without a display label (an Asset whose `label` is null) is shown by its ID. */
+	attach(record: ResourceLink | (Omit<ResourceLink, 'label'> & { label: string | null })): MessageDraft {
+		const saved = validateResource({ ...record, label: record.label ?? record.ref.id });
 		const v = draftValue(this);
 		return new MessageDraft({ ...v, attachments: [...v.attachments, saved] });
 	}
-	quote(target: ResourceLink | MessageView, selectedText?: string): MessageDraft {
+	quote(target: ResourceLink | (Omit<ResourceLink, 'label'> & { label: string | null }) | MessageView, selectedText?: string): MessageDraft {
 		if (selectedText !== undefined && (typeof selectedText !== 'string' || !selectedText))
 			throw new TypeError('A non-empty quotation is required.');
-		const quoted = 'role' in target ? clone(target.ref) : validateResource(target);
+		const quoted = 'role' in target ? clone(target.ref) : validateResource({ ...target, label: target.label ?? target.ref.id });
 		return this.append({
 			id: crypto.randomUUID(),
 			type: 'quote',

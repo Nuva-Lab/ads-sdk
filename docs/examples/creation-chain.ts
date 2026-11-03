@@ -1,7 +1,7 @@
 import type { NuvaClient, Asset } from '@nuva/sdk';
 
 export interface VideoSubmission {
-	input: { prompt: string; batch_id: string };
+	input: { storyboard: { id: string; clip: string } };
 	idempotencyKey: string;
 	jobId?: string;
 	assetId?: string;
@@ -13,14 +13,15 @@ export interface CreationProgress {
 	imageAssetId?: string;
 	scriptIds: string[];
 	batchId?: string;
-	promptIds: string[];
+	storyboardId?: string;
+	storyboardKey?: string;
 	videos: VideoSubmission[];
 }
 export type SaveProgress = (snapshot: CreationProgress) => Promise<void>;
 
 /**
  * Application example, not an SDK method. Start with
- * { started: false, scriptIds: [], promptIds: [], videos: [] }.
+ * { started: false, scriptIds: [], videos: [] }.
  * Keep this object when a call fails, and persist snapshots in your application.
  * This starts new work once. Resume video submission/waiting with the functions below;
  * do not rerun the entire creation flow to recover an accepted Job.
@@ -67,9 +68,14 @@ export async function createProductVideo(
 	const batchId = script.batch_id;
 	progress.batchId = batchId;
 	await saveProgress(structuredClone(progress));
-	const { prompts } = await nuva.prompts.generate({ script: script.id });
-	progress.promptIds = prompts.map(prompt => prompt.id);
-	progress.videos = prompts.map(prompt => ({ input: { prompt: prompt.id, batch_id: batchId }, idempotencyKey: crypto.randomUUID() }));
+	// Keep this key: if the Storyboard is saved but some clips are not compiled (PartialCreationError),
+	// retry the same request with the same key to finish them.
+	progress.storyboardKey = crypto.randomUUID();
+	await saveProgress(structuredClone(progress));
+	const storyboard = await nuva.storyboards.generate({ script: script.id, ratio: '9:16' }, { idempotencyKey: progress.storyboardKey });
+	progress.storyboardId = storyboard.id;
+	// Each clip's Job joins the Storyboard's Batch.
+	progress.videos = storyboard.content.clips.map(clip => ({ input: { storyboard: { id: storyboard.id, clip: clip.id } }, idempotencyKey: crypto.randomUUID() }));
 	// Persist exact submission inputs and keys BEFORE contacting the video service.
 	await saveProgress(structuredClone(progress));
 	await submitPendingVideos(nuva, progress, saveProgress);

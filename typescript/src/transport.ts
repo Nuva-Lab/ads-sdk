@@ -23,7 +23,7 @@ const writes = new Set([
 	'ads.registerFinalVideo',
 	'ads.submitMapping',
 	'videos.generate',
-	'prompts.generate',
+	'storyboards.generate',
 	'products.create',
 	'products.update',
 	'scripts.generate',
@@ -287,7 +287,7 @@ export class Transport {
 		this.assertOpen();
 		if (
 			idempotencyKey !== undefined &&
-			(!['scripts.generate', 'prompts.generate', 'videos.generate', 'artifacts.create', 'artifacts.update'].includes(
+			(!['scripts.generate', 'storyboards.generate', 'videos.generate', 'artifacts.create', 'artifacts.update'].includes(
 				method,
 			) ||
 				!/^[\x21-\x7e]{1,200}$/.test(idempotencyKey))
@@ -321,7 +321,8 @@ export class Transport {
 		for (const [key, value] of Object.entries(route.query ?? {})) if (value !== undefined) url.searchParams.set(key, String(value));
 		const controller = new AbortController();
 		this.httpControllers.add(controller);
-		const timeoutMs = this.options.requestTimeoutMs ?? (route.generation || method === 'assets.register' ? 180000 : this.timeout);
+		// A Storyboard writes its shots and then compiles every clip, so it is given longer than a Script.
+		const timeoutMs = this.options.requestTimeoutMs ?? (method === 'storyboards.generate' ? 300000 : route.generation || method === 'assets.register' ? 180000 : this.timeout);
 		let timedOut = false;
 		const timer = setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs);
 		let sent = false;
@@ -403,7 +404,7 @@ export class Transport {
 						? { acceptance: rejectedAuth ? ('not_accepted' as const) : ('unknown' as const) }
 						: {}),
 				};
-				if (method === 'prompts.generate' && info.code === 'PARTIAL_CREATION')
+				if (method === 'storyboards.generate' && info.code === 'PARTIAL_CREATION')
 					throw new PartialCreationError(
 						info,
 						typeof result === 'object' && result !== null && 'saved' in result ? result.saved : undefined,

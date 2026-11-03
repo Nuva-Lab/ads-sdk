@@ -22,8 +22,9 @@ function nonNull(value: unknown): typeof video {
 }
 targetDefinitions.GenerateVideo = {
 	anyOf: [
-		{ ...video, required: ['prompt'], properties: { ...properties, prompt: nonNull(properties.prompt), input: { type: 'null' } } },
-		{ ...video, required: ['input'], properties: { ...properties, input: nonNull(properties.input), prompt: { type: 'null' } } },
+		{ ...video, required: ['prompt'], properties: { ...properties, prompt: nonNull(properties.prompt), input: { type: 'null' }, storyboard: { type: 'null' } } },
+		{ ...video, required: ['input'], properties: { ...properties, input: nonNull(properties.input), prompt: { type: 'null' }, storyboard: { type: 'null' } } },
+		{ ...video, required: ['storyboard'], properties: { ...properties, storyboard: nonNull(properties.storyboard), prompt: { type: 'null' }, input: { type: 'null' } } },
 	],
 };
 // The observed OpenAPI uses format:uuid for its OrderedUUID storage type. Zod's RFC UUID

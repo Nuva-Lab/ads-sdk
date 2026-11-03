@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { backendSchema, generateScriptSchema, generatePromptSchema, skillSelectionSchema } from '../dist/schemas.js';
+import { backendSchema, generateScriptSchema, generateStoryboardSchema, skillSelectionSchema } from '../dist/schemas.js';
 
 const id = '11111111-1111-4111-8111-111111111111';
 test('backend Product creation requires a Brand and rejects unsupported profile fields', () => {
@@ -29,12 +29,20 @@ test('shared creation schemas accept exact service boundaries without tightening
 		true,
 	);
 	assert.equal(generateScriptSchema.safeParse({ product: id, acceptable_duration_ms: { min: 1, max: 5000 }, skill: { id } }).success, false, 'A request names no Skill.');
-	assert.equal(generatePromptSchema.safeParse({ script: id, skill: { id } }).success, false, 'A request names no Skill.');
+	assert.equal(generateStoryboardSchema.safeParse({ script: id, skill: { id } }).success, false, 'A request names no Skill.');
 	assert.equal(skillSelectionSchema.safeParse({ id }).success, true);
 	for (const ratio of ['adaptive', '21:9', '16:9', '4:3', '1:1', '3:4', '9:16'])
-		assert.equal(generatePromptSchema.safeParse({ script: id, ratio, instruction }).success, true);
-	assert.equal(generatePromptSchema.safeParse({ script: id }).success, true);
-	assert.equal(generatePromptSchema.safeParse({ script: id, ratio: null }).success, false);
+		assert.equal(generateStoryboardSchema.safeParse({ script: id, ratio, instruction }).success, true);
+	assert.equal(generateStoryboardSchema.safeParse({ script: id }).success, true);
+	assert.equal(generateStoryboardSchema.safeParse({ script: id, ratio: null }).success, false);
+});
+
+test('a Storyboard request is a new Storyboard for a Script, a revision of a base, or complete content', () => {
+	const content = { script: id, cast: { presenter: { look: '短发女性', voice: '中音' } }, direction: '', clips: [{ id: 'C01', duration_ms: 8000, shots: ['{{presenter}}说{{L01}}'] }] };
+	for (const valid of [{ script: id, cast: { presenter: id }, instruction: 'Warm' }, { base: id, instruction: 'Shorter' }, { content }, { content, base: id }])
+		assert.equal(generateStoryboardSchema.safeParse(valid).success, true, JSON.stringify(valid));
+	for (const invalid of [{}, { script: id, base: id }, { base: id }, { content, script: id }, { content, instruction: 'Edit' }, { content: { ...content, clips: [] } }])
+		assert.equal(generateStoryboardSchema.safeParse(invalid).success, false, JSON.stringify(invalid));
 });
 
 test('Product attributes are an explicit JSON target overlay while the observed schema stays unchanged', async () => {
@@ -71,7 +79,7 @@ test('backend OrderedUUID uses GUID shape without RFC version or variant restric
 		}).base,
 		script,
 	);
-	assert.equal(generatePromptSchema.parse({ script }).script, script);
+	assert.equal(generateStoryboardSchema.parse({ script }).script, script);
 	for (const invalid of [
 		product + '\n',
 		product + '0',

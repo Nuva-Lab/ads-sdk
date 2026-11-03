@@ -219,3 +219,28 @@ export function option(label: UiLabel, value: string) {
   result.value = value;
   return result;
 }
+
+/** The service's error with its details, one per line, as it said them. */
+export function showError(target: HTMLElement, error: unknown) {
+  const value = error as {
+    code?: string;
+    message?: string;
+    uiMessage?: UiLabel;
+    details?: { path: string; message: string }[] | null;
+  };
+  target.replaceChildren();
+  target.hidden = false;
+  target.append(
+    node(
+      "p",
+      value.uiMessage ?? `${value.code ? value.code + ": " : ""}${value.message ?? String(error)}`,
+      "storyboard-error-message",
+    ),
+  );
+  if (value.details?.length) {
+    const list = node("ul");
+    for (const detail of value.details)
+      list.append(node("li", detail.path ? `${detail.path}: ${detail.message}` : detail.message));
+    target.append(list);
+  }
+}

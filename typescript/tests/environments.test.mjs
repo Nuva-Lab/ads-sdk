@@ -37,7 +37,7 @@ for (const environment of [undefined, 'sandbox', 'production']) {
 		const suffix = environment === 'production' ? '' : '-staging';
 		try {
 			await assert.rejects(transport.http('agent.get', {}));
-			for (const method of ['sessions.list', 'products.list', 'scripts.generate', 'prompts.generate', 'videos.generate']) {
+			for (const method of ['sessions.list', 'products.list', 'scripts.generate', 'storyboards.generate', 'videos.generate']) {
 				await assert.rejects(transport.data(method, {}));
 			}
 			assert.deepEqual(requests, [
@@ -45,7 +45,7 @@ for (const environment of [undefined, 'sandbox', 'production']) {
 				`https://agent${suffix}.nuvalab.ai/v1/sessions`,
 				`https://api${suffix}.nuvalab.ai/v1/products`,
 				`https://api${suffix}.nuvalab.ai/v1/generate/script`,
-				`https://api${suffix}.nuvalab.ai/v1/generate/prompt`,
+				`https://api${suffix}.nuvalab.ai/v1/generate/storyboard`,
 				`https://api${suffix}.nuvalab.ai/v1/generate/video`,
 			].map(url => [url, 'Bearer dummy-environment-token']));
 		} finally {
@@ -80,14 +80,14 @@ test('explicit development endpoints override all production destinations', asyn
 		getAccessToken: async () => 'dummy-token',
 	});
 	try {
-		for (const method of ['sessions.list', 'products.list', 'scripts.generate', 'prompts.generate', 'videos.generate']) {
+		for (const method of ['sessions.list', 'products.list', 'scripts.generate', 'storyboards.generate', 'videos.generate']) {
 			await assert.rejects(transport.data(method, {}));
 		}
 		assert.deepEqual(requests, [
 			'http://127.0.0.1:8980/v1/sessions',
 			'http://127.0.0.1:8981/v1/products',
 			'http://127.0.0.1:8982/v1/generate/script',
-			'http://127.0.0.1:8982/v1/generate/prompt',
+			'http://127.0.0.1:8982/v1/generate/storyboard',
 			'http://127.0.0.1:8981/v1/generate/video',
 		]);
 	} finally {

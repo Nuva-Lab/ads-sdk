@@ -2,6 +2,7 @@ import { translate, msg, UiError } from "./i18n.js";
 import type { ResourceLink } from "@nuva/sdk";
 const names: Record<string, string> = {
   script: "Script",
+  storyboard: "Storyboard",
   prompt: "Prompt",
   job: "Clip",
   batch: "Batch",
@@ -128,6 +129,7 @@ export function indexedTitle(
     "ad",
     "batch",
     "script",
+    "storyboard",
   ]);
   for (const key of [
     "Prompt",
@@ -139,6 +141,7 @@ export function indexedTitle(
     "Ad",
     "Batch",
     "Script",
+    "Storyboard",
   ])
     generic.add(translate(key).toLowerCase());
   return generic.has(title.trim().toLowerCase()) ? index : title;
