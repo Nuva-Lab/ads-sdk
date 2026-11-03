@@ -972,9 +972,6 @@
               },
               "input": {
                 "type": "null"
-              },
-              "storyboard": {
-                "type": "null"
               }
             },
             "type": "object",
@@ -989,31 +986,11 @@
               },
               "prompt": {
                 "type": "null"
-              },
-              "storyboard": {
-                "type": "null"
               }
             },
             "type": "object",
             "required": [
               "input"
-            ]
-          },
-          {
-            "properties": {
-              "storyboard": {
-                "type": "object"
-              },
-              "prompt": {
-                "type": "null"
-              },
-              "input": {
-                "type": "null"
-              }
-            },
-            "type": "object",
-            "required": [
-              "storyboard"
             ]
           }
         ],
@@ -1064,17 +1041,6 @@
               }
             ],
             "description": "Raw Prompt v1 content to save atomically with this Job."
-          },
-          "storyboard": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/StoryboardClip"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "A Storyboard clip: the job renders the Prompt compiled for that clip."
           },
           "callback_url": {
             "anyOf": [
@@ -1866,29 +1832,6 @@
           "skills"
         ],
         "title": "Storyboard"
-      },
-      "StoryboardClip": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id",
-            "description": "A Storyboard ID."
-          },
-          "clip": {
-            "type": "string",
-            "pattern": "^C\\d{2}$",
-            "title": "Clip",
-            "description": "One of its clips, e.g. C01."
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "clip"
-        ],
-        "title": "StoryboardClip"
       },
       "StoryboardCreate": {
         "properties": {

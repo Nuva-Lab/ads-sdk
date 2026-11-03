@@ -460,8 +460,6 @@ export interface components {
             resolution?: ("480P" | "768P") | null;
             /** @description Raw Prompt v1 content to save atomically with this Job. */
             input?: components["schemas"]["RawPromptInput"] | null;
-            /** @description A Storyboard clip: the job renders the Prompt compiled for that clip. */
-            storyboard?: components["schemas"]["StoryboardClip"] | null;
             /**
              * Callback Url
              * @description A public HTTPS URL for the final status.
@@ -475,15 +473,9 @@ export interface components {
         } & ({
             prompt: string;
             input?: null;
-            storyboard?: null;
         } | {
             input: Record<string, never>;
             prompt?: null;
-            storyboard?: null;
-        } | {
-            storyboard: Record<string, never>;
-            prompt?: null;
-            input?: null;
         });
         JsonValue: unknown;
         /** ProductDataV1 */
@@ -845,20 +837,6 @@ export interface components {
             skills: {
                 [key: string]: components["schemas"]["SkillRef"];
             };
-        };
-        /** StoryboardClip */
-        StoryboardClip: {
-            /**
-             * Id
-             * Format: uuid
-             * @description A Storyboard ID.
-             */
-            id: string;
-            /**
-             * Clip
-             * @description One of its clips, e.g. C01.
-             */
-            clip: string;
         };
         /** StoryboardCreate */
         StoryboardCreate: {

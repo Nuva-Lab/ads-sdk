@@ -5,7 +5,7 @@ import { NuvaError, PartialCreationError, ProductImageUploadError } from './erro
 import { frozen, stableJSON } from './protocol.js';
 import { backendSchema } from './backend-schema.js';
 import { decodeScriptPackage } from './script-content.js';
-import { PromptSchema, generateScriptSchema, generateStoryboardSchema } from './schemas.js';
+import { PromptSchema, generateScriptSchema, generateStoryboardSchema, generatePromptSchema } from './schemas.js';
 import { decodeScript, decodeStoryboard, encodeScript, scriptVersion, type ScriptContent } from './script-v3.js';
 import type { BackendSchemas as B } from './backend-target.js';
 import type { NuvaClientOptions, NuvaErrorInfo, ResourceRef, ResourceLink } from './types.js';
@@ -415,6 +415,37 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 			get: async (ref) => (await prompts.get(ref)) as Prompt,
 			create: async (input, o) => (await prompts.create(input, o)) as Prompt,
 			update: async (ref, input, o) => (await prompts.update(ref, input, o)) as Prompt,
+			generate: (input, o) => {
+				const parsed = checked(generatePromptSchema, input, true);
+				return request(
+					'prompts.generate',
+					parsed,
+					{
+						parse: (v) => {
+							const raw = z
+								.object({ prompts: z.array(backendSchema('Prompt')).min(1) })
+								.strict()
+								.parse(v);
+							if (
+								new Set(raw.prompts.map((prompt) => prompt.id)).size !== raw.prompts.length ||
+								(parsed.clip !== undefined && (raw.prompts.length !== 1 || raw.prompts[0]!.data.clip_id !== parsed.clip)) ||
+								raw.prompts.some(
+									(prompt) => !prompt.relationships.some((relationship) => relationship.target.kind === 'storyboard' && relationship.target.id === parsed.storyboard),
+								)
+							)
+								throw new NuvaError({
+									code: 'SERVICE_ERROR',
+									message: 'Generation must return unique Prompts of the requested Storyboard clips.',
+									retryable: false,
+									acceptance: 'unknown',
+								});
+							return { prompts: raw.prompts.map((v) => artifact(v) as Prompt) };
+						},
+					},
+					o?.requestId,
+					o?.idempotencyKey,
+				);
+			},
 		},
 		storyboards: {
 			get: async (ref) => typedStoryboard(await artifacts.get(ref)),

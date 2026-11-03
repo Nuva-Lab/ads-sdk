@@ -1,4 +1,4 @@
-import type { GenerateScriptInput, GenerateStoryboardInput } from './schemas.js';
+import type { GenerateScriptInput, GenerateStoryboardInput, GeneratePromptInput } from './schemas.js';
 import type { ScriptContent, StoryboardContent } from './script-v3.js';
 import type { CommandOptions, JsonObject, JsonValue, ResourceRef, ResourceLink, NuvaErrorInfo, Unsubscribe } from './types.js';
 import type { BackendSchemas as B } from './backend-target.js';
@@ -23,7 +23,7 @@ export type BackendArtifact<K extends string = ArtifactKind, D = JsonValue> = Om
 /** A Script: the v3 idea (`content`), or a read-only v2 ScriptPackage saved before Storyboards (`legacy`). */
 export type Script = BackendArtifact<'script', B['ScriptDataV1']> &
 	({ readonly format: 3; readonly content: ScriptContent; readonly legacy?: undefined } | { readonly format: 2; readonly legacy: ScriptPackage; readonly content?: undefined });
-/** A Storyboard: how a Script is cast and shot. Its clips are what `videos.generate({ storyboard: { id, clip } })` renders. */
+/** A Storyboard: how a Script is cast and shot. `prompts.generate({ storyboard })` turns its clips into the Prompts `videos.generate` renders. */
 export type Storyboard = BackendArtifact<'storyboard', B['StoryboardDataV1']> & { readonly content: StoryboardContent };
 export type Prompt = BackendArtifact<'prompt', B['PromptDataV1']> & Pick<B['Prompt'], 'relationships'>;
 export type DirectingPlan = BackendArtifact<'directing_plan', B['DirectingPlanDataV1']>;
@@ -87,6 +87,7 @@ export interface JobsClient {
 }
 export type ScriptInput = GenerateScriptInput;
 export type StoryboardInput = GenerateStoryboardInput;
+export type PromptInput = GeneratePromptInput;
 export interface ScriptsClient {
 	get(ref: ResourceRef<'script'>): Promise<Script>;
 	create(
@@ -114,6 +115,8 @@ export interface PromptsClient extends TypedArtifactWriter<'prompt', B['PromptDa
 		input: { data: B['PromptDataV1']; batch_id?: string | null; relationships?: never },
 		options?: StoreCommandOptions,
 	): Promise<Prompt>;
+	/** Compiles a Storyboard's clips, or one clip, into video Prompts in clip order. A clip compiled before from the same inputs returns its saved Prompt. */
+	generate(input: PromptInput, options?: StoreCommandOptions): Promise<{ prompts: Prompt[] }>;
 }
 /** Proposed backend operation-key overlay; omitted for fresh unkeyed submissions. */
 export interface StoreCommandOptions extends CommandOptions {
@@ -121,12 +124,7 @@ export interface StoreCommandOptions extends CommandOptions {
 }
 export type VideoCommandOptions = StoreCommandOptions;
 export type RawPromptInput = Omit<B['RawPromptInput'], 'relationships'> & { relationships?: never };
-export type GenerateVideoInput = Omit<B['GenerateVideo'], 'prompt' | 'input' | 'storyboard'> &
-	(
-		| { storyboard: B['StoryboardClip']; prompt?: null; input?: null }
-		| { prompt: string; input?: null; storyboard?: null }
-		| { input: RawPromptInput; prompt?: null; storyboard?: null }
-	);
+export type GenerateVideoInput = Omit<B['GenerateVideo'], 'prompt' | 'input'> & ({ prompt: string; input?: null } | { input: RawPromptInput; prompt?: null });
 export interface StoreClients {
 	readonly artifacts: ArtifactsClient;
 	readonly assets: AssetsClient;
@@ -135,7 +133,7 @@ export interface StoreClients {
 	readonly characters: ProfilesClient<Character, B['CharacterCreate'], B['CharacterUpdate']>;
 	readonly scripts: ScriptsClient;
 	readonly storyboards: StoryboardsClient;
-	/** Advanced: the compiled per-clip Prompts. Storyboards compile them; raw video input saves one. */
+	/** The per-clip video Prompts: `generate` compiles a Storyboard's clips; raw video input saves one. */
 	readonly prompts: PromptsClient;
 	readonly videos: {
 		generate(input: GenerateVideoInput, options?: VideoCommandOptions): Promise<Job<Asset>>;
