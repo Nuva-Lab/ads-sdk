@@ -1060,7 +1060,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
           }
         ],
         "title": "Batch Id",
-        "description": "One of the caller's batches."
+        "description": "One of the caller's batches; when omitted, a saved Prompt's Job joins the Prompt's Batch."
       }
     },
     "additionalProperties": false,

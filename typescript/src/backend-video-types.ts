@@ -467,7 +467,7 @@ export interface components {
             callback_url?: string | null;
             /**
              * Batch Id
-             * @description One of the caller's batches.
+             * @description One of the caller's batches; when omitted, a saved Prompt's Job joins the Prompt's Batch.
              */
             batch_id?: string | null;
         } & ({

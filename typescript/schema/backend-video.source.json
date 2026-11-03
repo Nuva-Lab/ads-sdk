@@ -5,8 +5,8 @@
   "pullRequest": "pending",
   "verifiedAt": "2026-11-03",
   "status": "target-only; Storyboards, asset labels and Prompt clip_id from WhatIf PR #2442, with video generation back to a Prompt ID or raw input (branch ads-storyboard-prompt-api, not yet a pull request). Record its pull request and merge commit before releasing; not deployed",
-  "upstreamSha256": "4c391283e348946bcec0be054e9c4012fdedab727c6a988a4efbb1469ac6b224",
-  "sha256": "2530c94537e67a0d6f5affcefe0541d98dd07d16e761b55e046d9471f946d123",
+  "upstreamSha256": "de3e65a00aaeca162aef5a032f60f8150c0dc01f673b47ef284735903b8a7c7a",
+  "sha256": "63902803db25eed12931e096412035951693f3398d420f73772baf963f251ac4",
   "overlaySchemas": [
     "GenerateVideo",
     "RawPromptInput",
