@@ -1,4 +1,4 @@
-# TypeScript SDK (0.1.0-preview.3)
+# TypeScript SDK (0.1.0-preview.4)
 
 `@nuva/sdk` provides Agent chat, resource management and ad-creation APIs for TypeScript applications.
 
@@ -7,7 +7,7 @@
 Install the SDK package supplied with your integration:
 
 ```sh
-pnpm add /path/to/release/nuva-sdk-0.1.0-preview.3.tgz
+pnpm add /path/to/release/nuva-sdk-0.1.0-preview.4.tgz
 ```
 
 ## Connect and authenticate
