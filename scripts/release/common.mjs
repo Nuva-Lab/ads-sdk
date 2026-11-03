@@ -26,6 +26,18 @@ export async function copy(source, target) {
 	await mkdir(dirname(target), { recursive: true });
 	await copyFile(source, target);
 }
+/** The CHANGELOG.md section for a version, without its heading; a release needs one. */
+export async function releaseNotes(version = VERSION, text) {
+	text ??= await readFile(resolve(ROOT, 'CHANGELOG.md'), 'utf8');
+	const heading = `## ${version}\n`;
+	const start = text.indexOf(heading);
+	if (start === -1) throw new Error(`CHANGELOG.md has no entry for ${version}.`);
+	const rest = text.slice(start + heading.length);
+	const end = rest.search(/^## /m);
+	const notes = (end === -1 ? rest : rest.slice(0, end)).trim();
+	if (!notes) throw new Error(`The CHANGELOG.md entry for ${version} is empty.`);
+	return notes;
+}
 export async function json(path) {
 	return JSON.parse(await readFile(path, 'utf8'));
 }

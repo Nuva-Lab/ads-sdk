@@ -24,6 +24,8 @@ Package versions must match in the root, TypeScript and protocol manifests, the 
 constant, and the release scripts. The repository tags `v0.1.0-preview.4` and
 `go/v0.1.0-preview.4` identify the same source commit. The latter is needed for the Go submodule.
 
+Write the release notes in `CHANGELOG.md` under `## <version>`, describing the change from the previous released version. `check-tag.mjs` requires the entry, and `create-draft.mjs` puts it in the draft release notes.
+
 Keep the chosen version while preparing an unpublished draft. Increment for the next issued
 release. Check the service configuration, examples, archive checksums and consumer verification
 before publishing a draft.
