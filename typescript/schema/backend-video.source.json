@@ -2,9 +2,9 @@
   "repository": "Nuva-Lab/WhatIf",
   "commit": "pending",
   "path": "ads_backend/openapi.json",
-  "pullRequest": "https://github.com/Nuva-Lab/WhatIf/pull/2442",
+  "pullRequest": "pending",
   "verifiedAt": "2026-11-03",
-  "status": "target-only; adds Storyboards, asset labels and Prompt clip_id (WhatIf PR #2442; video generation keeps its Prompt ID or raw input, as before). Record the merge commit before releasing; deployed to staging only",
+  "status": "target-only; Storyboards, asset labels and Prompt clip_id from WhatIf PR #2442, with video generation back to a Prompt ID or raw input (branch ads-storyboard-prompt-api, not yet a pull request). Record its pull request and merge commit before releasing; not deployed",
   "upstreamSha256": "4c391283e348946bcec0be054e9c4012fdedab727c6a988a4efbb1469ac6b224",
   "sha256": "2530c94537e67a0d6f5affcefe0541d98dd07d16e761b55e046d9471f946d123",
   "overlaySchemas": [
