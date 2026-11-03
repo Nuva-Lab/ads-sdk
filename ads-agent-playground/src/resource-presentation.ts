@@ -231,13 +231,14 @@ export function resourcePresentation(
   }
   if (kind === "session_file") {
     // A file the Agent generated in this Session (files.get): shown like an image or audio Asset.
-    const type = text(row.kind);
+    const mime = text(row.mime) ?? "",
+      type = mime.startsWith("audio/") ? "Audio" : mime.startsWith("video/") ? "Video" : mime.startsWith("image/") ? "Image" : "Media";
     return {
       ...base,
-      kind: type === "audio" ? "Audio" : "Image",
-      title: text(row.label) ?? usefulLabel(record) ?? translate(type === "audio" ? "Audio" : "Image"),
-      image: type === "image" ? imageURL(row.url) : undefined,
-      icon: type === "audio" ? "audio" : "image",
+      kind: type,
+      title: text(row.label) ?? usefulLabel(record) ?? translate(type),
+      image: type === "Image" ? imageURL(row.download_url) : undefined,
+      icon: type === "Audio" ? "audio" : type === "Video" ? "video" : "image",
       meta: translate("Session file"),
     };
   }

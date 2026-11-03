@@ -1,4 +1,4 @@
-import { parseStateEvent, parseSession, parseSessions, parseMessages, parseMessage } from './wire-schema.js';
+import { parseStateEvent, parseSession, parseSessions, parseMessages, parseMessage, parseSessionFile } from './wire-schema.js';
 import { Transport } from './transport.js';
 import { frozen, stableJSON } from './protocol.js';
 import { draftValue } from './message.js';
@@ -274,7 +274,13 @@ class AgentController implements AgentHandle {
 	readonly files = Object.freeze({ get: (id: string) => this.getFile(id) });
 	getFile = async (id: string): Promise<SessionFile> => {
 		if (typeof id !== 'string' || id.length === 0 || id.length > 100) throw new TypeError('A Session file ID is required.');
-		return parseSessionFile(await this.transport.http('files.get', { sessionId: this.sessionId, id }));
+		const requestId = crypto.randomUUID();
+		const value = await this.transport.http('files.get', { sessionId: this.sessionId, id }, requestId);
+		try {
+			return parseSessionFile(value);
+		} catch (error) {
+			throw error instanceof NuvaError ? new NuvaError({ ...error.toJSON(), requestId }) : error;
+		}
 	};
 	close() {
 		this.closed = true;
@@ -288,22 +294,6 @@ class AgentController implements AgentHandle {
 	}
 }
 
-function parseSessionFile(value: unknown): SessionFile {
-	const file = value as Partial<SessionFile> | null;
-	if (
-		file === null ||
-		typeof file !== 'object' ||
-		typeof file.id !== 'string' ||
-		(file.kind !== 'image' && file.kind !== 'audio') ||
-		typeof file.mime !== 'string' ||
-		typeof file.size_bytes !== 'number' ||
-		typeof file.label !== 'string' ||
-		typeof file.url !== 'string' ||
-		typeof file.url_expires_at !== 'string'
-	)
-		throw new NuvaError({ code: 'SERVICE_ERROR', message: 'Invalid Session file response.', retryable: false });
-	return { id: file.id, kind: file.kind, mime: file.mime, size_bytes: file.size_bytes, label: file.label, url: file.url, url_expires_at: file.url_expires_at };
-}
 export function readAgentState(handle: AgentHandle): AgentReadState {
 	const controller = controllers.get(handle);
 	if (!controller) throw new TypeError('Expected an Agent handle created by this SDK.');

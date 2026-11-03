@@ -796,12 +796,13 @@ async function renderResourceDetail(
     );
   } else if (record.ref.kind === "session_file") {
     const file = value as SessionFile;
-    if (file.kind === "audio") {
+    if (file.mime.startsWith("audio/")) {
       const audio = node("audio");
       audio.controls = true;
-      audio.src = file.url;
+      audio.src = file.download_url;
       card.append(audio);
-    } else card.append(media(file.url, "image"));
+    } else if (file.mime.startsWith("image/") || file.mime.startsWith("video/"))
+      card.append(media(file.download_url, file.mime.startsWith("image/") ? "image" : "video"));
     card.append(
       node(
         "p",

@@ -119,7 +119,13 @@ export class ResourceCards {
     const mutable = ["product", "brand", "character", "job", "batch"].includes(
       record.ref.kind,
     );
-    if (entry?.data !== undefined && !mutable)
+    // A Session file's signed URL expires: past `download_url_expires_at`, read it again for a fresh one.
+    const expired =
+      record.ref.kind === "session_file" &&
+      Date.parse(
+        String((entry?.data as { download_url_expires_at?: unknown } | undefined)?.download_url_expires_at ?? ""),
+      ) <= Date.now();
+    if (entry?.data !== undefined && !mutable && !expired)
       return Promise.resolve(entry.data);
     const next: Entry = {};
     next.pending = new Promise((resolve, reject) => {

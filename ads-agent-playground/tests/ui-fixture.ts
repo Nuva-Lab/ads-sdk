@@ -343,6 +343,17 @@ const agent = {
   onHostCall: () => () => {},
   listPendingCalls: async () => ({ items: [], nextCursor: null }),
   getHostCall: async () => {},
+  // Session files: a generated image, shown as a session_file card from its signed URL.
+  files: {
+    get: async (id: string) => ({
+      id,
+      mime: "image/svg+xml",
+      size_bytes: 120,
+      label: "Generated presenter",
+      download_url: "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="96"><rect width="64" height="96" fill="#c9a"/></svg>'),
+      download_url_expires_at: new Date(Date.now() + 12 * 3600_000).toISOString(),
+    }),
+  },
 };
 const sdk = {
   sessions: {

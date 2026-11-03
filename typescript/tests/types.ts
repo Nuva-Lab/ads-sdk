@@ -140,3 +140,15 @@ void client.videos.generate({ input: { schema_version: 1, data: { prompt: 'clip'
 // Session files: generated media shown as session_file resource cards.
 const sessionFile: Promise<import('../src/index.js').SessionFile> = client.agent({ sessionId: 'work-session' }).files.get('sf_x');
 void sessionFile;
+// useAgent exposes the same Session files client as agent().
+import { useAgent } from '../src/react.js';
+export function SessionFileName(): string {
+	const files: import('../src/index.js').SessionFilesClient = useAgent({ sessionId: 'work-session' }).files;
+	void files.get('sf_x').then((file) => {
+		const fields: [string, string, number, string, string, string] = [file.id, file.mime, file.size_bytes, file.label, file.download_url, file.download_url_expires_at];
+		void fields;
+		// @ts-expect-error `kind` is not part of a Session file; use `mime`.
+		void file.kind;
+	});
+	return 'files';
+}

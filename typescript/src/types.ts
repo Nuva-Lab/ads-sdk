@@ -68,17 +68,17 @@ export interface AgentHandle {
 export interface SessionFile {
 	/** Opaque ID; the same as the resource reference's `id`. */
 	id: string;
-	kind: 'image' | 'audio';
+	/** The file's media type, such as `image/png` or `audio/mpeg`. */
 	mime: string;
 	size_bytes: number;
 	label: string;
 	/** A signed URL for the file's bytes, usable directly in `<img>` or `<audio>`. */
-	url: string;
-	/** When `url` stops working (about 24 hours after it was signed); call `files.get` again for a new one. */
-	url_expires_at: string;
+	download_url: string;
+	/** `download_url` is valid until this time (at least 12 hours); call `files.get` again after that. */
+	download_url_expires_at: string;
 }
 export interface SessionFilesClient {
-	/** A Session file's metadata and a signed URL. Only the Session's owner can read its files. */
+	/** A Session file's metadata and a signed URL to its bytes. */
 	get(id: string): Promise<SessionFile>;
 }
 
