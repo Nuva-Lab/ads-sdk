@@ -31,7 +31,7 @@ import {
   type KnownResource,
 } from "./workspace.js";
 export { keyed };
-/** Galleries of a conversation's saved work. Prompts are internal; only the staff admin page shows their tab. */
+/** Galleries of a conversation's saved work. The playground has no `prompt` tab; a host that shows Prompts may. */
 export type ResourceTab = "script" | "storyboard" | "prompt" | "job" | "asset";
 export interface ResourceHost {
   sdk: NuvaClient;
