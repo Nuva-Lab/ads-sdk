@@ -34,6 +34,7 @@ const labels: Record<string, string> = {
   job: "Video generation",
   ad: "Ad",
   asset: "Media",
+  session_file: "Session file",
   skill: "Skill",
 };
 const icons: Record<string, IconName> = {
@@ -48,6 +49,7 @@ const icons: Record<string, IconName> = {
   job: "video",
   ad: "video",
   asset: "image",
+  session_file: "image",
   skill: "spark",
 };
 export function usefulLabel(record: ResourceLink): string | undefined {
@@ -225,6 +227,18 @@ export function resourcePresentation(
           ? `${metadata.width} × ${metadata.height}`
           : undefined,
       ),
+    };
+  }
+  if (kind === "session_file") {
+    // A file the Agent generated in this Session (files.get): shown like an image or audio Asset.
+    const type = text(row.kind);
+    return {
+      ...base,
+      kind: type === "audio" ? "Audio" : "Image",
+      title: text(row.label) ?? usefulLabel(record) ?? translate(type === "audio" ? "Audio" : "Image"),
+      image: type === "image" ? imageURL(row.url) : undefined,
+      icon: type === "audio" ? "audio" : "image",
+      meta: translate("Session file"),
     };
   }
   if (kind === "ad")

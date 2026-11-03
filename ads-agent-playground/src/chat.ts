@@ -497,7 +497,7 @@ export class ChatController {
     return new ResourceCards({
       root: byId("chat"),
       indexLabel: (record) => this.host.indexLabel?.(record),
-      read: (record) => readResource(this.host.sdk, record),
+      read: (record) => readResource(this.host.sdk, record, this.sessionId),
       watchJob: (id, receive) => this.host.sdk.jobs.subscribe(id, receive),
       open: (record) => this.host.open(record),
       layout: (change) => this.withScrollAnchor(change),

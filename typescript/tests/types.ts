@@ -137,3 +137,6 @@ else void readScript.legacy.clips;
 
 // @ts-expect-error Raw video clients cannot write relationship edges.
 void client.videos.generate({ input: { schema_version: 1, data: { prompt: 'clip', image_asset_ids: ['id'] }, relationships: artifactSources } });
+// Session files: generated media shown as session_file resource cards.
+const sessionFile: Promise<import('../src/index.js').SessionFile> = client.agent({ sessionId: 'work-session' }).files.get('sf_x');
+void sessionFile;

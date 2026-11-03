@@ -16,6 +16,7 @@ import type {
 	HostFailureReceipt,
 	JsonValue,
 	NotificationHostCall,
+	SessionFile,
 	NuvaErrorInfo,
 	Page,
 	PaginationQuery,
@@ -54,6 +55,7 @@ class AgentController implements AgentHandle {
 			loadEarlierMessages: this.loadEarlierMessages,
 			listPendingCalls: this.listPendingCalls,
 			getHostCall: this.getHostCall,
+			files: this.files,
 		});
 		controllers.set(this, this);
 		controllers.set(this.api, this);
@@ -269,6 +271,11 @@ class AgentController implements AgentHandle {
 		});
 	getHostCall = (id: string) =>
 		this.transport.http<DynamicToolUIPart | NotificationHostCall>('agent.getHostCall', { sessionId: this.sessionId, id });
+	readonly files = Object.freeze({ get: (id: string) => this.getFile(id) });
+	getFile = async (id: string): Promise<SessionFile> => {
+		if (typeof id !== 'string' || id.length === 0 || id.length > 100) throw new TypeError('A Session file ID is required.');
+		return parseSessionFile(await this.transport.http('files.get', { sessionId: this.sessionId, id }));
+	};
 	close() {
 		this.closed = true;
 		this.unwatch?.();
@@ -281,6 +288,22 @@ class AgentController implements AgentHandle {
 	}
 }
 
+function parseSessionFile(value: unknown): SessionFile {
+	const file = value as Partial<SessionFile> | null;
+	if (
+		file === null ||
+		typeof file !== 'object' ||
+		typeof file.id !== 'string' ||
+		(file.kind !== 'image' && file.kind !== 'audio') ||
+		typeof file.mime !== 'string' ||
+		typeof file.size_bytes !== 'number' ||
+		typeof file.label !== 'string' ||
+		typeof file.url !== 'string' ||
+		typeof file.url_expires_at !== 'string'
+	)
+		throw new NuvaError({ code: 'SERVICE_ERROR', message: 'Invalid Session file response.', retryable: false });
+	return { id: file.id, kind: file.kind, mime: file.mime, size_bytes: file.size_bytes, label: file.label, url: file.url, url_expires_at: file.url_expires_at };
+}
 export function readAgentState(handle: AgentHandle): AgentReadState {
 	const controller = controllers.get(handle);
 	if (!controller) throw new TypeError('Expected an Agent handle created by this SDK.');
