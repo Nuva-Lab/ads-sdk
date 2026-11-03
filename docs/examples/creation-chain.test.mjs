@@ -8,7 +8,7 @@ const source = readFileSync(new URL('./creation-chain.ts', import.meta.url), 'ut
 const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
 const example = {};
 new Function('exports', compiled)(example);
-const fresh = () => ({ started: false, scriptIds: [], promptIds: [], videos: [] });
+const fresh = () => ({ started: false, scriptIds: [], videos: [] });
 
 function fixture() {
 	const counts = { brands: 0, submissions: 0, waits: [], reads: [] };
@@ -22,7 +22,10 @@ function fixture() {
 			uploadImage: async () => ({ productId: 'product', assetId: 'image' }),
 		},
 		scripts: { generate: async () => ({ id: 'script', batch_id: 'batch' }) },
-		prompts: { generate: async () => ({ prompts: [{ id: 'prompt-1' }, { id: 'prompt-2' }] }) },
+		storyboards: { generate: async (input, options) => {
+			assert.ok(snapshots.some(snapshot => snapshot.storyboardKey === options.idempotencyKey), 'Persist the Storyboard key before requesting it.');
+			return { id: 'storyboard', batch_id: 'batch', content: { clips: [{ id: 'C01' }, { id: 'C02' }] } };
+		} },
 		videos: { generate: async (input, options) => {
 			counts.submissions++;
 			assert.ok(snapshots.some(snapshot => snapshot.videos.some(item => item.idempotencyKey === options.idempotencyKey && JSON.stringify(item.input) === JSON.stringify(input))), 'Persist the exact key/input before submitting.');
@@ -64,7 +67,8 @@ test('an uncertain submission retries only its saved key/input and preserves ear
 	assert.equal(progress.productId, 'product');
 	assert.equal(progress.imageAssetId, 'image');
 	assert.deepEqual(progress.scriptIds, ['script']);
-	assert.deepEqual(progress.promptIds, ['prompt-1', 'prompt-2']);
+	assert.equal(progress.storyboardId, 'storyboard');
+	assert.deepEqual(progress.videos.map(item => item.input.storyboard), [{ id: 'storyboard', clip: 'C01' }, { id: 'storyboard', clip: 'C02' }]);
 	await example.submitPendingVideos(f.nuva, progress, f.save);
 	assert.equal(progress.videos[0].idempotencyKey, key);
 	assert.equal(progress.videos[0].jobId, 'job-1');

@@ -1,4 +1,4 @@
-// Generated from ads_backend/openapi.json at 47b9f5fa0844fa1ccfd78d5c98e7ed7853fd8007. PR target only; deployment not asserted. Do not edit.
+// Generated from ads_backend/openapi.json at pending. PR target only; deployment not asserted. Do not edit.
 export type paths = Record<string, never>;
 export type webhooks = Record<string, never>;
 export interface components {
@@ -110,13 +110,41 @@ export interface components {
              * @description What the target is: an asset's media kind, an entity, artifact or Skill.
              * @enum {string}
              */
-            kind: "image" | "video" | "audio" | "brand" | "product" | "character" | "script" | "directing_plan" | "prompt" | "skill";
+            kind: "image" | "video" | "audio" | "brand" | "product" | "character" | "script" | "storyboard" | "directing_plan" | "prompt" | "skill";
             /**
              * Id
              * Format: uuid
              * @description The exact version: an asset id, an entity `revision`, an Artifact version id or a Skill version id.
              */
             id: string;
+        };
+        /** AssetCreate */
+        AssetCreate: {
+            /**
+             * Upload Token
+             * @description From POST /v1/assets/uploads.
+             */
+            upload_token?: string | null;
+            /**
+             * Url
+             * @description An http(s) URL to fetch.
+             */
+            url?: string | null;
+            /**
+             * Kind
+             * @description Required with `url`.
+             */
+            kind?: ("image" | "video" | "audio") | null;
+            /**
+             * Label
+             * @description A short name for what the file shows, e.g. which part of a product package.
+             */
+            label?: string | null;
+            /**
+             * Description
+             * @description A longer description of what the file shows. Registering the same file again with a label or description replaces it.
+             */
+            description?: string | null;
         };
         /** AssetOut */
         AssetOut: {
@@ -142,6 +170,16 @@ export interface components {
             metadata: {
                 [key: string]: unknown;
             };
+            /**
+             * Label
+             * @description A short name for what the file shows, given at upload.
+             */
+            label?: string | null;
+            /**
+             * Description
+             * @description A longer description of what the file shows, given at upload.
+             */
+            description?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -422,6 +460,8 @@ export interface components {
             resolution?: ("480P" | "768P") | null;
             /** @description Raw Prompt v1 content to save atomically with this Job. */
             input?: components["schemas"]["RawPromptInput"] | null;
+            /** @description A Storyboard clip: the job renders the Prompt compiled for that clip. */
+            storyboard?: components["schemas"]["StoryboardClip"] | null;
             /**
              * Callback Url
              * @description A public HTTPS URL for the final status.
@@ -435,9 +475,15 @@ export interface components {
         } & ({
             prompt: string;
             input?: null;
+            storyboard?: null;
         } | {
             input: Record<string, never>;
             prompt?: null;
+            storyboard?: null;
+        } | {
+            storyboard: Record<string, never>;
+            prompt?: null;
+            input?: null;
         });
         JsonValue: unknown;
         /** ProductDataV1 */
@@ -591,6 +637,11 @@ export interface components {
              * @default []
              */
             characters?: string[];
+            /**
+             * Clip Id
+             * @description The Storyboard clip this prompt renders, for a prompt based on a Storyboard.
+             */
+            clip_id?: string | null;
         };
         /** PromptVersionCreate */
         PromptVersionCreate: {
@@ -733,6 +784,122 @@ export interface components {
             name: string;
             /** Version */
             version: number;
+        };
+        /** Storyboard */
+        Storyboard: {
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "storyboard";
+            /**
+             * Id
+             * Format: uuid
+             * @description This version's id.
+             */
+            id: string;
+            /**
+             * Lineage Id
+             * Format: uuid
+             * @description The first version's id.
+             */
+            lineage_id: string;
+            /**
+             * Base Id
+             * @description The version this one was edited from.
+             */
+            base_id: string | null;
+            /** Schema Version */
+            schema_version: number;
+            data: components["schemas"]["StoryboardDataV1"];
+            /** Batch Id */
+            batch_id: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Relationships
+             * @description Where it comes from, by type and then target id.
+             */
+            relationships: components["schemas"]["ArtifactRelationship"][];
+            /**
+             * Assets
+             * @description The assets `data` or `relationships` refer to, with download URLs.
+             */
+            assets: {
+                [key: string]: components["schemas"]["AssetOut"];
+            };
+            /**
+             * Entities
+             * @description Entity versions in `data` or `relationships`, keyed by revision.
+             */
+            entities: {
+                [key: string]: components["schemas"]["EntityRef"];
+            };
+            /**
+             * Skills
+             * @description Skill versions in `data` or `relationships`, keyed by version id.
+             */
+            skills: {
+                [key: string]: components["schemas"]["SkillRef"];
+            };
+        };
+        /** StoryboardClip */
+        StoryboardClip: {
+            /**
+             * Id
+             * Format: uuid
+             * @description A Storyboard ID.
+             */
+            id: string;
+            /**
+             * Clip
+             * @description One of its clips, e.g. C01.
+             */
+            clip: string;
+        };
+        /** StoryboardCreate */
+        StoryboardCreate: {
+            /**
+             * Schema Version
+             * @description Only 1 is accepted.
+             */
+            schema_version: number;
+            data: components["schemas"]["StoryboardDataV1"];
+            /**
+             * Batch Id
+             * @description The batch it is made in; one of the caller's.
+             */
+            batch_id?: string | null;
+            /**
+             * Relationships
+             * @description Where it comes from.
+             */
+            relationships?: components["schemas"]["ArtifactRelationship"][];
+        };
+        /** StoryboardDataV1 */
+        StoryboardDataV1: {
+            /**
+             * Text
+             * @description How a Script is shot: casting, locations, timed shots and each clip's references, encoded by the SDK (`nuva.storyboard`). It is `based_on` its Script and the Characters it casts.
+             */
+            text: string;
+        };
+        /** StoryboardVersionCreate */
+        StoryboardVersionCreate: {
+            data: components["schemas"]["StoryboardDataV1"];
+            /**
+             * Batch Id
+             * @description The batch it is made in; one of the caller's.
+             */
+            batch_id?: string | null;
+            /**
+             * Relationships
+             * @description Where it comes from. Omit to keep the base's; [] clears them.
+             */
+            relationships?: components["schemas"]["ArtifactRelationship"][];
         };
     };
     responses: never;

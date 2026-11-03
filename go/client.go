@@ -15,7 +15,7 @@ import (
 	"unicode/utf8"
 )
 
-const Version = "v0.1.0-preview.3"
+const Version = "v0.1.0-preview.4"
 const maxResponseBytes = 2 * 1024 * 1024
 
 var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)

@@ -20,6 +20,8 @@ const html = (await readFile(resolve(root, "index.html"), "utf8")).replace(
 );
 const svg =
   '<svg xmlns="http://www.w3.org/2000/svg" width="440" height="440"><defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#e5d9c4"/><stop offset="1" stop-color="#f6f2e9"/></linearGradient><linearGradient id="cup"><stop stop-color="#a9b296"/><stop offset=".55" stop-color="#c5cbb7"/><stop offset="1" stop-color="#a9b296"/></linearGradient></defs><rect width="440" height="440" fill="url(#bg)"/><ellipse cx="225" cy="369" rx="107" ry="17" fill="#d5ccb9"/><path d="M154 126h139l-12 223q-54 27-111 0z" fill="url(#cup)"/><rect x="151" y="108" width="144" height="28" rx="11" fill="#536153"/><rect x="170" y="99" width="106" height="17" rx="6" fill="#485246"/><text x="222" y="249" fill="#5a6651" font-size="17" text-anchor="middle" font-family="Georgia">morrow</text></svg>';
+const person = (tone) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" width="440" height="440"><rect width="440" height="440" fill="#ece6dc"/><circle cx="220" cy="170" r="78" fill="${tone}"/><path d="M90 440q20-170 130-170t130 170z" fill="#8d9a86"/></svg>`;
 http
   .createServer(async (req, res) => {
     if (req.method === "POST") {
@@ -59,6 +61,11 @@ http
         file.endsWith("mp4") ? "video/mp4" : "audio/wav",
       );
       res.end(await readFile(resolve(root, "tests/fixtures", file)));
+      return;
+    }
+    if (req.url.startsWith("/person.svg")) {
+      res.setHeader("Content-Type", "image/svg+xml");
+      res.end(person(req.url.includes("leo") ? "#6f7d8c" : req.url.includes("side") ? "#8c6f63" : "#7b6455"));
       return;
     }
     if (req.url === "/cup.svg") {

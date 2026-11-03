@@ -1,11 +1,11 @@
 # Public message protocol
 
-`@nuva/protocol@0.1.0-preview.3` provides TypeScript types and Zod schemas for Agent messages, resource references, client interactions, Session state and API envelopes.
+`@nuva/protocol@0.1.0-preview.4` provides TypeScript types and Zod schemas for Agent messages, resource references, client interactions, Session state and API envelopes.
 
 The client SDK includes this package and re-exports the types most applications need. Install it separately only when importing protocol schemas directly:
 
 ```sh
-pnpm add /path/to/nuva-protocol-0.1.0-preview.3.tgz
+pnpm add /path/to/nuva-protocol-0.1.0-preview.4.tgz
 ```
 
 ## Validate messages
@@ -23,7 +23,7 @@ Client tools in the `input-available` state need a response through `agent.respo
 
 ## Versioning
 
-The package version is `0.1.0-preview.3`; `CLIENT_PROTOCOL_REVISION` is `1`. Public envelopes accept either an omitted version or `version: 1`. Other explicit versions are rejected.
+The package version is `0.1.0-preview.4`; `CLIENT_PROTOCOL_REVISION` is `1`. Public envelopes accept either an omitted version or `version: 1`. Other explicit versions are rejected.
 
 ```ts
 import { requestFrameSchema } from '@nuva/protocol';
@@ -36,7 +36,7 @@ requestFrameSchema.parse({
 });
 ```
 
-Artifact `schemaVersion` identifies its content format separately from the message envelope version. The SDK's Script reader exposes ScriptPackage v2 through `script.content`; the stored Script Artifact uses schema v1.
+Artifact `schemaVersion` identifies its content format separately from the message envelope version. The SDK's Script reader exposes Script v3 through `script.content` (a Script saved before Storyboards exposes its read-only ScriptPackage v2 through `script.legacy`); the stored Script Artifact uses schema v1.
 
 ## Authentication and Session behavior
 

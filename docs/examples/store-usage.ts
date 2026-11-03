@@ -6,11 +6,10 @@ import {
 	type Product,
 	type Artifact,
 	type ResourceRef,
-	type ScriptPackage,
 	type JobState,
 	type NuvaErrorInfo,
 } from '@nuva/sdk';
-import { encodeScriptPackage, type BackendSchemas } from '@nuva/sdk/schemas';
+import { encodeScript, type BackendSchemas, type ScriptContent } from '@nuva/sdk/schemas';
 
 export function initialize(getAccessToken: () => Promise<string | AccessToken>) {
 	// #region initialize
@@ -44,12 +43,13 @@ export async function readArtifact(nuva: NuvaClient, scriptRef: ResourceRef) {
 	// #endregion artifact-read
 	return script;
 }
-export async function createArtifact(nuva: NuvaClient, content: ScriptPackage, product: Product) {
+export async function createArtifact(nuva: NuvaClient, content: ScriptContent) {
 	// #region artifact-create
+	// scripts.create({ content }) does the same with typed results.
 	const script = await nuva.artifacts.create({
 		kind: 'script',
 		schema_version: 1,
-		data: { text: encodeScriptPackage(content) },
+		data: { text: encodeScript(content) },
 	});
 	// #endregion artifact-create
 	return script;
@@ -63,8 +63,8 @@ export async function updateArtifact(nuva: NuvaClient, script: Artifact, editedD
 }
 export async function uploadAsset(nuva: NuvaClient, file: File, kind: BackendSchemas['AssetOut']['kind']) {
 	// #region asset-upload
-	const asset = await nuva.assets.upload(file, { kind });
-	// The SDK requests an upload, PUTs bytes, then registers the Asset.
+	const asset = await nuva.assets.upload(file, { kind, label: 'Box, front', description: 'The front of the gift box.' });
+	// The SDK requests an upload, PUTs bytes, then registers the Asset with its label and description.
 	// #endregion asset-upload
 	return asset;
 }
@@ -75,10 +75,10 @@ export async function readAsset(nuva: NuvaClient, assetId: string) {
 	// #endregion asset-read
 	return asset;
 }
-export async function submitVideo(nuva: NuvaClient, promptId: string, requestKey: string) {
+export async function submitVideo(nuva: NuvaClient, storyboardId: string, clip: string, requestKey: string) {
 	// #region video-job
-	// Persist promptId and requestKey before calling; keep the returned Job ID.
-	const job = await nuva.videos.generate({ prompt: promptId }, { idempotencyKey: requestKey });
+	// Persist the Storyboard ID, clip and requestKey before calling; keep the returned Job ID.
+	const job = await nuva.videos.generate({ storyboard: { id: storyboardId, clip } }, { idempotencyKey: requestKey });
 	return job;
 	// #endregion video-job
 }
@@ -93,16 +93,26 @@ export async function generateScript(nuva: NuvaClient, productId: string) {
 		product: productId,
 		acceptable_duration_ms: { min: 8000, max: 15000 },
 	});
-	const structuredContent = script.content;
+	// A new Script is v3: concept, roles and panels with exact lines.
+	const structuredContent = script.format === 3 ? script.content : undefined;
 	// #endregion script-generate
 	return { script, structuredContent };
 }
-export async function generatePrompts(nuva: NuvaClient, scriptId: string) {
-	// #region prompt-generate
-	const { prompts } = await nuva.prompts.generate({ script: scriptId });
-	// Each independent Prompt represents a clip; pass its saved ID to videos.generate.
-	// #endregion prompt-generate
-	return { prompts };
+export async function generateStoryboard(nuva: NuvaClient, scriptId: string, characterId: string) {
+	// #region storyboard-generate
+	// cast is keyed by the Script's role IDs; roles left out are cast by the writer.
+	const storyboard = await nuva.storyboards.generate({ script: scriptId, cast: { host: characterId } });
+	// Render each storyboard.content.clips[i].id with videos.generate({ storyboard: { id, clip } }).
+	// #endregion storyboard-generate
+	return storyboard;
+}
+export async function createCharacter(nuva: NuvaClient, imageAssetId: string, voiceAssetId: string) {
+	// #region character-create
+	const character = await nuva.characters.create({
+		data: { name: 'Mia', description: 'Late twenties, warm, standard Mandarin.', image_asset_ids: [imageAssetId], voice_asset_id: voiceAssetId },
+	});
+	// #endregion character-create
+	return character;
 }
 export async function readAd(nuva: NuvaClient, adId: string) {
 	// #region ad-read

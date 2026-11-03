@@ -65,7 +65,9 @@ test('repeat local builds produce identical delivered bytes and public-only inve
 		assert.equal(first.wireRevision, 1);
 		assert.equal(first.httpSchemaVersion, 1);
 		assert.equal(first.artifactSchemaVersion, 1);
-		assert.equal(first.scriptPackageSchemaVersion, 2);
+		assert.equal(first.scriptSchemaVersion, 3);
+		assert.equal(first.storyboardSchemaVersion, 1);
+		assert.equal(first.legacyScriptPackageSchemaVersion, 2);
 		for (const item of Object.values(first.npm))
 			assert.ok(
 				item.files.every(

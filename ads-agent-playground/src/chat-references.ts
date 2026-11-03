@@ -103,8 +103,13 @@ export class ChatReferences {
       changed: () => void;
       focus: () => void;
       open: (ref: MessageRef) => void;
+      /** Where the selection toolbar, the annotation editor and the popover live; the document body by default. */
+      layer?: HTMLElement;
+      /** Reply buttons on Ads Agent messages and reply context on replies; on by default. */
+      replies?: boolean;
     },
   ) {
+    const layer = options.layer ?? document.body;
     this.panel.hidden = true;
     setAttribute(this.panel, "aria-label", msg("Message references"));
     options.composer.prepend(this.panel);
@@ -115,7 +120,7 @@ export class ChatReferences {
       clearTimeout(this.closeTimer),
     );
     this.popover.addEventListener("pointerleave", () => this.scheduleClose());
-    document.body.append(this.popover);
+    layer.append(this.popover);
     document.addEventListener(
       "pointerdown",
       (event) => {
@@ -181,7 +186,7 @@ export class ChatReferences {
         true,
       ),
     );
-    document.body.append(this.annotationEditor);
+    layer.append(this.annotationEditor);
     this.toolbar.hidden = true;
     this.toolbar.setAttribute("role", "toolbar");
     setAttribute(this.toolbar, "aria-label", msg("Selected text actions"));
@@ -198,7 +203,7 @@ export class ChatReferences {
     // Keep the text selection alive until the click has captured it.
     add.addEventListener("pointerdown", (event) => event.preventDefault());
     this.toolbar.append(add);
-    document.body.append(this.toolbar);
+    layer.append(this.toolbar);
     document.addEventListener("selectionchange", () => this.updateSelection(), {
       signal: this.life.signal,
     });
@@ -252,6 +257,7 @@ export class ChatReferences {
     );
   }
   bind(wrapper: HTMLElement, message: MessageView) {
+    if (this.options.replies === false) return;
     let actions = wrapper.querySelector<HTMLElement>(
       ":scope > .message-actions",
     );

@@ -3,12 +3,16 @@ import { indexedTitle, promptExcerpt } from "./resource-index.js";
 import { icon } from "./icons.js";
 import { renderPromptViewer } from "./prompt-view.js";
 import { resourcePresentation } from "./resource-presentation.js";
+import { keyed, KEYED_OPERATIONS } from "./requests.js";
+import { openNewStoryboard, renderScriptContent, renderStoryboard } from "./storyboard.js";
 import type {
   NuvaClient,
   Product,
   ResourceLink,
   Script,
+  Storyboard,
   Asset,
+  ScriptPackage,
 } from "@nuva/sdk";
 import {
   action,
@@ -26,7 +30,9 @@ import {
   resourcesForTab,
   type KnownResource,
 } from "./workspace.js";
-export type ResourceTab = "script" | "prompt" | "job" | "asset";
+export { keyed };
+/** Galleries of a conversation's saved work. The playground has no `prompt` tab; a host that shows Prompts may. */
+export type ResourceTab = "script" | "storyboard" | "prompt" | "job" | "asset";
 export interface ResourceHost {
   sdk: NuvaClient;
   sessionId: string;
@@ -46,6 +52,8 @@ export interface ResourceHost {
   ): void;
   attach(record: ResourceLink): void;
   requestAgent(text: string, resources: readonly ResourceLink[]): Promise<void>;
+  /** Opens a resource in its own workspace tab; without it, a resource opens in place. */
+  open?(record: ResourceLink): Promise<unknown>;
 }
 export async function readResource(
   sdk: NuvaClient,
@@ -61,6 +69,8 @@ export async function readResource(
       return sdk.characters.get(id);
     case "script":
       return sdk.scripts.get({ kind, id });
+    case "storyboard":
+      return sdk.storyboards.get({ kind, id });
     case "prompt":
       return sdk.prompts.get({ kind, id });
     case "job":
@@ -77,40 +87,9 @@ export async function readResource(
       return sdk.artifacts.get(record.ref);
   }
 }
-/** A failed/unknown keyed invocation remains addressable; never silently replace its key or payload. */
-export async function keyed<T>(
-  host: ResourceHost,
-  operation: string,
-  input: unknown,
-  run: (key: string) => Promise<T>,
-): Promise<T> {
-  const slot = `${host.scope}:pending:${host.sessionId}:${operation}`;
-  const prior = localStorage.getItem(slot),
-    encoded = JSON.stringify(input);
-  const saved = prior
-    ? (JSON.parse(prior) as { key: string; input: string })
-    : { key: crypto.randomUUID(), input: encoded };
-  if (saved.input !== encoded)
-    throw new UiError(
-      msg(
-        "A previous {p0} request remains unresolved. Restore its exact input and retry to reuse its operation key.",
-        { p0: operation },
-      ),
-    );
-  localStorage.setItem(slot, JSON.stringify(saved));
-  try {
-    const result = await run(saved.key);
-    localStorage.removeItem(slot);
-    return result;
-  } catch (error) {
-    if ((error as { acceptance?: string }).acceptance === "not_accepted")
-      localStorage.removeItem(slot);
-    throw error;
-  }
-}
 function pendingRequests(container: HTMLElement, host: ResourceHost) {
   const panel = node("div", "", "card");
-  for (const operation of ["script", "prompts", "video", "assembly"]) {
+  for (const operation of KEYED_OPERATIONS) {
     const slot = `${host.scope}:pending:${host.sessionId}:${operation}`,
       raw = localStorage.getItem(slot);
     if (!raw) continue;
@@ -178,6 +157,7 @@ function reference(kind: string, id: string, label: string): ResourceLink {
 }
 const galleryLabels: Record<ResourceTab, string> = {
   script: "Scripts",
+  storyboard: "Storyboards",
   prompt: "Prompts",
   job: "Clips",
   asset: "Finals",
@@ -230,6 +210,7 @@ export function refreshResourceList(
       ? (
           {
             script: "Script",
+            storyboard: "Storyboard",
             prompt: "Prompt",
             job: "Video clip",
             asset: "Video",
@@ -301,22 +282,52 @@ export function refreshResourceList(
         const kind = view.record.ref.kind;
         if (kind === "script") {
           const script = value as Script;
+          const concept = script.format === 3 ? script.content.concept : script.legacy.concept;
           view.title.textContent = indexedTitle(
             kind,
-            script.content.concept.name,
+            concept.name,
             view.indexLabel,
           );
           view.indexTag.hidden =
             !view.indexLabel || view.title.textContent === view.indexLabel;
           view.preview.append(
-            node("p", script.content.concept.proposition, "preview-text"),
+            node("p", concept.proposition, "preview-text"),
+          );
+          setText(
+            view.summary,
+            script.format === 3
+              ? msg("{count} panels · {seconds}s", {
+                  count: script.content.panels.length,
+                  seconds: script.content.duration_ms / 1000,
+                })
+              : msg("Legacy Script · {count} clips", {
+                  count: script.legacy.clips.length,
+                }),
+          );
+        } else if (kind === "storyboard") {
+          const storyboard = value as Storyboard;
+          view.title.textContent = indexedTitle(
+            kind,
+            translate("Storyboard"),
+            view.indexLabel,
+          );
+          view.indexTag.hidden =
+            !view.indexLabel || view.title.textContent === view.indexLabel;
+          view.preview.append(
+            node(
+              "p",
+              storyboard.content.direction.trim() ||
+                storyboard.content.clips[0]?.shots[0] ||
+                "",
+              "preview-text",
+            ),
           );
           setText(
             view.summary,
             msg("{count} clips · {seconds}s", {
-              count: script.content.clips.length,
+              count: storyboard.content.clips.length,
               seconds:
-                script.content.clips.reduce(
+                storyboard.content.clips.reduce(
                   (ms, clip) => ms + clip.duration_ms,
                   0,
                 ) / 1000,
@@ -475,7 +486,7 @@ export async function renderResources(
 /** Workspace actions become normal Agent messages; the Agent owns generation. */
 export function agentWorkButton(
   label: string,
-  work: "script" | "prompts" | "clip" | "revise",
+  work: "script" | "clip" | "revise",
   host: ResourceHost,
   source?: ResourceLink,
   className = "",
@@ -484,9 +495,6 @@ export function agentWorkButton(
     script: source
       ? "Write an advertising Script for the attached Product. Ask me for any missing creative requirements."
       : "Help me write an advertising Script. Ask me which Product to use and for any missing creative requirements.",
-    prompts: source
-      ? "Generate video Prompts from the attached Script."
-      : "Help me generate video Prompts. Ask me which Script to use.",
     clip: source
       ? "Generate a video clip using the attached Prompt and its saved generation settings."
       : "Help me generate a video clip. Ask me which Prompt to use.",
@@ -514,7 +522,7 @@ export async function openResource(
   const review = node("section", "", "resource-review"),
     body = node("div");
   const kind = (
-    ["script", "prompt", "job"].includes(record.ref.kind)
+    ["script", "storyboard", "prompt", "job"].includes(record.ref.kind)
       ? record.ref.kind
       : "asset"
   ) as ResourceTab;
@@ -636,42 +644,9 @@ async function renderResourceDetail(
       }),
     );
   } else if (record.ref.kind === "script") {
-    const script = value as Script,
-      content = script.content;
-    card.append(
-      node("p", content.concept.proposition),
-      node("p", content.concept.route, "muted"),
-    );
-    for (const clip of content.clips) {
-      const section = node("div", "", "clip");
-      section.append(
-        node(
-          "h3",
-          msg("{p0} · {p1}s", { p0: clip.id, p1: clip.duration_ms / 1000 }),
-        ),
-      );
-      for (const shot of clip.shots) {
-        const row = node("div", "", "shot");
-        row.append(
-          node(
-            "span",
-            msg("{p0} · {p1}–{p2}s", {
-              p0: shot.id,
-              p1: shot.start_ms / 1000,
-              p2: shot.end_ms / 1000,
-            }),
-            "badge",
-          ),
-          node("p", shot.scene),
-          node("p", shot.action),
-          node("p", msg("Camera: {p0}", { p0: shot.camera }), "muted"),
-        );
-        for (const speech of shot.speech)
-          row.append(node("p", `“${speech.text}”`));
-        section.append(row);
-      }
-      card.append(section);
-    }
+    const script = value as Script;
+    if (script.format === 3) renderScriptContent(card, script.content);
+    else renderLegacyScript(card, script.legacy);
     if (script.base_id)
       controls.append(
         button(
@@ -693,11 +668,27 @@ async function renderResourceDetail(
       batch_id: script.batch_id,
       lineage_id: script.lineage_id,
     });
-    controls.append(
-      agentWorkButton("Revise script", "revise", host, script),
-      agentWorkButton("Create prompts", "prompts", host, script, "primary"),
-    );
+    controls.append(agentWorkButton("Revise script", "revise", host, script));
+    if (script.format === 3) {
+      const create = button(
+        msg("New Storyboard"),
+        () =>
+          openNewStoryboard(card, script, host, (record) =>
+            host.open ? host.open(record) : renderResourceDetail(container, record, host),
+          ),
+        "primary",
+        "board",
+      );
+      create.dataset.write = "";
+      controls.append(create);
+    }
     card.append(provenance);
+  } else if (record.ref.kind === "storyboard") {
+    await renderStoryboard(card, controls, value as Storyboard, host, {
+      alive: () => container.isConnected && container.dataset.readId === readId,
+      show: (next) => renderResourceDetail(container, next, host),
+    });
+  } else if (record.ref.kind === "prompt") {
   } else if (record.ref.kind === "prompt") {
     const prompt = value as Awaited<ReturnType<NuvaClient["prompts"]["get"]>>;
     const promptView = renderPromptViewer(card, prompt);
@@ -802,9 +793,54 @@ async function renderResourceDetail(
     card.append(media(ad.asset.download_url, "video"));
   }
   if (
-    !["script", "prompt", "job", "asset", "ad", "batch"].includes(
+    !["script", "storyboard", "prompt", "job", "asset", "ad", "batch"].includes(
       record.ref.kind,
     )
   )
     card.append(details(msg("Details"), value));
+}
+/** A Script saved before Storyboards: read-only, shown as it was written. */
+function renderLegacyScript(card: HTMLElement, legacy: ScriptPackage) {
+  card.append(
+    node("p", msg("Legacy Script (read-only)"), "badge legacy-badge"),
+    node(
+      "p",
+      msg(
+        "This Script was saved before Storyboards. It can be read but not used for a Storyboard; write a new Script for that.",
+      ),
+      "muted",
+    ),
+    node("p", legacy.concept.proposition),
+    node("p", legacy.concept.route, "muted"),
+  );
+  for (const clip of legacy.clips) {
+    const section = node("div", "", "clip");
+    section.append(
+      node(
+        "h3",
+        msg("{p0} · {p1}s", { p0: clip.id, p1: clip.duration_ms / 1000 }),
+      ),
+    );
+    for (const shot of clip.shots) {
+      const row = node("div", "", "shot");
+      row.append(
+        node(
+          "span",
+          msg("{p0} · {p1}–{p2}s", {
+            p0: shot.id,
+            p1: shot.start_ms / 1000,
+            p2: shot.end_ms / 1000,
+          }),
+          "badge",
+        ),
+        node("p", shot.scene),
+        node("p", shot.action),
+        node("p", msg("Camera: {p0}", { p0: shot.camera }), "muted"),
+      );
+      for (const speech of shot.speech)
+        row.append(node("p", `“${speech.text}”`));
+      section.append(row);
+    }
+    card.append(section);
+  }
 }

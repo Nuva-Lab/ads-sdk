@@ -6,27 +6,42 @@ SCRIPT_ID = '11111111-1111-4111-8111-111111111111'
 PROMPT_ID = '22222222-2222-4222-8222-222222222222'
 JOB_ID = '33333333-3333-4333-8333-333333333333'
 ASSET_ID = '44444444-4444-4444-8444-444444444444'
-IMAGE_ID = '55555555-5555-4555-8555-555555555555'
+STORYBOARD_ID = '66666666-6666-4666-8666-666666666666'
+CHARACTER_ID = '77777777-7777-4777-8777-777777777777'
 
 RESPONSES = {
     'script': ('scripts.generate()', {
         'id': SCRIPT_ID,
         'ref': {'kind': 'script', 'id': SCRIPT_ID},
+        'format': 3,
         'content': {
+            'schema_version': 3,
             'concept': {'name': 'Morning commute'},
-            'clips': [{'id': 'C01', 'duration_ms': 10000}],
+            'duration_ms': 15000,
+            'roles': [{'id': 'host', 'name': 'Commuter', 'description': 'Office worker in her late twenties', 'speaks': True}],
+            'panels': [{
+                'id': 'P01', 'beat_id': 'B01', 'on_screen': ['host', 'product'],
+                'action': 'She pours hot coffee into the cup at the door.',
+                'lines': [{'id': 'L01', 'speaker': 'host', 'mode': 'on_camera', 'text': 'Still hot when I get to work.'}],
+                'notes': '',
+            }],
         },
     }),
-    'prompts': ('prompts.generate()', {
-        'prompts': [{
-            'id': PROMPT_ID,
-            'data': {
-                'prompt': 'Show the cup in <Picture 1> on a morning commute.',
-                'image_asset_ids': [IMAGE_ID],
-                'seconds': 10,
-                'ratio': '9:16',
-            },
-        }],
+    'storyboard': ('storyboards.generate()', {
+        'id': STORYBOARD_ID,
+        'ref': {'kind': 'storyboard', 'id': STORYBOARD_ID},
+        'content': {
+            'script': SCRIPT_ID,
+            'cast': {'host': {'character': CHARACTER_ID, 'voice': 'character'}},
+            'direction': 'Phone selfie look, bright kitchen, natural sound, no music.',
+            'clips': [{
+                'id': 'C01', 'duration_ms': 8000,
+                'shots': [
+                    'Close-up: {{host}} fills {{product}} at the kitchen counter.',
+                    'Medium shot: {{host}} lifts the cup to the camera and says {{L01}}',
+                ],
+            }],
+        },
     }),
     'job': ('videos.generate()', {
         'id': JOB_ID,

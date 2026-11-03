@@ -31,7 +31,7 @@ export function resourcesForSession(
 }
 export function resourcesForTab(
   records: KnownResource[],
-  tab: "script" | "prompt" | "job" | "asset",
+  tab: "script" | "storyboard" | "prompt" | "job" | "asset",
 ) {
   const registeredFinals = new Set(
     records

@@ -50,7 +50,9 @@ const script = {
   base_id: null,
   batch_id: id(4),
   data: { text: "fixture", product: id(1) },
-  content,
+  // A Script saved before Storyboards reads as a read-only legacy ScriptPackage.
+  format: 2,
+  legacy: content,
   entities: { [id(1)]: { id: id(1) } },
   assets: {},
   skills: {},

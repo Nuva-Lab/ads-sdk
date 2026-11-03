@@ -48,11 +48,12 @@ test('video target has separate provenance and leaves the observed contract inta
 	const observed = JSON.parse(await readFile(new URL('../schema/backend.openapi.json', import.meta.url), 'utf8'));
 	const target = JSON.parse(raw).components.schemas;
 	assert.equal(createHash('sha256').update(raw).digest('hex'), source.sha256);
-	assert.equal(source.commit, '47b9f5fa0844fa1ccfd78d5c98e7ed7853fd8007');
-	assert.equal(source.pullRequest, 'https://github.com/Nuva-Lab/WhatIf/pull/2374');
+	// A target records the backend change it comes from; `pending` is allowed only until release (check-tag.mjs).
+	assert.match(source.commit, /^([0-9a-f]{40}|pending)$/);
+	assert.match(source.pullRequest, /^(https:\/\/github\.com\/Nuva-Lab\/WhatIf\/pull\/\d+|pending)$/);
 	assert.match(source.status, /target-only/);
 	assert.equal(observed.components.schemas.GenerateVideo.properties.input, undefined);
-	assert.equal(target.GenerateVideo.oneOf.length, 2);
+	assert.equal(target.GenerateVideo.oneOf.length, 3);
 	for (const name of Object.keys(target).filter((name) => !source.overlaySchemas.includes(name)))
 		assert.deepEqual(target[name], observed.components.schemas[name], `${name} dependency must stay equal to the observed schema`);
 });
@@ -71,6 +72,10 @@ test('saved ID and raw input accept the backend null/omission and option boundar
 		assert.equal(parsed.input.data.prompt, 'Raw text');
 		assert.deepEqual(parsed.input.relationships, relationships);
 	}
+	const clip = { storyboard: { id, clip: 'C02' } };
+	assert.deepEqual(schema.parse(clip), { ...clip, seed: 0 });
+	for (const bad of [{ storyboard: { id, clip: '2' } }, { ...clip, prompt: id }, { ...clip, input }, { storyboard: { id } }])
+		assert.equal(schema.safeParse(bad).success, false, JSON.stringify(bad));
 	const boundaries = { ...data, prompt: 'x'.repeat(10000), image_asset_ids: Array(9).fill(id), video_asset_ids: Array(3).fill(id), audio_asset_ids: Array(3).fill(id), characters: Array(10).fill(id), seconds: 15 };
 	// Cross-list model limits and Asset ownership/kinds remain backend checks.
 	assert.equal(schema.safeParse({ input: { schema_version: 1, data: boundaries, relationships: Array(100).fill(relationships[0]) } }).success, true);
@@ -171,11 +176,12 @@ test('backend validation failures preserve reference paths and idempotency confl
 	}
 });
 
-test('Prompt partial receipts retain relationships and still reject Plan associations', () => {
+test('Storyboard partial receipts retain each Prompt\'s relationships and require one based on that Storyboard', () => {
 	const info = { code: 'PARTIAL_CREATION', message: 'Saved one Prompt', retryable: false };
-	const error = new PartialCreationError(info, { prompts: [savedPrompt] });
-	assert.deepEqual(error.saved.prompts[0].relationships, relationships);
-	const planned = { ...savedPrompt, relationships: [{ type: 'based_on', target: { kind: 'directing_plan', id } }] };
-	assert.throws(() => new PartialCreationError(info, { prompts: [planned] }), (error) => error.code === 'SERVICE_ERROR');
-	assert.throws(() => new PartialCreationError(info, { prompts: [{ ...savedPrompt, data: { ...data, plan: id } }] }), (error) => error.code === 'SERVICE_ERROR');
+	const storyboard = { ...savedPrompt, kind: 'storyboard', id, lineage_id: id, data: { text: 'Encoded Storyboard' }, relationships };
+	const compiled = { ...savedPrompt, relationships: [...relationships, { type: 'based_on', target: { kind: 'storyboard', id } }] };
+	const error = new PartialCreationError(info, { storyboard, prompts: [compiled] });
+	assert.deepEqual(error.saved.prompts[0].relationships, compiled.relationships);
+	assert.throws(() => new PartialCreationError(info, { storyboard, prompts: [savedPrompt] }), (error) => error.code === 'SERVICE_ERROR');
+	assert.throws(() => new PartialCreationError(info, { storyboard, prompts: [{ ...compiled, data: { ...data, plan: id } }] }), (error) => error.code === 'SERVICE_ERROR');
 });

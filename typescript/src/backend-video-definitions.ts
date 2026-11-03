@@ -1,4 +1,4 @@
-// Generated from ads_backend/openapi.json at 47b9f5fa0844fa1ccfd78d5c98e7ed7853fd8007. PR target only; deployment not asserted. Do not edit.
+// Generated from ads_backend/openapi.json at pending. PR target only; deployment not asserted. Do not edit.
 import type { z } from "zod";
 export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.fromJSONSchema>[0], boolean>> = {
   "AdCreate": {
@@ -264,6 +264,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
           "product",
           "character",
           "script",
+          "storyboard",
           "directing_plan",
           "prompt",
           "skill"
@@ -285,6 +286,83 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "id"
     ],
     "title": "ArtifactTarget"
+  },
+  "AssetCreate": {
+    "properties": {
+      "upload_token": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Upload Token",
+        "description": "From POST /v1/assets/uploads."
+      },
+      "url": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 2048
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Url",
+        "description": "An http(s) URL to fetch."
+      },
+      "kind": {
+        "anyOf": [
+          {
+            "type": "string",
+            "enum": [
+              "image",
+              "video",
+              "audio"
+            ]
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Kind",
+        "description": "Required with `url`."
+      },
+      "label": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Label",
+        "description": "A short name for what the file shows, e.g. which part of a product package."
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description",
+        "description": "A longer description of what the file shows. Registering the same file again with a label or description replaces it."
+      }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "title": "AssetCreate"
   },
   "AssetOut": {
     "properties": {
@@ -318,6 +396,30 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "type": "object",
         "title": "Metadata",
         "description": "width and height for images; duration_ms otherwise."
+      },
+      "label": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Label",
+        "description": "A short name for what the file shows, given at upload."
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description",
+        "description": "A longer description of what the file shows, given at upload."
       },
       "created_at": {
         "type": "string",
@@ -864,6 +966,9 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
           },
           "input": {
             "type": "null"
+          },
+          "storyboard": {
+            "type": "null"
           }
         },
         "type": "object",
@@ -878,11 +983,31 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
           },
           "prompt": {
             "type": "null"
+          },
+          "storyboard": {
+            "type": "null"
           }
         },
         "type": "object",
         "required": [
           "input"
+        ]
+      },
+      {
+        "properties": {
+          "storyboard": {
+            "type": "object"
+          },
+          "prompt": {
+            "type": "null"
+          },
+          "input": {
+            "type": "null"
+          }
+        },
+        "type": "object",
+        "required": [
+          "storyboard"
         ]
       }
     ],
@@ -933,6 +1058,17 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
           }
         ],
         "description": "Raw Prompt v1 content to save atomically with this Job."
+      },
+      "storyboard": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/StoryboardClip"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "A Storyboard clip: the job renders the Prompt compiled for that clip."
       },
       "callback_url": {
         "anyOf": [
@@ -1285,6 +1421,19 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "title": "Characters",
         "description": "Character versions that appear: `revision`s.",
         "default": []
+      },
+      "clip_id": {
+        "anyOf": [
+          {
+            "type": "string",
+            "pattern": "^C\\d{2}$"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Clip Id",
+        "description": "The Storyboard clip this prompt renders, for a prompt based on a Storyboard."
       }
     },
     "additionalProperties": false,
@@ -1596,5 +1745,236 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     ],
     "title": "SkillRef",
     "description": "A Skill version a row refers to, to read it with GET /v1/skills/{id}/versions/{version}."
+  },
+  "Storyboard": {
+    "properties": {
+      "kind": {
+        "type": "string",
+        "const": "storyboard",
+        "title": "Kind"
+      },
+      "id": {
+        "type": "string",
+        "format": "uuid",
+        "title": "Id",
+        "description": "This version's id."
+      },
+      "lineage_id": {
+        "type": "string",
+        "format": "uuid",
+        "title": "Lineage Id",
+        "description": "The first version's id."
+      },
+      "base_id": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Base Id",
+        "description": "The version this one was edited from."
+      },
+      "schema_version": {
+        "type": "integer",
+        "title": "Schema Version"
+      },
+      "data": {
+        "$ref": "#/$defs/StoryboardDataV1"
+      },
+      "batch_id": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Batch Id"
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At"
+      },
+      "relationships": {
+        "items": {
+          "$ref": "#/$defs/ArtifactRelationship"
+        },
+        "type": "array",
+        "title": "Relationships",
+        "description": "Where it comes from, by type and then target id."
+      },
+      "assets": {
+        "additionalProperties": {
+          "$ref": "#/$defs/AssetOut"
+        },
+        "propertyNames": {
+          "format": "uuid"
+        },
+        "type": "object",
+        "title": "Assets",
+        "description": "The assets `data` or `relationships` refer to, with download URLs."
+      },
+      "entities": {
+        "additionalProperties": {
+          "$ref": "#/$defs/EntityRef"
+        },
+        "propertyNames": {
+          "format": "uuid"
+        },
+        "type": "object",
+        "title": "Entities",
+        "description": "Entity versions in `data` or `relationships`, keyed by revision."
+      },
+      "skills": {
+        "additionalProperties": {
+          "$ref": "#/$defs/SkillRef"
+        },
+        "propertyNames": {
+          "format": "uuid"
+        },
+        "type": "object",
+        "title": "Skills",
+        "description": "Skill versions in `data` or `relationships`, keyed by version id."
+      }
+    },
+    "type": "object",
+    "required": [
+      "kind",
+      "id",
+      "lineage_id",
+      "base_id",
+      "schema_version",
+      "data",
+      "batch_id",
+      "created_at",
+      "relationships",
+      "assets",
+      "entities",
+      "skills"
+    ],
+    "title": "Storyboard"
+  },
+  "StoryboardClip": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "format": "uuid",
+        "title": "Id",
+        "description": "A Storyboard ID."
+      },
+      "clip": {
+        "type": "string",
+        "pattern": "^C\\d{2}$",
+        "title": "Clip",
+        "description": "One of its clips, e.g. C01."
+      }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+      "id",
+      "clip"
+    ],
+    "title": "StoryboardClip"
+  },
+  "StoryboardCreate": {
+    "properties": {
+      "schema_version": {
+        "type": "integer",
+        "title": "Schema Version",
+        "description": "Only 1 is accepted."
+      },
+      "data": {
+        "$ref": "#/$defs/StoryboardDataV1"
+      },
+      "batch_id": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Batch Id",
+        "description": "The batch it is made in; one of the caller's."
+      },
+      "relationships": {
+        "items": {
+          "$ref": "#/$defs/ArtifactRelationship"
+        },
+        "type": "array",
+        "maxItems": 100,
+        "title": "Relationships",
+        "description": "Where it comes from."
+      }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+      "schema_version",
+      "data"
+    ],
+    "title": "StoryboardCreate"
+  },
+  "StoryboardDataV1": {
+    "properties": {
+      "text": {
+        "type": "string",
+        "maxLength": 65536,
+        "minLength": 1,
+        "title": "Text",
+        "description": "How a Script is shot: casting, locations, timed shots and each clip's references, encoded by the SDK (`nuva.storyboard`). It is `based_on` its Script and the Characters it casts."
+      }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+      "text"
+    ],
+    "title": "StoryboardDataV1"
+  },
+  "StoryboardVersionCreate": {
+    "properties": {
+      "data": {
+        "$ref": "#/$defs/StoryboardDataV1"
+      },
+      "batch_id": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Batch Id",
+        "description": "The batch it is made in; one of the caller's."
+      },
+      "relationships": {
+        "items": {
+          "$ref": "#/$defs/ArtifactRelationship"
+        },
+        "type": "array",
+        "maxItems": 100,
+        "title": "Relationships",
+        "description": "Where it comes from. Omit to keep the base's; [] clears them."
+      }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+      "data"
+    ],
+    "title": "StoryboardVersionCreate"
   }
 };

@@ -31,9 +31,10 @@ export class NuvaError extends Error implements NuvaErrorInfo {
 	}
 }
 
-/** Records already persisted before a later Prompt creation failed. These are
- * validated raw backend records, not a successful generation response. */
+/** Records already persisted before a later write failed: a saved Storyboard and the clip Prompts compiled so far.
+ * These are validated raw backend records, not a successful generation response. */
 export interface PartialCreationSaved {
+	storyboard: BackendSchemas['Storyboard'];
 	prompts: BackendSchemas['Prompt'][];
 }
 export class PartialCreationError extends NuvaError {
@@ -41,19 +42,21 @@ export class PartialCreationError extends NuvaError {
 	readonly saved: PartialCreationSaved;
 	constructor(info: NuvaErrorInfo, saved: unknown) {
 		const parsed = z
-			.object({ prompts: z.array(backendSchema('Prompt')) })
+			.object({ storyboard: backendSchema('Storyboard'), prompts: z.array(backendSchema('Prompt')) })
 			.strict()
 			.safeParse(saved);
 		if (
 			!parsed.success ||
 			parsed.data.prompts.some(
-				(prompt) => prompt.schema_version !== 1 || prompt.relationships.some((relationship) => relationship.target.kind === 'directing_plan'),
+				(prompt) =>
+					prompt.schema_version !== 1 ||
+					!prompt.relationships.some((relationship) => relationship.target.kind === 'storyboard' && relationship.target.id === parsed.data.storyboard.id),
 			) ||
 			new Set(parsed.data.prompts.map((prompt) => prompt.id)).size !== parsed.data.prompts.length
 		)
 			throw new NuvaError({
 				code: 'SERVICE_ERROR',
-				message: 'Invalid partial Prompt records; expected unique independent Prompts without Plan associations.',
+				message: 'Invalid partial records; expected a Storyboard and unique Prompts based on it.',
 				retryable: false,
 				...(info.requestId === undefined ? {} : { requestId: info.requestId }),
 				acceptance: 'unknown',

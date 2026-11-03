@@ -4,8 +4,9 @@ import { Transport, isWriteMethod } from './transport.js';
 import { NuvaError, PartialCreationError, ProductImageUploadError } from './errors.js';
 import { frozen, stableJSON } from './protocol.js';
 import { backendSchema } from './backend-schema.js';
-import { encodeScriptPackage, decodeScriptPackage } from './script-content.js';
-import { PromptSchema, generateScriptSchema, generatePromptSchema } from './schemas.js';
+import { decodeScriptPackage } from './script-content.js';
+import { PromptSchema, generateScriptSchema, generateStoryboardSchema } from './schemas.js';
+import { decodeScript, decodeStoryboard, encodeScript, scriptVersion, type ScriptContent } from './script-v3.js';
 import type { BackendSchemas as B } from './backend-target.js';
 import type { NuvaClientOptions, NuvaErrorInfo, ResourceRef, ResourceLink } from './types.js';
 import type {
@@ -17,10 +18,11 @@ import type {
 	JobState,
 	Asset,
 	Script,
+	Storyboard,
 	Prompt,
 	ResultOptions,
 } from './stores.js';
-const kinds = { script: 'Script', directing_plan: 'DirectingPlan', prompt: 'Prompt' } as const;
+const kinds = { script: 'Script', storyboard: 'Storyboard', directing_plan: 'DirectingPlan', prompt: 'Prompt' } as const;
 function checked<T>(schema: { parse(v: unknown): T }, value: unknown, input = false): T {
 	try {
 		return schema.parse(value);
@@ -104,7 +106,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 	});
 	const resource = decorated;
 	function artifact(v: unknown, expected?: ResourceRef): BackendArtifact {
-		const kind = z.object({ kind: z.enum(['script', 'directing_plan', 'prompt']) }).parse(v).kind;
+		const kind = z.object({ kind: z.enum(['script', 'storyboard', 'directing_plan', 'prompt']) }).parse(v).kind;
 		const version = z.object({ schema_version: z.number().int().positive() }).parse(v).schema_version;
 		const raw =
 			version === 1
@@ -247,7 +249,8 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 			},
 		};
 	}
-	const assetParser = resource('AssetOut', 'asset');
+	// An Asset's own label (or null) is kept; display code falls back to its ID.
+	const assetParser = { parse: (v: unknown) => { const raw = backendSchema('AssetOut').parse(v); return { ...raw, ref: { kind: 'asset' as const, id: raw.id } }; } };
 	const getJob = (id: string) => dto('jobs.get', { id }, 'JobOut');
 	function subscribe(id: string, listener: (s: JobState) => void, onError?: (e: NuvaErrorInfo) => void) {
 		if (closed) throw new NuvaError({ code: 'CONNECTION_ERROR', message: 'Client closed.', retryable: false });
@@ -282,24 +285,30 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 		if (a.ref.kind !== 'script' || a.schemaVersion !== 1)
 			throw new NuvaError({ code: 'UNSUPPORTED_SCHEMA', message: 'Expected script@1.', retryable: false });
 		const data = checked(backendSchema('ScriptDataV1'), a.data);
+		const base = { ...(a as BackendArtifact), kind: 'script' as const, ref: { kind: 'script' as const, id: a.ref.id }, data };
+		// Scripts saved before Storyboards are read-only v2 ScriptPackages.
+		return scriptVersion(data.text) === 2
+			? { ...base, format: 2, legacy: checked({ parse: decodeScriptPackage }, data.text) }
+			: { ...base, format: 3, content: checked({ parse: decodeScript }, data.text) };
+	};
+	const typedStoryboard = (a: Artifact): Storyboard => {
+		if (a.ref.kind !== 'storyboard' || a.schemaVersion !== 1)
+			throw new NuvaError({ code: 'UNSUPPORTED_SCHEMA', message: 'Expected storyboard@1.', retryable: false });
+		const data = checked(backendSchema('StoryboardDataV1'), a.data);
 		return {
 			...(a as BackendArtifact),
-			kind: 'script',
-			ref: { kind: 'script', id: a.ref.id },
+			kind: 'storyboard',
+			ref: { kind: 'storyboard', id: a.ref.id },
 			data,
-			content: checked({ parse: decodeScriptPackage }, data.text),
-		};
+			content: checked({ parse: decodeStoryboard }, data.text),
+		} as Storyboard;
 	};
-	const writeScript = (input: {
-		content: import('./stores.js').ScriptPackage;
-		relationships?: never;
-		batch_id?: string | null;
-	}) => {
+	const writeScript = (input: { content: ScriptContent; relationships?: never; batch_id?: string | null }) => {
 		assertClientRelationships(input);
 		const { content, batch_id, ...unexpected } = input;
 		if (Object.keys(unexpected).length)
 			throw new NuvaError({ code: 'INVALID_INPUT', message: 'Script inputs accept content and an optional batch_id.', retryable: false });
-		return { data: { text: encodeScriptPackage(content) }, ...(batch_id === undefined ? {} : { batch_id }) };
+		return { data: { text: checked({ parse: encodeScript }, content, true) }, ...(batch_id === undefined ? {} : { batch_id }) };
 	};
 	const prompts = artifacts.forSchema(PromptSchema);
 	const api: StoreClients = {
@@ -366,6 +375,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 			uploadIntent: (input, o) =>
 				dto('assets.uploadIntent', checked(backendSchema('UploadRequest'), input, true), 'UploadOut', o?.requestId),
 			upload: async (file, o) => {
+				const text = { ...(o?.label === undefined ? {} : { label: o.label }), ...(o?.description === undefined ? {} : { description: o.description }) };
 				const prefix = file.type.split('/')[0];
 				const kind = o?.kind ?? (prefix === 'image' || prefix === 'video' || prefix === 'audio' ? prefix : undefined);
 				if (!kind) throw new NuvaError({ code: 'INVALID_INPUT', message: 'Specify the media kind for this upload.', retryable: false });
@@ -373,7 +383,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 				if (file.size > intent.max_bytes)
 					throw new NuvaError({ code: 'INVALID_INPUT', message: 'Upload exceeds backend max_bytes.', retryable: false });
 				await transport.upload(intent.upload_url, file);
-				return api.assets.register({ upload_token: intent.upload_token }, o);
+				return api.assets.register({ upload_token: intent.upload_token, ...text }, o);
 			},
 		},
 		scripts: {
@@ -405,29 +415,14 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 			get: async (ref) => (await prompts.get(ref)) as Prompt,
 			create: async (input, o) => (await prompts.create(input, o)) as Prompt,
 			update: async (ref, input, o) => (await prompts.update(ref, input, o)) as Prompt,
+		},
+		storyboards: {
+			get: async (ref) => typedStoryboard(await artifacts.get(ref)),
 			generate: (input, o) =>
 				request(
-					'prompts.generate',
-					checked(generatePromptSchema, input, true),
-					{
-						parse: (v) => {
-							const raw = z
-								.object({ prompts: z.array(backendSchema('Prompt')).min(1) })
-								.strict()
-								.parse(v);
-							if (
-								new Set(raw.prompts.map((prompt) => prompt.id)).size !== raw.prompts.length ||
-								raw.prompts.some((prompt) => prompt.relationships.some((relationship) => relationship.target.kind === 'directing_plan'))
-							)
-								throw new NuvaError({
-									code: 'SERVICE_ERROR',
-									message: 'Generation must return unique independent Prompts without Plan associations.',
-									retryable: false,
-									acceptance: 'unknown',
-								});
-							return { prompts: raw.prompts.map((v) => artifact(v) as Prompt) };
-						},
-					},
+					'storyboards.generate',
+					checked(generateStoryboardSchema, input, true),
+					{ parse: (v) => typedStoryboard(artifact(v)) },
 					o?.requestId,
 					o?.idempotencyKey,
 				),

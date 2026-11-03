@@ -347,3 +347,25 @@ func TestExternalNavigationOnlyOpensStaticDocument(t *testing.T) {
 		t.Fatal("external navigation issued a user token")
 	}
 }
+
+func TestPublicPathAllowsStoryboardWritingNotPromptGeneration(t *testing.T) {
+	for _, c := range []struct {
+		service, path, method string
+		allowed               bool
+	}{
+		{"generation", "v1/generate/script", "POST", true},
+		{"generation", "v1/generate/storyboard", "POST", true},
+		{"generation", "v1/generate/prompt", "POST", false},
+		{"generation", "v1/generate/storyboard", "GET", false},
+		{"store", "v1/generate/video", "POST", true},
+		{"store", "v1/artifacts/storyboard/id", "GET", true},
+		{"store", "v1/characters", "POST", true},
+		{"store", "v1/characters/id", "PATCH", true},
+		{"store", "v1/assets/uploads", "POST", true},
+		{"store", "v1/admin/tokens", "POST", false},
+	} {
+		if got := publicPath(c.service, c.path, c.method); got != c.allowed {
+			t.Errorf("publicPath(%q, %q, %q) = %v, want %v", c.service, c.path, c.method, got, c.allowed)
+		}
+	}
+}

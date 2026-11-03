@@ -1,5 +1,6 @@
 import { setText, msg, setAttribute, UiError } from "./i18n.js";
 import { option } from "./ui.js";
+import { assetText } from "./storyboard-model.js";
 import { icon } from "./icons.js";
 import type { NuvaClient, Product, ResourceLink } from "@nuva/sdk";
 import {
@@ -365,6 +366,8 @@ export async function renderProduct(
           tile = node("div");
         if (asset) tile.append(media(asset.download_url, "image"));
         else tile.append(node("p", msg("Image access unavailable")));
+        const label = assetText(asset).label;
+        if (label) tile.append(node("p", label, "image-label"));
         tile.append(node("p", id, "resource-id"));
         gallery.append(tile);
       }
@@ -374,7 +377,15 @@ export async function renderProduct(
       upload.accept = "image/png,image/jpeg,image/webp";
       setAttribute(upload, "aria-label", msg("Upload Product image"));
       upload.hidden = true;
+      // What the next image shows, e.g. which side of the package; writers read it.
+      const imageLabel = field(msg("Image label (optional)"));
+      imageLabel.input.name = "image-label";
+      const imageDescription = field(msg("Image description (optional)"));
+      imageDescription.input.name = "image-description";
+      const imageText = node("div", "", "row image-text-fields");
+      imageText.append(imageLabel.wrapper, imageDescription.wrapper);
       editor.append(
+        imageText,
         button(msg("Add image"), () => upload.click(), "", "plus"),
         upload,
         node("p", msg("Save changes before adding images."), "muted"),
@@ -397,8 +408,10 @@ export async function renderProduct(
           upload.disabled = true;
           save.disabled = true;
           try {
-            const result = await sdk.products.uploadImage({ base, file });
-            current = result.product;
+            current = await uploadProductImage(sdk, base, file, {
+              label: imageLabel.input.value.trim(),
+              description: imageDescription.input.value.trim(),
+            });
             pick(current);
             upsert(current);
             draw();
@@ -418,4 +431,46 @@ export async function renderProduct(
   }
   drawGallery();
   if (openSelected && selected) await show(selected);
+}
+
+/**
+ * Uploads an image and attaches it to the Product. With a label or description, the image is uploaded with them
+ * and attached the way `products.uploadImage` attaches it (that call cannot pass them).
+ */
+export async function uploadProductImage(
+  sdk: Pick<NuvaClient, "products" | "assets">,
+  base: Product,
+  file: File,
+  text: { label: string; description: string },
+): Promise<Product> {
+  if (!text.label && !text.description)
+    return (await sdk.products.uploadImage({ base, file })).product;
+  const asset = await sdk.assets.upload(file, {
+    kind: "image",
+    ...(text.label ? { label: text.label } : {}),
+    ...(text.description ? { description: text.description } : {}),
+  });
+  const images = base.data.images ?? [];
+  const attached = images.includes(asset.id);
+  if (!attached && images.length >= 20)
+    throw new UiError(
+      msg(
+        "This Product already has 20 images. The uploaded image {p0} is kept but not attached.",
+        { p0: asset.id },
+      ),
+    );
+  try {
+    return await sdk.products.update({
+      base,
+      data: { ...base.data, images: attached ? images : [...images, asset.id] },
+      brand_id: base.brand_id,
+    });
+  } catch (error) {
+    throw new UiError(
+      msg("The image was uploaded ({p0}) but could not be attached: {p1}", {
+        p0: asset.id,
+        p1: (error as Error).message,
+      }),
+    );
+  }
 }

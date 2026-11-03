@@ -102,6 +102,7 @@ test("a lost response keeps the original operation key and refuses changed input
 test("gallery tabs keep clip and input Assets out of Finals and deduplicate registered final videos", () => {
   const records = [
     { ref: { kind: "script", id: "script" }, label: "Script", sessionId: "s" },
+    { ref: { kind: "storyboard", id: "storyboard" }, label: "Storyboard", sessionId: "s" },
     { ref: { kind: "job", id: "job" }, label: "Clip", sessionId: "s" },
     {
       ref: { kind: "asset", id: "input" },
@@ -136,12 +137,16 @@ test("gallery tabs keep clip and input Assets out of Finals and deduplicate regi
     ["job"],
   );
   assert.deepEqual(
+    resourcesForTab(records, "storyboard").map((r) => r.ref.id),
+    ["storyboard"],
+  );
+  assert.deepEqual(
     resourcesForTab(records, "asset").map((r) => r.ref.id),
     ["ad"],
   );
   const [refreshed] = mergeResources(
-    [records[3]],
-    [{ ref: records[3].ref, label: "Clip", sessionId: "s" }],
+    [records[4]],
+    [{ ref: records[4].ref, label: "Clip", sessionId: "s" }],
   );
   assert.equal(refreshed.purpose, "clip");
 });

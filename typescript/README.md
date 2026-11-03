@@ -1,4 +1,4 @@
-# TypeScript SDK (0.1.0-preview.3)
+# TypeScript SDK (0.1.0-preview.4)
 
 `@nuva/sdk` provides Agent chat, resource management and ad-creation APIs for TypeScript applications.
 
@@ -7,7 +7,7 @@
 Install the SDK package supplied with your integration:
 
 ```sh
-pnpm add /path/to/release/nuva-sdk-0.1.0-preview.3.tgz
+pnpm add /path/to/release/nuva-sdk-0.1.0-preview.4.tgz
 ```
 
 ## Connect and authenticate
@@ -47,8 +47,15 @@ const revised = await nuva.scripts.generate({
   acceptable_duration_ms: {min: 5000, max: 15000},
   instruction: 'Shorten the opening while preserving the original meaning.',
 });
-const {prompts} = await nuva.prompts.generate({script: revised.id, ratio: '9:16'});
-const job = await nuva.videos.generate({prompt: prompts[0]!.id});
+const photo = await nuva.assets.upload(photoFile, {kind: 'image', label: 'Mia, front'});
+const voice = await nuva.assets.upload(voiceFile, {kind: 'audio'});
+// A Character keeps the person the same in every clip.
+const character = await nuva.characters.create({
+  data: {name: 'Mia', description: 'Late twenties, warm.', image_asset_ids: [photo.id], voice_asset_id: voice.id},
+});
+// `host` is a role ID from revised.content.roles.
+const storyboard = await nuva.storyboards.generate({script: revised.id, cast: {host: character.id}, ratio: '9:16'});
+const job = await nuva.videos.generate({storyboard: {id: storyboard.id, clip: storyboard.content.clips[0]!.id}});
 const state = await nuva.jobs.get(job.id);
 // Acceptance is not completion. Poll/subscribe or await job.result({timeoutMs}).
 ```
@@ -57,11 +64,23 @@ Brand/Product/Character records retain continuing `id`, numeric `version`, exact
 
 Backend resource IDs are canonical GUID-shaped identifiers, including backend OrderedUUID values without RFC version/variant bits. `backendIdSchema` accepts that shape. Session/request identifiers retain their separate protocol rules.
 
-Scripts use `script@1`; `data.text` contains the validated version-2 ScriptPackage encoding. Typed Script readers expose decoded `.content` and preserve backend metadata. Both codec directions enforce the backend 65,536-character limit. `scripts.create({content, batch_id?, relationships?})` also supports manually authored Scripts: Batch and source links are optional. The SDK validates their schema; the backend validates relationship targets and permissions. Product and Skill links identify exact Product revision and Skill version IDs. `scripts.update(ref,{content,...})` creates an immutable revision and retains inherited relationships.
+Scripts use `script@1`; `data.text` holds a version-3 Script (`{format: 'nuva.script', version: 3, content}`, `script-v3.ts`). A Script is the idea only: concept, `duration_ms`, beats, roles (`{id, name, description, speaks}`) and panels in order, each with `on_screen`, `action`, `fact_ids`, `lines` (`{id: 'L01', speaker: role or 'narrator', mode: 'on_camera' | 'dialogue' | 'voiceover', text}`) and free-text `notes`. It has no clips, shots, timing, voices or casting. Typed readers return `format: 3` with decoded `.content`. Scripts saved before Storyboards return `format: 2` with the old ScriptPackage in `.legacy`; they are read-only and cannot get a Storyboard. Both codec directions enforce the backend 65,536-character limit. `scripts.create({content, batch_id?, relationships?})` also supports manually authored Scripts: Batch and source links are optional. The SDK validates their schema; the backend validates relationship targets and permissions. Product and Skill links identify exact Product revision and Skill version IDs. `scripts.update(ref,{content,...})` creates an immutable revision and retains inherited relationships.
 
-Use `scripts.generate` for a direct request or ask the Agent to write and revise within a conversation. `prompts.generate` accepts a saved structured Script, whether manually authored or generated, and returns `{prompts}` in clip order. It does not require a Batch, Product link or original Script-writing Skill link. Reference media must still be accessible through the backend. Each Prompt is saved independently. If a later save fails, `PartialCreationError.saved.prompts` contains the records already saved; inspect them before retrying.
+Use `scripts.generate` for a direct request or ask the Agent to write and revise within a conversation.
 
-`videos.generate({prompt: prompt.id})` submits a saved Prompt for video generation. Alternatively, pass `input: {schema_version: 1, data: {prompt, image_asset_ids, ...}}` to create its Prompt internally. Supply exactly one of `prompt` or `input`; the returned `job.prompt` identifies the saved Prompt. Reuse the same idempotency key only for retries of that operation. Jobs expose status, error and an eventual Asset. `jobs.get`, `jobs.subscribe` and `job.result` keep submission separate from completion. Stopping chat or unsubscribing does not cancel a Job. To request best-effort cancellation, ask the Agent; cancellation is only confirmed by the backend Job status.
+A Storyboard (`storyboard@1`, `{format: 'nuva.storyboard', version: 1, content}`) is how a Script is shot: `{script, cast: {role: {character?, look?, voice?}}, direction, clips: [{id: 'C01', duration_ms, shots: [text]}]}`. Clips are 5–15 s. Shots are text with tokens: `{{role}}`, `{{role:<image asset id>}}`, `{{product}}`, `{{product:<image asset id>}}` and `{{L01}}`. Each clip's references are worked out from its tokens (`clipReferences`): the cast Character's default or named image, the Product's image, and the Character's voice file when `voice: 'character'`. A cast Character therefore keeps the same person in every clip. `storyboardIssues` runs the same checks the service runs.
+
+`storyboards.generate` takes one of three inputs:
+
+- `{script, cast?, instruction?, ratio?, batch_id?}` writes a new Storyboard. `cast` is `{role: characterId}`; the writer casts the other roles. Storyboards of one Script are shot differently from each other.
+- `{base, instruction, cast?}` asks the writer to revise a Storyboard.
+- `{content, base?}` saves a Storyboard you wrote or edited. Only clips that changed are compiled again.
+
+Each call saves the Storyboard and compiles every clip into an internal video Prompt. If the Storyboard is saved but a later clip fails, `PartialCreationError.saved` holds `{storyboard, prompts}`; retry the same input with the same idempotency key to finish. `storyboards.get(ref)` returns decoded `.content`.
+
+Assets have optional `label` and `description` saying what the file shows. Set them at upload, `assets.upload(file, {kind, label, description})` or `assets.register({upload_token | url, label?, description?})`; registering the same file again replaces them. Writers read them to tell a Product's images apart. An Asset's `label` is null when none was given.
+
+`videos.generate({storyboard: {id, clip: 'C01'}})` renders one Storyboard clip. The Job joins the Storyboard's Batch unless `batch_id` is given. For advanced use, `{prompt: promptId}` submits a saved Prompt and `input: {schema_version: 1, data: {prompt, image_asset_ids, ...}}` creates its Prompt internally. Supply exactly one of `storyboard`, `prompt` or `input`; the returned `job.prompt` identifies the Prompt rendered. Reuse the same idempotency key only for retries of that operation. Jobs expose status, error and an eventual Asset. `jobs.get`, `jobs.subscribe` and `job.result` keep submission separate from completion. Stopping chat or unsubscribing does not cancel a Job. To request best-effort cancellation, ask the Agent; cancellation is only confirmed by the backend Job status.
 
 Edit and postprocess clips in your own editor. Upload the finished video and attach its Asset reference to the same Agent Session, with any optional editing notes or structured details. The Agent handles Ad registration and returns the Ad ID. Include the source clips, trim ranges and editing settings needed to describe the final composition.
 
@@ -69,14 +88,15 @@ Request deadlines are separate from waiting for a video Job:
 
 | Operation | Default request timeout |
 | --- | --- |
-| `scripts.generate`, `prompts.generate`, `assets.register`, and uploading file bytes | 180 seconds |
-| Other requests, including Script/Prompt create/update, upload-intent creation, video submission, control requests and reads | 8 seconds |
+| `storyboards.generate` (it writes the Storyboard and compiles every clip) | 300 seconds |
+| `scripts.generate`, `assets.register`, and uploading file bytes | 180 seconds |
+| Other requests, including Script create/update, upload-intent creation, video submission, control requests and reads | 8 seconds |
 
 Set `requestTimeoutMs` to override these request deadlines. `job.result({timeoutMs})` controls how long the client waits for completion; it does not change the Job's lifetime. Save each accepted Job ID before waiting. A timed-out write may still complete on the server: keep its operation key and inspect that operation before deciding whether to retry.
 
 ## Reads, media and operation identity
 
-Use `assets.get`, `scripts.get(ref)`, `prompts.get(ref)`, `jobs.get`, `ads.get/list`, `batches.get/list` and `skills.get/list/version`. Lists expose both `next_cursor` and `nextCursor`. Retain the Script, Prompt, Asset and Job IDs returned by calls or Agent resource cards so you can read them later.
+Use `assets.get`, `scripts.get(ref)`, `storyboards.get(ref)`, `prompts.get(ref)`, `jobs.get`, `ads.get/list`, `batches.get/list` and `skills.get/list/version`. Lists expose both `next_cursor` and `nextCursor`. Retain the Script, Storyboard, Asset and Job IDs returned by calls or Agent resource cards so you can read them later.
 
 Asset uploads send bytes to the authorized upload URL without backend bearer headers or redirects. Expired media URLs should be refreshed through an authorized read of the same resource, including entity sidecars where applicable. Metadata is not a new access grant.
 

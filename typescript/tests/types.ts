@@ -28,14 +28,27 @@ import { PartialCreationError } from '@nuva/sdk';
 declare const creationFailure: unknown;
 if (creationFailure instanceof PartialCreationError) {
 	const code: 'PARTIAL_CREATION' = creationFailure.code;
-	// @ts-expect-error Independent Prompt generation has no Plan receipt.
+	// @ts-expect-error A Storyboard receipt has no Plan.
 	creationFailure.saved.plan;
+	const savedStoryboardId: string = creationFailure.saved.storyboard.id;
 	const savedPromptIds: string[] = creationFailure.saved.prompts.map((prompt) => prompt.id);
-	void [code, savedPromptIds];
+	void [code, savedStoryboardId, savedPromptIds];
 }
 
 // @ts-expect-error The generation service accepts omission, not an explicit null ratio.
-void client.prompts.generate({ script: '00000000-0000-4000-8000-000000000001', ratio: null });
+void client.storyboards.generate({ script: '00000000-0000-4000-8000-000000000001', ratio: null });
+// @ts-expect-error Prompts are compiled by Storyboards; there is no prompts.generate.
+void client.prompts.generate({ script: '00000000-0000-4000-8000-000000000001' });
+const storyboard: Promise<import('@nuva/sdk').Storyboard> = client.storyboards.generate({ base: '00000000-0000-4000-8000-000000000001', instruction: 'Shorter' });
+void storyboard.then((board) => {
+	const shots: string[] = board.content.clips[0]!.shots;
+	void client.videos.generate({ storyboard: { id: board.id, clip: 'C01' } });
+	// @ts-expect-error A Storyboard clip and a saved Prompt cannot both be supplied.
+	void client.videos.generate({ storyboard: { id: board.id, clip: 'C01' }, prompt: 'saved-id' });
+	void shots;
+});
+declare const upload: File;
+void client.assets.upload(upload, { kind: 'image', label: 'Box front', description: 'The front of the gift box' });
 
 // @ts-expect-error Batch creation is Agent-only.
 client.batches.create({ intent: 'forbidden' });
@@ -114,8 +127,13 @@ const oldScriptData: BackendSchemas['ScriptDataV1'] = { text: 'Draft', product: 
 // @ts-expect-error Plan v1 now requires text content.
 const oldPlanData: BackendSchemas['DirectingPlanDataV1'] = { script: 'id', specs: [] };
 // @ts-expect-error The typed Script writer does not accept Product-source metadata.
-void client.scripts.create({ content: {} as import('@nuva/sdk').ScriptPackage, product: 'revision' });
-void client.scripts.create({ content: {} as import('@nuva/sdk').ScriptPackage, relationships: [{ type: 'based_on', target: { kind: 'product', id: 'revision-id' } }] });
+void client.scripts.create({ content: {} as import('@nuva/sdk/schemas').ScriptContent, product: 'revision' });
+void client.scripts.create({ content: {} as import('@nuva/sdk/schemas').ScriptContent, relationships: [{ type: 'based_on', target: { kind: 'product', id: 'revision-id' } }] });
+// @ts-expect-error v2 ScriptPackages are read-only; Scripts are written as v3.
+void client.scripts.create({ content: script });
+declare const readScript: import('@nuva/sdk').Script;
+if (readScript.format === 3) void readScript.content.panels;
+else void readScript.legacy.clips;
 
 // @ts-expect-error Raw video clients cannot write relationship edges.
 void client.videos.generate({ input: { schema_version: 1, data: { prompt: 'clip', image_asset_ids: ['id'] }, relationships: artifactSources } });

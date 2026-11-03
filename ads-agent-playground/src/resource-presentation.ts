@@ -27,6 +27,7 @@ const labels: Record<string, string> = {
   brand: "Brand",
   character: "Character",
   script: "Script",
+  storyboard: "Storyboard",
   directing_plan: "Directing plan",
   prompt: "Video prompt",
   batch: "Batch",
@@ -40,6 +41,7 @@ const icons: Record<string, IconName> = {
   brand: "layers",
   character: "subject",
   script: "document",
+  storyboard: "board",
   directing_plan: "layers",
   prompt: "edit",
   batch: "folder",
@@ -79,7 +81,8 @@ function imageURL(value: unknown): string | undefined {
   } catch {}
 }
 function cover(data: RecordValue, assets: RecordValue) {
-  for (const id of list(data.images))
+  // Products list `images`; Characters list `image_asset_ids`. The first is the default.
+  for (const id of list(data.images ?? data.image_asset_ids))
     if (typeof id === "string") {
       const url = imageURL(object(assets[id]).download_url);
       if (url) return url;
@@ -99,7 +102,7 @@ export function resourcePresentation(
   };
   if (value === undefined) return base;
   if (["product", "brand", "character"].includes(kind)) {
-    const images = list(data.images);
+    const images = list(data.images ?? data.image_asset_ids);
     return {
       ...base,
       title: text(data.name) ?? base.title,
@@ -110,21 +113,29 @@ export function resourcePresentation(
       meta: images.length ? count(images.length, "image") : undefined,
     };
   }
-  if (kind === "script") {
-    const content = object(row.content),
+  if (kind === "script" || kind === "storyboard") {
+    // A v3 Script has panels and a target length; a legacy Script (`legacy`) and a Storyboard have clips.
+    const content = object(row.content ?? row.legacy),
       concept = object(content.concept),
-      clips = list(content.clips);
+      clips = list(content.clips),
+      panels = list(content.panels);
     const durations = clips.map((clip) => object(clip).duration_ms);
     const total =
-      durations.length && durations.every((n) => typeof n === "number")
-        ? durations.reduce<number>((sum, n) => sum + (n as number), 0)
-        : undefined;
+      typeof content.duration_ms === "number"
+        ? content.duration_ms
+        : durations.length && durations.every((n) => typeof n === "number")
+          ? durations.reduce<number>((sum, n) => sum + (n as number), 0)
+          : undefined;
     return {
       ...base,
       title: text(concept.name) ?? base.title,
-      summary: text(concept.proposition),
+      summary: text(concept.proposition) ?? text(content.direction),
       meta: join(
-        clips.length ? count(clips.length, "clip") : undefined,
+        clips.length
+          ? count(clips.length, "clip")
+          : panels.length
+            ? count(panels.length, "panel")
+            : undefined,
         duration(total),
       ),
     };

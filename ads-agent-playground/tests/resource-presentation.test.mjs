@@ -85,3 +85,34 @@ test("Unavailable metadata never turns a raw ID into a display title or unsafe t
     "Saved coffee jar",
   );
 });
+test("v3 Script, Storyboard and Character previews read their own shapes", () => {
+  const script = resourcePresentation(ref("script"), {
+    format: 3,
+    content: {
+      concept: { name: "Still warm at noon", proposition: "Coffee that stays warm." },
+      duration_ms: 20000,
+      panels: [{}, {}, {}],
+    },
+  });
+  assert.equal(script.title, "Still warm at noon");
+  assert.equal(script.meta, "3 panels · 20 sec");
+  const legacy = resourcePresentation(ref("script"), {
+    format: 2,
+    legacy: { concept: { name: "Old idea" }, clips: [{ duration_ms: 6000 }] },
+  });
+  assert.equal(legacy.title, "Old idea");
+  assert.equal(legacy.meta, "1 clip · 6 sec");
+  const storyboard = resourcePresentation(ref("storyboard"), {
+    content: { direction: "Morning light.", clips: [{ duration_ms: 8000 }, { duration_ms: 7000 }] },
+  });
+  assert.equal(storyboard.title, "Storyboard");
+  assert.equal(storyboard.summary, "Morning light.");
+  assert.equal(storyboard.meta, "2 clips · 15 sec");
+  const character = resourcePresentation(ref("character"), {
+    data: { name: "Mia", description: "Short hair.", image_asset_ids: ["front", "side"] },
+    assets: { front: { download_url: "https://media.example/front.png" } },
+  });
+  assert.equal(character.title, "Mia");
+  assert.equal(character.image, "https://media.example/front.png");
+  assert.equal(character.meta, "2 images");
+});

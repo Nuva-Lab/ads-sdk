@@ -51,12 +51,13 @@ export async function checkRelease(output = DIST) {
 import {realpathSync,readFileSync,existsSync} from 'node:fs';
 import {createNuva,Message} from '@nuva/sdk';
 import {CLIENT_PROTOCOL_REVISION} from '@nuva/protocol';
-import {backendIdSchema,generateScriptSchema,ScriptSchema} from '@nuva/sdk/schemas';
+import {backendIdSchema,generateScriptSchema,generateStoryboardSchema,ScriptSchema} from '@nuva/sdk/schemas';
 for (const name of ['sdk','protocol']) { const path = realpathSync('node_modules/@nuva/'+name); assert.ok(path.startsWith(process.cwd()+'/node_modules/')); assert.equal(JSON.parse(readFileSync(path+'/package.json')).version,'${VERSION}'); }
 assert.equal(existsSync('node_modules/react'),false);
 assert.equal(CLIENT_PROTOCOL_REVISION,1); assert.equal(ScriptSchema.schemaVersion,1);
 const id='01a175e0-20c1-3f18-da7c-5afa67a79363'; assert.equal(backendIdSchema.parse(id),id);
 assert.equal(generateScriptSchema.parse({product:id,acceptable_duration_ms:{min:5000,max:10000}}).product,id);
+assert.equal(generateStoryboardSchema.parse({script:id,cast:{host:id}}).script,id);
 const client=createNuva({baseUrl:'https://fixture.invalid/api',storeBaseUrl:'https://fixture.invalid',getAccessToken:async()=> 'not-used'});
 assert.equal(typeof client.agent({sessionId:'fixture'}).respond,'function'); assert.equal(client.sessions.getMain,undefined);
 assert.ok(Message.create().text('Customer handoff').attach({ref:{kind:'product',id},label:'Saved Product'})); client.close();
@@ -68,10 +69,10 @@ if(releasedOrigins.agent){
  try{
   await assert.rejects(defaults.products.get(id));
   await assert.rejects(defaults.scripts.generate({product:id,acceptable_duration_ms:{min:5000,max:10000}}));
-  await assert.rejects(defaults.prompts.generate({script:id}));
+  await assert.rejects(defaults.storyboards.generate({script:id}));
   assert.equal(new URL(calls[0]).origin,new URL(releasedOrigins.store).origin);
   assert.equal(calls[1],(releasedOrigins.generation.endsWith('/')?releasedOrigins.generation.slice(0,-1):releasedOrigins.generation)+'/v1/generate/script');
-  assert.equal(calls[2],(releasedOrigins.generation.endsWith('/')?releasedOrigins.generation.slice(0,-1):releasedOrigins.generation)+'/v1/generate/prompt');
+  assert.equal(calls[2],(releasedOrigins.generation.endsWith('/')?releasedOrigins.generation.slice(0,-1):releasedOrigins.generation)+'/v1/generate/storyboard');
  }finally{defaults.close();globalThis.fetch=prior;}
 }else assert.throws(()=>createNuva({getAccessToken:async()=> 'not-used'}),/origin is not configured/);
 `,
@@ -80,11 +81,13 @@ if(releasedOrigins.agent){
 		await writeFile(
 			resolve(consumer, 'consumer.ts'),
 			`import {createNuva,Message,type ScriptPackage} from '@nuva/sdk';
+import type {ScriptContent} from '@nuva/sdk/schemas';
 import {CLIENT_PROTOCOL_REVISION} from '@nuva/protocol';
 const wire:1=CLIENT_PROTOCOL_REVISION;
 const client=createNuva({getAccessToken:async()=>({token:'backend-issued',expiresAt:0})});
-async function creation(file:File){const brand=await client.brands.create({data:{name:'Brand'}});const base=await client.products.create({brand_id:brand.id,data:{name:'Product',attributes:{nested:{ok:true}}}});const {product}=await client.products.uploadImage({base,file});const script=await client.scripts.generate({product:product.id,acceptable_duration_ms:{min:5000,max:10000}});const {prompts}=await client.prompts.generate({script:script.id});const job=await client.videos.generate({prompt:prompts[0]!.id});return {script:script.content,job};}
+async function creation(file:File){const brand=await client.brands.create({data:{name:'Brand'}});const base=await client.products.create({brand_id:brand.id,data:{name:'Product',attributes:{nested:{ok:true}}}});const {product}=await client.products.uploadImage({base,file});const script=await client.scripts.generate({product:product.id,acceptable_duration_ms:{min:5000,max:10000}});const storyboard=await client.storyboards.generate({script:script.id});const job=await client.videos.generate({storyboard:{id:storyboard.id,clip:storyboard.content.clips[0]!.id}});return {script:script.format===3?script.content.panels:script.legacy.clips,job};}
 declare const content:ScriptPackage;const inner:2=content.schema_version;
+declare const idea:ScriptContent;const v3:3=idea.schema_version;
 Message.create().text('Hello');
 `,
 		);
@@ -175,7 +178,7 @@ func TestDeliveredSDK(t *testing.T){if admin.Version!="${GO_VERSION}"{t.Fatal(ad
 				react18Subpath: true,
 			},
 			go: { module: GO_MODULE, version: GO_VERSION, exactDeliveredZip: true, moduleCacheNotReplace: true },
-			schemas: { wire: 1, artifact: 1, scriptPackage: 2 },
+			schemas: { wire: 1, artifact: 1, script: 3, storyboard: 1, legacyScriptPackage: 2 },
 			network: 'Only package-manager dependency resolution; no service/model/GPU calls',
 		};
 		await writeFile(resolve(output, 'verification.json'), JSON.stringify(evidence, null, 2) + '\n');
