@@ -162,8 +162,8 @@ def guide_pages(locale='zh'):
             + ex('create-character')
             + p(f'Each clip of a Storyboard is rendered as a separate video. A role described only in words is drawn again in every clip, so the face and voice can change from clip to clip. A cast Character gives every clip it appears in the same photo as a reference, and with <code>voice: "character"</code> the same voice recording. Cast it with <code>storyboards.generate({{cast: {{role: characterId}}}})</code>; see <a href="{link("generation", "storyboard")}">Storyboards</a>.',
                 f'分镜中的每个片段单独生成视频。只用文字描述的角色会在每个片段中重新生成，长相和声音可能前后不一致。选角（cast）为人物后，它出现的每个片段都使用同一张照片作为参考；设置 <code>voice: "character"</code> 时还使用同一段声音录音。通过 <code>storyboards.generate({{cast: {{role: characterId}}}})</code> 选角，参见<a href="{link("generation", "storyboard")}">分镜</a>。')
-            + p('Characters are shared within your organization and versioned like Products: an update takes the record you read as <code>base</code>. A Storyboard records the exact Character revision it cast. Use photos and recordings of people who agreed to appear in your ads.',
-                '人物在组织内共享，并像产品一样按版本保存：更新时将读取到的记录作为 <code>base</code> 传入。分镜会记录所选人物的具体版本。请只使用已同意出现在广告中的人的照片和录音。')),
+            + p('Characters are shared within your organization and versioned like Products: an update takes the record you read as <code>base</code>. A Storyboard records the exact Character revision it cast, and its clips are always compiled with that revision: an update changes the Storyboards written after it, or a revision of an existing one, not what an existing Storyboard renders. Use photos and recordings of people who agreed to appear in your ads.',
+                '人物在组织内共享，并像产品一样按版本保存：更新时将读取到的记录作为 <code>base</code> 传入。分镜会记录所选人物的具体版本，其片段始终按该版本编译：更新人物只影响之后写的分镜或对已有分镜的修订，不会改变已有分镜生成的内容。请只使用已同意出现在广告中的人的照片和录音。')),
         section('media', 'Upload and display media', '上传与展示媒体',
             c("const asset = await client.assets.upload(file, { kind: 'video' });\n\n// Fetch a fresh URL when reopening saved media.\nconst current = await client.assets.get(asset.id);")
             + c('<video src={current.download_url} controls preload="metadata" />', 'tsx')
@@ -256,8 +256,8 @@ def guide_pages(locale='zh'):
         section('video', 'Submit a video Job and display the result', '提交视频任务并展示结果',
             ex('generate-video')
             + response('job')
-            + p('Pass a saved Prompt ID from <code>prompts.generate</code>. The Job renders that Prompt, returned as <code>job.prompt</code>. Submit one Job per clip.',
-                '传入 <code>prompts.generate</code> 返回的提示词 ID。任务使用该提示词生成视频，并通过 <code>job.prompt</code> 返回。每个片段提交一个任务。')
+            + p('Pass a saved Prompt ID from <code>prompts.generate</code>. The Job renders that Prompt, returned as <code>job.prompt</code>, and joins the Prompt\'s Batch (the Storyboard\'s) unless you pass <code>batch_id</code>. Submit one Job per clip.',
+                '传入 <code>prompts.generate</code> 返回的提示词 ID。任务使用该提示词生成视频，并通过 <code>job.prompt</code> 返回；未传 <code>batch_id</code> 时，任务归入该提示词所在的 Batch（即分镜的 Batch）。每个片段提交一个任务。')
             + p('You can instead submit raw prompt text with registered Asset IDs (<code>{input}</code>). The backend creates the Prompt and returns its ID in <code>job.prompt</code>. Use exactly one of <code>prompt</code> or <code>input</code>. Keep <code>requestKey</code> stable for retries; generate a new key for a new video.', '也可以直接传入提示词文本和已注册的素材 ID（<code>{input}</code>）。后端会创建提示词，并通过 <code>job.prompt</code> 返回其 ID。<code>prompt</code> 和 <code>input</code> 只能选一种；重试时保留同一个 <code>requestKey</code>，重新生成视频时使用新请求标识。')
             + ex('generate-video-raw')
             + p('Use a subscription for UI progress. Render <code>job.asset.download_url</code> in a video element after the Job completes. Mount the preview component with <code>key={jobId}</code>.', '界面需要显示进度时使用订阅。任务完成后，将 <code>job.asset.download_url</code> 传给视频元素，并使用 <code>key={jobId}</code> 挂载预览组件。')

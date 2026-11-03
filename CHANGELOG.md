@@ -27,21 +27,26 @@ const job = await nuva.videos.generate({prompt: prompts[0]!.id});
 - New `storyboards.generate` and `storyboards.get`. A Storyboard says who plays each role (`cast`), one `direction` for the whole video, and clips of 5–15 s whose shots are text with tokens (`{{host}}`, `{{product}}`, `{{L01}}`, …).
 - Three forms: `{script, cast?, instruction?, batch_id?}` writes a new Storyboard, `{base, instruction, cast?}` revises one, and `{content, base?}` saves one you wrote or edited. Each saves the Storyboard and returns it.
 - The Storyboard is where variety comes from. Several Storyboards for the same Script, casting and instruction are shot differently from each other (format, setting, camera, pacing, opening shot). That is why it is part of the API: you can review, choose and edit how an ad is shot before any clip is compiled or rendered.
+- A Storyboard pins the Product and Character revisions it was written with, and its clips are always compiled with them. Editing a Product or Character later does not change what an existing Storyboard renders; revise the Storyboard (`{base, instruction}`) to use the new versions.
+- A Storyboard is in its Script's Batch.
 
 ### Prompts are compiled from a Storyboard
 
 - `prompts.generate` now takes `{storyboard, clip?, ratio?}` instead of `{script, instruction?, ratio?, batch_id?}`. It returns `{prompts}` in clip order, one saved Prompt per clip, each with `data.clip_id`. Pass `clip: 'C01'` for one clip.
 - A Prompt only has to fit its Storyboard and the video model; the creative choices are made in the Storyboard.
+- The Prompts are in the Storyboard's Batch.
 - A clip compiled before from the same inputs returns its saved Prompt and is not compiled or charged again. In a revised or edited Storyboard, a clip that did not change keeps the text of its base clip's Prompt, if that one was compiled.
 - `PartialCreationError.saved` is still `{prompts}`; those Prompts are now based on the Storyboard.
 
 ### Video generation
 
 - Unchanged in shape: `videos.generate({prompt})` with a saved Prompt ID, or `videos.generate({input})` with a raw prompt.
+- Without `batch_id`, a Job made from a saved Prompt now joins that Prompt's Batch, so Batches follow the chain Script → Storyboard → Prompt → Job without being passed. A `batch_id` you pass still wins. A Job from raw `input` has no implicit Batch.
 
 ### Characters and casting
 
 - Cast a Character in a Storyboard with `cast: {role: characterId}`. Every clip it appears in gets the same image as a reference, and with `voice: 'character'` the same voice recording, so the person looks and sounds the same across clips. Roles left out are cast by the writer.
+- The Storyboard records the Character revision it cast. Updating the Character changes Storyboards written or revised after the update, not existing ones.
 
 ### Asset label and description
 
@@ -55,7 +60,7 @@ const job = await nuva.videos.generate({prompt: prompts[0]!.id});
 ### Migrating from 0.1.0-preview.3
 
 1. Replace `prompts.generate({script, ...})` with `storyboards.generate({script})`, then `prompts.generate({storyboard: storyboard.id, ratio})`. Move `ratio` to `prompts.generate`; drop `instruction` and `batch_id` there (a Storyboard keeps its Script's Batch, and `storyboards.generate` takes the shooting instruction).
-2. Keep calling `videos.generate({prompt: prompt.id})` for each returned Prompt.
+2. Keep calling `videos.generate({prompt: prompt.id})` for each returned Prompt. You no longer need to pass `batch_id` to keep the Job in the Prompt's Batch; note that a Job you submit without one now lands in that Batch.
 3. Read Scripts through `format`: use `.content` for `format: 3` and `.legacy` for `format: 2`. Write a new Script for a product whose only Scripts are `format: 2`.
 4. Write Scripts you author yourself as Script v3 for `scripts.create` and `scripts.update`.
 5. If you displayed `asset.label`, fall back to the Asset ID when it is null.
