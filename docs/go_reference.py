@@ -13,7 +13,7 @@ def go_sections(locale='zh'):
         ('install', t('Install the Go Admin SDK', '安装 Go Admin SDK'),
          p('Use Go 1.22 or newer.',
            '使用 Go 1.22 或更新版本。')
-         + c('go get github.com/Nuva-Lab/ads-sdk/go@v0.1.0-preview.2', 'sh')),
+         + c('go get github.com/Nuva-Lab/ads-sdk/go@v0.1.0-preview.3', 'sh')),
         ('client', t('Create the Admin client', '创建 Admin 客户端'),
          p('Set the customer Admin API key in your server environment as <code>NUVA_CUSTOMER_API_KEY</code>. Create the Admin client once during server initialization.',
            '在服务端环境变量 <code>NUVA_CUSTOMER_API_KEY</code> 中设置客户 Admin API key。服务初始化时创建一次 Admin 客户端。')
@@ -38,8 +38,8 @@ def go_sections(locale='zh'):
            '提供 UTF-8 文本文件，其中必须包含 <code>SKILL.md</code>。编写服务支持 <code>.md</code>、<code>.txt</code>、<code>.json</code>、<code>.yaml</code> 和 <code>.yml</code> 文件。它会检查版本中的全部文件，包括未列入 <code>attributes.preload</code> 的文件；注册成功不代表该版本一定能被编写服务加载。')
          + p('Add required reference paths to <code>attributes.preload</code>; the writer loads them before generating. Other supported Skill files remain available on demand.',
            '将必需的参考文件路径写入 <code>attributes.preload</code>，编写服务会在生成前加载；其他受支持的 Skill 文件可按需读取。')
-         + p('Save <code>registered.Skill.ID</code> and <code>registered.Version.Version</code> when the client needs to select that guidance. Registering a Skill stores text and metadata; it does not execute scripts.',
-           '客户端需要选择这份指导时，保存 <code>registered.Skill.ID</code> 和 <code>registered.Version.Version</code>。注册 Skill 只保存文本和元数据，不执行脚本。')
+         + p('Nuva’s writers use the Skills configured for your account; a generation request does not name one. Registering a Skill stores text and metadata; it does not execute scripts.',
+           'Nuva 的编写服务使用为你的账户配置的 Skill，生成请求中不指定 Skill。注册 Skill 只保存文本和元数据，不执行脚本。')
          + p('<code>attributes.hostCalls</code> is currently ignored. A Skill cannot add client tools or UI actions to a conversation.',
            '<code>attributes.hostCalls</code> 目前会被忽略。Skill 不能为对话增加客户端工具或界面操作。')),
         ('activate', t('Select the main Skill version', '选择 Skill 主版本'),

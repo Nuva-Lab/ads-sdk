@@ -15,7 +15,6 @@ const writes = new Set([
 	'assets.uploadIntent',
 	'ads.create',
 	'batches.create',
-	'batches.appendLog',
 	'brands.create',
 	'brands.update',
 	'characters.create',
