@@ -62,7 +62,7 @@ function section(title: string, className = "") {
   element.append(node("h3", msg(title), "storyboard-section-title"));
   return element;
 }
-/** Marks a control that writes; the staff admin page hides these in a customer's read-only Session. */
+/** Marks a control that writes (`data-write`), so a host can hide it in a read-only view. */
 function writes<T extends HTMLElement>(element: T): T {
   element.dataset.write = "";
   return element;
