@@ -12,7 +12,13 @@ import {
 	serverFrameSchema,
 	CLIENT_PROTOCOL_REVISION,
 	identitySchema,
+	agentStateSchema,
+	sessionSchema,
+	messagePageSchema,
+	errorSchema,
+	sessionWaitingSchema,
 } from '../dist/index.js';
+import { z } from 'zod';
 const ref = { sessionId: 'public-session', messageId: 'public-message' };
 const publicText = { id: 'part-1', type: 'text', format: 'plain', text: 'Hello' };
 
@@ -105,4 +111,30 @@ test('all public envelopes accept implicit or explicit v1 and reject unknown exp
 		for (const version of [0, 2, 999, '1', null])
 			assert.equal(schema.safeParse({ ...frame, version }).success, false, `${name}: unsupported version ${JSON.stringify(version)}`);
 	}
+});
+
+test('waiting is optional state: it parses with its exact fields, and clients built before it ignore it', () => {
+	const base = {
+		status: 'idle',
+		session: { id: 'work', kind: 'work', title: 'Work', owner: { userId: 'owner' }, createdAt: '2026-11-03T00:00:00Z' },
+		messages: { items: [], nextCursor: null },
+	};
+	const waiting = {
+		jobs: [
+			{ record: { ref: { kind: 'job', id: 'job-1' }, label: 'Clip 03' }, status: 'running' },
+			{ record: { ref: { kind: 'job', id: 'job-2' }, label: 'Clip 04' }, status: 'queued' },
+		],
+		estimated_done_at: '2026-11-03T00:04:00Z',
+	};
+	assert.deepEqual(agentStateSchema.parse({ ...base, waiting }).waiting, waiting);
+	assert.equal('waiting' in agentStateSchema.parse(base), false, 'Absent while nothing is pending.');
+	assert.deepEqual(sessionWaitingSchema.parse({ jobs: waiting.jobs }), { jobs: waiting.jobs }, 'The estimate is optional.');
+	for (const invalid of [{ jobs: [] }, { jobs: [{ ...waiting.jobs[0], status: 'completed' }] }, { jobs: [{ status: 'queued' }] }])
+		assert.equal(sessionWaitingSchema.safeParse(invalid).success, false, JSON.stringify(invalid));
+	// The state schema of the release before `waiting`, as an old client compiled it: the frame still parses and the
+	// field is dropped, so old clients keep working unchanged.
+	const previous = z.union([z.object({ session: sessionSchema, messages: messagePageSchema, error: errorSchema.optional() }).extend({ status: z.enum(['idle', 'running']) })]);
+	const old = previous.parse({ ...base, waiting });
+	assert.equal(old.status, 'idle');
+	assert.equal('waiting' in old, false);
 });

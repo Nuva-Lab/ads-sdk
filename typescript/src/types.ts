@@ -27,7 +27,11 @@ export interface AgentOptions {
 export interface AgentHandle {
 	readonly sessionId: string;
 	send(message: MessageDraft, options?: CommandOptions): Promise<SendReceipt>;
-	/** Request stopping this Work Session's current loop without automatically cancelling Jobs. Requires backend support; Main Sessions are unsupported. */
+	/**
+	 * Request stopping this Work Session's current loop without cancelling Jobs. It also stops the Agent from continuing
+	 * on its own when watched Jobs finish (`state.waiting` goes away), and works while the Session is idle. Main Sessions
+	 * are unsupported.
+	 */
 	stop(options?: CommandOptions): Promise<StopReceipt>;
 	/**
 	 * Resolve after the backend validates and persists the response and the SDK
