@@ -1,4 +1,4 @@
-import { parseStateEvent, parseSession, parseSessions, parseMessages, parseMessage } from './wire-schema.js';
+import { parseStateEvent, parseSession, parseSessions, parseMessages, parseMessage, parseSessionFile } from './wire-schema.js';
 import { Transport } from './transport.js';
 import { frozen, stableJSON } from './protocol.js';
 import { draftValue } from './message.js';
@@ -16,6 +16,7 @@ import type {
 	HostFailureReceipt,
 	JsonValue,
 	NotificationHostCall,
+	SessionFile,
 	NuvaErrorInfo,
 	Page,
 	PaginationQuery,
@@ -54,6 +55,7 @@ class AgentController implements AgentHandle {
 			loadEarlierMessages: this.loadEarlierMessages,
 			listPendingCalls: this.listPendingCalls,
 			getHostCall: this.getHostCall,
+			files: this.files,
 		});
 		controllers.set(this, this);
 		controllers.set(this.api, this);
@@ -269,6 +271,17 @@ class AgentController implements AgentHandle {
 		});
 	getHostCall = (id: string) =>
 		this.transport.http<DynamicToolUIPart | NotificationHostCall>('agent.getHostCall', { sessionId: this.sessionId, id });
+	readonly files = Object.freeze({ get: (id: string) => this.getFile(id) });
+	getFile = async (id: string): Promise<SessionFile> => {
+		if (typeof id !== 'string' || id.length === 0 || id.length > 100) throw new TypeError('A Session file ID is required.');
+		const requestId = crypto.randomUUID();
+		const value = await this.transport.http('files.get', { sessionId: this.sessionId, id }, requestId);
+		try {
+			return parseSessionFile(value);
+		} catch (error) {
+			throw error instanceof NuvaError ? new NuvaError({ ...error.toJSON(), requestId }) : error;
+		}
+	};
 	close() {
 		this.closed = true;
 		this.unwatch?.();

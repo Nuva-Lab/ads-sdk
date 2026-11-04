@@ -30,6 +30,7 @@ export function useAgent(options: AgentOptions): AgentResult {
 			loadEarlierMessages: agent.loadEarlierMessages,
 			listPendingCalls: agent.listPendingCalls,
 			getHostCall: agent.getHostCall,
+			files: agent.files,
 			...state,
 		}),
 		[agent, state],

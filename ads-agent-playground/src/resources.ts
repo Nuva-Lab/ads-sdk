@@ -13,6 +13,7 @@ import type {
   Storyboard,
   Asset,
   ScriptPackage,
+  SessionFile,
 } from "@nuva/sdk";
 import {
   action,
@@ -58,9 +59,14 @@ export interface ResourceHost {
 export async function readResource(
   sdk: NuvaClient,
   record: ResourceLink,
+  sessionId?: string,
 ): Promise<unknown> {
   const { kind, id } = record.ref;
   switch (kind) {
+    case "session_file":
+      // A file in this Session's workspace; only the Session's owner can read it.
+      if (!sessionId) throw new UiError("Session files open inside their Session.");
+      return sdk.agent({ sessionId }).files.get(id);
     case "product":
       return sdk.products.get(id);
     case "brand":
@@ -276,7 +282,7 @@ export function refreshResourceList(
       const view = cards[next++];
       if (!list.isConnected || list.dataset.request !== request) return;
       try {
-        const value = await readResource(host.sdk, view.record);
+        const value = await readResource(host.sdk, view.record, host.sessionId);
         if (!list.isConnected || list.dataset.request !== request) return;
         view.preview.replaceChildren();
         const kind = view.record.ref.kind;
@@ -441,7 +447,7 @@ export async function renderResources(
               lookup.input.value.trim(),
               `Saved ${tab}`,
             );
-            const value = await readResource(host.sdk, record);
+            const value = await readResource(host.sdk, record, host.sessionId);
             if (tab === "asset" && (value as Asset).kind !== "video")
               throw new UiError(msg("Choose a video Asset."));
             host.remember(
@@ -557,7 +563,7 @@ async function renderResourceDetail(
     renderResourceDetail(container, record, host),
   );
   container.replaceChildren(node("p", msg("Opening…"), "muted"));
-  const value = await readResource(host.sdk, record);
+  const value = await readResource(host.sdk, record, host.sessionId);
   if (!container.isConnected || container.dataset.readId !== readId) return;
   container.replaceChildren();
   pendingRequests(container, host);
@@ -788,12 +794,28 @@ async function renderResourceDetail(
     card.append(
       media(asset.download_url, asset.kind === "image" ? "image" : "video"),
     );
+  } else if (record.ref.kind === "session_file") {
+    const file = value as SessionFile;
+    if (file.mime.startsWith("audio/")) {
+      const audio = node("audio");
+      audio.controls = true;
+      audio.src = file.download_url;
+      card.append(audio);
+    } else if (file.mime.startsWith("image/") || file.mime.startsWith("video/"))
+      card.append(media(file.download_url, file.mime.startsWith("image/") ? "image" : "video"));
+    card.append(
+      node(
+        "p",
+        msg("A file in this Session. The Agent registers it as an Asset when a Character, Storyboard or video uses it."),
+        "muted",
+      ),
+    );
   } else if (record.ref.kind === "ad") {
     const ad = value as Awaited<ReturnType<NuvaClient["ads"]["get"]>>;
     card.append(media(ad.asset.download_url, "video"));
   }
   if (
-    !["script", "storyboard", "prompt", "job", "asset", "ad", "batch"].includes(
+    !["script", "storyboard", "prompt", "job", "asset", "ad", "batch", "session_file"].includes(
       record.ref.kind,
     )
   )
