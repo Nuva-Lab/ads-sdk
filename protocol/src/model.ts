@@ -129,6 +129,18 @@ export interface AgentData {
 	readonly session: Session;
 	/** Render items in the supplied order. The cursor loads older history. */
 	readonly messages: Page<MessageView>;
+	/**
+	 * Present only while the Session waits for Jobs (renders) that will continue it when they finish. Chat stays
+	 * available; Stop cancels the wait. Clients that do not know it ignore it.
+	 */
+	readonly waiting?: SessionWaiting;
+}
+/** The Jobs a Session waits for, and when they usually finish. */
+export interface SessionWaiting {
+	/** Each pending Job: its card (kind `job`, labelled like "Clip 03") and latest status. */
+	readonly jobs: readonly { readonly record: ResourceLink; readonly status: 'queued' | 'running' }[];
+	/** When all of them usually finish, from this customer's past Jobs; absent when there is too little history. */
+	readonly estimated_done_at?: Timestamp;
 }
 
 export type AgentReadState =
@@ -298,7 +310,11 @@ export const messageSchema = z
 			ctx.addIssue({ code: 'custom', path: ['error'], message: 'Failed messages require a public error.' });
 	});
 export const messagePageSchema = z.object({ items: z.array(messageSchema), nextCursor: z.string().nullable() });
-const common = z.object({ session: sessionSchema, messages: messagePageSchema, error: errorSchema.optional() });
+export const sessionWaitingSchema = z.object({
+	jobs: z.array(z.object({ record: resourceLinkSchema, status: z.enum(['queued', 'running']) })).min(1),
+	estimated_done_at: z.string().min(1).optional(),
+});
+const common = z.object({ session: sessionSchema, messages: messagePageSchema, error: errorSchema.optional(), waiting: sessionWaitingSchema.optional() });
 export const agentStateSchema = z.union([
 	z.object({ status: z.literal('loading') }),
 	z.object({ status: z.literal('error'), error: errorSchema }),
