@@ -19,7 +19,7 @@ export async function buildRelease({ output = DIST, origins } = {}) {
 				manifest = await json(resolve(source, 'package.json'));
 			if (manifest.version !== VERSION) throw new Error(`Package version mismatch: ${manifest.name}`);
 			for (const path of [
-				// `internal` is the workspace-only entry the Agent, playground and admin share; customers never get it.
+				// `internal` is the workspace entry the Agent, mock server and playground share: the npm package leaves it out (the source archive keeps its source for the playground).
 				...(await files(resolve(source, 'dist'))).filter((name) => !/^internal\./.test(name)).map((name) => `dist/${name}`),
 				'README.md',
 				...(directory === 'typescript' ? ['schema/backend.source.json', 'schema/backend-video.source.json'] : []),

@@ -399,6 +399,10 @@ export class Transport {
 					retryable: parsed.data.error.retryable,
 					...(parsed.data.error.details === undefined ? {} : { details: parsed.data.error.details }),
 					requestId: parsed.data.request_id,
+					// A write's 4xx keeps the server's definite `not_accepted`, so callers know a retry is safe; anything else stays unknown.
+					...(route.method !== 'GET' && response.status < 500 && response.status !== 408 && claimedAcceptance === 'not_accepted'
+						? { acceptance: 'not_accepted' as const }
+						: {}),
 					...(route.method !== 'GET' && (response.status >= 500 || response.status === 408) ? { acceptance: 'unknown' as const } : {}),
 					...(route.method !== 'GET' && claimedAcceptance !== undefined && claimedAcceptance !== 'not_accepted'
 						? { acceptance: 'unknown' as const }

@@ -109,7 +109,7 @@ test('storyboards.generate saves the Storyboard; prompts.generate compiles its c
    await assert.rejects(client.prompts.generate({ storyboard: id }), error => error.code === 'SERVICE_ERROR', JSON.stringify(prompts.map(p => p.data.clip_id)));
   }
   reply = () => Response.json({ error: { code: 'NOT_FOUND', message: 'Storyboard has no clip C09.', retryable: false, acceptance: 'not_accepted' }, request_id: 'unknown-clip' }, { status: 404 });
-  await assert.rejects(client.prompts.generate({ storyboard: id, clip: 'C09' }), error => error.code === 'NOT_FOUND' && error.acceptance !== 'unknown' && !(error instanceof PartialCreationError));
+  await assert.rejects(client.prompts.generate({ storyboard: id, clip: 'C09' }), error => error.code === 'NOT_FOUND' && error.acceptance === 'not_accepted' && !(error instanceof PartialCreationError));
   requests.splice(checked);
   reply = () => Response.json({ prompts: [{ ...prompt('C01'), relationships }] });
   await assert.rejects(client.prompts.generate({ storyboard: id }), error => error.code === 'SERVICE_ERROR', 'Prompts are based on the requested Storyboard.');

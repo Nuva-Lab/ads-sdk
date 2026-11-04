@@ -1,7 +1,6 @@
 /**
- * Everything in `@nuva/sdk/schemas` plus the Script v3 and Storyboard helpers the Agent, the playground and the admin
- * page share with the SDK. Workspace-only: the release removes this entry from the package `exports`, so customers
- * cannot import it.
+ * Everything in `@nuva/sdk/schemas` plus the Script v3 and Storyboard helpers the Agent, the mock server and the
+ * playground share with the SDK. A workspace entry: the release leaves it out of the npm package and its `exports`.
  */
 export * from './schemas.js';
 export { MIN_CLIP_MS, MAX_CLIP_MS, MAX_REFERENCES, MAX_VIDEO_ASSETS, SPEECH_MODES, factSchema, imageSchema } from './service-schemas.js';
