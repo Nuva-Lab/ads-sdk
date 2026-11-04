@@ -13,7 +13,7 @@ import {
 	decodeStoryboard,
 	scriptVersion,
 	encodeScriptPackage,
-} from '../dist/schemas.js';
+} from '../dist/internal.js';
 
 const uuid = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const facts = [

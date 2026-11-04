@@ -19,7 +19,8 @@ export async function buildRelease({ output = DIST, origins } = {}) {
 				manifest = await json(resolve(source, 'package.json'));
 			if (manifest.version !== VERSION) throw new Error(`Package version mismatch: ${manifest.name}`);
 			for (const path of [
-				...(await files(resolve(source, 'dist'))).map((name) => `dist/${name}`),
+				// `internal` is the workspace-only entry the Agent, playground and admin share; customers never get it.
+				...(await files(resolve(source, 'dist'))).filter((name) => !/^internal\./.test(name)).map((name) => `dist/${name}`),
 				'README.md',
 				...(directory === 'typescript' ? ['schema/backend.source.json', 'schema/backend-video.source.json'] : []),
 			])
@@ -35,7 +36,8 @@ export async function buildRelease({ output = DIST, origins } = {}) {
 						`/** Explicit release routing supplied by the operator. */\nexport const serviceOrigins = Object.freeze(${JSON.stringify(origins, null, 2)});\n`,
 					);
 			}
-			// Only distribution fields: no maintainer build commands or development dependencies.
+			// Only distribution fields: no maintainer build commands, development dependencies or workspace-only entries.
+			if (manifest.exports) delete manifest.exports['./internal'];
 			delete manifest.scripts;
 			delete manifest.devDependencies;
 			delete manifest.packageManager;

@@ -26,15 +26,29 @@ export async function copy(source, target) {
 	await mkdir(dirname(target), { recursive: true });
 	await copyFile(source, target);
 }
-/** The CHANGELOG.md section for a version, without its heading; a release needs one. */
+/**
+ * The CHANGELOG.md section for a version, without its heading; a release needs one. The heading is the exact line
+ * `## <version>`; the section ends at the next `## ` heading. Lines inside fenced code blocks are never headings.
+ */
 export async function releaseNotes(version = VERSION, text) {
 	text ??= await readFile(resolve(ROOT, 'CHANGELOG.md'), 'utf8');
-	const heading = `## ${version}\n`;
-	const start = text.indexOf(heading);
+	const lines = text.replace(/\r\n?/g, '\n').split('\n');
+	let fence = null, start = -1, end = lines.length;
+	for (const [index, line] of lines.entries()) {
+		const marker = /^ {0,3}(`{3,}|~{3,})/.exec(line)?.[1];
+		if (marker !== undefined && (fence === null || (marker[0] === fence[0] && marker.length >= fence.length))) {
+			fence = fence === null ? marker : null;
+			continue;
+		}
+		if (fence !== null || !/^## /.test(line)) continue;
+		if (start !== -1) {
+			end = index;
+			break;
+		}
+		if (line.trimEnd() === `## ${version}`) start = index + 1;
+	}
 	if (start === -1) throw new Error(`CHANGELOG.md has no entry for ${version}.`);
-	const rest = text.slice(start + heading.length);
-	const end = rest.search(/^## /m);
-	const notes = (end === -1 ? rest : rest.slice(0, end)).trim();
+	const notes = lines.slice(start, end).join('\n').trim();
 	if (!notes) throw new Error(`The CHANGELOG.md entry for ${version} is empty.`);
 	return notes;
 }

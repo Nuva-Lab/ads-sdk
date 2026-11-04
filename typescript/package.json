@@ -21,6 +21,10 @@
     "./schemas": {
       "types": "./dist/schemas.d.ts",
       "import": "./dist/schemas.js"
+    },
+    "./internal": {
+      "types": "./dist/internal.d.ts",
+      "import": "./dist/internal.js"
     }
   },
   "sideEffects": false,
