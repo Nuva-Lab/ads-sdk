@@ -180,7 +180,7 @@ export interface NuvaErrorInfo {
 	readonly message: string;
 	readonly retryable: boolean;
 	readonly requestId?: string;
-	/** Applies to a command error. Missing means this was not a command. */
+	/** Set on a write's error: `not_accepted` (the server did not take it; retrying is safe) or `unknown` (it may have happened). A read's error has none. */
 	readonly acceptance?: 'not_accepted' | 'unknown';
 }
 

@@ -13,14 +13,14 @@ import {
   scriptLines,
   storyboardIssues,
   storyboardTokens,
-} from "@nuva/sdk/schemas";
+} from "@nuva/sdk/internal";
 import type {
   CastEntry,
   ScriptContent,
   StoryboardContent,
   StoryboardContext,
   StoryboardToken,
-} from "@nuva/sdk/schemas";
+} from "@nuva/sdk/internal";
 import type { Character, NuvaClient, Product, Script } from "@nuva/sdk";
 import { msg, translate, type UiLabel } from "./i18n.js";
 

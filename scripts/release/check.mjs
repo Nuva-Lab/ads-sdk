@@ -59,6 +59,10 @@ const id='01a175e0-20c1-3f18-da7c-5afa67a79363'; assert.equal(backendIdSchema.pa
 assert.equal(generateScriptSchema.parse({product:id,acceptable_duration_ms:{min:5000,max:10000}}).product,id);
 assert.equal(generateStoryboardSchema.parse({script:id,cast:{host:id}}).script,id);
 assert.equal(generatePromptSchema.parse({storyboard:id,clip:'C01'}).storyboard,id);
+const schemas=await import('@nuva/sdk/schemas');
+for (const name of ['scriptSchema','storyboardSchema','encodeScript','decodeScript','encodeStoryboard','decodeStoryboard','storyboardIssues']) assert.ok(schemas[name]!==undefined,name);
+for (const name of ['scriptLines','storyboardTokens','NARRATOR','MIN_CLIP_MS','scriptAuthoringSchema','scriptVersion','clipReferences']) assert.equal(name in schemas,false,name+' is internal');
+await assert.rejects(import('@nuva/sdk/internal'),error=>error.code==='ERR_PACKAGE_PATH_NOT_EXPORTED');
 const client=createNuva({baseUrl:'https://fixture.invalid/api',storeBaseUrl:'https://fixture.invalid',getAccessToken:async()=> 'not-used'});
 assert.equal(typeof client.agent({sessionId:'fixture'}).respond,'function'); assert.equal(client.sessions.getMain,undefined);
 assert.ok(Message.create().text('Customer handoff').attach({ref:{kind:'product',id},label:'Saved Product'})); client.close();

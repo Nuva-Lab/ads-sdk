@@ -426,9 +426,13 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 								.object({ prompts: z.array(backendSchema('Prompt')).min(1) })
 								.strict()
 								.parse(v);
+							// Each Prompt is one clip's: a distinct, non-null clip ID (the requested one, for a single clip).
+							const clips = raw.prompts.map((prompt) => prompt.data.clip_id);
 							if (
 								new Set(raw.prompts.map((prompt) => prompt.id)).size !== raw.prompts.length ||
-								(parsed.clip !== undefined && (raw.prompts.length !== 1 || raw.prompts[0]!.data.clip_id !== parsed.clip)) ||
+								clips.some((clip) => typeof clip !== 'string') ||
+								new Set(clips).size !== clips.length ||
+								(parsed.clip !== undefined && (raw.prompts.length !== 1 || clips[0] !== parsed.clip)) ||
 								raw.prompts.some(
 									(prompt) => !prompt.relationships.some((relationship) => relationship.target.kind === 'storyboard' && relationship.target.id === parsed.storyboard),
 								)
@@ -439,7 +443,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 									retryable: false,
 									acceptance: 'unknown',
 								});
-							return { prompts: raw.prompts.map((v) => artifact(v) as Prompt) };
+							return { prompts: raw.prompts.map((v) => artifact(v) as Prompt & { data: { clip_id: string } }) };
 						},
 					},
 					o?.requestId,

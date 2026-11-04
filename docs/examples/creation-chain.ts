@@ -80,7 +80,7 @@ export async function createProductVideo(
 	await saveProgress(structuredClone(progress));
 	const { prompts } = await nuva.prompts.generate({ storyboard: storyboard.id, ratio: '9:16' }, { idempotencyKey: progress.promptsKey });
 	// One Prompt per clip, in clip order; each clip's Prompt joins the Storyboard's Batch.
-	progress.videos = prompts.map(prompt => ({ clip: prompt.data.clip_id ?? '', input: { prompt: prompt.id }, idempotencyKey: crypto.randomUUID() }));
+	progress.videos = prompts.map(prompt => ({ clip: prompt.data.clip_id, input: { prompt: prompt.id }, idempotencyKey: crypto.randomUUID() }));
 	// Persist exact submission inputs and keys BEFORE contacting the video service.
 	await saveProgress(structuredClone(progress));
 	await submitPendingVideos(nuva, progress, saveProgress);

@@ -348,14 +348,15 @@ func TestExternalNavigationOnlyOpensStaticDocument(t *testing.T) {
 	}
 }
 
-func TestPublicPathAllowsStoryboardWritingNotPromptGeneration(t *testing.T) {
+func TestPublicPathAllowsScriptStoryboardAndPromptWriting(t *testing.T) {
 	for _, c := range []struct {
 		service, path, method string
 		allowed               bool
 	}{
 		{"generation", "v1/generate/script", "POST", true},
 		{"generation", "v1/generate/storyboard", "POST", true},
-		{"generation", "v1/generate/prompt", "POST", false},
+		{"generation", "v1/generate/prompt", "POST", true},
+		{"generation", "v1/generate/prompt", "GET", false},
 		{"generation", "v1/generate/storyboard", "GET", false},
 		{"store", "v1/generate/video", "POST", true},
 		{"store", "v1/artifacts/storyboard/id", "GET", true},
@@ -367,5 +368,43 @@ func TestPublicPathAllowsStoryboardWritingNotPromptGeneration(t *testing.T) {
 		if got := publicPath(c.service, c.path, c.method); got != c.allowed {
 			t.Errorf("publicPath(%q, %q, %q) = %v, want %v", c.service, c.path, c.method, got, c.allowed)
 		}
+	}
+}
+
+func TestBridgeForwardsPromptGenerationToTheGenerationService(t *testing.T) {
+	type call struct{ method, path, authorization, key, body string }
+	calls := make(chan call, 1)
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		calls <- call{r.Method, r.URL.Path, r.Header.Get("Authorization"), r.Header.Get("Idempotency-Key"), string(body)}
+		writeJSON(w, 200, map[string]any{"prompts": []any{}})
+	}))
+	defer upstream.Close()
+	broker := newTokenBroker(func(context.Context, string) (admin.TokenResponse, error) {
+		return grant("token", "user", time.Now().Add(time.Hour)), nil
+	}, "alice")
+	cfg := configuration{Endpoints: endpoints{Agent: upstream.URL + "/api", API: upstream.URL}}
+	ui, _ := testApp(t, cfg, broker)
+	body, _ := json.Marshal(cfg.Endpoints)
+	_, connection := fetchJSON(t, ui.Client(), "POST", ui.URL+"/playground/connect", string(body))
+	target := connection["api"].(string) + "/v1/generate/prompt"
+	request, _ := http.NewRequest("POST", target, strings.NewReader(`{"storyboard":"id","clip":"C01"}`))
+	request.Header.Set("Authorization", "Bearer user-token")
+	request.Header.Set("Idempotency-Key", "render-c01")
+	request.Header.Set("Content-Type", "application/json")
+	response, err := ui.Client().Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != 200 {
+		t.Fatal("prompt generation blocked by the bridge", response.StatusCode)
+	}
+	got := <-calls
+	if got != (call{"POST", "/v1/generate/prompt", "Bearer user-token", "render-c01", `{"storyboard":"id","clip":"C01"}`}) {
+		t.Fatalf("forwarded %+v", got)
+	}
+	if status, _ := fetchJSON(t, ui.Client(), "GET", target, ""); status != 404 {
+		t.Fatal("GET prompt generation exposed", status)
 	}
 }

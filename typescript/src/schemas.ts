@@ -5,7 +5,6 @@ import { z } from 'zod';
 import { scriptResponseSchema, clipResponseSchema, videoRequestSchema, scriptRequestSchema } from './service-schemas.js';
 import type { ArtifactSchema } from './stores.js';
 export { scriptResponseSchema, clipResponseSchema, videoRequestSchema, scriptRequestSchema };
-export { MIN_CLIP_MS, MAX_CLIP_MS, MAX_REFERENCES, MAX_VIDEO_ASSETS, SPEECH_MODES, factSchema, imageSchema } from './service-schemas.js';
 export type { ScriptPackage, ScriptRequest, ClipResponse, VideoRequest } from './service-schemas.js';
 import { jsonValueSchema, jsonObjectSchema, resourceRefSchema } from '@nuva/protocol';
 export { jsonValueSchema, jsonObjectSchema, resourceRefSchema };
@@ -36,31 +35,8 @@ export function defineArtifactSchema<K extends string, D, W extends boolean>(sch
 export { backendSchema } from './backend-schema.js';
 export type { BackendSchemas, DeployedBackendSchemas } from './backend-target.js';
 export { encodeScriptPackage, decodeScriptPackage } from './script-content.js';
-export {
-	scriptSchema,
-	scriptGenerationSchema,
-	scriptAuthoringSchema,
-	storyboardSchema,
-	storyboardClipSchema,
-	castEntrySchema,
-	storyboardTokens,
-	storyboardIssues,
-	clipReferences,
-	scriptLines,
-	durationTolerance,
-	encodeScript,
-	decodeScript,
-	encodeStoryboard,
-	decodeStoryboard,
-	scriptVersion,
-	NARRATOR,
-	PRODUCT,
-	CHARACTER_VOICE,
-	ROLE_ID,
-	LINE_ID,
-	MAX_CLIPS,
-	MAX_SCRIPT_MS,
-} from './script-v3.js';
-export type { ScriptContent, ScriptGeneration, ScriptLine, StoryboardContent, CastEntry, StoryboardToken, StoryboardContext, ClipReferences } from './script-v3.js';
+// Script v3 and Storyboard v1: the codecs, their schemas and the Storyboard checks. Other helpers are internal.
+export { scriptSchema, storyboardSchema, encodeScript, decodeScript, encodeStoryboard, decodeStoryboard, storyboardIssues } from './script-v3.js';
+export type { ScriptContent, StoryboardContent, StoryboardContext } from './script-v3.js';
 
 export type { GenerateVideoInput, RawPromptInput } from './stores.js';

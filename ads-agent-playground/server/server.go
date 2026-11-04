@@ -66,7 +66,7 @@ func publicPath(service, path, method string) bool {
 		return path == "rpc" && method == "POST" || path == "agent" && method == "GET"
 	}
 	if service == "generation" {
-		return method == "POST" && (path == "v1/generate/script" || path == "v1/generate/storyboard")
+		return method == "POST" && (path == "v1/generate/script" || path == "v1/generate/storyboard" || path == "v1/generate/prompt")
 	}
 	if service != "store" || !(method == "GET" || method == "POST" || method == "PUT" || method == "PATCH" || method == "DELETE" || method == "HEAD") {
 		return false

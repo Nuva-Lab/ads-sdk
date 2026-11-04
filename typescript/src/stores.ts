@@ -116,7 +116,7 @@ export interface PromptsClient extends TypedArtifactWriter<'prompt', B['PromptDa
 		options?: StoreCommandOptions,
 	): Promise<Prompt>;
 	/** Compiles a Storyboard's clips, or one clip, into video Prompts in clip order. A clip compiled before from the same inputs returns its saved Prompt. */
-	generate(input: PromptInput, options?: StoreCommandOptions): Promise<{ prompts: Prompt[] }>;
+	generate(input: PromptInput, options?: StoreCommandOptions): Promise<{ prompts: (Prompt & { data: { clip_id: string } })[] }>;
 }
 /** Proposed backend operation-key overlay; omitted for fresh unkeyed submissions. */
 export interface StoreCommandOptions extends CommandOptions {
@@ -124,6 +124,7 @@ export interface StoreCommandOptions extends CommandOptions {
 }
 export type VideoCommandOptions = StoreCommandOptions;
 export type RawPromptInput = Omit<B['RawPromptInput'], 'relationships'> & { relationships?: never };
+/** A saved Prompt ID or raw input. Without `batch_id` (or with `batch_id: null`, which means the same) a saved Prompt's Job joins the Prompt's Batch; raw input has none. */
 export type GenerateVideoInput = Omit<B['GenerateVideo'], 'prompt' | 'input'> & ({ prompt: string; input?: null } | { input: RawPromptInput; prompt?: null });
 export interface StoreClients {
 	readonly artifacts: ArtifactsClient;

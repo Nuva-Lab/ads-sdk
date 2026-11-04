@@ -270,8 +270,8 @@ def guide_pages(locale='zh'):
         section('video', 'Submit a video Job and display the result', '提交视频任务并展示结果',
             ex('generate-video')
             + response('job')
-            + p('Pass a saved Prompt ID from <code>prompts.generate</code>. The Job renders that Prompt, returned as <code>job.prompt</code>, and joins the Prompt\'s Batch (the Storyboard\'s) unless you pass <code>batch_id</code>. Submit one Job per clip.',
-                '传入 <code>prompts.generate</code> 返回的提示词 ID。任务使用该提示词生成视频，并通过 <code>job.prompt</code> 返回；未传 <code>batch_id</code> 时，任务归入该提示词所在的 Batch（即分镜的 Batch）。每个片段提交一个任务。')
+            + p('Pass a saved Prompt ID from <code>prompts.generate</code>. The Job renders that Prompt, returned as <code>job.prompt</code>, and joins the Prompt\'s Batch (the Storyboard\'s) unless you pass <code>batch_id</code>; <code>batch_id: null</code> is the same as leaving it out. Submit one Job per clip.',
+                '传入 <code>prompts.generate</code> 返回的提示词 ID。任务使用该提示词生成视频，并通过 <code>job.prompt</code> 返回；未传 <code>batch_id</code> 时，任务归入该提示词所在的 Batch（即分镜的 Batch）；传 <code>batch_id: null</code> 与不传相同。每个片段提交一个任务。')
             + p('You can instead submit raw prompt text with registered Asset IDs (<code>{input}</code>). The backend creates the Prompt and returns its ID in <code>job.prompt</code>. Use exactly one of <code>prompt</code> or <code>input</code>. Keep <code>requestKey</code> stable for retries; generate a new key for a new video.', '也可以直接传入提示词文本和已注册的素材 ID（<code>{input}</code>）。后端会创建提示词，并通过 <code>job.prompt</code> 返回其 ID。<code>prompt</code> 和 <code>input</code> 只能选一种；重试时保留同一个 <code>requestKey</code>，重新生成视频时使用新请求标识。')
             + ex('generate-video-raw')
             + p('Use a subscription for UI progress. Render <code>job.asset.download_url</code> in a video element after the Job completes. Mount the preview component with <code>key={jobId}</code>.', '界面需要显示进度时使用订阅。任务完成后，将 <code>job.asset.download_url</code> 传给视频元素，并使用 <code>key={jobId}</code> 挂载预览组件。')

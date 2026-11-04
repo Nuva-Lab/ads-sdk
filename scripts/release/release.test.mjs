@@ -50,6 +50,12 @@ test('CHANGELOG.md has a release-notes entry for this version', async () => {
 	assert.equal(await releaseNotes('1.0.0', text), 'Old.');
 	await assert.rejects(releaseNotes('3.0.0', text), /no entry for 3\.0\.0/);
 	await assert.rejects(releaseNotes('1.0.0', '## 1.0.0\n\n## 0.9.0\n'), /empty/);
+	// Only the exact heading line counts: not a deeper heading, a longer version or a heading inside a code fence.
+	assert.equal(await releaseNotes('1.0.0', '### 1.0.0\n\nNo.\n\n## 1.0.0-preview.1\n\nNo.\n\n## 1.0.0\n\nYes.\n'), 'Yes.');
+	const fenced = '## 1.0.0\n\nBefore.\n\n```md\n## Not a heading\n```\n\nAfter.\n\n## 0.9.0\n\nOld.\n';
+	assert.equal(await releaseNotes('1.0.0', fenced), 'Before.\n\n```md\n## Not a heading\n```\n\nAfter.');
+	await assert.rejects(releaseNotes('2.0.0', '```\n## 2.0.0\n\nInside a fence.\n```\n'), /no entry for 2\.0\.0/);
+	assert.equal(await releaseNotes('1.0.0', '# Changelog\r\n\r\n## 1.0.0\r\n\r\nWindows.\r\n\r\n## 0.9.0\r\n'), 'Windows.');
 });
 test('repeat local builds produce identical delivered bytes and public-only inventories', { timeout: 120000 }, async () => {
 	const temporary = await mkdtemp(resolve(tmpdir(), 'nuva-release-repro-'));

@@ -7,21 +7,31 @@ export interface RequestScope {
 /** Operations whose unfinished request records are listed with the gallery. */
 export const KEYED_OPERATIONS = [
   "script",
-  "prompts",
+  "prompt",
   "storyboard",
   "storyboard-revision",
   "storyboard-edit",
   "video",
   "assembly",
 ] as const;
+/** The record of one keyed operation; `part` (such as a Storyboard clip) gives parallel requests their own records. */
+export function pendingSlot(host: RequestScope, operation: string, part?: string) {
+  return `${host.scope}:pending:${host.sessionId}:${operation}${part === undefined ? "" : ":" + part}`;
+}
+/** The input of an unresolved keyed request, if one is recorded. */
+export function pendingInput(host: RequestScope, operation: string, part?: string): unknown {
+  const prior = localStorage.getItem(pendingSlot(host, operation, part));
+  return prior === null ? undefined : JSON.parse((JSON.parse(prior) as { input: string }).input);
+}
 /** A failed/unknown keyed invocation remains addressable; never silently replace its key or payload. */
 export async function keyed<T>(
   host: RequestScope,
   operation: string,
   input: unknown,
   run: (key: string) => Promise<T>,
+  part?: string,
 ): Promise<T> {
-  const slot = `${host.scope}:pending:${host.sessionId}:${operation}`;
+  const slot = pendingSlot(host, operation, part);
   const prior = localStorage.getItem(slot),
     encoded = JSON.stringify(input);
   const saved = prior
