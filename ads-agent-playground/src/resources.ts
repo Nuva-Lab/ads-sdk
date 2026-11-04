@@ -3,7 +3,7 @@ import { indexedTitle, promptExcerpt } from "./resource-index.js";
 import { icon } from "./icons.js";
 import { renderPromptViewer } from "./prompt-view.js";
 import { resourcePresentation } from "./resource-presentation.js";
-import { keyed, KEYED_OPERATIONS } from "./requests.js";
+import { keyed, KEYED_OPERATIONS, pendingSlot } from "./requests.js";
 import { openNewStoryboard, renderScriptContent, renderStoryboard } from "./storyboard.js";
 import type {
   NuvaClient,
@@ -89,8 +89,13 @@ export async function readResource(
 }
 function pendingRequests(container: HTMLElement, host: ResourceHost) {
   const panel = node("div", "", "card");
-  for (const operation of KEYED_OPERATIONS) {
-    const slot = `${host.scope}:pending:${host.sessionId}:${operation}`,
+  const prefix = pendingSlot(host, "");
+  const slots = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index) ?? "")
+    .filter((slot) => slot.startsWith(prefix) && (KEYED_OPERATIONS as readonly string[]).includes(slot.slice(prefix.length).split(":")[0]!))
+    .sort();
+  for (const slot of slots) {
+    // A per-clip record (`video:<Storyboard>:<clip>`) is listed under its operation.
+    const operation = slot.slice(prefix.length).split(":")[0]!,
       raw = localStorage.getItem(slot);
     if (!raw) continue;
     const saved = JSON.parse(raw) as { key: string; input: string };

@@ -143,6 +143,58 @@ test("Render clip compiles the clip's Prompt, then renders that Prompt", async (
   assert.deepEqual(remembered.map((record) => record.ref), [{ kind: "job", id: "job-1" }]);
 });
 
+test("each clip keeps its own request records; an unknown video submission is retried with its Prompt and key", async () => {
+  const root = fresh();
+  localStorage.clear();
+  const content = structuredClone(storyboardContent);
+  content.clips.push({ id: "C02", duration_ms: 5000, shots: ["{{friend}} smiles."] });
+  const storyboard = { kind: "storyboard", id: ids.storyboard, lineage_id: ids.storyboard, base_id: null, batch_id: null, content, relationships: [] };
+  const calls = [];
+  let compileC01, failVideo = true;
+  const sdk = fakeSdk({
+    storyboards: { get: async () => storyboard },
+    prompts: {
+      generate: async (input, options) => {
+        calls.push(["prompts.generate", input.clip, options.idempotencyKey]);
+        if (input.clip === "C01" && compileC01 === undefined) await new Promise((resolve) => (compileC01 = resolve));
+        return { prompts: [{ kind: "prompt", id: `prompt-${input.clip}-${calls.length}`, data: { clip_id: input.clip } }] };
+      },
+    },
+    videos: {
+      generate: async (input, options) => {
+        calls.push(["videos.generate", input.prompt, options.idempotencyKey]);
+        if (input.prompt.startsWith("prompt-C02") && failVideo) {
+          failVideo = false;
+          throw Object.assign(new Error("Lost response"), { code: "CONNECTION_ERROR", acceptance: "unknown" });
+        }
+        return { id: "job-" + input.prompt, status: "queued", prompt: input.prompt };
+      },
+    },
+  });
+  const host = { sdk, scope: "storyboard-clips", sessionId: "session", records: [], remember() {}, attach() {}, requestAgent: async () => {} };
+  await openResource(root, { ref: { kind: "storyboard", id: ids.storyboard }, label: "Storyboard" }, host);
+  const render = (clip) => [...root.querySelectorAll(`[data-clip="${clip}"] button`)].find((button) => button.textContent.includes("Render clip"));
+  render("C01").click();
+  await settle();
+  // C01 is still compiling; C02 is not blocked by it.
+  render("C02").click();
+  for (let i = 0; i < 5; i++) await settle();
+  const c02 = calls.filter((call) => call[1]?.startsWith?.("prompt-C02") || call[1] === "C02");
+  assert.equal(c02[0][0], "prompts.generate");
+  assert.equal(c02[1][0], "videos.generate", "C02 compiled and submitted while C01 was compiling.");
+  // C02's submission was lost: retrying sends the same Prompt with the same key, without compiling again.
+  render("C02").click();
+  for (let i = 0; i < 5; i++) await settle();
+  const videos = calls.filter((call) => call[0] === "videos.generate" && call[1].startsWith("prompt-C02"));
+  assert.equal(videos.length, 2);
+  assert.deepEqual(videos[1], videos[0]);
+  assert.equal(calls.filter((call) => call[0] === "prompts.generate" && call[1] === "C02").length, 1);
+  compileC01();
+  for (let i = 0; i < 5; i++) await settle();
+  assert.ok(calls.some((call) => call[0] === "videos.generate" && call[1].startsWith("prompt-C01")));
+  assert.equal(Object.keys(localStorage).filter((key) => key.includes(":pending:")).length, 0);
+});
+
 function editor(root, materialValue, save = async () => {}) {
   return storyboardEditor(root, { content: storyboardContent, material: materialValue, characters: [mia, leo], save, cancel() {} });
 }

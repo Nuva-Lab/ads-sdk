@@ -2,12 +2,12 @@
  * Script v3 and Storyboard views: reading a Script, starting a Storyboard for it, reading a Storyboard with its
  * cast, direction and clips (shot tokens shown as chips), editing it with live checks, and rendering its clips.
  */
-import { NARRATOR, clipReferences } from "@nuva/sdk/schemas";
+import { NARRATOR, clipReferences } from "@nuva/sdk/internal";
 import type { ScriptContent, StoryboardContent } from "@nuva/sdk/schemas";
 import type { Character, ResourceLink, Script, Storyboard } from "@nuva/sdk";
 import { msg, resolveLabel, setText, translate, UiError, type UiLabel } from "./i18n.js";
 import { icon, type IconName } from "./icons.js";
-import { keyed } from "./requests.js";
+import { keyed, pendingInput } from "./requests.js";
 import type { ResourceHost } from "./resources.js";
 import { listCharacters } from "./characters.js";
 import {
@@ -487,12 +487,20 @@ export async function renderStoryboard(
       trigger.disabled = true;
       setText(status, msg("Preparing the clip…"));
       try {
-        // The clip's Prompt first (a clip compiled before keeps its Prompt), then a Job for it.
-        const request = { storyboard: storyboard.id, clip };
-        const { prompts } = await keyed(host, "prompt", request, (key) => host.sdk.prompts.generate(request, { idempotencyKey: key }));
+        // The clip's Prompt first (a clip compiled before keeps its Prompt), then a Job for it. Each clip has its own
+        // request records, so one clip's unfinished request never blocks another's.
+        const part = `${storyboard.id}:${clip}`;
+        // A submission whose outcome is unknown is retried exactly as it was sent, with its Prompt and key, so a
+        // recompiled Prompt with another ID cannot leave it stuck.
+        let input = pendingInput(host, "video", part) as { prompt: string } | undefined;
+        if (input === undefined) {
+          const request = { storyboard: storyboard.id, clip };
+          const { prompts } = await keyed(host, "prompt", request, (key) => host.sdk.prompts.generate(request, { idempotencyKey: key }), part);
+          input = { prompt: prompts[0]!.id };
+        }
         setText(status, msg("Starting…"));
-        const input = { prompt: prompts[0]!.id };
-        const job = await keyed(host, "video", input, (key) => host.sdk.videos.generate(input, { idempotencyKey: key }));
+        const submission = input;
+        const job = await keyed(host, "video", submission, (key) => host.sdk.videos.generate(submission, { idempotencyKey: key }), part);
         const record: ResourceLink = { ref: { kind: "job", id: job.id }, label: `${clip} · ${script.content.concept.name}` };
         host.remember(record);
         status.replaceChildren(
