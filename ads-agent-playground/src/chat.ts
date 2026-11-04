@@ -15,6 +15,7 @@ import type {
   MessageRef,
 } from "@nuva/sdk";
 import { ResourceCards } from "./resource-cards.js";
+import { WaitingBar } from "./waiting.js";
 import { readResource } from "./resources.js";
 import { usefulLabel, resourcePresentation } from "./resource-presentation.js";
 import { Composer, buildDraft } from "./composer.js";
@@ -67,6 +68,7 @@ export class ChatController {
   private list = node("div", "", "message-list");
   private historyNotice = node("div", "", "history-notice");
   private cards: ResourceCards;
+  private waitingBar: WaitingBar | undefined;
   private viewEvents = new AbortController();
   readonly composer: Composer;
   private messageReferences: ChatReferences;
@@ -90,6 +92,11 @@ export class ChatController {
       { passive: true, signal: this.viewEvents.signal },
     );
     this.cards = this.makeCards();
+    // While the Session waits for renders; chat stays enabled. Stop waiting is the Session's Stop.
+    this.waitingBar = new WaitingBar(
+      { bar: byId("waiting-bar"), text: byId("waiting-text"), jobs: byId("waiting-jobs"), stop: byId<HTMLButtonElement>("stop-waiting") },
+      { open: (record) => host.open(record), stop: async () => this.agent?.stop() },
+    );
     this.composer = new Composer(() =>
       host.resources().map((record) => this.cards.label(record)),
     );
@@ -248,6 +255,7 @@ export class ChatController {
     this.addSessionOptions([session]);
     const epoch = ++this.epoch;
     this.unsubscribe?.();
+    this.waitingBar?.update(undefined);
     this.cards.dispose();
     this.cards = this.makeCards();
     this.historyLoading = false;
@@ -319,6 +327,7 @@ export class ChatController {
     this.olderSessions.remove();
     this.epoch++;
     this.viewEvents.abort();
+    this.waitingBar?.dispose();
     this.cards.dispose();
     this.unsubscribe?.();
     this.agent = undefined;
@@ -649,6 +658,7 @@ export class ChatController {
       this.renderHistoryNotice();
     }
     if (state.status !== "loading" && state.status !== "error") this.messageReferences.setMessages(state.messages.items);
+    this.waitingBar?.update(state.status === "loading" || state.status === "error" ? undefined : state.waiting);
     this.controls();
     if (state.status === "loading") return;
     if (state.status === "error") {
