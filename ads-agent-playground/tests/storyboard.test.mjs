@@ -112,6 +112,37 @@ test("a Storyboard's shots show people, images, the Product and lines as chips, 
   assert.deepEqual(texts(root, '[data-clip="C01"] .storyboard-references .reference-chip'), ["Mia · Side", "Back of the box", "Mia's voice"]);
 });
 
+test("Render clip compiles the clip's Prompt, then renders that Prompt", async () => {
+  const root = fresh();
+  const calls = [];
+  const storyboard = { kind: "storyboard", id: ids.storyboard, lineage_id: ids.storyboard, base_id: null, batch_id: null, content: storyboardContent, relationships: [] };
+  const sdk = fakeSdk({
+    storyboards: { get: async () => storyboard },
+    prompts: {
+      generate: async (input, options) => {
+        calls.push(["prompts.generate", input, typeof options.idempotencyKey]);
+        return { prompts: [{ kind: "prompt", id: "prompt-c01", data: { clip_id: input.clip } }] };
+      },
+    },
+    videos: {
+      generate: async (input, options) => {
+        calls.push(["videos.generate", input, typeof options.idempotencyKey]);
+        return { id: "job-1", status: "queued", prompt: input.prompt };
+      },
+    },
+  });
+  const remembered = [];
+  const host = { sdk, scope: "storyboard-render", sessionId: "session", records: [], remember: (record) => remembered.push(record), attach() {}, requestAgent: async () => {} };
+  await openResource(root, { ref: { kind: "storyboard", id: ids.storyboard }, label: "Storyboard" }, host);
+  [...root.querySelectorAll('[data-clip="C01"] button')].find((button) => button.textContent.includes("Render clip")).click();
+  for (let i = 0; i < 5; i++) await settle();
+  assert.deepEqual(calls, [
+    ["prompts.generate", { storyboard: ids.storyboard, clip: "C01" }, "string"],
+    ["videos.generate", { prompt: "prompt-c01" }, "string"],
+  ]);
+  assert.deepEqual(remembered.map((record) => record.ref), [{ kind: "job", id: "job-1" }]);
+});
+
 function editor(root, materialValue, save = async () => {}) {
   return storyboardEditor(root, { content: storyboardContent, material: materialValue, characters: [mia, leo], save, cancel() {} });
 }

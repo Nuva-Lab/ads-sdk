@@ -62,7 +62,7 @@ The API URL handles Products, artifacts, media, Script and Storyboard writing, v
 4. Open the returned Script in the workspace: its concept, length, beats, roles and panels with their lines. Ask for revisions in chat or use **Revise script**.
 5. Choose **New Storyboard** on the Script, pick a Character for any role (or leave it to the writer), and add an optional instruction. The written Storyboard opens: its cast, direction and clips, with each shot's people, images and lines shown as chips.
 6. **Edit** a Storyboard to change its cast, direction, clip lengths and shots. Shots are text with tokens (`{{role}}`, `{{role:<image id>}}`, `{{product}}`, `{{product:<image id>}}`, `{{L01}}`); **Insert…** adds one at the cursor. Problems show beside the clip or shot they name; **Save Storyboard** saves a new revision.
-7. Choose **Render clip** on a clip. Its video Job appears under **Clips**; open it to see its status and play the video when it is ready.
+7. Choose **Render clip** on a clip. The clip is compiled into its video Prompt (a clip compiled before keeps its Prompt), then its video Job appears under **Clips**; open it to see its status and play the video when it is ready.
 8. Ask Ads Agent to assemble selected clips. Registered final videos appear under **Finals**.
 
 **Revise script** sends a request to Ads Agent in the selected conversation, with the Script attached. **New Storyboard**, Storyboard edits and **Render clip** call the API directly. A Script saved before Storyboards is shown as a read-only legacy Script.

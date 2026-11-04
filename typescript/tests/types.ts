@@ -28,23 +28,25 @@ import { PartialCreationError } from '@nuva/sdk';
 declare const creationFailure: unknown;
 if (creationFailure instanceof PartialCreationError) {
 	const code: 'PARTIAL_CREATION' = creationFailure.code;
-	// @ts-expect-error A Storyboard receipt has no Plan.
+	// @ts-expect-error A Prompt receipt has no Plan.
 	creationFailure.saved.plan;
-	const savedStoryboardId: string = creationFailure.saved.storyboard.id;
 	const savedPromptIds: string[] = creationFailure.saved.prompts.map((prompt) => prompt.id);
-	void [code, savedStoryboardId, savedPromptIds];
+	void [code, savedPromptIds];
 }
 
-// @ts-expect-error The generation service accepts omission, not an explicit null ratio.
-void client.storyboards.generate({ script: '00000000-0000-4000-8000-000000000001', ratio: null });
-// @ts-expect-error Prompts are compiled by Storyboards; there is no prompts.generate.
+// @ts-expect-error A Storyboard is not compiled when it is written; the ratio belongs to its Prompts.
+void client.storyboards.generate({ script: '00000000-0000-4000-8000-000000000001', ratio: '9:16' });
+// @ts-expect-error Prompts are compiled from a Storyboard, not a Script.
 void client.prompts.generate({ script: '00000000-0000-4000-8000-000000000001' });
+// @ts-expect-error The generation service accepts omission, not an explicit null ratio.
+void client.prompts.generate({ storyboard: '00000000-0000-4000-8000-000000000001', ratio: null });
 const storyboard: Promise<import('@nuva/sdk').Storyboard> = client.storyboards.generate({ base: '00000000-0000-4000-8000-000000000001', instruction: 'Shorter' });
-void storyboard.then((board) => {
+void storyboard.then(async (board) => {
 	const shots: string[] = board.content.clips[0]!.shots;
+	const { prompts } = await client.prompts.generate({ storyboard: board.id, clip: 'C01', ratio: '9:16' });
+	void client.videos.generate({ prompt: prompts[0]!.id });
+	// @ts-expect-error Video generation takes a saved Prompt ID or raw input, not a Storyboard clip.
 	void client.videos.generate({ storyboard: { id: board.id, clip: 'C01' } });
-	// @ts-expect-error A Storyboard clip and a saved Prompt cannot both be supplied.
-	void client.videos.generate({ storyboard: { id: board.id, clip: 'C01' }, prompt: 'saved-id' });
 	void shots;
 });
 declare const upload: File;

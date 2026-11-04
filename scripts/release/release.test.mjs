@@ -4,7 +4,7 @@ import { mkdtemp, rm, readFile, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { buildRelease } from './build.mjs';
-import { approvedOrigins, VERSION, GO_VERSION, run } from './common.mjs';
+import { approvedOrigins, releaseNotes, VERSION, GO_VERSION, run } from './common.mjs';
 test('release routing accepts only an explicit complete HTTPS configuration', () => {
 	// Syntax fixtures only; these are not approved or deployed service configuration.
 	const origins = { agent: 'https://agent.nuvalab.ai/api', store: 'https://api.nuvalab.ai', generation: 'https://writer.nuvalab.ai' };
@@ -42,6 +42,14 @@ test('release routing accepts only an explicit complete HTTPS configuration', ()
 	]) {
 		assert.throws(() => approvedOrigins({ ...origins, agent: `https://${host}/api` }), /public DNS HTTPS/);
 	}
+});
+test('CHANGELOG.md has a release-notes entry for this version', async () => {
+	assert.match(await releaseNotes(VERSION), /Migrating from/);
+	const text = '# Changelog\n\n## 2.0.0\n\nNew.\n\n## 1.0.0\n\nOld.\n';
+	assert.equal(await releaseNotes('2.0.0', text), 'New.');
+	assert.equal(await releaseNotes('1.0.0', text), 'Old.');
+	await assert.rejects(releaseNotes('3.0.0', text), /no entry for 3\.0\.0/);
+	await assert.rejects(releaseNotes('1.0.0', '## 1.0.0\n\n## 0.9.0\n'), /empty/);
 });
 test('repeat local builds produce identical delivered bytes and public-only inventories', { timeout: 120000 }, async () => {
 	const temporary = await mkdtemp(resolve(tmpdir(), 'nuva-release-repro-'));

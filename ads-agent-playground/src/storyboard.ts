@@ -485,9 +485,13 @@ export async function renderStoryboard(
   const renderClip = (clip: string, trigger: HTMLButtonElement, status: HTMLElement) =>
     void action(async () => {
       trigger.disabled = true;
-      setText(status, msg("Starting…"));
+      setText(status, msg("Preparing the clip…"));
       try {
-        const input = { storyboard: { id: storyboard.id, clip } };
+        // The clip's Prompt first (a clip compiled before keeps its Prompt), then a Job for it.
+        const request = { storyboard: storyboard.id, clip };
+        const { prompts } = await keyed(host, "prompt", request, (key) => host.sdk.prompts.generate(request, { idempotencyKey: key }));
+        setText(status, msg("Starting…"));
+        const input = { prompt: prompts[0]!.id };
         const job = await keyed(host, "video", input, (key) => host.sdk.videos.generate(input, { idempotencyKey: key }));
         const record: ResourceLink = { ref: { kind: "job", id: job.id }, label: `${clip} · ${script.content.concept.name}` };
         host.remember(record);
@@ -935,11 +939,8 @@ export function storyboardEditor(
       try {
         await options.save(renumber(draft));
       } catch (error) {
-        const value = error as { code?: string; saved?: { storyboard?: { id: string } } };
         showError(failure, error);
         rejected = serviceIssues(error);
-        if (value.code === "PARTIAL_CREATION" && value.saved?.storyboard)
-          failure.append(node("p", msg("The Storyboard was saved as {p0}, but not all of its clips were compiled.", { p0: value.saved.storyboard.id }), "muted"));
         throw error;
       } finally {
         saving = false;

@@ -20,8 +20,7 @@ export const generateScriptSchema = z
  * - new: `{ script, cast?, instruction? }`; the writer casts, stages and shoots the Script;
  * - revision: `{ base, instruction, cast? }`; the writer changes the base Storyboard as instructed;
  * - edit: `{ content, base? }`; saves a Storyboard written or edited by hand.
- * Each saves the Storyboard and compiles its clips for video generation; a revision or edit recompiles only the
- * clips that changed.
+ * Each saves the Storyboard and returns it; `generatePromptSchema` turns its clips into video Prompts.
  */
 export const generateStoryboardSchema = z
 	.object({
@@ -34,7 +33,6 @@ export const generateStoryboardSchema = z
 			.describe('Characters to cast, by Script role: { role: characterId }. Other roles are cast by the writer.'),
 		instruction: z.string().max(32000).optional(),
 		batch_id: backendIdSchema.optional(),
-		ratio: z.enum(['adaptive', '21:9', '16:9', '4:3', '1:1', '3:4', '9:16']).optional(),
 	})
 	.strict()
 	.superRefine((value, ctx) => {
@@ -45,6 +43,22 @@ export const generateStoryboardSchema = z
 		} else if ((value.script === undefined) === (value.base === undefined)) fail('Give a script for a new Storyboard, or a base to revise.');
 		else if (value.base !== undefined && value.instruction === undefined) fail('A revision needs an instruction saying what to change.');
 	});
+/**
+ * A Prompt request: compiles a saved Storyboard's clips (or one clip) into video Prompts, in clip order. A clip
+ * compiled before from the same inputs returns its saved Prompt instead of being compiled again.
+ */
+export const generatePromptSchema = z
+	.object({
+		storyboard: backendIdSchema,
+		clip: z
+			.string()
+			.regex(/^C\d{2}$/, 'Clip IDs use C01, C02, ...')
+			.optional()
+			.describe('One clip of the Storyboard; all of its clips when left out.'),
+		ratio: z.enum(['adaptive', '21:9', '16:9', '4:3', '1:1', '3:4', '9:16']).optional(),
+	})
+	.strict();
 export type SkillSelection = z.infer<typeof skillSelectionSchema>;
 export type GenerateScriptInput = z.infer<typeof generateScriptSchema>;
 export type GenerateStoryboardInput = z.infer<typeof generateStoryboardSchema>;
+export type GeneratePromptInput = z.infer<typeof generatePromptSchema>;

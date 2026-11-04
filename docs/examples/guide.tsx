@@ -469,7 +469,6 @@ export async function writeStoryboard(
       script: script.id,
       cast: { host: characterId },
       instruction: "Shoot it as a phone selfie in a bright kitchen.",
-      ratio: "9:16",
     },
     { idempotencyKey: requestKey },
   );
@@ -510,9 +509,24 @@ export async function editShot(
 }
 // #endregion edit-storyboard
 
+// #region generate-prompts
+export async function compileClips(
+  client: NuvaClient,
+  storyboard: Storyboard,
+  requestKey: string, // Save it to retry this request.
+) {
+  // One saved Prompt per clip, in clip order; pass clip: "C01" for one clip only.
+  const { prompts } = await client.prompts.generate(
+    { storyboard: storyboard.id, ratio: "9:16" },
+    { idempotencyKey: requestKey },
+  );
+  return prompts.map((prompt) => ({ clip: prompt.data.clip_id, prompt: prompt.id }));
+}
+// #endregion generate-prompts
+
 // #region generate-video
-export async function generateClip(client: NuvaClient, storyboard: Storyboard, clip: string) {
-  const job = await client.videos.generate({ storyboard: { id: storyboard.id, clip } });
+export async function generateClip(client: NuvaClient, promptId: string) {
+  const job = await client.videos.generate({ prompt: promptId });
   return job; // Save job.id before waiting for the video.
 }
 // #endregion generate-video
@@ -564,8 +578,8 @@ export async function waitForClip(job: Job) {
 // #endregion wait-video
 
 // #region idempotency
-export function videoSubmission(client: NuvaClient, storyboardId: string, clip: string) {
-  const input = { storyboard: { id: storyboardId, clip } };
+export function videoSubmission(client: NuvaClient, promptId: string) {
+  const input = { prompt: promptId };
   const options = { idempotencyKey: crypto.randomUUID() };
   return {
     input,

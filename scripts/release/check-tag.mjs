@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { ROOT, VERSION, GO_MODULE, run, json } from './common.mjs';
+import { ROOT, VERSION, GO_MODULE, run, json, releaseNotes } from './common.mjs';
 export async function checkTag(tag = process.env.RELEASE_TAG) {
   assert.match(tag ?? '', /^v\d+\.\d+\.\d+-preview\.\d+$/, 'Use an existing preview version tag.');
   assert.equal(tag, `v${VERSION}`);
@@ -16,6 +16,7 @@ export async function checkTag(tag = process.env.RELEASE_TAG) {
     assert.match(source.commit, /^[0-9a-f]{40}$/, `${file} must record the backend commit before release.`);
     if ('pullRequest' in source) assert.match(String(source.pullRequest), /^https:\/\/github\.com\//, `${file} must record its pull request before release.`);
   }
+  await releaseNotes(VERSION);
   return tag;
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href)
