@@ -20,6 +20,7 @@ export function useAgent(options: AgentOptions): AgentResult {
 		() => ({
 			sessionId: agent.sessionId,
 			send: agent.send,
+			removeQueued: agent.removeQueued,
 			stop: agent.stop,
 			respond: agent.respond,
 			fail: agent.fail,

@@ -2,6 +2,11 @@
 
 Each entry describes the change from the previous released version.
 
+## Unreleased
+
+- **Message queue.** `agent.send(draft, { mode: 'queue' })` no longer gets `AGENT_BUSY` while the Agent works: the message waits in the new optional `state.queue`, and at the Agent's next step (after its current tool results) every queued message joins the conversation, each as its own user message. When no loop is running (it finished, failed or was stopped), they start the next one. `agent.removeQueued(messageId)` removes one until it joins. Without `mode`, `send` behaves as before. The Agent's reply continues in a new assistant message after messages that join it. Needs an Agent deployment with the queue; older Agents reject `mode` as `INVALID_INPUT`.
+- **Playground.** Messages sent while the Agent works are queued above the composer, each with Edit and Remove.
+
 ## 0.1.0-preview.4
 
 Changes since `0.1.0-preview.3`.

@@ -258,12 +258,7 @@ export class Composer {
     const range = selection.getRangeAt(0);
     if (!this.editor.contains(range.startContainer)) return;
     range.deleteContents();
-    const key = crypto.randomUUID();
-    this.references.set(key, record);
-    const chip = node("span", `@${record.label}`, "mention-chip");
-    chip.contentEditable = "false";
-    chip.dataset.mention = key;
-    chip.title = `${record.ref.kind}: ${record.ref.id}`;
+    const chip = this.chip(record);
     range.insertNode(chip);
     const space = document.createTextNode(" ");
     chip.after(space);
@@ -273,6 +268,41 @@ export class Composer {
     selection.addRange(range);
     this.rememberCaret();
     this.close();
+    this.onChange();
+  }
+  private chip(record: ResourceLink) {
+    const key = crypto.randomUUID();
+    this.references.set(key, record);
+    const chip = node("span", `@${record.label}`, "mention-chip");
+    chip.contentEditable = "false";
+    chip.dataset.mention = key;
+    chip.title = `${record.ref.kind}: ${record.ref.id}`;
+    return chip;
+  }
+  /** Replaces the draft with these parts (a queued message being edited), the caret at its end. */
+  load(parts: readonly ComposerPart[]) {
+    this.clear();
+    for (const part of parts) {
+      if (part.type === "quote") {
+        // The text that followed the chip (its space included) is the next part.
+        this.editor.append(this.chip(part.record));
+        continue;
+      }
+      part.text.split("\n").forEach((line, index) => {
+        if (index > 0) this.editor.append(document.createElement("br"));
+        if (line) this.editor.append(document.createTextNode(line));
+      });
+    }
+    this.focus();
+    const selection = window.getSelection();
+    if (selection) {
+      const range = document.createRange();
+      range.selectNodeContents(this.editor);
+      range.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      this.rememberCaret();
+    }
     this.onChange();
   }
   insertPrompt(text: string) {

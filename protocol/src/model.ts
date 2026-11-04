@@ -134,6 +134,19 @@ export interface AgentData {
 	 * available; Stop cancels the wait. Clients that do not know it ignore it.
 	 */
 	readonly waiting?: SessionWaiting;
+	/**
+	 * Present only while messages wait to be sent: the user sent them (`mode: 'queue'`) while a Turn ran. Each joins the
+	 * running Turn at its next step as its own user message, or starts the next Turn when none is running. Until then
+	 * it can be removed. Clients that do not know it ignore it.
+	 */
+	readonly queue?: readonly QueuedMessage[];
+}
+/** A message waiting in the Session's queue. */
+export interface QueuedMessage {
+	/** The user message as it was queued; once it joins the conversation, the history shows it under the same ID. */
+	readonly message: MessageView;
+	/** It could not be sent (for example, a reference is no longer readable); it stays here until removed. */
+	readonly error?: NuvaErrorInfo;
 }
 /** The Jobs a Session waits for, and when they usually finish. */
 export interface SessionWaiting {
@@ -314,7 +327,14 @@ export const sessionWaitingSchema = z.object({
 	jobs: z.array(z.object({ record: resourceLinkSchema, status: z.enum(['queued', 'running']) })).min(1),
 	estimated_done_at: z.string().min(1).optional(),
 });
-const common = z.object({ session: sessionSchema, messages: messagePageSchema, error: errorSchema.optional(), waiting: sessionWaitingSchema.optional() });
+export const queuedMessageSchema = z.object({ message: messageSchema, error: errorSchema.optional() });
+const common = z.object({
+	session: sessionSchema,
+	messages: messagePageSchema,
+	error: errorSchema.optional(),
+	waiting: sessionWaitingSchema.optional(),
+	queue: z.array(queuedMessageSchema).min(1).optional(),
+});
 export const agentStateSchema = z.union([
 	z.object({ status: z.literal('loading') }),
 	z.object({ status: z.literal('error'), error: errorSchema }),
