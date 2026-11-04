@@ -1,5 +1,7 @@
 # Ads SDK
 
+English | [中文](README.zh-CN.md)
+
 Build ad creation into your application with Agent chat, product and media management, Script and Storyboard generation, and video Jobs.
 
 **Preview version: `0.1.0-preview.4`**
