@@ -966,9 +966,6 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
           },
           "input": {
             "type": "null"
-          },
-          "storyboard": {
-            "type": "null"
           }
         },
         "type": "object",
@@ -983,31 +980,11 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
           },
           "prompt": {
             "type": "null"
-          },
-          "storyboard": {
-            "type": "null"
           }
         },
         "type": "object",
         "required": [
           "input"
-        ]
-      },
-      {
-        "properties": {
-          "storyboard": {
-            "type": "object"
-          },
-          "prompt": {
-            "type": "null"
-          },
-          "input": {
-            "type": "null"
-          }
-        },
-        "type": "object",
-        "required": [
-          "storyboard"
         ]
       }
     ],
@@ -1059,17 +1036,6 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         ],
         "description": "Raw Prompt v1 content to save atomically with this Job."
       },
-      "storyboard": {
-        "anyOf": [
-          {
-            "$ref": "#/$defs/StoryboardClip"
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "description": "A Storyboard clip: the job renders the Prompt compiled for that clip."
-      },
       "callback_url": {
         "anyOf": [
           {
@@ -1094,7 +1060,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
           }
         ],
         "title": "Batch Id",
-        "description": "One of the caller's batches."
+        "description": "One of the caller's batches; when omitted, a saved Prompt's Job joins the Prompt's Batch."
       }
     },
     "additionalProperties": false,
@@ -1860,29 +1826,6 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "skills"
     ],
     "title": "Storyboard"
-  },
-  "StoryboardClip": {
-    "properties": {
-      "id": {
-        "type": "string",
-        "format": "uuid",
-        "title": "Id",
-        "description": "A Storyboard ID."
-      },
-      "clip": {
-        "type": "string",
-        "pattern": "^C\\d{2}$",
-        "title": "Clip",
-        "description": "One of its clips, e.g. C01."
-      }
-    },
-    "additionalProperties": false,
-    "type": "object",
-    "required": [
-      "id",
-      "clip"
-    ],
-    "title": "StoryboardClip"
   },
   "StoryboardCreate": {
     "properties": {

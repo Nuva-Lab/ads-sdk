@@ -25,22 +25,21 @@ test('Script, Storyboard and Plan content is text; source relationships are expl
 	}
 });
 
-test('partial Storyboard receipts retain null Batch and reject Prompts not based on the saved Storyboard', () => {
-	const storyboard = record('storyboard', { text: 'Encoded Storyboard' });
-	const saved = { ...record('prompt', { prompt: 'Clip', image_asset_ids: [id] }), relationships: [{ type: 'based_on', target: { kind: 'storyboard', id } }] };
+test('partial Prompt receipts retain null Batch and reject Prompts not based on one Storyboard', () => {
+	const saved = { ...record('prompt', { prompt: 'Clip', image_asset_ids: [id], clip_id: 'C01' }), relationships: [{ type: 'based_on', target: { kind: 'storyboard', id } }] };
 	const info = { code: 'PARTIAL_CREATION', message: 'One saved', retryable: false };
-	const receipt = new PartialCreationError(info, { storyboard, prompts: [saved] }).saved;
-	assert.equal(receipt.storyboard.id, id);
+	const receipt = new PartialCreationError(info, { prompts: [saved] }).saved;
 	assert.equal(receipt.prompts[0].batch_id, null);
-	assert.deepEqual(new PartialCreationError(info, { storyboard, prompts: [] }).saved.prompts, [], 'A Storyboard may be saved before any clip compiles.');
+	assert.deepEqual(new PartialCreationError(info, { prompts: [] }).saved.prompts, []);
 	const { relationships: _, ...legacy } = saved;
+	const elsewhere = { ...saved, id: other, relationships: [{ type: 'based_on', target: { kind: 'storyboard', id: other } }] };
 	for (const invalid of [
-		{ prompts: [saved] },
-		{ storyboard, prompts: [legacy] },
-		{ storyboard, prompts: [{ ...saved, relationships }] },
-		{ storyboard, prompts: [{ ...saved, relationships: [{ type: 'based_on', target: { kind: 'storyboard', id: other } }] }] },
-		{ storyboard, prompts: [{ ...saved, data: { ...saved.data, plan: id } }] },
-		{ storyboard, prompts: [saved, saved] },
+		{ storyboard: record('storyboard', { text: 'Encoded Storyboard' }), prompts: [saved] },
+		{ prompts: [legacy] },
+		{ prompts: [{ ...saved, relationships }] },
+		{ prompts: [saved, elsewhere] },
+		{ prompts: [{ ...saved, data: { ...saved.data, plan: id } }] },
+		{ prompts: [saved, saved] },
 	])
 		assert.throws(() => new PartialCreationError(info, invalid), error => error.code === 'SERVICE_ERROR', JSON.stringify(invalid));
 });
@@ -80,16 +79,15 @@ test('customer Artifact writes omit relationship control while returned relation
  } finally {client.close();globalThis.fetch=original;}
 });
 
-test('storyboards.generate posts to the writing service and returns the typed Storyboard; a partial failure carries its receipt', async () => {
+test('storyboards.generate saves the Storyboard; prompts.generate compiles its clips and a partial failure carries its receipt', async () => {
  const original = globalThis.fetch, requests = [];
  const content = { script: other, cast: { presenter: { look: '短发女性', voice: '中音' } }, direction: '明亮工位', clips: [{ id: 'C01', duration_ms: 8000, shots: ['{{presenter}}举起{{product}}说{{L01}}'] }] };
  const storyboard = record('storyboard', { text: encodeStoryboard(content) });
- const prompt = { ...record('prompt', { prompt: 'Clip', image_asset_ids: [id] }), relationships: [{ type: 'based_on', target: { kind: 'storyboard', id } }] };
- let partial = false;
+ const prompt = (clip, promptId = id) => ({ ...record('prompt', { prompt: 'Clip', image_asset_ids: [id], clip_id: clip }), id: promptId, relationships: [{ type: 'based_on', target: { kind: 'storyboard', id } }] });
+ let reply = () => Response.json(storyboard, { status: 201 });
  globalThis.fetch = async (url, options) => {
-  requests.push([options.method ?? 'GET', String(url)]);
-  if (partial) return Response.json({ error: { code: 'PARTIAL_CREATION', message: 'C02 failed', retryable: false }, request_id: 'partial', saved: { storyboard, prompts: [prompt] } }, { status: 502 });
-  return Response.json(storyboard, { status: options.method === 'POST' ? 201 : 200 });
+  requests.push([options.method ?? 'GET', String(url), options.body ? JSON.parse(options.body) : undefined]);
+  return options.method === 'POST' ? reply() : Response.json(storyboard);
  };
  const client = createNuva({ baseUrl: 'http://127.0.0.1:9010/api', storeBaseUrl: 'http://127.0.0.1:9011', generationBaseUrl: 'http://127.0.0.1:9012', getAccessToken: async () => 'local-test-only' });
  try {
@@ -98,14 +96,26 @@ test('storyboards.generate posts to the writing service and returns the typed St
   assert.deepEqual(generated.content, content);
   assert.deepEqual((await client.storyboards.get({ kind: 'storyboard', id })).content, content);
   await assert.rejects(async () => client.storyboards.generate({ base: id }), error => error.code === 'INVALID_INPUT', 'A revision needs an instruction.');
-  partial = true;
-  await assert.rejects(client.storyboards.generate({ base: id, instruction: 'Shorter' }), error =>
-   error instanceof PartialCreationError && error.saved.storyboard.id === id && error.saved.prompts[0].id === id);
-  assert.deepEqual(requests, [
-   ['POST', 'http://127.0.0.1:9012/v1/generate/storyboard'],
-   ['GET', `http://127.0.0.1:9011/v1/artifacts/storyboard/${id}`],
-   ['POST', 'http://127.0.0.1:9012/v1/generate/storyboard'],
+  await assert.rejects(async () => client.storyboards.generate({ script: other, ratio: '9:16' }), error => error.code === 'INVALID_INPUT', 'A Storyboard takes no ratio.');
+
+  reply = () => Response.json({ prompts: [prompt('C01'), prompt('C02', other)] });
+  const { prompts } = await client.prompts.generate({ storyboard: id, ratio: '9:16' });
+  assert.deepEqual(prompts.map(p => [p.kind, p.data.clip_id]), [['prompt', 'C01'], ['prompt', 'C02']]);
+  await assert.rejects(client.prompts.generate({ storyboard: id, clip: 'C01' }), error => error.code === 'SERVICE_ERROR', 'One clip returns only its Prompt.');
+  reply = () => Response.json({ prompts: [{ ...prompt('C01'), relationships }] });
+  await assert.rejects(client.prompts.generate({ storyboard: id }), error => error.code === 'SERVICE_ERROR', 'Prompts are based on the requested Storyboard.');
+  for (const bad of [{ script: other }, { storyboard: id, clip: '1' }, { storyboard: id, instruction: 'Brighter' }])
+   await assert.rejects(async () => client.prompts.generate(bad), error => error.code === 'INVALID_INPUT', JSON.stringify(bad));
+  reply = () => Response.json({ error: { code: 'PARTIAL_CREATION', message: 'C02 failed', retryable: false }, request_id: 'partial', saved: { prompts: [prompt('C01')] } }, { status: 409 });
+  await assert.rejects(client.prompts.generate({ storyboard: id }), error =>
+   error instanceof PartialCreationError && error.acceptance === 'unknown' && error.saved.prompts[0].id === id);
+  assert.deepEqual(requests.map(([method, url, body]) => [method, url, body]), [
+   ['POST', 'http://127.0.0.1:9012/v1/generate/storyboard', { script: other, cast: { presenter: other } }],
+   ['GET', `http://127.0.0.1:9011/v1/artifacts/storyboard/${id}`, undefined],
+   ['POST', 'http://127.0.0.1:9012/v1/generate/prompt', { storyboard: id, ratio: '9:16' }],
+   ['POST', 'http://127.0.0.1:9012/v1/generate/prompt', { storyboard: id, clip: 'C01' }],
+   ['POST', 'http://127.0.0.1:9012/v1/generate/prompt', { storyboard: id }],
+   ['POST', 'http://127.0.0.1:9012/v1/generate/prompt', { storyboard: id }],
   ]);
-  assert.equal('generate' in client.prompts, false, 'Prompts are compiled by Storyboards.');
  } finally {client.close();globalThis.fetch=original;}
 });

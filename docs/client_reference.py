@@ -164,8 +164,8 @@ def guide_pages(locale='zh'):
             + ex('create-character')
             + p(f'Each clip of a Storyboard is rendered as a separate video. A role described only in words is drawn again in every clip, so the face and voice can change from clip to clip. A cast Character gives every clip it appears in the same photo as a reference, and with <code>voice: "character"</code> the same voice recording. Cast it with <code>storyboards.generate({{cast: {{role: characterId}}}})</code>; see <a href="{link("generation", "storyboard")}">Storyboards</a>.',
                 f'分镜中的每个片段单独生成视频。只用文字描述的角色会在每个片段中重新生成，长相和声音可能前后不一致。选角（cast）为人物后，它出现的每个片段都使用同一张照片作为参考；设置 <code>voice: "character"</code> 时还使用同一段声音录音。通过 <code>storyboards.generate({{cast: {{role: characterId}}}})</code> 选角，参见<a href="{link("generation", "storyboard")}">分镜</a>。')
-            + p('Characters are shared within your organization and versioned like Products: an update takes the record you read as <code>base</code>. A Storyboard records the exact Character revision it cast. Use photos and recordings of people who agreed to appear in your ads.',
-                '人物在组织内共享，并像产品一样按版本保存：更新时将读取到的记录作为 <code>base</code> 传入。分镜会记录所选人物的具体版本。请只使用已同意出现在广告中的人的照片和录音。')),
+            + p('Characters are shared within your organization and versioned like Products: an update takes the record you read as <code>base</code>. A Storyboard records the exact Character revision it cast, and its clips are always compiled with that revision: an update changes the Storyboards written after it, or a revision of an existing one, not what an existing Storyboard renders. Use photos and recordings of people who agreed to appear in your ads.',
+                '人物在组织内共享，并像产品一样按版本保存：更新时将读取到的记录作为 <code>base</code> 传入。分镜会记录所选人物的具体版本，其片段始终按该版本编译：更新人物只影响之后写的分镜或对已有分镜的修订，不会改变已有分镜生成的内容。请只使用已同意出现在广告中的人的照片和录音。')),
         section('media', 'Upload and display media', '上传与展示媒体',
             c("const asset = await client.assets.upload(file, { kind: 'video' });\n\n// Fetch a fresh URL when reopening saved media.\nconst current = await client.assets.get(asset.id);")
             + c('<video src={current.download_url} controls preload="metadata" />', 'tsx')
@@ -187,8 +187,8 @@ def guide_pages(locale='zh'):
             + ex('save-script')
             + p('An Artifact update returns a new ID and leaves the original intact. Use the returned reference for later operations. <code>base_id</code> points to the previous version. The typed client validates <code>script.content</code> and handles its stored encoding.',
                 '更新产物会返回新 ID，原记录保持不变。后续操作应使用返回的新引用，<code>base_id</code> 指向前一版本。类型化客户端会校验 <code>script.content</code> 并处理存储编码。')
-            + p('Use <code>artifacts.get({kind, id})</code> when you need a generic reader. Use <code>scripts</code> and <code>storyboards</code> for typed reads. <code>prompts.get</code> reads the video Prompt a clip was compiled into (<code>job.prompt</code>); you do not need it for normal work.',
-                '需要通用读取入口时使用 <code>artifacts.get({kind, id})</code>；类型化读取使用 <code>scripts</code> 和 <code>storyboards</code>。<code>prompts.get</code> 读取片段编译成的视频提示词（<code>job.prompt</code>），一般流程中不需要使用。')
+            + p('Use <code>artifacts.get({kind, id})</code> when you need a generic reader. Use <code>scripts</code>, <code>storyboards</code> and <code>prompts</code> for typed reads. <code>prompts.get</code> reads a clip\'s video Prompt, for example <code>job.prompt</code>.',
+                '需要通用读取入口时使用 <code>artifacts.get({kind, id})</code>；类型化读取使用 <code>scripts</code>、<code>storyboards</code> 和 <code>prompts</code>。<code>prompts.get</code> 读取片段的视频提示词，例如 <code>job.prompt</code>。')
             + p('Returned <code>relationships</code> describe source provenance. The Agent maintains them; customer SDK create/update calls do not accept explicit relationship writes. Pass editable content rather than copying the entire returned record into a write.',
                 '返回的 <code>relationships</code> 描述来源关系，由 Agent 维护；客户 SDK 的创建和更新操作不接受直接写入这些关系。写入时传递可编辑内容，不要复制整条返回记录。')),
         section('ads-batches', 'Read final Ads and Batches', '读取成片广告与批次',
@@ -202,8 +202,8 @@ def guide_pages(locale='zh'):
 
     generation = [
         section('script', 'Generate a Script from a Product', '根据产品生成脚本',
-            p(f'Use these methods for generation buttons in your application. Generation has three steps: a Script (the idea and its exact lines), a <a href="#storyboard">Storyboard</a> (how it is cast and shot, cut into clips), then one <a href="#video">video Job</a> per Storyboard clip. Start with a saved Product containing its facts and reference images. <a href="{link("store", "products")}">Create the Product first</a> if needed.',
-                f'在应用的生成按钮中调用以下方法。生成分三步：脚本（创意及准确台词）、<a href="#storyboard">分镜</a>（选角和拍法，并切分为片段），然后为每个分镜片段提交一个<a href="#video">视频任务</a>。输入应为已保存事实信息和参考图片的产品；需要时先<a href="{link("store", "products")}">创建产品</a>。')
+            p(f'Use these methods for generation buttons in your application. Generation has four steps: a Script (the idea and its exact lines), a <a href="#storyboard">Storyboard</a> (how it is cast and shot, cut into clips), <a href="#prompts">Prompts</a> (each clip compiled for the video model), then one <a href="#video">video Job</a> per Prompt. Start with a saved Product containing its facts and reference images. <a href="{link("store", "products")}">Create the Product first</a> if needed.',
+                f'在应用的生成按钮中调用以下方法。生成分四步：脚本（创意及准确台词）、<a href="#storyboard">分镜</a>（选角和拍法，并切分为片段）、<a href="#prompts">提示词</a>（将每个片段编译为视频模型的输入），然后为每条提示词提交一个<a href="#video">视频任务</a>。输入应为已保存事实信息和参考图片的产品；需要时先<a href="{link("store", "products")}">创建产品</a>。')
             + ex('write-script', "import { useEffect, useState } from 'react';\nimport type { NuvaClient, Script, Job, JobState } from '@nuva/sdk';")
             + response('script')
             + p('Pass the Product ID, not a copied set of facts or image URLs. The service reads the authorized Product revision. The response contains a saved Script ID and validated <code>content</code>. Review <code>content.roles</code> and <code>content.panels</code>, the idea and its exact lines, before shooting it.',
@@ -217,14 +217,13 @@ def guide_pages(locale='zh'):
                 '分镜说明脚本如何拍摄：每个角色由谁出演（<code>cast</code>），整条视频统一的 <code>direction</code>（画面风格、场景、声音、音乐、屏幕文字），以及各个片段 <code>clips</code>。每个片段 5 到 15 秒，由若干以文字描述的镜头 <code>shots</code> 组成。每个片段生成一条视频。')
             + ex('write-storyboard', "import type { NuvaClient, Script, Storyboard } from '@nuva/sdk';")
             + response('storyboard')
-            + p(f'<code>cast</code> maps Script role IDs to <a href="{link("store", "characters")}">Character</a> IDs. The writer casts the other roles itself: with a Character in <code>cast</code>, or with a described <code>look</code> and <code>voice</code>. A cast entry is <code>{{character?, look?, voice?}}</code>; <code>voice: "character"</code> uses the Character\'s voice recording, and any other text describes the voice. <code>instruction</code> asks for a shooting style. <code>ratio</code> is one of <code>adaptive</code>, <code>21:9</code>, <code>16:9</code>, <code>4:3</code>, <code>1:1</code>, <code>3:4</code>, <code>9:16</code>.',
-                f'<code>cast</code> 将脚本角色 ID 对应到<a href="{link("store", "characters")}">人物</a> ID。其他角色由编写服务自行选角：在 <code>cast</code> 中使用人物，或用文字描述的 <code>look</code> 和 <code>voice</code>。选角项为 <code>{{character?, look?, voice?}}</code>；<code>voice: "character"</code> 使用人物的声音录音，其他文本表示对声音的描述。<code>instruction</code> 用于说明拍摄风格。<code>ratio</code> 可选 <code>adaptive</code>、<code>21:9</code>、<code>16:9</code>、<code>4:3</code>、<code>1:1</code>、<code>3:4</code>、<code>9:16</code>。')
-            + p('The service writes the Storyboard, then compiles each clip into a video Prompt. The call waits for both, so its default deadline is 300 seconds. Several Storyboards requested for the same Script, casting and instruction are shot differently from each other (format, setting, camera, pacing, opening shot), also when requested days apart. A revision keeps the treatment of its base.',
-                '服务先编写分镜，再将每个片段编译为视频提示词。请求会等待两者完成，因此默认超时为 300 秒。同一脚本、选角和 instruction 的多个分镜会采用不同拍法（形式、场景、镜头、节奏、开场画面），即使相隔几天请求也是如此。修改版沿用 base 的拍法。')
+            + p(f'<code>cast</code> maps Script role IDs to <a href="{link("store", "characters")}">Character</a> IDs. The writer casts the other roles itself: with a Character in <code>cast</code>, or with a described <code>look</code> and <code>voice</code>. A cast entry is <code>{{character?, look?, voice?}}</code>; <code>voice: "character"</code> uses the Character\'s voice recording, and any other text describes the voice. <code>instruction</code> asks for a shooting style.',
+                f'<code>cast</code> 将脚本角色 ID 对应到<a href="{link("store", "characters")}">人物</a> ID。其他角色由编写服务自行选角：在 <code>cast</code> 中使用人物，或用文字描述的 <code>look</code> 和 <code>voice</code>。选角项为 <code>{{character?, look?, voice?}}</code>；<code>voice: "character"</code> 使用人物的声音录音，其他文本表示对声音的描述。<code>instruction</code> 用于说明拍摄风格。')
+            + p('The service writes the Storyboard, with every clip\'s shots, and saves it. Its default deadline is 300 seconds. The Storyboard is where variety comes from: several Storyboards requested for the same Script, casting and instruction are shot differently from each other (format, setting, camera, pacing, opening shot), also when requested days apart. A revision keeps the treatment of its base. Review and edit a Storyboard before you compile its clips.',
+                '服务编写分镜（包括每个片段的镜头）并保存，默认超时为 300 秒。成片的多样性来自分镜：同一脚本、选角和 instruction 的多个分镜会采用不同拍法（形式、场景、镜头、节奏、开场画面），即使相隔几天请求也是如此。修改版沿用 base 的拍法。编译片段前可以先检查和编辑分镜。')
             + p('A Storyboard keeps its Script\'s Batch; pass <code>batch_id</code> only for a Script that has none. A Script saved before Storyboards (<code>format: 2</code>) is rejected; write a new Script first.',
                 '分镜沿用脚本所在的 Batch；只有脚本没有 Batch 时才传 <code>batch_id</code>。分镜功能推出前保存的脚本（<code>format: 2</code>）会被拒绝，请先生成新脚本。')
-            + p('If the Storyboard is saved but a later clip Prompt fails, the call throws <code>PartialCreationError</code>. <code>saved.storyboard</code> is the saved Storyboard and <code>saved.prompts</code> the clip Prompts saved so far. Retry the same input with the same <code>idempotencyKey</code> to finish the remaining clips. Until then, the missing clips return <code>NOT_FOUND</code> from <code>videos.generate</code>.',
-                '如果分镜已保存、但之后某个片段提示词保存失败，调用会抛出 <code>PartialCreationError</code>。<code>saved.storyboard</code> 是已保存的分镜，<code>saved.prompts</code> 是已保存的片段提示词。使用相同输入和相同 <code>idempotencyKey</code> 重试即可完成剩余片段；完成前，缺少提示词的片段在 <code>videos.generate</code> 中返回 <code>NOT_FOUND</code>。')),
+),
         section('tokens', 'Write shots with tokens', '在镜头中使用标记',
             p('Shots name people, Product images and Script lines with tokens. The service works out each clip\'s references from its tokens, so the same person and product images go into every clip that names them.',
                 '镜头文字用标记指代人物、产品图片和脚本台词。服务根据每个片段中的标记确定该片段的参考素材，因此提到同一人物或产品图片的每个片段都使用相同素材。')
@@ -245,14 +244,23 @@ def guide_pages(locale='zh'):
             + p('To save your own edits, pass the complete edited Storyboard as <code>content</code>, with the original as <code>base</code>. Leave out <code>script</code>, <code>cast</code> and <code>instruction</code>. <code>content.script</code> must be the base\'s Script.',
                 '保存自己的编辑时，将编辑后的完整分镜作为 <code>content</code> 传入，并将原分镜作为 <code>base</code>。不要传 <code>script</code>、<code>cast</code> 和 <code>instruction</code>。<code>content.script</code> 必须是 base 的脚本。')
             + ex('edit-storyboard')
-            + p('Every save creates a new Storyboard version and leaves the base unchanged. Only clips whose shots, cast, lines or references changed are compiled again; the others keep their Prompt. Content that fails the checks is rejected with <code>422 REJECTED</code>, and the message lists every problem so they can be fixed together.',
-                '每次保存都会创建新的分镜版本，base 保持不变。只有镜头、选角、台词或参考素材发生变化的片段会重新编译，其他片段沿用原提示词。未通过检查的内容返回 <code>422 REJECTED</code>，错误信息列出全部问题，便于一次修正。')),
+            + p('Every save creates a new Storyboard version and leaves the base unchanged. Content that fails the checks is rejected with <code>422 REJECTED</code>, and the message lists every problem so they can be fixed together.',
+                '每次保存都会创建新的分镜版本，base 保持不变。未通过检查的内容返回 <code>422 REJECTED</code>，错误信息列出全部问题，便于一次修正。')),
+        section('prompts', 'Compile clips into Prompts', '将片段编译为提示词',
+            ex('generate-prompts', "import type { NuvaClient, Storyboard } from '@nuva/sdk';")
+            + response('prompts')
+            + p('A Prompt turns one Storyboard clip into what the video model takes: the prompt text and the clip\'s references in order. It only has to fit the Storyboard and the model; the creative choices are made in the Storyboard. <code>prompts.generate({storyboard, clip?, ratio?})</code> returns <code>{prompts}</code> in clip order, one saved Prompt per clip, with <code>data.clip_id</code>. Pass <code>clip</code> (<code>"C01"</code>) to compile one clip. <code>ratio</code> is one of <code>adaptive</code>, <code>21:9</code>, <code>16:9</code>, <code>4:3</code>, <code>1:1</code>, <code>3:4</code>, <code>9:16</code>. The default deadline is 300 seconds.',
+                '提示词将一个分镜片段转为视频模型的输入：提示词文本和按顺序排列的参考素材。它只需符合分镜和模型的要求，创意选择在分镜中完成。<code>prompts.generate({storyboard, clip?, ratio?})</code> 按片段顺序返回 <code>{prompts}</code>，每个片段一条已保存的提示词，带有 <code>data.clip_id</code>。只编译一个片段时传入 <code>clip</code>（<code>"C01"</code>）。<code>ratio</code> 可选 <code>adaptive</code>、<code>21:9</code>、<code>16:9</code>、<code>4:3</code>、<code>1:1</code>、<code>3:4</code>、<code>9:16</code>。默认超时为 300 秒。')
+            + p('A clip compiled before from the same inputs (its shots, casting, lines, references and ratio) returns its saved Prompt and is not compiled or charged again. In a revised or edited Storyboard, a clip that did not change keeps its base Prompt\'s text.',
+                '已用相同输入（镜头、选角、台词、参考素材和画面比例）编译过的片段直接返回已保存的提示词，不会再次编译或计费。修改或编辑后的分镜中，未变化的片段沿用 base 提示词的文本。')
+            + p('If some Prompts are saved and a later one fails, the call throws <code>PartialCreationError</code>; <code>saved.prompts</code> holds the Prompts saved so far. Retry the same input with the same <code>idempotencyKey</code> to finish the remaining clips.',
+                '如果部分提示词已保存、之后某条失败，调用会抛出 <code>PartialCreationError</code>；<code>saved.prompts</code> 是已保存的提示词。使用相同输入和相同 <code>idempotencyKey</code> 重试即可完成剩余片段。')),
         section('video', 'Submit a video Job and display the result', '提交视频任务并展示结果',
             ex('generate-video')
             + response('job')
-            + p('Pass a Storyboard ID and one of its clip IDs. The Job renders the Prompt compiled for that clip, returned as <code>job.prompt</code>, and joins the Storyboard\'s Batch unless you pass <code>batch_id</code>. Submit one Job per clip.',
-                '传入分镜 ID 和其中一个片段 ID。任务使用为该片段编译的提示词（通过 <code>job.prompt</code> 返回），并加入分镜所在的 Batch，除非传入 <code>batch_id</code>。每个片段提交一个任务。')
-            + p('For advanced use, you can instead submit a saved Prompt ID (<code>{prompt}</code>) or raw prompt text with registered Asset IDs (<code>{input}</code>). For raw input the backend creates the Prompt and returns its ID in <code>job.prompt</code>. Use exactly one source mode. Keep <code>requestKey</code> stable for retries; generate a new key for a new video.', '高级用法中，也可以改为提交已保存的提示词 ID（<code>{prompt}</code>），或直接传入提示词文本和已注册的素材 ID（<code>{input}</code>）。直接传入时，后端会创建提示词，并通过 <code>job.prompt</code> 返回其 ID。三种输入方式只能选一种；重试时保留同一个 <code>requestKey</code>，重新生成视频时使用新请求标识。')
+            + p('Pass a saved Prompt ID from <code>prompts.generate</code>. The Job renders that Prompt, returned as <code>job.prompt</code>, and joins the Prompt\'s Batch (the Storyboard\'s) unless you pass <code>batch_id</code>. Submit one Job per clip.',
+                '传入 <code>prompts.generate</code> 返回的提示词 ID。任务使用该提示词生成视频，并通过 <code>job.prompt</code> 返回；未传 <code>batch_id</code> 时，任务归入该提示词所在的 Batch（即分镜的 Batch）。每个片段提交一个任务。')
+            + p('You can instead submit raw prompt text with registered Asset IDs (<code>{input}</code>). The backend creates the Prompt and returns its ID in <code>job.prompt</code>. Use exactly one of <code>prompt</code> or <code>input</code>. Keep <code>requestKey</code> stable for retries; generate a new key for a new video.', '也可以直接传入提示词文本和已注册的素材 ID（<code>{input}</code>）。后端会创建提示词，并通过 <code>job.prompt</code> 返回其 ID。<code>prompt</code> 和 <code>input</code> 只能选一种；重试时保留同一个 <code>requestKey</code>，重新生成视频时使用新请求标识。')
             + ex('generate-video-raw')
             + p('Use a subscription for UI progress. Render <code>job.asset.download_url</code> in a video element after the Job completes. Mount the preview component with <code>key={jobId}</code>.', '界面需要显示进度时使用订阅。任务完成后，将 <code>job.asset.download_url</code> 传给视频元素，并使用 <code>key={jobId}</code> 挂载预览组件。')
             + ex('job-progress')
@@ -278,8 +286,8 @@ def guide_pages(locale='zh'):
                 '每次明确发起新的生成时创建此对象。重试 <code>submit()</code> 会复用相同输入和操作 key。需要跨页面刷新重试时，将两者一并持久化。即使输入不变，主动重新生成也应创建新对象。')
             + p('The SDK does not automatically replay a write with unknown acceptance. See <a href="' + link('reference', 'errors') + '">errors and retry behavior</a>.',
                 'SDK 不会自动重放接受状态不明的写入。参见<a href="' + link('reference', 'errors') + '">错误与重试行为</a>。')
-            + p('Download the <a href="examples/creation-chain.ts">complete Product-to-clips example</a>. Keep its caller-owned progress object and implement saveProgress in your application. createProductVideo starts a new flow once and records accepted resources, the Storyboard operation key and the video operation keys; submitPendingVideos explicitly resumes saved submissions; waitForProductVideos resumes reads without submitting new Jobs. For interrupted preparation, inspect the retained IDs and SDK error details before deciding the next operation.',
-                '下载<a href="examples/creation-chain.ts">从产品到视频片段的完整示例</a>。保留由调用方持有的 progress 对象，并在应用中实现 saveProgress。createProductVideo 只启动一次新流程并记录已接受的资源、分镜操作 key 及视频操作 key；submitPendingVideos 用于主动恢复已保存的提交；waitForProductVideos 只恢复查询，不创建新任务。准备阶段中断时，先检查保留的 ID 和 SDK 错误详情，再决定下一项操作。')),
+            + p('Download the <a href="examples/creation-chain.ts">complete Product-to-clips example</a>. Keep its caller-owned progress object and implement saveProgress in your application. createProductVideo starts a new flow once and records accepted resources, the Storyboard and Prompt operation keys and the video operation keys; submitPendingVideos explicitly resumes saved submissions; waitForProductVideos resumes reads without submitting new Jobs. For interrupted preparation, inspect the retained IDs and SDK error details before deciding the next operation.',
+                '下载<a href="examples/creation-chain.ts">从产品到视频片段的完整示例</a>。保留由调用方持有的 progress 对象，并在应用中实现 saveProgress。createProductVideo 只启动一次新流程并记录已接受的资源、分镜和提示词的操作 key 及视频操作 key；submitPendingVideos 用于主动恢复已保存的提交；waitForProductVideos 只恢复查询，不创建新任务。准备阶段中断时，先检查保留的 ID 和 SDK 错误详情，再决定下一项操作。')),
     ]
 
     reference = [
@@ -311,7 +319,7 @@ def guide_pages(locale='zh'):
                 ['<code>artifacts</code>', '<code>get / create / update / forSchema</code>'],
                 ['<code>scripts</code>', '<code>get / create / update / generate</code>'],
                 ['<code>storyboards</code>', '<code>get / generate</code>'],
-                ['<code>prompts</code>', t('<code>get / create / update</code> (advanced: compiled clip Prompts)', '<code>get / create / update</code>（高级用法：编译后的片段提示词）')],
+                ['<code>prompts</code>', t('<code>get / generate</code>; <code>create / update</code> (advanced)', '<code>get / generate</code>；<code>create / update</code>（高级用法）')],
                 ['<code>videos</code>', '<code>generate</code>'],
                 ['<code>jobs</code>', '<code>get / subscribe</code>'],
                 ['<code>ads / batches</code>', '<code>get / list</code>'],
@@ -325,7 +333,7 @@ def guide_pages(locale='zh'):
                 ['<code>UNAUTHENTICATED / FORBIDDEN</code>', t('Check login and resource access.', '检查登录状态和资源权限。')],
                 ['<code>REVISION_CONFLICT</code>', t('Retain edits and compare with the latest record.', '保留编辑并与最新记录对比。')],
                 ['<code>CALL_ALREADY_RESOLVED / CALL_OBSOLETE</code>', t('Read current interaction state.', '读取当前交互状态。')],
-                ['<code>PARTIAL_CREATION</code>', t('The Storyboard was saved but not every clip was compiled. Retain saved.storyboard and saved.prompts, then retry with the same operation key.', '分镜已保存，但并非所有片段都已编译。保留 saved.storyboard 和 saved.prompts，再使用相同操作 key 重试。')],
+                ['<code>PARTIAL_CREATION</code>', t('Some clip Prompts were saved but not all. Retain saved.prompts, then retry with the same operation key.', '部分片段提示词已保存，但并非全部。保留 saved.prompts，再使用相同操作 key 重试。')],
                 ['<code>REJECTED</code>', t('The service refused the input, for example a Storyboard that fails its checks. The message lists the problems.', '服务拒绝了输入，例如分镜未通过检查。错误信息列出具体问题。')],
                 ['<code>IDEMPOTENCY_CONFLICT</code>', t('The key belongs to different input. Use the original input for recovery, or a new key for new work.', '该 key 已绑定不同输入。恢复时使用原输入；新任务使用新 key。')],
                 ['<code>acceptance: "unknown"</code>', t('Inspect the resource or recover with the saved operation key before issuing another write.', '再次写入前先检查资源，或使用已保存的操作 key 恢复。')],
@@ -337,7 +345,7 @@ def guide_pages(locale='zh'):
                 ['<code>getAccessToken</code>', t('Application-provided callback returning {token, expiresAt}; the SDK calls it for authentication and refresh.', '由应用实现的回调，返回 {token, expiresAt}；SDK 在认证和刷新时调用。')],
                 ['<code>environment</code>', t('sandbox (default, staging) or production. Selects the paired Agent and API addresses.', 'sandbox（默认值，对应 staging）或 production，选择配套的 Agent 和 API 地址。')],
                 ['<code>baseUrl / storeBaseUrl / generationBaseUrl</code>', t('Override service addresses for another environment.', '为其他环境覆盖服务地址。')],
-                ['<code>requestTimeoutMs</code>', t('Override per-request deadlines. storyboards.generate defaults to 300 seconds; scripts.generate, assets.register and file-byte uploads to 180 seconds. All other requests, including Script create/update, upload-intent creation and video submission, default to 8 seconds. job.result({timeoutMs}) separately bounds completion waiting.', '覆盖单次请求超时。storyboards.generate 默认 300 秒；scripts.generate、assets.register 和文件字节上传默认 180 秒。其他请求（包括脚本创建与更新、上传意图创建和视频任务提交）默认 8 秒。job.result({timeoutMs}) 另行控制等待任务完成的时长。')],
+                ['<code>requestTimeoutMs</code>', t('Override per-request deadlines. storyboards.generate and prompts.generate default to 300 seconds; scripts.generate, assets.register and file-byte uploads to 180 seconds. All other requests, including Script create/update, upload-intent creation and video submission, default to 8 seconds. job.result({timeoutMs}) separately bounds completion waiting.', '覆盖单次请求超时。storyboards.generate 和 prompts.generate 默认 300 秒；scripts.generate、assets.register 和文件字节上传默认 180 秒。其他请求（包括脚本创建与更新、上传意图创建和视频任务提交）默认 8 秒。job.result({timeoutMs}) 另行控制等待任务完成的时长。')],
                 ['<code>jobPollIntervalMs</code>', t('Set the interval between Job status polls.', '设置任务状态轮询间隔。')],
                 ['<code>tokenRefreshSkewMs</code>', t('Set how early expiry-aware tokens refresh.', '设置令牌在过期前多久刷新。')],
                 ['<code>onTrace / onWireTrace</code>', t('Inspect SDK diagnostics. Redact credentials and private content before retaining or sharing traces.', '查看 SDK 诊断信息。保存或分享前应去除凭证和私有内容。')],
