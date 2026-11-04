@@ -6,7 +6,7 @@ Each entry describes the change from the previous released version.
 
 Changes since `0.1.0-preview.3`.
 
-Generation now has four steps: a Script (the idea), a Storyboard (how it is shot), Prompts (each clip compiled for the video model), then one video Job per Prompt.
+Generation is now four steps:
 
 ```ts
 const script = await nuva.scripts.generate({product: product.id, acceptable_duration_ms: {min: 8000, max: 15000}});
@@ -15,53 +15,24 @@ const {prompts} = await nuva.prompts.generate({storyboard: storyboard.id, ratio:
 const job = await nuva.videos.generate({prompt: prompts[0]!.id});
 ```
 
-### Scripts are version 3
+### What changed
 
-- A new Script is the idea only: concept, length, beats, roles and panels with every exact line (`{id: 'L01', speaker, mode, text}`). It has no clips, shots, timing, voices or casting; the Storyboard decides those.
-- Typed Script reads return `format: 3` with `.content`. Scripts saved before this release return `format: 2` with the old ScriptPackage in `.legacy`. They stay readable but cannot be revised or get a Storyboard.
-- `scripts.create` and `scripts.update` take Script v3 `content`.
-- `@nuva/sdk/schemas` exports the Script v3 and Storyboard codecs and checks (`scriptSchema`, `storyboardSchema`, `storyboardIssues`, `clipReferences` and others).
-
-### Storyboards
-
-- New `storyboards.generate` and `storyboards.get`. A Storyboard says who plays each role (`cast`), one `direction` for the whole video, and clips of 5–15 s whose shots are text with tokens (`{{host}}`, `{{product}}`, `{{L01}}`, …).
-- Three forms: `{script, cast?, instruction?, batch_id?}` writes a new Storyboard, `{base, instruction, cast?}` revises one, and `{content, base?}` saves one you wrote or edited. Each saves the Storyboard and returns it.
-- The Storyboard is where variety comes from. Several Storyboards for the same Script, casting and instruction are shot differently from each other (format, setting, camera, pacing, opening shot). That is why it is part of the API: you can review, choose and edit how an ad is shot before any clip is compiled or rendered.
-- A Storyboard pins the Product and Character revisions it was written with, and its clips are always compiled with them. Editing a Product or Character later does not change what an existing Storyboard renders; revise the Storyboard (`{base, instruction}`) to use the new versions.
-- A Storyboard is in its Script's Batch.
-
-### Prompts are compiled from a Storyboard
-
-- `prompts.generate` now takes `{storyboard, clip?, ratio?}` instead of `{script, instruction?, ratio?, batch_id?}`. It returns `{prompts}` in clip order, one saved Prompt per clip, each with `data.clip_id`. Pass `clip: 'C01'` for one clip.
-- A Prompt only has to fit its Storyboard and the video model; the creative choices are made in the Storyboard.
-- The Prompts are in the Storyboard's Batch.
-- A clip compiled before from the same inputs returns its saved Prompt and is not compiled or charged again. In a revised or edited Storyboard, a clip that did not change keeps the text of its base clip's Prompt, if that one was compiled.
-- `PartialCreationError.saved` is still `{prompts}`; those Prompts are now based on the Storyboard.
-
-### Video generation
-
-- Unchanged in shape: `videos.generate({prompt})` with a saved Prompt ID, or `videos.generate({input})` with a raw prompt.
-- Without `batch_id`, a Job made from a saved Prompt now joins that Prompt's Batch, so Batches follow the chain Script → Storyboard → Prompt → Job without being passed. A `batch_id` you pass still wins. A Job from raw `input` has no implicit Batch.
-
-### Characters and casting
-
-- Cast a Character in a Storyboard with `cast: {role: characterId}`. Every clip it appears in gets the same image as a reference, and with `voice: 'character'` the same voice recording, so the person looks and sounds the same across clips. Roles left out are cast by the writer.
-- The Storyboard records the Character revision it cast. Updating the Character changes Storyboards written or revised after the update, not existing ones.
-
-### Asset label and description
-
-- `assets.upload(file, {kind, label, description})` and `assets.register({..., label?, description?})` say what a file shows. The writers read them to tell a Product's images apart. Registering the same file again replaces them.
-- An Asset's `label` is now its own label, or null when none was given; it is no longer a display label.
-
-### Deadlines
-
-- `storyboards.generate` and `prompts.generate` default to 300 seconds. `scripts.generate`, `assets.register` and file uploads stay at 180 seconds; other requests at 8 seconds.
+- **Scripts are version 3.** A Script is the idea: concept, length, roles and panels with every exact line (`L01`, …). No clips, shots or casting. Read Scripts by `format`: `3` has `.content`; Scripts saved before this release are `2` with read-only `.legacy`.
+- **Storyboards (new).** `storyboards.generate` / `storyboards.get`; `storyboard` is a new Artifact kind, so it also appears in resource cards and relationships. A Storyboard decides who plays each role (`cast`), the direction, and clips of 5–15 s whose shots are text with tokens (`{{host}}`, `{{product}}`, `{{L01}}`). It's where variety comes from: Storyboards of the same Script are shot differently, so you can review and pick before anything is rendered. A Storyboard pins the Product and Character versions it was written with; revise it to use newer ones.
+- **Characters stay the same across clips.** A cast Character's image (and, with `voice: 'character'`, its voice) goes into every clip it appears in.
+- **Prompts come from a Storyboard.** `prompts.generate({storyboard, clip?, ratio?})` replaces `{script, …}` and returns one Prompt per clip. A clip compiled before from the same inputs returns its saved Prompt and isn't charged again.
+- **Video generation is unchanged:** `videos.generate({prompt})` or `{input}`. A Job from a saved Prompt now joins that Prompt's Batch automatically (Script → Storyboard → Prompts → Job).
+- **Asset label and description.** `assets.upload(file, {kind, label?, description?})`. `asset.label` is now the label you set, or `null`; `Message.attach` and `Message.quote` accept such an Asset as is.
+- **Generated images and voices** appear in chat as `session_file` cards; `agent.files.get(id)` returns `{id, mime, label, download_url, download_url_expires_at}`.
+- **Waiting for renders.** Session state has an optional `waiting` (the Jobs the Agent is waiting on and an estimate); the Session stays `idle`, and `agent.stop()` cancels the wait.
+- **Errors.** A rejected write now says `acceptance: 'not_accepted'` (it didn't happen; retrying is safe); `unknown` still means it may have happened. If `prompts.generate` fails partway, `PartialCreationError.saved.prompts` holds the clips already saved; retry with the same key to finish the rest.
+- **Deadlines.** `storyboards.generate` and `prompts.generate` default to 300 s.
+- **`@nuva/sdk/schemas`** exports the Script and Storyboard schemas, their encode/decode functions and `storyboardIssues`.
 
 ### Migrating from 0.1.0-preview.3
 
-1. Replace `prompts.generate({script, ...})` with `storyboards.generate({script})`, then `prompts.generate({storyboard: storyboard.id, ratio})`. Move `ratio` to `prompts.generate`; drop `instruction` and `batch_id` there (a Storyboard keeps its Script's Batch, and `storyboards.generate` takes the shooting instruction).
-2. Keep calling `videos.generate({prompt: prompt.id})` for each returned Prompt. You no longer need to pass `batch_id` to keep the Job in the Prompt's Batch; note that a Job you submit without one now lands in that Batch.
-3. Read Scripts through `format`: use `.content` for `format: 3` and `.legacy` for `format: 2`. Write a new Script for a product whose only Scripts are `format: 2`.
-4. Write Scripts you author yourself as Script v3 for `scripts.create` and `scripts.update`.
-5. If you displayed `asset.label`, fall back to the Asset ID when it is null.
-6. If you set `requestTimeoutMs`, check it allows 300 seconds for `storyboards.generate` and `prompts.generate`.
+1. Replace `prompts.generate({script, …})` with `storyboards.generate({script})` then `prompts.generate({storyboard, ratio})`. Pass the shooting instruction to `storyboards.generate`; drop `instruction` and `batch_id` from `prompts.generate`.
+2. Keep `videos.generate({prompt})` for each Prompt; you no longer need `batch_id` to keep it in the Batch.
+3. Read Scripts by `format` (`.content` for 3, `.legacy` for 2). Write your own Scripts as v3.
+4. Handle `asset.label === null`.
+5. If you set `requestTimeoutMs`, allow 300 s for `storyboards.generate` and `prompts.generate`.
