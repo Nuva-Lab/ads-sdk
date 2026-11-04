@@ -1,4 +1,4 @@
-// Generated from ads_backend/openapi.json at pending. PR target only; deployment not asserted. Do not edit.
+// Generated from ads_backend/openapi.json at b71d1b55fd16b5b7b094b671241ae32b5ee95d08. PR target only; deployment not asserted. Do not edit.
 import type { z } from "zod";
 export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.fromJSONSchema>[0], boolean>> = {
   "AdCreate": {
