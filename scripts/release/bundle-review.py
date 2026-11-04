@@ -77,9 +77,9 @@ Open `http://127.0.0.1:8995/`; the local Go backend manages user tokens.
 
 The public message protocol and Artifact schemas use version 1. `script.content` is the typed
 Script v3 of a saved Script; a Script saved before Storyboards exposes its read-only ScriptPackage v2
-as `script.legacy`. `storyboards.generate` shoots a Script as a Storyboard and compiles its clips.
-`videos.generate` renders a Storyboard clip (`{{storyboard: {{id, clip}}}}`), a saved Prompt ID or raw
-input containing prompt text and Asset IDs.
+as `script.legacy`. `storyboards.generate` shoots a Script as a Storyboard; `prompts.generate`
+compiles its clips into saved Prompts. `videos.generate` renders a saved Prompt ID or raw input
+containing prompt text and Asset IDs.
 """
     with tempfile.TemporaryDirectory(prefix="ads-sdk-review-") as temporary:
         stage = Path(temporary)

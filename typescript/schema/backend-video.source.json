@@ -2,11 +2,11 @@
   "repository": "Nuva-Lab/WhatIf",
   "commit": "pending",
   "path": "ads_backend/openapi.json",
-  "pullRequest": "https://github.com/Nuva-Lab/WhatIf/pull/2442",
+  "pullRequest": "pending",
   "verifiedAt": "2026-11-03",
-  "status": "target-only; adds Storyboards, asset labels, Prompt clip_id and video by Storyboard clip (WhatIf PR #2442). Record its merge commit before releasing; deployed to staging only",
-  "upstreamSha256": "9277a91eac207966741c64520ebabae772d4d60ebc8ce11a85e5ac5fa4bb34c8",
-  "sha256": "7727c4979cf4dbd6ae85748697f4577e04ef2fa3285bdca0131b1b462fb604d8",
+  "status": "target-only; Storyboards, asset labels and Prompt clip_id from WhatIf PR #2442, with video generation back to a Prompt ID or raw input (branch ads-storyboard-prompt-api, not yet a pull request). Record its pull request and merge commit before releasing; not deployed",
+  "upstreamSha256": "de3e65a00aaeca162aef5a032f60f8150c0dc01f673b47ef284735903b8a7c7a",
+  "sha256": "63902803db25eed12931e096412035951693f3398d420f73772baf963f251ac4",
   "overlaySchemas": [
     "GenerateVideo",
     "RawPromptInput",
@@ -39,8 +39,7 @@
     "StoryboardVersionCreate",
     "StoryboardDataV1",
     "AssetCreate",
-    "AssetOut",
-    "StoryboardClip"
+    "AssetOut"
   ],
   "selection": "Exact named schemas and their transitive schema references from the upstream OpenAPI; no paths.",
   "compatibility": "Runtime BatchOut additionally preserves an optional observed LogEntry[] log when reading legacy records. It is not part of the PR target. AdOut.version remains required; no version or composition is invented for older records."
