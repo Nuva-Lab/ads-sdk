@@ -10,6 +10,7 @@ export {
 	storyboardClipSchema,
 	castEntrySchema,
 	storyboardTokens,
+	clipReferences,
 	scriptLines,
 	durationTolerance,
 	scriptVersion,
@@ -21,4 +22,4 @@ export {
 	MAX_CLIPS,
 	MAX_SCRIPT_MS,
 } from './script-v3.js';
-export type { ScriptGeneration, ScriptLine, CastEntry, StoryboardToken } from './script-v3.js';
+export type { ScriptGeneration, ScriptLine, CastEntry, StoryboardToken, ClipReferences } from './script-v3.js';

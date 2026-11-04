@@ -36,7 +36,7 @@ export { backendSchema } from './backend-schema.js';
 export type { BackendSchemas, DeployedBackendSchemas } from './backend-target.js';
 export { encodeScriptPackage, decodeScriptPackage } from './script-content.js';
 // Script v3 and Storyboard v1: the codecs, their schemas and the Storyboard checks. Other helpers are internal.
-export { scriptSchema, storyboardSchema, encodeScript, decodeScript, encodeStoryboard, decodeStoryboard, storyboardIssues, clipReferences } from './script-v3.js';
-export type { ScriptContent, StoryboardContent, StoryboardContext, ClipReferences } from './script-v3.js';
+export { scriptSchema, storyboardSchema, encodeScript, decodeScript, encodeStoryboard, decodeStoryboard, storyboardIssues } from './script-v3.js';
+export type { ScriptContent, StoryboardContent, StoryboardContext } from './script-v3.js';
 
 export type { GenerateVideoInput, RawPromptInput } from './stores.js';

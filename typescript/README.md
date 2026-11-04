@@ -70,7 +70,7 @@ Scripts use `script@1`; `data.text` holds a version-3 Script (`{format: 'nuva.sc
 
 Use `scripts.generate` for a direct request or ask the Agent to write and revise within a conversation.
 
-A Storyboard (`storyboard@1`, `{format: 'nuva.storyboard', version: 1, content}`) is how a Script is shot: `{script, cast: {role: {character?, look?, voice?}}, direction, clips: [{id: 'C01', duration_ms, shots: [text]}]}`. Clips are 5–15 s. Shots are text with tokens: `{{role}}`, `{{role:<image asset id>}}`, `{{product}}`, `{{product:<image asset id>}}` and `{{L01}}`. Each clip's references are worked out from its tokens (`clipReferences`): the cast Character's default or named image, the Product's image, and the Character's voice file when `voice: 'character'`. A cast Character therefore keeps the same person in every clip. `storyboardIssues` runs the same checks the service runs.
+A Storyboard (`storyboard@1`, `{format: 'nuva.storyboard', version: 1, content}`) is how a Script is shot: `{script, cast: {role: {character?, look?, voice?}}, direction, clips: [{id: 'C01', duration_ms, shots: [text]}]}`. Clips are 5–15 s. Shots are text with tokens: `{{role}}`, `{{role:<image asset id>}}`, `{{product}}`, `{{product:<image asset id>}}` and `{{L01}}`. Each clip's references are worked out from its tokens by the service: the cast Character's default or named image, the Product's image, and the Character's voice file when `voice: 'character'`. A cast Character therefore keeps the same person in every clip. `storyboardIssues` runs the same checks the service runs.
 
 `storyboards.generate` takes one of three inputs:
 
