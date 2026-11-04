@@ -75,10 +75,10 @@ export async function readAsset(nuva: NuvaClient, assetId: string) {
 	// #endregion asset-read
 	return asset;
 }
-export async function submitVideo(nuva: NuvaClient, storyboardId: string, clip: string, requestKey: string) {
+export async function submitVideo(nuva: NuvaClient, promptId: string, requestKey: string) {
 	// #region video-job
-	// Persist the Storyboard ID, clip and requestKey before calling; keep the returned Job ID.
-	const job = await nuva.videos.generate({ storyboard: { id: storyboardId, clip } }, { idempotencyKey: requestKey });
+	// Persist the Prompt ID and requestKey before calling; keep the returned Job ID.
+	const job = await nuva.videos.generate({ prompt: promptId }, { idempotencyKey: requestKey });
 	return job;
 	// #endregion video-job
 }
@@ -102,9 +102,16 @@ export async function generateStoryboard(nuva: NuvaClient, scriptId: string, cha
 	// #region storyboard-generate
 	// cast is keyed by the Script's role IDs; roles left out are cast by the writer.
 	const storyboard = await nuva.storyboards.generate({ script: scriptId, cast: { host: characterId } });
-	// Render each storyboard.content.clips[i].id with videos.generate({ storyboard: { id, clip } }).
 	// #endregion storyboard-generate
 	return storyboard;
+}
+export async function compileStoryboard(nuva: NuvaClient, storyboardId: string) {
+	// #region prompts-generate
+	// One saved Prompt per clip, in clip order; a clip compiled before from the same inputs keeps its Prompt.
+	const { prompts } = await nuva.prompts.generate({ storyboard: storyboardId, ratio: '9:16' });
+	// Render each one with videos.generate({ prompt: prompt.id }).
+	// #endregion prompts-generate
+	return prompts;
 }
 export async function createCharacter(nuva: NuvaClient, imageAssetId: string, voiceAssetId: string) {
 	// #region character-create

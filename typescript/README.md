@@ -54,8 +54,10 @@ const character = await nuva.characters.create({
   data: {name: 'Mia', description: 'Late twenties, warm.', image_asset_ids: [photo.id], voice_asset_id: voice.id},
 });
 // `host` is a role ID from revised.content.roles.
-const storyboard = await nuva.storyboards.generate({script: revised.id, cast: {host: character.id}, ratio: '9:16'});
-const job = await nuva.videos.generate({storyboard: {id: storyboard.id, clip: storyboard.content.clips[0]!.id}});
+const storyboard = await nuva.storyboards.generate({script: revised.id, cast: {host: character.id}});
+// One saved Prompt per clip, in clip order.
+const {prompts} = await nuva.prompts.generate({storyboard: storyboard.id, ratio: '9:16'});
+const job = await nuva.videos.generate({prompt: prompts[0]!.id});
 const state = await nuva.jobs.get(job.id);
 // Acceptance is not completion. Poll/subscribe or await job.result({timeoutMs}).
 ```
@@ -72,15 +74,17 @@ A Storyboard (`storyboard@1`, `{format: 'nuva.storyboard', version: 1, content}`
 
 `storyboards.generate` takes one of three inputs:
 
-- `{script, cast?, instruction?, ratio?, batch_id?}` writes a new Storyboard. `cast` is `{role: characterId}`; the writer casts the other roles. Storyboards of one Script are shot differently from each other.
+- `{script, cast?, instruction?, batch_id?}` writes a new Storyboard. `cast` is `{role: characterId}`; the writer casts the other roles. Storyboards of one Script are shot differently from each other.
 - `{base, instruction, cast?}` asks the writer to revise a Storyboard.
-- `{content, base?}` saves a Storyboard you wrote or edited. Only clips that changed are compiled again.
+- `{content, base?}` saves a Storyboard you wrote or edited.
 
-Each call saves the Storyboard and compiles every clip into an internal video Prompt. If the Storyboard is saved but a later clip fails, `PartialCreationError.saved` holds `{storyboard, prompts}`; retry the same input with the same idempotency key to finish. `storyboards.get(ref)` returns decoded `.content`.
+Each call saves the Storyboard and returns it. `storyboards.get(ref)` returns decoded `.content`. A Storyboard pins the Product and Character revisions it was written with, and its clips are always compiled with them: a later Product or Character update does not change what an existing Storyboard renders. Revise or edit the Storyboard to use the newer ones.
+
+The Storyboard is where variety comes from: it decides who is cast and how each clip is shot. A Prompt only has to carry one clip to the video model. `prompts.generate({storyboard, clip?, ratio?})` compiles the Storyboard's clips, or just `clip` (`'C01'`), into video Prompts and returns `{prompts}` in clip order, each a saved Prompt with its ID and `data.clip_id`. A clip compiled before from the same inputs (its shots, casting, lines, references and ratio) returns its saved Prompt instead of being compiled again; a clip of a revised Storyboard that did not change keeps its base Prompt's text. If some Prompts are saved and a later one fails, `PartialCreationError.saved` holds `{prompts}`; retry the same input with the same idempotency key to finish.
 
 Assets have optional `label` and `description` saying what the file shows. Set them at upload, `assets.upload(file, {kind, label, description})` or `assets.register({upload_token | url, label?, description?})`; registering the same file again replaces them. Writers read them to tell a Product's images apart. An Asset's `label` is null when none was given.
 
-`videos.generate({storyboard: {id, clip: 'C01'}})` renders one Storyboard clip. The Job joins the Storyboard's Batch unless `batch_id` is given. For advanced use, `{prompt: promptId}` submits a saved Prompt and `input: {schema_version: 1, data: {prompt, image_asset_ids, ...}}` creates its Prompt internally. Supply exactly one of `storyboard`, `prompt` or `input`; the returned `job.prompt` identifies the Prompt rendered. Reuse the same idempotency key only for retries of that operation. Jobs expose status, error and an eventual Asset. `jobs.get`, `jobs.subscribe` and `job.result` keep submission separate from completion. Stopping chat or unsubscribing does not cancel a Job. To request best-effort cancellation, ask the Agent; cancellation is only confirmed by the backend Job status.
+`videos.generate({prompt: promptId})` renders a saved Prompt, such as one from `prompts.generate`. `input: {schema_version: 1, data: {prompt, image_asset_ids, ...}}` renders a raw prompt you wrote and saves its Prompt with the Job. Supply exactly one of `prompt` or `input`; the returned `job.prompt` identifies the Prompt rendered. Without `batch_id`, a saved Prompt's Job joins the Prompt's Batch, so Batches follow the chain Script → Storyboard → Prompt → Job; raw `input` has no implicit Batch. Reuse the same idempotency key only for retries of that operation. Jobs expose status, error and an eventual Asset. `jobs.get`, `jobs.subscribe` and `job.result` keep submission separate from completion. Stopping chat or unsubscribing does not cancel a Job. To request best-effort cancellation, ask the Agent; cancellation is only confirmed by the backend Job status.
 
 Edit and postprocess clips in your own editor. Upload the finished video and attach its Asset reference to the same Agent Session, with any optional editing notes or structured details. The Agent handles Ad registration and returns the Ad ID. Include the source clips, trim ranges and editing settings needed to describe the final composition.
 
@@ -88,7 +92,7 @@ Request deadlines are separate from waiting for a video Job:
 
 | Operation | Default request timeout |
 | --- | --- |
-| `storyboards.generate` (it writes the Storyboard and compiles every clip) | 300 seconds |
+| `storyboards.generate` (it writes every clip's shots) and `prompts.generate` (it compiles every clip) | 300 seconds |
 | `scripts.generate`, `assets.register`, and uploading file bytes | 180 seconds |
 | Other requests, including Script create/update, upload-intent creation, video submission, control requests and reads | 8 seconds |
 

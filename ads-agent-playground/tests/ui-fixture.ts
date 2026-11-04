@@ -421,7 +421,13 @@ const sdk = {
       next_cursor: null,
     }),
   },
-  prompts: { get: async () => referencePrompt },
+  prompts: {
+    get: async () => referencePrompt,
+    generate: async (input: any) => {
+      void fetch("/test-events", { method: "POST", body: JSON.stringify({ action: "prompts.generate", input }) });
+      return { prompts: [{ ...referencePrompt, data: { ...referencePrompt.data, clip_id: input.clip ?? "C01" } }] };
+    },
+  },
   scripts: { get: async () => scriptV3 },
   storyboards: {
     get: async () => storyboard,

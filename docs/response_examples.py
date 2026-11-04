@@ -43,6 +43,21 @@ RESPONSES = {
             }],
         },
     }),
+    'prompts': ('prompts.generate()', {
+        'prompts': [{
+            'id': PROMPT_ID,
+            'ref': {'kind': 'prompt', 'id': PROMPT_ID},
+            'data': {
+                'prompt': '[Shot 1] 0–3 s: close-up, <Picture 1> fills <Picture 2> at the kitchen counter. …',
+                'image_asset_ids': ['88888888-8888-4888-8888-888888888888', '99999999-9999-4999-8999-999999999999'],
+                'audio_asset_ids': ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'],
+                'seconds': 8,
+                'ratio': '9:16',
+                'clip_id': 'C01',
+            },
+            'relationships': [{'type': 'based_on', 'target': {'kind': 'storyboard', 'id': STORYBOARD_ID}}],
+        }],
+    }),
     'job': ('videos.generate()', {
         'id': JOB_ID,
         'status': 'queued',

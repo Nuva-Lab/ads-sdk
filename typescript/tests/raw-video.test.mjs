@@ -53,7 +53,7 @@ test('video target has separate provenance and leaves the observed contract inta
 	assert.match(source.pullRequest, /^(https:\/\/github\.com\/Nuva-Lab\/WhatIf\/pull\/\d+|pending)$/);
 	assert.match(source.status, /target-only/);
 	assert.equal(observed.components.schemas.GenerateVideo.properties.input, undefined);
-	assert.equal(target.GenerateVideo.oneOf.length, 3);
+	assert.equal(target.GenerateVideo.oneOf.length, 2);
 	for (const name of Object.keys(target).filter((name) => !source.overlaySchemas.includes(name)))
 		assert.deepEqual(target[name], observed.components.schemas[name], `${name} dependency must stay equal to the observed schema`);
 });
@@ -72,9 +72,8 @@ test('saved ID and raw input accept the backend null/omission and option boundar
 		assert.equal(parsed.input.data.prompt, 'Raw text');
 		assert.deepEqual(parsed.input.relationships, relationships);
 	}
-	const clip = { storyboard: { id, clip: 'C02' } };
-	assert.deepEqual(schema.parse(clip), { ...clip, seed: 0 });
-	for (const bad of [{ storyboard: { id, clip: '2' } }, { ...clip, prompt: id }, { ...clip, input }, { storyboard: { id } }])
+	// A Storyboard clip is rendered by its compiled Prompt's ID (prompts.generate), not named here.
+	for (const bad of [{ storyboard: { id, clip: 'C02' } }, { prompt: id, storyboard: { id, clip: 'C02' } }])
 		assert.equal(schema.safeParse(bad).success, false, JSON.stringify(bad));
 	const boundaries = { ...data, prompt: 'x'.repeat(10000), image_asset_ids: Array(9).fill(id), video_asset_ids: Array(3).fill(id), audio_asset_ids: Array(3).fill(id), characters: Array(10).fill(id), seconds: 15 };
 	// Cross-list model limits and Asset ownership/kinds remain backend checks.
@@ -176,12 +175,11 @@ test('backend validation failures preserve reference paths and idempotency confl
 	}
 });
 
-test('Storyboard partial receipts retain each Prompt\'s relationships and require one based on that Storyboard', () => {
+test('partial Prompt receipts retain each Prompt\'s relationships and require one based on a Storyboard', () => {
 	const info = { code: 'PARTIAL_CREATION', message: 'Saved one Prompt', retryable: false };
-	const storyboard = { ...savedPrompt, kind: 'storyboard', id, lineage_id: id, data: { text: 'Encoded Storyboard' }, relationships };
 	const compiled = { ...savedPrompt, relationships: [...relationships, { type: 'based_on', target: { kind: 'storyboard', id } }] };
-	const error = new PartialCreationError(info, { storyboard, prompts: [compiled] });
+	const error = new PartialCreationError(info, { prompts: [compiled] });
 	assert.deepEqual(error.saved.prompts[0].relationships, compiled.relationships);
-	assert.throws(() => new PartialCreationError(info, { storyboard, prompts: [savedPrompt] }), (error) => error.code === 'SERVICE_ERROR');
-	assert.throws(() => new PartialCreationError(info, { storyboard, prompts: [{ ...compiled, data: { ...data, plan: id } }] }), (error) => error.code === 'SERVICE_ERROR');
+	assert.throws(() => new PartialCreationError(info, { prompts: [savedPrompt] }), (error) => error.code === 'SERVICE_ERROR');
+	assert.throws(() => new PartialCreationError(info, { prompts: [{ ...compiled, data: { ...data, plan: id } }] }), (error) => error.code === 'SERVICE_ERROR');
 });

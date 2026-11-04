@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { backendSchema, generateScriptSchema, generateStoryboardSchema, skillSelectionSchema } from '../dist/schemas.js';
+import { backendSchema, generateScriptSchema, generateStoryboardSchema, generatePromptSchema, skillSelectionSchema } from '../dist/schemas.js';
 
 const id = '11111111-1111-4111-8111-111111111111';
 test('backend Product creation requires a Brand and rejects unsupported profile fields', () => {
@@ -31,10 +31,13 @@ test('shared creation schemas accept exact service boundaries without tightening
 	assert.equal(generateScriptSchema.safeParse({ product: id, acceptable_duration_ms: { min: 1, max: 5000 }, skill: { id } }).success, false, 'A request names no Skill.');
 	assert.equal(generateStoryboardSchema.safeParse({ script: id, skill: { id } }).success, false, 'A request names no Skill.');
 	assert.equal(skillSelectionSchema.safeParse({ id }).success, true);
+	assert.equal(generateStoryboardSchema.safeParse({ script: id, instruction }).success, true);
+	assert.equal(generateStoryboardSchema.safeParse({ script: id, ratio: '9:16' }).success, false, 'The ratio belongs to the Prompts.');
 	for (const ratio of ['adaptive', '21:9', '16:9', '4:3', '1:1', '3:4', '9:16'])
-		assert.equal(generateStoryboardSchema.safeParse({ script: id, ratio, instruction }).success, true);
-	assert.equal(generateStoryboardSchema.safeParse({ script: id }).success, true);
-	assert.equal(generateStoryboardSchema.safeParse({ script: id, ratio: null }).success, false);
+		assert.equal(generatePromptSchema.safeParse({ storyboard: id, clip: 'C01', ratio }).success, true);
+	assert.equal(generatePromptSchema.safeParse({ storyboard: id }).success, true);
+	for (const invalid of [{ storyboard: id, ratio: null }, { script: id }, { storyboard: id, clip: '1' }, { storyboard: id, instruction }, { storyboard: id, batch_id: id }])
+		assert.equal(generatePromptSchema.safeParse(invalid).success, false, JSON.stringify(invalid));
 });
 
 test('a Storyboard request is a new Storyboard for a Script, a revision of a base, or complete content', () => {
