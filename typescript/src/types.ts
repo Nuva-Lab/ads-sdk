@@ -61,6 +61,28 @@ export interface AgentHandle {
 	loadEarlierMessages(): Promise<void>;
 	listPendingCalls(query?: PaginationQuery): Promise<Page<Extract<DynamicToolUIPart, { state: 'input-available' }>>>;
 	getHostCall(toolCallId: string): Promise<DynamicToolUIPart | NotificationHostCall>;
+	/** This Session's files: images and voice samples the Agent generated, shown as `session_file` resource cards. */
+	readonly files: SessionFilesClient;
+}
+/**
+ * A file in a Session's own workspace, such as an image or voice sample the Agent generated. It is not a backend
+ * Asset: it belongs to this Session, and the Agent registers it as an Asset when a Character, Storyboard or video uses
+ * it. Message parts reference it as a resource `{ ref: { kind: 'session_file', id }, label }`.
+ */
+export interface SessionFile {
+	/** Opaque ID; the same as the resource reference's `id`. */
+	id: string;
+	/** The file's media type, such as `image/png` or `audio/mpeg`. */
+	mime: string;
+	label: string;
+	/** A signed URL for the file's bytes, usable directly in `<img>` or `<audio>`. */
+	download_url: string;
+	/** `download_url` is valid until this time (at least 12 hours); call `files.get` again after that. */
+	download_url_expires_at: string;
+}
+export interface SessionFilesClient {
+	/** A Session file's metadata and a signed URL to its bytes. */
+	get(id: string): Promise<SessionFile>;
 }
 
 /**

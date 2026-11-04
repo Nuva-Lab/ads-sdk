@@ -179,6 +179,10 @@ export const zh: Record<string, string> = {
   "Loading products…": "正在加载产品…",
   "Loading preview…": "正在加载预览…",
   "Preview unavailable": "预览不可用",
+  "Session file": "会话文件",
+  "Session files open inside their Session.": "会话文件只能在所属会话中打开。",
+  "A file in this Session. The Agent registers it as an Asset when a Character, Storyboard or video uses it.":
+    "这是本会话中的文件。角色、分镜或视频使用它时，Agent 会将其登记为素材。",
   Retry: "重试",
   "Loading earlier messages…": "正在加载更早的消息…",
   "Could not load earlier messages.": "无法加载更早的消息。",
