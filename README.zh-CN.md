@@ -45,7 +45,7 @@ NUVA_CUSTOMER_API_KEY=your-production-customer-admin-api-key
 pnpm playground
 ```
 
-打开 **http://127.0.0.1:8995/**。
+打开 [http://127.0.0.1:8995/](http://127.0.0.1:8995/)。
 
 创建商品并上传参考图，然后在对话中用 **@** 提到它，请 Ads Agent 写一个脚本。审阅脚本，把它拍成分镜，并在工作区渲染片段。界面默认中文，可在页头用 **中文 / English** 切换。
 
@@ -90,7 +90,7 @@ pnpm docs:build
 python3 -m http.server 8992 --bind 127.0.0.1 --directory docs/customer
 ```
 
-打开 **http://127.0.0.1:8992/frontend.html**。侧边栏链接到 Agent、Store 和 Go Admin 参考文档。
+打开 [http://127.0.0.1:8992/frontend.html](http://127.0.0.1:8992/frontend.html)。侧边栏链接到 Agent、Store 和 Go Admin 参考文档。
 
 ## 构建与测试
 
