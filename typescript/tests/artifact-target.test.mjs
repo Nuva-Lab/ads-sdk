@@ -102,6 +102,15 @@ test('storyboards.generate saves the Storyboard; prompts.generate compiles its c
   const { prompts } = await client.prompts.generate({ storyboard: id, ratio: '9:16' });
   assert.deepEqual(prompts.map(p => [p.kind, p.data.clip_id]), [['prompt', 'C01'], ['prompt', 'C02']]);
   await assert.rejects(client.prompts.generate({ storyboard: id, clip: 'C01' }), error => error.code === 'SERVICE_ERROR', 'One clip returns only its Prompt.');
+  // Without clip, every Prompt names a distinct clip.
+  const checked = requests.length;
+  for (const prompts of [[prompt('C01'), prompt(null, other)], [prompt('C01'), prompt('C01', other)], [{ ...prompt('C01'), data: { prompt: 'Clip', image_asset_ids: [id] } }]]) {
+   reply = () => Response.json({ prompts });
+   await assert.rejects(client.prompts.generate({ storyboard: id }), error => error.code === 'SERVICE_ERROR', JSON.stringify(prompts.map(p => p.data.clip_id)));
+  }
+  reply = () => Response.json({ error: { code: 'NOT_FOUND', message: 'Storyboard has no clip C09.', retryable: false, acceptance: 'not_accepted' }, request_id: 'unknown-clip' }, { status: 404 });
+  await assert.rejects(client.prompts.generate({ storyboard: id, clip: 'C09' }), error => error.code === 'NOT_FOUND' && error.acceptance !== 'unknown' && !(error instanceof PartialCreationError));
+  requests.splice(checked);
   reply = () => Response.json({ prompts: [{ ...prompt('C01'), relationships }] });
   await assert.rejects(client.prompts.generate({ storyboard: id }), error => error.code === 'SERVICE_ERROR', 'Prompts are based on the requested Storyboard.');
   for (const bad of [{ script: other }, { storyboard: id, clip: '1' }, { storyboard: id, instruction: 'Brighter' }])
