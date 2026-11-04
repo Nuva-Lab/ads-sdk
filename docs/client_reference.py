@@ -105,6 +105,18 @@ def guide_pages(locale='zh'):
             + ex('composer')
             + p('<code>send()</code> confirms that the input was accepted. Agent replies and saved resources arrive through the subscription. A busy Session rejects another normal message; this preview has no user-message queue.',
                 '<code>send()</code> 确认输入已被接受；Agent 回复和已保存的资源通过订阅返回。忙碌的 Session 会拒绝新的普通消息，此预览版不提供用户消息队列。')),
+        section('waiting', 'Waiting for renders', '等待渲染完成',
+            p('When the Agent submits video Jobs, it watches them and continues on its own when they finish. While it waits, <code>state.waiting</code> is present (only then; it is absent otherwise, and older SDK versions ignore it). The Session is <code>idle</code> meanwhile, so the user can keep chatting.',
+                'Agent 提交视频任务后会持续关注，任务完成后自动继续。等待期间 <code>state.waiting</code> 存在（仅在等待时出现，其余时间不存在；旧版 SDK 会忽略该字段）。此时 Session 为 <code>idle</code>，用户可以继续对话。')
+            + table([t('Field', '字段'), t('Meaning', '含义')], [
+                ['<code>jobs[].record</code>', t('The Job as a resource link (kind <code>job</code>), labelled like “Clip 03”. Open it as you open other resource records.', '任务的资源链接（类型 <code>job</code>），标签如“Clip 03”。可像其他资源记录一样打开。')],
+                ['<code>jobs[].status</code>', t('<code>queued</code> or <code>running</code>, updated as the Job progresses. A finished Job leaves the list.', '<code>queued</code> 或 <code>running</code>，随任务进展更新。已完成的任务会从列表中移除。')],
+                ['<code>estimated_done_at</code>', t('When the Jobs usually finish, from your own past Jobs of the same kind. Absent until there is enough history (5 Jobs); show it as “usually”, never as a promise.', '根据你过往同类任务估计的通常完成时间。历史不足（少于 5 个任务）时不提供；请以“通常”表述，不要作为承诺。')],
+            ])
+            + p('Show a short note above the composer, for example “Waiting for 2 renders · usually about 4 min · The Agent continues when they finish”, with a chip per Job and a “Stop waiting” action that calls <code>agent.stop()</code>. Stop works while the Session is idle: the Jobs keep running and their results stay saved, but the Agent no longer continues on its own. When the Agent continues, its reply begins with a summary of the finished renders and their Job records.',
+                '可在输入框上方显示简短提示，例如“正在等待 2 个渲染 · 通常约 4 分钟 · 全部完成后 Agent 会自动继续”，为每个任务显示一个标签，并提供调用 <code>agent.stop()</code> 的“停止等待”操作。Session 空闲时也可以 Stop：任务继续运行、结果仍会保存，但 Agent 不再自动继续。Agent 继续时，回复开头会列出已完成的渲染及其任务记录。')
+            + p('While the Agent continues after the Jobs finish, the Session is <code>running</code> like any reply, so a message sent at that moment is rejected as busy; keep the draft and send it when the Session is idle again.',
+                '任务完成后 Agent 自动继续时，Session 与普通回复一样处于 <code>running</code>，此时发送的消息会因忙碌被拒绝；请保留草稿，待 Session 空闲后再发送。')),
         section('references', 'Attach Products and quote results', '附加产品与引用结果',
             p('Pass a resource returned by the SDK to <code>attach()</code> or <code>quote()</code>. The reference carries the resource kind and ID; a display name alone does not identify a Product or Script.',
                 '将 SDK 返回的资源传给 <code>attach()</code> 或 <code>quote()</code>。引用包含资源类型和 ID；仅有展示名称不能确定产品或脚本。')
@@ -126,8 +138,8 @@ def guide_pages(locale='zh'):
                 'Skill 的 <code>attributes.hostCalls</code> 目前会被忽略，注册后不会为对话增加任何操作。')),
         section('stop-history', 'Stop and read history', '停止回复与读取历史',
             ex('controls')
-            + p('Stop ends the current Agent loop. It does not delete messages or cancel submitted video Jobs. Ask the Agent to attempt Job cancellation. <code>loadEarlierMessages()</code> adds older messages to the subscribed state; <code>refresh()</code> resynchronizes without starting a new turn.',
-                'Stop 结束当前 Agent 循环，不删除消息，也不取消已提交的视频任务。需要取消任务时请让 Agent 尝试执行。<code>loadEarlierMessages()</code> 将更早的消息加入订阅状态；<code>refresh()</code> 重新同步状态，不会开启新回合。')
+            + p('Stop ends the current Agent loop and stops the Agent from continuing on its own when watched Jobs finish (see <code>state.waiting</code>); it can be called while the Session is idle. It does not delete messages or cancel submitted video Jobs. Ask the Agent to attempt Job cancellation. <code>loadEarlierMessages()</code> adds older messages to the subscribed state; <code>refresh()</code> resynchronizes without starting a new turn.',
+                'Stop 结束当前 Agent 循环，并让 Agent 在所关注的任务完成后不再自动继续（参见 <code>state.waiting</code>）；Session 空闲时也可以调用。Stop 不删除消息，也不取消已提交的视频任务。需要取消任务时请让 Agent 尝试执行。<code>loadEarlierMessages()</code> 将更早的消息加入订阅状态；<code>refresh()</code> 重新同步状态，不会开启新回合。')
             + c("const saved = await client.sessions.history(sessionId, { limit: 50 });\nconst nextCursor = saved.nextCursor;")
             + p('Use <code>sessions.history</code> for a saved-history view without opening a live Agent handle. Use the returned cursor to request another page.',
                 '仅展示已保存的历史时，可使用 <code>sessions.history</code>，无需打开实时 Agent handle。使用返回的 cursor 请求下一页。') + download),
