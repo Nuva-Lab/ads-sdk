@@ -25,7 +25,6 @@ export const parseSessions = (value: unknown) =>
 export const sessionFileSchema = z.object({
 	id: z.string().min(1),
 	mime: z.string().min(1),
-	size_bytes: z.number().int().nonnegative(),
 	label: z.string(),
 	download_url: z.string().min(1),
 	download_url_expires_at: z.string().min(1),

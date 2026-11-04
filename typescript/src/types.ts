@@ -70,7 +70,6 @@ export interface SessionFile {
 	id: string;
 	/** The file's media type, such as `image/png` or `audio/mpeg`. */
 	mime: string;
-	size_bytes: number;
 	label: string;
 	/** A signed URL for the file's bytes, usable directly in `<img>` or `<audio>`. */
 	download_url: string;

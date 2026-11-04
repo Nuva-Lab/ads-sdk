@@ -21,7 +21,7 @@ after(() => env.restore());
 const id = "sf_" + "a".repeat(32);
 const record = { ref: { kind: "session_file", id }, label: "Mia, front portrait" };
 const file = (mime, expiresIn = 12 * 3600_000, n = 1) => ({
-  id, mime, size_bytes: 2_500_000, label: "Mia, front portrait",
+  id, mime, label: "Mia, front portrait",
   download_url: `https://files.example/${n}.${mime.split("/")[1]}?sig`,
   download_url_expires_at: new Date(Date.now() + expiresIn).toISOString(),
 });
