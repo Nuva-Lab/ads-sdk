@@ -205,6 +205,20 @@ export function refreshResourceList(
       `gallery-card${record.ref.kind === "prompt" ? " prompt-gallery-card" : ""}`,
     );
     card.dataset.resourceId = record.ref.id;
+    // The whole card opens the resource, as the Product and Character tiles do. A video or audio preview inside keeps
+    // its own controls: a click on them plays, it does not open.
+    const open = () => void action(() => openResource(container, record, host));
+    card.tabIndex = 0;
+    card.setAttribute("role", "button");
+    card.onclick = (event) => {
+      if ((event.target as Element).closest("video, audio, a, button, input, select, textarea")) return;
+      open();
+    };
+    card.onkeydown = (event) => {
+      if (event.target !== card || (event.key !== "Enter" && event.key !== " ")) return;
+      event.preventDefault();
+      open();
+    };
     const preview = node(
       "div",
       "",
@@ -250,26 +264,16 @@ export function refreshResourceList(
     );
     indexTag.hidden = !indexLabel || title.textContent === indexLabel;
     const summary = node("p", msg(record.ref.kind), "muted");
-    const review = button(
-      msg("Review"),
-      () => void action(() => openResource(container, record, host)),
-      "",
-      "next",
-    );
     setAttribute(
-      review,
+      card,
       "aria-label",
-      msg("Review {p0}", {
+      msg("Open {p0}", {
         p0: () => host.indexLabel?.(record) ?? title.textContent ?? label,
       }),
     );
     info.append(indexTag, title, summary);
-    if (record.ref.kind === "prompt") {
-      card.append(info, preview, review);
-    } else {
-      info.append(review);
-      card.append(preview, info);
-    }
+    if (record.ref.kind === "prompt") card.append(info, preview);
+    else card.append(preview, info);
     list.append(card);
     return { record, card, preview, title, summary, indexLabel, indexTag };
   });

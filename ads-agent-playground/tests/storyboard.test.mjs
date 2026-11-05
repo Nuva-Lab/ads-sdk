@@ -6,7 +6,7 @@ const built = await bundle(
   "playground-storyboard-",
   `export * from './src/storyboard.ts';
    export { loadMaterial, castEntry, castChoice, placeIssue, insertToken } from './src/storyboard-model.ts';
-   export { openResource } from './src/resources.ts';
+   export { openResource, renderResources } from './src/resources.ts';
    export { setLocale } from './src/i18n.ts';`,
 );
 after(built.cleanup);
@@ -17,6 +17,7 @@ const {
   loadMaterial,
   castEntry,
   openResource,
+  renderResources,
   setLocale,
 } = built.module;
 let env;
@@ -79,6 +80,36 @@ test("a v3 Script offers New Storyboard; a v2 Script is labelled legacy and read
   assert.equal(root.querySelector(".legacy-badge").textContent, "Legacy Script (read-only)");
   assert.ok(!texts(root, ".resource-actions button").includes("New Storyboard"));
   assert.match(root.querySelector(".clip").textContent, /Pours coffee/);
+});
+
+test("a whole gallery card opens its resource, by click or by keyboard; it has no Review button", async () => {
+  const record = { ref: { kind: "script", id: ids.script }, label: "Still warm at noon", sessionId: "session" };
+  const host = {
+    sdk: { scripts: { get: async () => script } },
+    scope: "storyboard-test",
+    sessionId: "session",
+    records: [record],
+    remember() {},
+    attach() {},
+    requestAgent: async () => {},
+  };
+  const root = fresh();
+  await renderResources(root, "script", host);
+  await settle();
+  const card = root.querySelector(".gallery-card");
+  assert.equal(card.getAttribute("role"), "button");
+  assert.equal(card.tabIndex, 0);
+  assert.equal(card.querySelector("button"), null, "No Review button.");
+  card.dispatchEvent(new env.window.MouseEvent("click", { bubbles: true }));
+  for (let attempt = 0; attempt < 20 && !root.querySelector(".resource-actions"); attempt++) await settle();
+  assert.ok(texts(root, ".resource-actions button").includes("New Storyboard"), "The Script opened.");
+
+  const again = fresh();
+  await renderResources(again, "script", host);
+  await settle();
+  again.querySelector(".gallery-card").dispatchEvent(new env.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  for (let attempt = 0; attempt < 20 && !again.querySelector(".resource-actions"); attempt++) await settle();
+  assert.ok(again.querySelector(".resource-actions"), "Enter opens it too.");
 });
 
 test("a Storyboard's shots show people, images, the Product and lines as chips, with the clip's references", async () => {
