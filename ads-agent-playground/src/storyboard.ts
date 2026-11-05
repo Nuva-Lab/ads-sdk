@@ -24,6 +24,7 @@ import {
 } from "./ui.js";
 import {
   allIssues,
+  assetTokenIds,
   castCharacters,
   castChoice,
   castEntry,
@@ -39,6 +40,7 @@ import {
   speakerName,
   storyboardContext,
   totalMs,
+  withAssets,
   withCharacter,
   type MediaInfo,
   type StoryboardMaterial,
@@ -294,6 +296,10 @@ export function tokenChip(view: TokenView, raw: string) {
   } else if (view.kind === "product") {
     chip.dataset.color = "3";
     chip.append(thumb(view.image, "layers"), node("span", view.label));
+  } else if (view.kind === "file") {
+    chip.dataset.color = view.file?.kind === "audio" ? "2" : "1";
+    const kind = view.file?.kind === "video" ? "video" : view.file?.kind === "audio" ? "audio" : "image";
+    chip.append(thumb(kind === "image" ? view.file : undefined, kind), node("span", view.label));
   } else if (view.kind === "line") {
     chip.className = "line-chip";
     chip.append(
@@ -323,7 +329,7 @@ export function tokenText(
     );
   return element;
 }
-/** The images and voice files one clip renders with, from its tokens. */
+/** The images, videos and audio files one clip renders with, from its tokens. */
 export function referenceStrip(
   content: StoryboardContent,
   clip: number,
@@ -345,13 +351,23 @@ export function referenceStrip(
     chip.append(thumb(image, "image"), node("span", name));
     strip.append(chip);
   }
+  for (const id of references.videos) {
+    const chip = node("span", "", "reference-chip");
+    chip.title = id;
+    const visual = node("span", "", "reference-thumb");
+    visual.append(icon("video"));
+    chip.append(visual, node("span", material.media[id]?.label ?? translate("Video")));
+    strip.append(chip);
+  }
   for (const id of references.audio) {
     const chip = node("span", "", "reference-chip");
     chip.dataset.color = "2";
     chip.title = id;
     const visual = node("span", "", "reference-thumb");
     visual.append(icon("audio"));
-    chip.append(visual, node("span", msg("{p0}'s voice", { p0: owners.get(id) ?? id })));
+    // A Character's voice is named for its Character; any other audio file by its own label.
+    const owner = owners.get(id);
+    chip.append(visual, node("span", owner ? msg("{p0}'s voice", { p0: owner }) : (material.media[id]?.label ?? translate("Audio"))));
     strip.append(chip);
   }
   if (!strip.childElementCount) strip.append(node("span", msg("No references yet."), "muted"));
@@ -478,7 +494,7 @@ export async function renderStoryboard(
     body.replaceChildren(node("p", msg("This Storyboard's Script is a legacy Script."), "empty"));
     return;
   }
-  let material = await loadMaterial(host.sdk, script as V3Script, castCharacters(storyboard.content));
+  let material = await loadMaterial(host.sdk, script as V3Script, castCharacters(storyboard.content), assetTokenIds(storyboard.content));
   if (!navigation.alive()) return;
   const scriptLink: ResourceLink = { ref: { kind: "script", id: script.id }, label: script.content.concept.name };
   const go = (record: ResourceLink) => (host.open ? host.open(record) : navigation.show(record));
@@ -535,6 +551,7 @@ export async function renderStoryboard(
             content: storyboard.content,
             material,
             characters,
+            loadAssets: (ids) => Promise.all(ids.map((id) => host.sdk.assets.get(id).catch(() => undefined))),
             cancel: view,
             save: async (content) => {
               const input = { base: storyboard.id, content };
@@ -629,6 +646,8 @@ export function storyboardEditor(
     content: StoryboardContent;
     material: StoryboardMaterial;
     characters: readonly Character[];
+    /** Reads Assets a shot newly names with `{{asset:<id>}}`; one that cannot be read comes back undefined. */
+    loadAssets?(ids: string[]): Promise<unknown[]>;
     save(content: StoryboardContent): Promise<void>;
     cancel(): void;
   },
@@ -655,7 +674,20 @@ export function storyboardEditor(
   const characterById = (id: string) =>
     options.characters.find((character) => character.id === id) ?? material.characters[id];
 
+  // Assets a shot names that are not read yet are read once, then checked again.
+  const requested = new Set(Object.keys(material.media));
+  function loadNamed() {
+    const ids = assetTokenIds(draft).filter((id) => !requested.has(id));
+    if (!ids.length || !options.loadAssets) return;
+    for (const id of ids) requested.add(id);
+    void options.loadAssets(ids).then((assets) => {
+      material = withAssets(material, assets.filter((asset) => asset !== undefined));
+      for (const refresh of previews) refresh();
+      validate();
+    }, () => {});
+  }
   function validate() {
+    loadNamed();
     current = [...allIssues(draft, material), ...rejected];
     for (const list of slots.values()) list.replaceChildren();
     general.replaceChildren();

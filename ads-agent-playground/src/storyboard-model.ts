@@ -3,6 +3,7 @@
  * edits the editor makes. No DOM here; the views live in storyboard.ts.
  */
 import {
+  ASSET,
   CHARACTER_VOICE,
   LINE_ID,
   MAX_CLIPS,
@@ -104,6 +105,27 @@ export function castCharacters(content: Pick<StoryboardContent, "cast">) {
     ),
   ];
 }
+/** The Assets a Storyboard names with `{{asset:<id>}}`, in its shots and direction. */
+export function assetTokenIds(content: Pick<StoryboardContent, "direction" | "clips">) {
+  return [
+    ...new Set(
+      [content.direction, ...content.clips.flatMap((clip) => clip.shots)].flatMap((text) =>
+        storyboardTokens(text).flatMap((token) =>
+          token.name === ASSET && token.asset !== undefined ? [token.asset] : [],
+        ),
+      ),
+    ),
+  ];
+}
+/** Adds Assets the caller read (files a Storyboard names with `{{asset:<id>}}`) to the material. */
+export function withAssets(material: StoryboardMaterial, assets: readonly unknown[]): StoryboardMaterial {
+  const media = { ...material.media };
+  addMedia(media, Object.fromEntries(assets.flatMap((asset) => {
+    const id = (asset as AssetLike | undefined)?.id;
+    return id === undefined ? [] : [[id, asset]];
+  })));
+  return { ...material, media };
+}
 /** Adds a Character, and its images and voice, to the material it can be cast from. */
 export function withCharacter(
   material: StoryboardMaterial,
@@ -119,13 +141,14 @@ export function withCharacter(
 }
 /**
  * Reads what a Storyboard of `script` is checked against, as the service does: the Script's linked Product at its
- * revision (or, for a Script without a Product link, the images it saved), and each Character named. A Character
- * that cannot be read is left out, so the checks report it as unavailable.
+ * revision (or, for a Script without a Product link, the images it saved), each Character named, and each Asset
+ * named with `{{asset:<id>}}`. A Character or Asset that cannot be read is left out, so the checks report it.
  */
 export async function loadMaterial(
-  sdk: Pick<NuvaClient, "products" | "characters">,
+  sdk: Pick<NuvaClient, "products" | "characters"> & Partial<Pick<NuvaClient, "assets">>,
   script: Script & { format: 3 },
   characterIds: readonly string[],
+  assetIds: readonly string[] = [],
 ): Promise<StoryboardMaterial> {
   const media: Record<string, MediaInfo> = {};
   for (const image of script.content.images)
@@ -155,14 +178,28 @@ export async function loadMaterial(
   );
   for (const character of characters)
     if (character) material = withCharacter(material, character);
-  return material;
+  const assets = await Promise.all(
+    [...new Set(assetIds)].map((id) => sdk.assets?.get(id).catch(() => undefined)),
+  );
+  return withAssets(material, assets.filter((asset) => asset !== undefined));
 }
+const FILE_KINDS = ["image", "video", "audio"] as const;
 export function storyboardContext(
-  material: Pick<StoryboardMaterial, "script" | "productImages" | "characters">,
+  material: Pick<StoryboardMaterial, "script" | "productImages" | "characters"> &
+    Partial<Pick<StoryboardMaterial, "media">>,
 ): StoryboardContext {
+  // Every file the playground could read is one the user may use.
+  const assets: NonNullable<StoryboardContext["assets"]> = Object.fromEntries(
+    Object.values(material.media ?? {}).flatMap((file) =>
+      FILE_KINDS.includes(file.kind as (typeof FILE_KINDS)[number])
+        ? [[file.id, { kind: file.kind as (typeof FILE_KINDS)[number], label: file.label ?? null, description: file.description ?? null }]]
+        : [],
+    ),
+  );
   return {
     script: material.script,
     productImages: material.productImages,
+    assets,
     characters: Object.fromEntries(
       Object.entries(material.characters).map(([id, character]) => [
         id,
@@ -325,6 +362,7 @@ export type TokenView =
   | { kind: "person"; role: string; label: string; image?: MediaInfo; described: boolean }
   | { kind: "image"; owner: string; label: string; image?: MediaInfo }
   | { kind: "product"; label: string; image?: MediaInfo }
+  | { kind: "file"; label: string; file?: MediaInfo }
   | { kind: "line"; id: string; text: string; speaker: string }
   | { kind: "unknown"; raw: string };
 /** A role's display name: the Script's name for it, or "Narrator". */
@@ -354,6 +392,11 @@ export function describeToken(
     return line
       ? { kind: "line", id: line.id, text: line.text, speaker: speakerName(material.script, line.speaker) }
       : unknown;
+  }
+  if (token.name === ASSET) {
+    const file = token.asset === undefined ? undefined : material.media[token.asset];
+    const kind = file?.kind === "video" ? "Video" : file?.kind === "audio" ? "Audio" : "Image";
+    return file ? { kind: "file", label: file.label ?? translate(kind), file } : unknown;
   }
   if (token.name === PRODUCT) {
     const name = material.product?.name ?? translate("Product");
