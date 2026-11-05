@@ -13,11 +13,10 @@ import type {
   DynamicToolUIPart,
   MessageView,
   MessageRef,
-  QueuedMessage,
 } from "@nuva/sdk";
 import { ResourceCards } from "./resource-cards.js";
+import { icon } from "./icons.js";
 import { WaitingBar } from "./waiting.js";
-import { QueueList, editableParts } from "./queue.js";
 import { readResource } from "./resources.js";
 import { usefulLabel, resourcePresentation } from "./resource-presentation.js";
 import { Composer, buildDraft } from "./composer.js";
@@ -71,7 +70,6 @@ export class ChatController {
   private historyNotice = node("div", "", "history-notice");
   private cards: ResourceCards;
   private waitingBar: WaitingBar | undefined;
-  private queueList: QueueList | undefined;
   private viewEvents = new AbortController();
   readonly composer: Composer;
   private messageReferences: ChatReferences;
@@ -103,12 +101,6 @@ export class ChatController {
     this.composer = new Composer(() =>
       host.resources().map((record) => this.cards.label(record)),
     );
-    // Messages sent while the Agent works wait here until they join at its next step.
-    this.queueList = new QueueList(byId("queue"), {
-      remove: (entry) => action(async () => this.agent?.removeQueued(entry.message.ref.messageId)),
-      edit: (entry) => action(() => this.editQueued(entry)),
-      canEdit: () => this.draftEmpty() && !this.sending && !this.retry,
-    });
     this.messageReferences = new ChatReferences({
       chat: this.list,
       viewport: byId("chat"),
@@ -265,7 +257,6 @@ export class ChatController {
     const epoch = ++this.epoch;
     this.unsubscribe?.();
     this.waitingBar?.update(undefined);
-    this.queueList?.update(undefined);
     this.cards.dispose();
     this.cards = this.makeCards();
     this.historyLoading = false;
@@ -338,7 +329,6 @@ export class ChatController {
     this.epoch++;
     this.viewEvents.abort();
     this.waitingBar?.dispose();
-    this.queueList?.dispose();
     this.cards.dispose();
     this.unsubscribe?.();
     this.agent = undefined;
@@ -405,38 +395,6 @@ export class ChatController {
     showPane("chat");
     await this.send(draft);
   }
-  private draftEmpty() {
-    return this.composer.empty() && !this.attached.length && !this.messageReferences.hasQuotes();
-  }
-  /**
-   * Edit: the queued message goes back into the empty composer and leaves the queue (it is queued again when sent).
-   * One that quotes or replies to a message this chat has not loaded stays queued: its references could not be kept.
-   */
-  private async editQueued(entry: QueuedMessage) {
-    if (!this.agent || !this.draftEmpty() || this.sending || this.retry) return;
-    const target = this.agent,
-      draft = editableParts(entry.message);
-    if (!this.messageReferences.restore(draft.replyTo, draft.quotes))
-      throw new UiError(msg("This message quotes an earlier message that is not loaded here. Remove it and write it again."));
-    this.composer.load(draft.parts);
-    this.attached = draft.attachments;
-    this.drawAttachments();
-    try {
-      await target.removeQueued(entry.message.ref.messageId);
-    } catch (error) {
-      // It was sent (or could not be removed): the composer must not hold a second copy.
-      if (target === this.agent) {
-        this.messageReferences.clear();
-        this.composer.clear();
-        this.attached = [];
-        this.drawAttachments();
-      }
-      if ((error as { code?: string }).code === "NOT_FOUND") throw new UiError(msg("This message was already sent."));
-      throw error;
-    } finally {
-      this.controls();
-    }
-  }
   private async send(workspaceDraft?: MessageDraft) {
     if (
       !this.agent ||
@@ -445,7 +403,7 @@ export class ChatController {
       ["waiting_for_response", "loading"].includes(this.status)
     )
       return;
-    if (!workspaceDraft && this.draftEmpty() && !this.retry) return;
+    if (!workspaceDraft && this.composer.empty() && !this.attached.length && !this.messageReferences.hasQuotes() && !this.retry) return;
     const target = this.agent,
       request = this.retry ?? {
         preserveComposer: !!workspaceDraft,
@@ -459,13 +417,14 @@ export class ChatController {
     this.sending = true;
     this.controls();
     try {
-      // While the Agent works the message is queued, and joins at its next step. An idle send carries no mode, so it
-      // works with Agents from before the queue; if the Agent got busy meanwhile, it is queued instead.
+      // While the Agent works the message is steered: it shows at once and the Agent reads it at its next step. An idle
+      // send carries no mode, so it works with Agents from before steering; if the Agent got busy meanwhile, it is
+      // steered instead.
       try {
-        await target.send(request.draft, { requestId: request.requestId, ...(this.status === "running" ? { mode: "queue" as const } : {}) });
+        await target.send(request.draft, { requestId: request.requestId, ...(this.status === "running" ? { mode: "steer" as const } : {}) });
       } catch (error) {
         if ((error as { code?: string }).code !== "AGENT_BUSY") throw error;
-        await target.send(request.draft, { requestId: request.requestId, mode: "queue" });
+        await target.send(request.draft, { requestId: request.requestId, mode: "steer" });
       }
       if (this.closed || target !== this.agent) return;
       this.retry = undefined;
@@ -501,7 +460,6 @@ export class ChatController {
   private controls() {
     if (this.closed) return;
     this.drawAttachments();
-    this.queueList?.refresh();
     const state = this.sending ? "sending" : this.status;
     const labels: Record<string, string> = {
       loading: "Connecting",
@@ -518,18 +476,25 @@ export class ChatController {
     const busy = ["running", "waiting_for_response"].includes(this.status),
       send = byId<HTMLButtonElement>("send");
     send.textContent = this.retry && !this.sending ? "↻" : "↑";
-    const sendLabel = this.retry && !this.sending ? msg("Retry send") : busy ? msg("Queue message") : msg("Send message");
-    setAttribute(send, "title", sendLabel);
-    setAttribute(send, "aria-label", sendLabel);
-    // While the Agent works, Send queues the message; Stop stays next to it.
-    send.hidden = this.status === "waiting_for_response" || (busy && this.draftEmpty() && !this.retry);
+    setAttribute(
+      send,
+      "title",
+      this.retry && !this.sending ? msg("Retry send") : msg("Send message"),
+    );
+    setAttribute(
+      send,
+      "aria-label",
+      this.retry && !this.sending ? msg("Retry send") : msg("Send message"),
+    );
+    // While the Agent works, Send steers the message into its work; Stop stays next to it.
+    send.hidden = this.status === "waiting_for_response" || (busy && this.composer.empty() && !this.attached.length && !this.messageReferences.hasQuotes() && !this.retry);
     send.disabled =
       this.sending ||
       this.messageReferences.hasPendingAnnotation() ||
       !this.agent ||
       this.status === "loading" ||
       this.status === "error" ||
-      (this.draftEmpty() && !this.retry);
+      (this.composer.empty() && !this.attached.length && !this.messageReferences.hasQuotes() && !this.retry);
     this.composer.setLocked(
       this.sending || !!this.retry || !this.agent || this.status === "loading",
     );
@@ -704,7 +669,6 @@ export class ChatController {
     }
     if (state.status !== "loading" && state.status !== "error") this.messageReferences.setMessages(state.messages.items);
     this.waitingBar?.update(state.status === "loading" || state.status === "error" ? undefined : state.waiting);
-    this.queueList?.update(state.status === "loading" || state.status === "error" ? undefined : state.queue);
     this.controls();
     if (state.status === "loading") return;
     if (state.status === "error") {
@@ -844,6 +808,22 @@ export class ChatController {
         }
         failure.textContent = message.error.message;
       } else failure?.remove();
+      // A user message's read state: one check while the Agent has not read it yet (sent while it worked), two after.
+      let receipt = wrapper.querySelector<HTMLElement>(":scope > .message-receipt");
+      const read = message.role !== "user" || message.state === "failed" ? undefined : message.unread === true ? "unread" : "read";
+      if (read === undefined) receipt?.remove();
+      else {
+        if (!receipt) {
+          receipt = node("div", "", "message-receipt");
+          wrapper.append(receipt);
+        }
+        if (receipt.dataset.read !== read) {
+          receipt.dataset.read = read;
+          const label = read === "unread" ? msg("Sent · the Agent reads it at its next step") : msg("Read by the Agent");
+          receipt.replaceChildren(icon(read === "unread" ? "check" : "checks"), node("span", label));
+          setAttribute(receipt, "title", label);
+        }
+      }
       bubble.hidden =
         body.childElementCount === 0 && message.state !== "failed";
       if (this.list.children[index] !== wrapper)

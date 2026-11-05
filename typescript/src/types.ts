@@ -24,21 +24,19 @@ export interface AgentOptions {
 	readonly sessionId: string;
 }
 
-/** `mode: 'queue'`: while the Agent works, the message waits in `state.queue` (and joins at the Agent's next step) instead of being rejected with `AGENT_BUSY`. */
+/** `mode: 'steer'`: while the Agent works, the message joins its current work at the next step instead of being rejected with `AGENT_BUSY`. */
 export interface SendOptions extends CommandOptions {
-	readonly mode?: 'queue';
+	readonly mode?: 'steer';
 }
 export interface AgentHandle {
 	readonly sessionId: string;
 	/**
 	 * Send a message. While the Agent works, a send is rejected with `AGENT_BUSY` (keep the draft), unless it is sent
-	 * with `mode: 'queue'`: it then waits in `state.queue`, and the receipt names it. At the Agent's next step (after the
-	 * current tool results) every queued message joins the conversation, each as its own user message; when no loop is
-	 * running (it finished, failed or was stopped) they start the next one.
+	 * with `mode: 'steer'`: it then appears in `messages` at once, with `unread: true`, and the Agent reads it at its next
+	 * step (after its current tool results), each such message as its own user message. When no loop is running (it
+	 * finished, failed or was stopped) before the Agent read it, it starts the next one.
 	 */
 	send(message: MessageDraft, options?: SendOptions): Promise<SendReceipt>;
-	/** Remove a queued message before it joins the conversation. To edit one, remove it and queue the edited text. `NOT_FOUND` once it joined. */
-	removeQueued(messageId: string, options?: CommandOptions): Promise<SendReceipt>;
 	/**
 	 * Request stopping this Work Session's current loop without cancelling Jobs. It also stops the Agent from continuing
 	 * on its own when watched Jobs finish (`state.waiting` goes away), and works while the Session is idle. Main Sessions

@@ -27,10 +27,7 @@ import type {
 } from './types.js';
 import type { MessageDraft } from './message.js';
 import { createStores } from './store-client.js';
-import { stopReceiptSchema, clientResponseReceiptSchema, clientFailureReceiptSchema, messageRefSchema } from '@nuva/protocol';
-import { z } from 'zod';
-
-const queuedReceiptSchema = z.object({ requestId: z.string().min(1), message: messageRefSchema });
+import { stopReceiptSchema, clientResponseReceiptSchema, clientFailureReceiptSchema } from '@nuva/protocol';
 
 const controllers = new WeakMap<AgentHandle, AgentController>();
 class AgentController implements AgentHandle {
@@ -49,7 +46,6 @@ class AgentController implements AgentHandle {
 		this.api = Object.freeze({
 			sessionId,
 			send: this.send,
-			removeQueued: this.removeQueued,
 			stop: this.stop,
 			respond: this.respond,
 			fail: this.fail,
@@ -147,15 +143,6 @@ class AgentController implements AgentHandle {
 			{ sessionId: this.sessionId, message: draftValue(message), ...(options?.mode === undefined ? {} : { mode: options.mode }) },
 			options?.requestId,
 		);
-	};
-	removeQueued = async (messageId: string, options?: CommandOptions): Promise<SendReceipt> => {
-		this.start();
-		const requestId = options?.requestId ?? crypto.randomUUID();
-		const value = await this.transport.socket('agent.removeQueued', { sessionId: this.sessionId, messageId }, requestId);
-		const parsed = queuedReceiptSchema.safeParse(value);
-		if (!parsed.success || parsed.data.requestId !== requestId || parsed.data.message.messageId !== messageId || parsed.data.message.sessionId !== this.sessionId)
-			throw new NuvaError({ code: 'SERVICE_ERROR', message: 'Malformed queue receipt.', retryable: false, requestId, acceptance: 'unknown' });
-		return parsed.data;
 	};
 	stop = async (options?: CommandOptions) => {
 		this.start();

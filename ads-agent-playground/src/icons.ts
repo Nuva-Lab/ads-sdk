@@ -30,6 +30,7 @@ const paths = {
   code: ["m8 5-6 7 6 7m8-14 6 7-6 7m-3-16-2 18"],
   close: ["m6 6 12 12M6 18 18 6"],
   check: ["m4 12 5 5L20 6"],
+  checks: ["m2 12 5 5L18 6", "m12 16 1 1L22 6"],
   clock: ["M12 8v5l3 2", "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0"],
   stop: ["M6 6h12v12H6z"],
   folder: ["M3 7V4h7l2 3h9v13H3z"],

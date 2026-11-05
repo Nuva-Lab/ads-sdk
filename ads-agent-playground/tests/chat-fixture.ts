@@ -167,31 +167,12 @@ let messages = [user, assistant] as MessageView[],
   cursor: string | null = "older",
   calls = 0;
 const listeners = new Set<(state: AgentReadState) => void>();
-// `?queue`: the Agent is working, so sends wait in the queue, where they can be edited or removed.
-const queueMode = location.search.includes("queue");
-let queue: { message: MessageView; error?: { code: string; message: string; retryable: boolean } }[] = queueMode
-  ? [
-      {
-        message: {
-          ref: { sessionId: session.id, messageId: "queued-failed" },
-          createdAt: session.createdAt,
-          role: "user",
-          state: "complete",
-          metadata: { user: { userId: "user", displayName: "Alex" } },
-          content: [{ id: "t", type: "text", format: "plain", text: "Use the photo I uploaded yesterday" }],
-          attachments: [],
-        } as MessageView,
-        error: { code: "NOT_FOUND", message: "The attached Asset is no longer readable.", retryable: false },
-      },
-    ]
-  : [];
 const emit = () =>
   listeners.forEach((f) =>
     f({
-      status: queueMode ? "running" : "idle",
+      status: "idle",
       session,
       messages: { items: messages, nextCursor: cursor },
-      ...(queue.length ? { queue } : {}),
     } as AgentReadState),
   );
 const agent = {
@@ -202,32 +183,9 @@ const agent = {
   },
   refresh: async () => emit(),
   stop: async () => {},
-  removeQueued: async (messageId: string) => {
-    queue = queue.filter((entry) => entry.message.ref.messageId !== messageId);
-    emit();
-    return { requestId: crypto.randomUUID(), message: { sessionId: session.id, messageId } };
-  },
-  send: async (draft: Parameters<typeof draftValue>[0], options?: { mode?: "queue" }) => {
+  send: async (draft: Parameters<typeof draftValue>[0]) => {
     const value = draftValue(draft);
     await fetch("/test-send", { method: "POST", body: JSON.stringify(value) });
-    if (queueMode && options?.mode === "queue") {
-      queue = [
-        ...queue,
-        {
-          message: {
-            ref: { sessionId: session.id, messageId: `queued-${crypto.randomUUID()}` },
-            createdAt: session.createdAt,
-            role: "user",
-            state: "complete",
-            metadata: { user: { userId: "user", displayName: "Alex" } },
-            content: value.content,
-            attachments: value.attachments,
-          } as MessageView,
-          },
-      ];
-      emit();
-      return;
-    }
     messages.push({
       ref: { sessionId: session.id, messageId: `sent-user-${crypto.randomUUID()}` },
       createdAt: session.createdAt,

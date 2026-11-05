@@ -30,7 +30,6 @@ const writes = new Set([
 	'scripts.generate',
 	'scripts.update',
 	'agent.send',
-	'agent.removeQueued',
 	'agent.stop',
 	'agent.respond',
 	'agent.fail',

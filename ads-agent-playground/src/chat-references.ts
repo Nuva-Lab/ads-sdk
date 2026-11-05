@@ -302,22 +302,6 @@ export class ChatReferences {
       }
     }
   }
-  /**
-   * Puts a queued message's reply source and quotes back into the draft (it is being edited). False, changing nothing,
-   * when a message it refers to is not one this chat knows.
-   */
-  restore(replyTo: MessageRef | undefined, quotes: readonly { ref: MessageRef; text: string }[]) {
-    const known = (ref: MessageRef) => (ref.sessionId === this.options.session() ? this.messages.get(ref.messageId) : undefined);
-    const reply = replyTo === undefined ? undefined : known(replyTo);
-    const quoted = quotes.map((quote) => ({ message: known(quote.ref), text: quote.text }));
-    if ((replyTo !== undefined && reply === undefined) || quoted.some((quote) => quote.message === undefined)) return false;
-    this.draft = new MessageReferenceDraft(this.options.session());
-    if (reply) this.draft.setReply(reply);
-    for (const quote of quoted) this.draft.addQuote(quote.message!, quote.text);
-    this.render();
-    this.changed();
-    return true;
-  }
   hasPendingAnnotation() {
     return this.pendingAnnotation !== undefined;
   }

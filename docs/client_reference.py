@@ -95,7 +95,7 @@ def guide_pages(locale='zh'):
             + table([t('State', '状态'), t('Display / behavior', '展示与行为')], [
                 ['<code>loading</code>', t('Wait for the initial Session state.', '等待首次加载 Session。')],
                 ['<code>idle</code>', t('Allow a new user message.', '允许发送新消息。')],
-                ['<code>running</code>', t('Render streamed updates. Keep a new draft until this loop finishes, or queue it with <code>mode: \'queue\'</code> (see below).', '展示流式更新；当前循环结束前保留新的草稿，或使用 <code>mode: \'queue\'</code> 将其加入队列（见下文）。')],
+                ['<code>running</code>', t('Render streamed updates. Keep a new draft until this loop finishes, or steer it with <code>mode: \'steer\'</code> (see below).', '展示流式更新；当前循环结束前保留新的草稿，或使用 <code>mode: \'steer\'</code> 发送（见下文）。')],
                 ['<code>waiting_for_response</code>', t('Reserved for client tools. The Ads Agent declares none, so it does not enter this state.', '为客户端工具保留。Ads Agent 未声明客户端工具，因此不会进入此状态。')],
                 ['<code>error</code>', t('Show the synchronization error and retain the draft.', '展示同步错误并保留草稿。')],
             ])),
@@ -105,14 +105,10 @@ def guide_pages(locale='zh'):
             + ex('composer')
             + p('<code>send()</code> confirms that the input was accepted. Agent replies and saved resources arrive through the subscription. A busy Session rejects another normal message with <code>AGENT_BUSY</code>.',
                 '<code>send()</code> 确认输入已被接受；Agent 回复和已保存的资源通过订阅返回。忙碌的 Session 会以 <code>AGENT_BUSY</code> 拒绝新的普通消息。')
-            + p('To let users keep writing while the Agent works, send with <code>agent.send(draft, { mode: \'queue\' })</code>. While the Agent works, the message waits in <code>state.queue</code> (present only then) and the receipt names it; while idle it is sent at once. At the Agent\'s next step, after its current tool results, every queued message joins the conversation, each as its own user message; when no loop is running (it finished, failed or was stopped), they start the next one. Show the queue above the composer, one line per message, with two actions:',
-                '如需在 Agent 工作时让用户继续输入，请使用 <code>agent.send(draft, { mode: \'queue\' })</code> 发送。Agent 工作期间，消息会在 <code>state.queue</code> 中排队（仅在此时存在），回执会标明该消息；空闲时则立即发送。在 Agent 的下一步（当前工具结果之后），所有排队的消息都会加入对话，每条作为单独的用户消息；没有正在运行的循环时（已完成、失败或已停止），它们会开始下一个循环。可在输入框上方逐行显示队列，每条提供两个操作：')
-            + table([t('Action', '操作'), t('Call', '调用')], [
-                [t('Edit', '编辑'), t('Call <code>agent.removeQueued(messageId)</code>, then put the message back into the composer; sending it queues it again.', '调用 <code>agent.removeQueued(messageId)</code>，再将消息放回输入框；再次发送即重新加入队列。')],
-                [t('Remove', '移除'), t('<code>agent.removeQueued(messageId)</code>.', '<code>agent.removeQueued(messageId)</code>。')],
-            ])
-            + p('Once a message has joined, <code>removeQueued</code> answers <code>NOT_FOUND</code>; a message joins at the next step, which can be seconds away. A queued message that could not be sent stays in the queue with an <code>error</code> until removed. Messages that join a reply close it: they appear in <code>messages</code> as your messages, and the reply continues in a new assistant message after them.',
-                '消息加入对话后，<code>removeQueued</code> 会返回 <code>NOT_FOUND</code>；消息会在下一步加入，可能只需几秒。无法发送的排队消息会带着 <code>error</code> 留在队列中，直到被移除。加入回复的消息会结束当前回复片段：它们作为你的消息出现在 <code>messages</code> 中，回复在其后以新的 assistant 消息继续。')),
+            + p('To let users keep writing while the Agent works, send with <code>agent.send(draft, { mode: \'steer\' })</code>. While the Agent works, the message is in <code>messages</code> at once, after the reply in progress, with <code>unread: true</code>; the receipt names it. At the Agent\'s next step, after its current tool results, it joins the conversation as its own user message, loses <code>unread</code>, and the reply continues in a new assistant message after it. When no loop is running before that (it finished, failed or was stopped), it starts the next one. While idle, a steered send is an ordinary send.',
+                '如需在 Agent 工作时让用户继续输入，请使用 <code>agent.send(draft, { mode: \'steer\' })</code> 发送。Agent 工作期间，消息会立即出现在 <code>messages</code> 中（位于正在生成的回复之后），并带有 <code>unread: true</code>；回执会标明该消息。在 Agent 的下一步（当前工具结果之后），它会作为单独的用户消息加入对话，<code>unread</code> 随之消失，回复在其后以新的 assistant 消息继续。若在此之前循环已结束（完成、失败或已停止），它会开始下一个循环。空闲时，steer 发送与普通发送相同。')
+            + p('Show the read state under user messages, for example one check while <code>unread</code> and two once read. A steered message that cannot be sent is marked <code>failed</code> with its error.',
+                '可在用户消息下方显示已读状态，例如 <code>unread</code> 时显示一个对勾，已读后显示两个。无法发送的 steer 消息会被标记为 <code>failed</code> 并附带错误。')),
         section('waiting', 'Waiting for renders', '等待渲染完成',
             p('When the Agent submits video Jobs, it watches them and continues on its own when they finish. While it waits, <code>state.waiting</code> is present (only then; it is absent otherwise, and older SDK versions ignore it). The Session is <code>idle</code> meanwhile, so the user can keep chatting.',
                 'Agent 提交视频任务后会持续关注，任务完成后自动继续。等待期间 <code>state.waiting</code> 存在（仅在等待时出现，其余时间不存在；旧版 SDK 会忽略该字段）。此时 Session 为 <code>idle</code>，用户可以继续对话。')
@@ -123,8 +119,8 @@ def guide_pages(locale='zh'):
             ])
             + p('Show a short note above the composer, for example “Waiting for 2 renders · usually about 4 min · The Agent continues when they finish”, with a chip per Job and a “Stop waiting” action that calls <code>agent.stop()</code>. Stop works while the Session is idle: the Jobs keep running and their results stay saved, but the Agent no longer continues on its own. When the Agent continues, its reply begins with a summary of the finished renders and their Job records.',
                 '可在输入框上方显示简短提示，例如“正在等待 2 个渲染 · 通常约 4 分钟 · 全部完成后 Agent 会自动继续”，为每个任务显示一个标签，并提供调用 <code>agent.stop()</code> 的“停止等待”操作。Session 空闲时也可以 Stop：任务继续运行、结果仍会保存，但 Agent 不再自动继续。Agent 继续时，回复开头会列出已完成的渲染及其任务记录。')
-            + p('While the Agent continues after the Jobs finish, the Session is <code>running</code> like any reply: queue a message as above, and it joins at the Agent\'s next step.',
-                '任务完成后 Agent 自动继续时，Session 与普通回复一样处于 <code>running</code>：可以如上所述将消息加入队列，它会在 Agent 的下一步加入。')),
+            + p('While the Agent continues after the Jobs finish, the Session is <code>running</code> like any reply: steer a message as above, and it joins at the Agent\'s next step.',
+                '任务完成后 Agent 自动继续时，Session 与普通回复一样处于 <code>running</code>：可以如上所述以 steer 方式发送消息，它会在 Agent 的下一步加入。')),
         section('references', 'Attach Products and quote results', '附加产品与引用结果',
             p('Pass a resource returned by the SDK to <code>attach()</code> or <code>quote()</code>. The reference carries the resource kind and ID; a display name alone does not identify a Product or Script.',
                 '将 SDK 返回的资源传给 <code>attach()</code> 或 <code>quote()</code>。引用包含资源类型和 ID；仅有展示名称不能确定产品或脚本。')

@@ -17,8 +17,6 @@ import {
 	messagePageSchema,
 	errorSchema,
 	sessionWaitingSchema,
-	clientQueuedSchema,
-	queuedMessageSchema,
 } from '../dist/index.js';
 import { z } from 'zod';
 const ref = { sessionId: 'public-session', messageId: 'public-message' };
@@ -141,28 +139,17 @@ test('waiting is optional state: it parses with its exact fields, and clients bu
 	assert.equal('waiting' in old, false);
 });
 
-test('queue is optional state and a queued send is an explicit mode; clients built before them are unaffected', () => {
-	const base = {
-		status: 'running',
-		session: { id: 'work', kind: 'work', title: 'Work', owner: { userId: 'owner' }, createdAt: '2026-11-04T00:00:00Z' },
-		messages: { items: [], nextCursor: null },
-	};
-	const queued = {
-		message: { ref, role: 'user', metadata: { user: { userId: 'owner' } }, createdAt: '2026-11-04T00:00:01Z', content: [publicText], attachments: [], state: 'complete' },
-	};
-	const failed = { ...queued, error: { code: 'NOT_FOUND', message: 'The attachment is gone.', retryable: false } };
-	assert.deepEqual(agentStateSchema.parse({ ...base, queue: [queued, failed] }).queue, [queued, failed]);
-	assert.equal('queue' in agentStateSchema.parse(base), false, 'Absent while nothing is queued.');
-	assert.equal(agentStateSchema.safeParse({ ...base, queue: [] }).success, false, 'An empty queue is absent, not empty.');
-	assert.equal(queuedMessageSchema.safeParse({}).success, false, 'message is required.');
-	// The state schema of the release before `queue`, as an old client compiled it: the field is dropped.
-	const previous = z.object({ session: sessionSchema, messages: messagePageSchema, error: errorSchema.optional() }).extend({ status: z.enum(['idle', 'running']) });
-	assert.equal('queue' in previous.parse({ ...base, queue: [queued] }), false);
+test('a steered send is an explicit mode, and a user message is unread until the Agent reads it; clients built before them are unaffected', () => {
 	const message = { content: [publicText], attachments: [] };
-	assert.equal(clientSendSchema.parse({ sessionId: 'work', message, mode: 'queue' }).mode, 'queue');
+	assert.equal(clientSendSchema.parse({ sessionId: 'work', message, mode: 'steer' }).mode, 'steer');
 	assert.equal('mode' in clientSendSchema.parse({ sessionId: 'work', message }), false, 'Without a mode, a busy Session rejects the send.');
-	for (const mode of ['steer', 'later', null]) assert.equal(clientSendSchema.safeParse({ sessionId: 'work', message, mode }).success, false, String(mode));
-	assert.deepEqual(clientQueuedSchema.parse({ sessionId: 'work', messageId: 'queued-1' }), { sessionId: 'work', messageId: 'queued-1' });
-	for (const extra of [{ message }, { mode: 'queue' }, { steering: true }])
-		assert.equal(clientQueuedSchema.safeParse({ sessionId: 'work', messageId: 'queued-1', ...extra }).success, false, JSON.stringify(extra));
+	for (const mode of ['queue', 'later', null]) assert.equal(clientSendSchema.safeParse({ sessionId: 'work', message, mode }).success, false, String(mode));
+	const user = { ref, role: 'user', metadata: { user: { userId: 'owner' } }, createdAt: '2026-11-04T00:00:01Z', content: [publicText], attachments: [], state: 'complete' };
+	assert.equal(messageSchema.parse({ ...user, unread: true }).unread, true);
+	assert.equal('unread' in messageSchema.parse(user), false, 'Absent once read.');
+	assert.equal(messageSchema.safeParse({ ...user, unread: false }).success, false, 'Only `true`; a read message has no field.');
+	assert.equal('unread' in messageSchema.parse({ ...user, role: 'assistant', metadata: undefined, unread: true }), false, 'Not an assistant field.');
+	// The message schema of the release before `unread`, as an old client compiled it: the field is dropped.
+	const previous = z.object({ ref: z.object({ sessionId: z.string(), messageId: z.string() }), role: z.literal('user'), metadata: z.object({ user: identitySchema }) });
+	assert.equal('unread' in previous.parse({ ...user, unread: true }), false);
 });

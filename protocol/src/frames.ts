@@ -42,14 +42,12 @@ export const serverFrameSchema = z.union([
 ]);
 export const clientStopSchema = z.object({ sessionId: z.string().min(1) }).strict();
 /**
- * `mode: 'queue'`: while a Turn runs, the message waits in the Session's queue instead of being rejected as busy, and
- * joins the Turn at its next step.
+ * `mode: 'steer'`: while a Turn runs, the message is not rejected as busy. It is saved and public at once (marked
+ * `unread` until the Agent reads it), and joins the running Turn at its next step.
  */
 export const clientSendSchema = z
-	.object({ sessionId: z.string().min(1), message: clientMessageInputSchema, mode: z.enum(['queue']).optional() })
+	.object({ sessionId: z.string().min(1), message: clientMessageInputSchema, mode: z.enum(['steer']).optional() })
 	.strict();
-/** A queued message to remove before it joins the conversation. */
-export const clientQueuedSchema = z.object({ sessionId: z.string().min(1), messageId: z.string().min(1) }).strict();
 export const clientResponseSchema = z
 	.object({ sessionId: z.string().min(1), toolCallId: z.string().min(1), output: jsonValueSchema })
 	.strict();
@@ -70,6 +68,5 @@ export const clientReauthFrameSchema = z
 export const clientFrameSchema = z.union([clientAuthFrameSchema, clientReauthFrameSchema, requestFrameSchema]);
 export type ClientStopParams = z.infer<typeof clientStopSchema>;
 export type ClientSendParams = z.infer<typeof clientSendSchema>;
-export type ClientQueuedParams = z.infer<typeof clientQueuedSchema>;
 export type ClientToolResponseParams = z.infer<typeof clientResponseSchema>;
 export type ClientToolFailureParams = z.infer<typeof clientFailureSchema>;
