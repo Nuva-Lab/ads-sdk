@@ -442,7 +442,7 @@ export class ChatController {
       !this.agent ||
       this.sending ||
       this.messageReferences.hasPendingAnnotation() ||
-      this.status === "loading"
+      ["waiting_for_response", "loading"].includes(this.status)
     )
       return;
     if (!workspaceDraft && this.draftEmpty() && !this.retry) return;
@@ -459,8 +459,14 @@ export class ChatController {
     this.sending = true;
     this.controls();
     try {
-      // While the Agent works, the message is queued (and sent when its loop ends); otherwise it is sent now.
-      await target.send(request.draft, { requestId: request.requestId, mode: "queue" });
+      // While the Agent works the message is queued, and joins at its next step. An idle send carries no mode, so it
+      // works with Agents from before the queue; if the Agent got busy meanwhile, it is queued instead.
+      try {
+        await target.send(request.draft, { requestId: request.requestId, ...(this.status === "running" ? { mode: "queue" as const } : {}) });
+      } catch (error) {
+        if ((error as { code?: string }).code !== "AGENT_BUSY") throw error;
+        await target.send(request.draft, { requestId: request.requestId, mode: "queue" });
+      }
       if (this.closed || target !== this.agent) return;
       this.retry = undefined;
       if (!request.preserveComposer) {
@@ -516,7 +522,7 @@ export class ChatController {
     setAttribute(send, "title", sendLabel);
     setAttribute(send, "aria-label", sendLabel);
     // While the Agent works, Send queues the message; Stop stays next to it.
-    send.hidden = busy && this.draftEmpty() && !this.retry;
+    send.hidden = this.status === "waiting_for_response" || (busy && this.draftEmpty() && !this.retry);
     send.disabled =
       this.sending ||
       this.messageReferences.hasPendingAnnotation() ||
