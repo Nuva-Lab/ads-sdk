@@ -5,7 +5,7 @@ import { browser, bundle, fakeSdk, ids, leo, mia, script, scriptContent, storybo
 const built = await bundle(
   "playground-storyboard-",
   `export * from './src/storyboard.ts';
-   export { loadMaterial, castEntry, castChoice, placeIssue, insertToken } from './src/storyboard-model.ts';
+   export { loadMaterial, castEntry, castChoice, placeIssue, insertToken, readNamedAsset } from './src/storyboard-model.ts';
    export { openResource, renderResources } from './src/resources.ts';
    export { setLocale } from './src/i18n.ts';`,
 );
@@ -15,6 +15,7 @@ const {
   renderStoryboardContent,
   storyboardEditor,
   loadMaterial,
+  readNamedAsset,
   castEntry,
   openResource,
   renderResources,
@@ -272,7 +273,16 @@ test("{{asset:<id>}} files read as chips and references by their own kind, and a
   const unboxing = { id: "00000902-2222-4222-8222-222222222222", kind: "video", mime: "video/mp4", label: "Unboxing", description: null, download_url: "https://media.playground.test/unboxing" };
   const files = { [music.id]: music, [unboxing.id]: unboxing };
   const reads = [];
-  const sdk = fakeSdk({ assets: { get: async (id) => (reads.push(id), files[id] ?? Promise.reject(new Error("Asset not found"))) } });
+  let outage = false;
+  const sdk = fakeSdk({
+    assets: {
+      get: async (id) => {
+        reads.push(id);
+        if (outage) throw Object.assign(new Error("Service unavailable"), { code: "SERVICE_UNAVAILABLE", retryable: true });
+        return files[id] ?? Promise.reject(Object.assign(new Error("Asset not found"), { code: "NOT_FOUND" }));
+      },
+    },
+  });
   const content = structuredClone(storyboardContent);
   content.clips[0].shots[1] = `{{friend}} smiles at her; {{asset:${unboxing.id}}} plays behind. {{L02}}`;
   const loaded = await loadMaterial(sdk, script, [ids.mia], [unboxing.id]);
@@ -285,7 +295,7 @@ test("{{asset:<id>}} files read as chips and references by their own kind, and a
 
   // In the editor, a file a shot newly names is read, then checked like the rest.
   const edited = fresh();
-  const handle = storyboardEditor(edited, { content, material: loaded, characters: [mia, leo], loadAssets: (list) => Promise.all(list.map((id) => sdk.assets.get(id).catch(() => undefined))), save: async () => {}, cancel() {} });
+  const handle = storyboardEditor(edited, { content, material: loaded, characters: [mia, leo], loadAssets: (list) => Promise.all(list.map((id) => readNamedAsset(sdk, id))), save: async () => {}, cancel() {} });
   assert.deepEqual(handle.issues(), []);
   const missing = "00000903-2222-4222-8222-222222222222";
   type(edited.querySelector('textarea[name="shot-C01-1"]'), `Close on {{host:${ids.miaSide}}} lifting {{product:${ids.productBack}}}. 背景音乐用 {{asset:${music.id}}} {{asset:${missing}}}. {{L01}}`);
@@ -293,6 +303,18 @@ test("{{asset:<id>}} files read as chips and references by their own kind, and a
   assert.deepEqual(reads.slice(1), [music.id, missing], "Each new ID is read once.");
   assert.deepEqual(issuesAt(edited, "C01 shot 1"), [`{{asset:${missing}}}: there is no image, video or audio Asset with this ID that you may use.`]);
   assert.ok(texts(edited, ".reference-chip").includes("Morning music bed"));
+  // Any other failure is shown as an error to retry, and the next edit reads the file again.
+  outage = true;
+  const later = "00000904-2222-4222-8222-222222222222";
+  files[later] = { ...music, id: later, label: "Later" };
+  type(edited.querySelector('textarea[name="shot-C01-1"]'), `Close on {{host:${ids.miaSide}}} lifting {{product:${ids.productBack}}}. {{asset:${later}}} {{L01}}`);
+  await settle();
+  assert.match(edited.querySelector(".storyboard-error").textContent, /could not be read\. Try again/);
+  outage = false;
+  type(edited.querySelector('textarea[name="shot-C01-1"]'), `Close on {{host:${ids.miaSide}}} lifting {{product:${ids.productBack}}}. {{asset:${later}}} {{L01}} `);
+  await settle();
+  assert.deepEqual(handle.issues(), []);
+  await assert.rejects(loadMaterial({ ...sdk, assets: { get: async () => { throw Object.assign(new Error("down"), { code: "SERVICE_UNAVAILABLE" }); } } }, script, [ids.mia], [music.id]), /could not be read/);
 });
 
 test("the cast selector writes the Character, look and voice each role's entry needs", async () => {

@@ -430,6 +430,7 @@ export const zh: Record<string, string> = {
   "Storyboard saved.": "分镜已保存。",
   "Storyboard revised.": "分镜已修改。",
   "{p0}'s voice": "{p0}的声音",
+  "File {p0} could not be read. Try again.": "无法读取文件 {p0}，请重试。",
   "No references yet.": "暂无参考素材。",
   "Unseen narrator, heard only.": "不出镜的旁白，只有声音。",
   "Not a role of this Script.": "不是此脚本的角色。",

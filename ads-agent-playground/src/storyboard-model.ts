@@ -3,7 +3,6 @@
  * edits the editor makes. No DOM here; the views live in storyboard.ts.
  */
 import {
-  ASSET,
   CHARACTER_VOICE,
   LINE_ID,
   MAX_CLIPS,
@@ -11,6 +10,7 @@ import {
   MIN_CLIP_MS,
   NARRATOR,
   PRODUCT,
+  namesAsset,
   scriptLines,
   storyboardIssues,
   storyboardTokens,
@@ -23,7 +23,7 @@ import type {
   StoryboardToken,
 } from "@nuva/sdk/internal";
 import type { Character, NuvaClient, Product, Script } from "@nuva/sdk";
-import { msg, translate, type UiLabel } from "./i18n.js";
+import { msg, translate, UiError, type UiLabel } from "./i18n.js";
 
 /** A file a view can show: its download URL and what its uploader said it shows. */
 export interface MediaInfo {
@@ -106,16 +106,31 @@ export function castCharacters(content: Pick<StoryboardContent, "cast">) {
   ];
 }
 /** The Assets a Storyboard names with `{{asset:<id>}}`, in its shots and direction. */
-export function assetTokenIds(content: Pick<StoryboardContent, "direction" | "clips">) {
+export function assetTokenIds(
+  content: Pick<StoryboardContent, "direction" | "clips">,
+  script: Pick<ScriptContent, "roles">,
+) {
   return [
     ...new Set(
       [content.direction, ...content.clips.flatMap((clip) => clip.shots)].flatMap((text) =>
         storyboardTokens(text).flatMap((token) =>
-          token.name === ASSET && token.asset !== undefined ? [token.asset] : [],
+          namesAsset(token, script) && token.asset !== undefined ? [token.asset] : [],
         ),
       ),
     ),
   ];
+}
+/**
+ * Reads an Asset a Storyboard names. Only NOT_FOUND means the user may not use it (the checks then report it);
+ * any other failure is raised as an error the user can retry.
+ */
+export async function readNamedAsset(sdk: Pick<NuvaClient, "assets">, id: string): Promise<unknown> {
+  try {
+    return await sdk.assets.get(id);
+  } catch (error) {
+    if ((error as { code?: unknown } | null)?.code === "NOT_FOUND") return undefined;
+    throw new UiError(msg("File {p0} could not be read. Try again.", { p0: id }));
+  }
 }
 /** Adds Assets the caller read (files a Storyboard names with `{{asset:<id>}}`) to the material. */
 export function withAssets(material: StoryboardMaterial, assets: readonly unknown[]): StoryboardMaterial {
@@ -178,9 +193,7 @@ export async function loadMaterial(
   );
   for (const character of characters)
     if (character) material = withCharacter(material, character);
-  const assets = await Promise.all(
-    [...new Set(assetIds)].map((id) => sdk.assets?.get(id).catch(() => undefined)),
-  );
+  const assets = sdk.assets === undefined ? [] : await Promise.all([...new Set(assetIds)].map((id) => readNamedAsset(sdk as Pick<NuvaClient, "assets">, id)));
   return withAssets(material, assets.filter((asset) => asset !== undefined));
 }
 const FILE_KINDS = ["image", "video", "audio"] as const;
@@ -393,7 +406,7 @@ export function describeToken(
       ? { kind: "line", id: line.id, text: line.text, speaker: speakerName(material.script, line.speaker) }
       : unknown;
   }
-  if (token.name === ASSET) {
+  if (namesAsset(token, material.script)) {
     const file = token.asset === undefined ? undefined : material.media[token.asset];
     const kind = file?.kind === "video" ? "Video" : file?.kind === "audio" ? "Audio" : "Image";
     return file ? { kind: "file", label: file.label ?? translate(kind), file } : unknown;

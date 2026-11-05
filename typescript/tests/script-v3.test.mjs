@@ -176,14 +176,34 @@ test('asset tokens are checked: an ID is required, Session files must be promote
 	assert.ok(wrong.some((message) => message.includes("that file is not one of the Product's")), wrong.join('\n'));
 });
 
-test('asset is a reserved name: no role may be called it', () => {
+/** A Script whose presenter role is called `asset`, as one stored before the name was reserved could be. */
+function assetRoleScript() {
 	const value = script();
 	value.roles[0].id = 'asset';
 	for (const panel of value.panels) {
 		panel.on_screen = ['asset', 'product'];
 		panel.lines[0].speaker = 'asset';
 	}
-	assert.ok(scriptSchema.safeParse(value).error.issues.some((issue) => issue.message === 'narrator, product and asset are reserved.'));
+	return value;
+}
+
+test('asset is reserved for new Scripts: a draft may not call a role it', () => {
+	const { facts: _facts, images: _images, ...draft } = assetRoleScript();
+	assert.ok(scriptAuthoringSchema.safeParse(draft).error.issues.some((issue) => issue.message === 'narrator, product and asset are reserved.'));
+});
+
+test('a stored Script with a role called asset still reads, and its Storyboard keeps {{asset}} as that role', () => {
+	const stored = assetRoleScript();
+	const content = decodeScript(encodeScript(scriptSchema.parse(stored)));
+	assert.equal(content.roles[0].id, 'asset');
+	const board = storyboard();
+	board.cast = { asset: { character: presenter.id, voice: 'character' } };
+	board.clips = board.clips.map((clip, i) => ({ ...clip, shots: [`中景。{{asset}}拿着{{product}}说{{L0${i + 1}}}。`] }));
+	board.clips[1].shots = [`特写。{{asset:${presenter.images[1]}}}拿着{{product}}说{{L02}}。`];
+	const roleContext = { ...context(content), assets: {} };
+	assert.deepEqual(storyboardIssues(decodeStoryboard(encodeStoryboard(board)), roleContext), []);
+	assert.deepEqual(clipReferences(board, 0, roleContext), { images: [presenter.images[0], productImages[0]], videos: [], audio: [presenter.voice] });
+	assert.deepEqual(clipReferences(board, 1, roleContext).images, [presenter.images[1], productImages[0]], '{{asset:<id>}} is that role with that image of its Character.');
 });
 
 test('per clip: at most 9 images, 3 videos, 3 audio files and 12 references in all, each kind reported by name', () => {
@@ -203,11 +223,13 @@ test('per clip: at most 9 images, 3 videos, 3 audio files and 12 references in a
 	assert.ok(clip(names(800, 3)).some((message) => message.includes('4 audio files (voices and named audio); at most 3')));
 	const total = clip(names(600, 6) + names(700, 3) + names(800, 2));
 	assert.deepEqual(total, ['C01: This clip has 13 references in all; at most 12.']);
-	// A clip of videos and audio alone still needs an image.
+	// A video alone is something to see, as the backend accepts; audio alone is not.
 	const value = storyboard();
 	value.cast.presenter = { look: '约30岁女性', voice: '清晰女声' };
 	value.clips[0].shots = [`{{asset:${uuid(700)}}}，{{presenter}}说{{L01}}。`];
-	assert.ok(storyboardIssues(value, limited).some((message) => message.startsWith('C01') && message.includes('at least one image')));
+	assert.deepEqual(storyboardIssues(value, limited).filter((message) => message.startsWith('C01')), []);
+	value.clips[0].shots = [`{{asset:${uuid(800)}}}，{{presenter}}说{{L01}}。`];
+	assert.ok(storyboardIssues(value, limited).some((message) => message.startsWith('C01') && message.includes('at least one image or video')));
 });
 
 test('casting: every role once, a Character or a look, a voice for speakers, and "character" only with a voice file', () => {

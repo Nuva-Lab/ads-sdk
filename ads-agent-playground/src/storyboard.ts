@@ -34,6 +34,7 @@ import {
   insertToken,
   loadMaterial,
   move,
+  readNamedAsset,
   placeIssue,
   renumber,
   shotSegments,
@@ -494,7 +495,7 @@ export async function renderStoryboard(
     body.replaceChildren(node("p", msg("This Storyboard's Script is a legacy Script."), "empty"));
     return;
   }
-  let material = await loadMaterial(host.sdk, script as V3Script, castCharacters(storyboard.content), assetTokenIds(storyboard.content));
+  let material = await loadMaterial(host.sdk, script as V3Script, castCharacters(storyboard.content), assetTokenIds(storyboard.content, script.content as ScriptContent));
   if (!navigation.alive()) return;
   const scriptLink: ResourceLink = { ref: { kind: "script", id: script.id }, label: script.content.concept.name };
   const go = (record: ResourceLink) => (host.open ? host.open(record) : navigation.show(record));
@@ -551,7 +552,7 @@ export async function renderStoryboard(
             content: storyboard.content,
             material,
             characters,
-            loadAssets: (ids) => Promise.all(ids.map((id) => host.sdk.assets.get(id).catch(() => undefined))),
+            loadAssets: (ids) => Promise.all(ids.map((id) => readNamedAsset(host.sdk, id))),
             cancel: view,
             save: async (content) => {
               const input = { base: storyboard.id, content };
@@ -646,7 +647,7 @@ export function storyboardEditor(
     content: StoryboardContent;
     material: StoryboardMaterial;
     characters: readonly Character[];
-    /** Reads Assets a shot newly names with `{{asset:<id>}}`; one that cannot be read comes back undefined. */
+    /** Reads Assets a shot newly names with `{{asset:<id>}}`; one the user may not use comes back undefined. */
     loadAssets?(ids: string[]): Promise<unknown[]>;
     save(content: StoryboardContent): Promise<void>;
     cancel(): void;
@@ -677,14 +678,21 @@ export function storyboardEditor(
   // Assets a shot names that are not read yet are read once, then checked again.
   const requested = new Set(Object.keys(material.media));
   function loadNamed() {
-    const ids = assetTokenIds(draft).filter((id) => !requested.has(id));
+    const ids = assetTokenIds(draft, material.script).filter((id) => !requested.has(id));
     if (!ids.length || !options.loadAssets) return;
     for (const id of ids) requested.add(id);
-    void options.loadAssets(ids).then((assets) => {
-      material = withAssets(material, assets.filter((asset) => asset !== undefined));
-      for (const refresh of previews) refresh();
-      validate();
-    }, () => {});
+    void options.loadAssets(ids).then(
+      (assets) => {
+        material = withAssets(material, assets.filter((asset) => asset !== undefined));
+        for (const refresh of previews) refresh();
+        validate();
+      },
+      (error) => {
+        // Not read: the next edit tries again.
+        for (const id of ids) requested.delete(id);
+        showError(failure, error);
+      },
+    );
   }
   function validate() {
     loadNamed();

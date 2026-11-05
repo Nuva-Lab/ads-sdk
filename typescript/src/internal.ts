@@ -11,6 +11,7 @@ export {
 	castEntrySchema,
 	storyboardTokens,
 	clipReferences,
+	namesAsset,
 	scriptLines,
 	durationTolerance,
 	scriptVersion,
