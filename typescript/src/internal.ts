@@ -16,6 +16,7 @@ export {
 	scriptVersion,
 	NARRATOR,
 	PRODUCT,
+	ASSET,
 	CHARACTER_VOICE,
 	ROLE_ID,
 	LINE_ID,
