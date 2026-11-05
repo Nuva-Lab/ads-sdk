@@ -47,7 +47,8 @@ export class ChatController {
   private connectionError = "";
   private agent?: AgentHandle;
   private unsubscribe?: () => void;
-  private retry?: { draft: MessageDraft; requestId: string; preserveComposer?: boolean };
+  /** `steer`: the request was sent steered once, so a retry stays steered and the Agent answers with its first receipt. */
+  private retry?: { draft: MessageDraft; requestId: string; preserveComposer?: boolean; steer?: boolean };
   private attached: ResourceLink[] = [];
   private sending = false;
   private epoch = 0;
@@ -420,10 +421,12 @@ export class ChatController {
       // While the Agent works the message is steered: it shows at once and the Agent reads it at its next step. An idle
       // send carries no mode, so it works with Agents from before steering; if the Agent got busy meanwhile, it is
       // steered instead.
+      if (this.status === "running") request.steer = true;
       try {
-        await target.send(request.draft, { requestId: request.requestId, ...(this.status === "running" ? { mode: "steer" as const } : {}) });
+        await target.send(request.draft, { requestId: request.requestId, ...(request.steer ? { mode: "steer" as const } : {}) });
       } catch (error) {
         if ((error as { code?: string }).code !== "AGENT_BUSY") throw error;
+        request.steer = true;
         await target.send(request.draft, { requestId: request.requestId, mode: "steer" });
       }
       if (this.closed || target !== this.agent) return;
