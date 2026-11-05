@@ -1300,9 +1300,17 @@ dialog {
   border-radius: 14px;
   color: var(--ink);
 }
-button.gallery-card:hover {
+button.gallery-card:hover,
+.gallery-card[role="button"]:hover {
   border-color: #a3b394;
   box-shadow: 0 5px 20px #25331c0d;
+}
+.gallery-card[role="button"] {
+  cursor: pointer;
+}
+.gallery-card[role="button"]:focus-visible {
+  outline: 3px solid #bdd6a5;
+  outline-offset: 2px;
 }
 .gallery-card.selected {
   border-color: var(--accent);
@@ -2401,13 +2409,6 @@ select {
 }
 .prompt-gallery-card .gallery-info > h3 {
   font-size: 14px;
-}
-.prompt-gallery-card > button {
-  align-self: flex-start;
-  flex-shrink: 0;
-  margin: 0;
-  font-size: 11px;
-  padding: 7px 10px;
 }
 .prompt-card-excerpt {
   flex: 1;
