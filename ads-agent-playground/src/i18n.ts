@@ -26,6 +26,8 @@ export const zh: Record<string, string> = {
   "The Agent continues when they finish": "全部完成后 Agent 会自动继续",
   "rendering": "渲染中",
   "Stop waiting": "停止等待",
+  "Sent · the Agent reads it at its next step": "已发送 · Ads Agent 会在下一步读取",
+  "Read by the Agent": "Ads Agent 已读",
   "Open {p0}": "打开 {p0}",
   "Add annotation": "添加批注",
   "Annotation comment": "批注内容",

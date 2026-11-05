@@ -24,9 +24,19 @@ export interface AgentOptions {
 	readonly sessionId: string;
 }
 
+/** `mode: 'steer'`: while the Agent works, the message joins its current work at the next step instead of being rejected with `AGENT_BUSY`. */
+export interface SendOptions extends CommandOptions {
+	readonly mode?: 'steer';
+}
 export interface AgentHandle {
 	readonly sessionId: string;
-	send(message: MessageDraft, options?: CommandOptions): Promise<SendReceipt>;
+	/**
+	 * Send a message. While the Agent works, a send is rejected with `AGENT_BUSY` (keep the draft), unless it is sent
+	 * with `mode: 'steer'`: it then appears in `messages` at once, with `unread: true`, and the Agent reads it at its next
+	 * step (after its current tool results), each such message as its own user message. When no loop is running (it
+	 * finished, failed or was stopped) before the Agent read it, it starts the next one.
+	 */
+	send(message: MessageDraft, options?: SendOptions): Promise<SendReceipt>;
 	/**
 	 * Request stopping this Work Session's current loop without cancelling Jobs. It also stops the Agent from continuing
 	 * on its own when watched Jobs finish (`state.waiting` goes away), and works while the Session is idle. Main Sessions

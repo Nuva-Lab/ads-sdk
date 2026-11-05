@@ -41,7 +41,13 @@ export const serverFrameSchema = z.union([
 	z.object({ ...envelopeVersion, type: z.literal('error'), id: z.string(), error: errorSchema }),
 ]);
 export const clientStopSchema = z.object({ sessionId: z.string().min(1) }).strict();
-export const clientSendSchema = z.object({ sessionId: z.string().min(1), message: clientMessageInputSchema }).strict();
+/**
+ * `mode: 'steer'`: while a Turn runs, the message is not rejected as busy. It is saved and public at once (marked
+ * `unread` until the Agent reads it), and joins the running Turn at its next step.
+ */
+export const clientSendSchema = z
+	.object({ sessionId: z.string().min(1), message: clientMessageInputSchema, mode: z.enum(['steer']).optional() })
+	.strict();
 export const clientResponseSchema = z
 	.object({ sessionId: z.string().min(1), toolCallId: z.string().min(1), output: jsonValueSchema })
 	.strict();

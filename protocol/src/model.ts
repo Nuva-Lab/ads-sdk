@@ -84,6 +84,11 @@ export type MessageView = MessageBase &
 				readonly role: 'user';
 				/** Reuse the authenticated author identity; the caller does not set it. */
 				readonly metadata: { readonly user: UserIdentity };
+				/**
+				 * Sent while the Agent worked (`mode: 'steer'`) and not read yet: the Agent reads it at its next step. Absent
+				 * once read, and on every other message.
+				 */
+				readonly unread?: true;
 		  }
 		| {
 				/** The source Session in ref identifies the Agent. */
@@ -302,7 +307,7 @@ const messageBase = z.object({
 });
 export const messageSchema = z
 	.discriminatedUnion('role', [
-		messageBase.extend({ role: z.literal('user'), metadata: z.object({ user: identitySchema }) }),
+		messageBase.extend({ role: z.literal('user'), metadata: z.object({ user: identitySchema }), unread: z.literal(true).optional() }),
 		messageBase.extend({ role: z.literal('assistant') }),
 	])
 	.superRefine((message, ctx) => {

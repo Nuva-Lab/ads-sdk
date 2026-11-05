@@ -2,6 +2,11 @@
 
 Each entry describes the change from the previous released version.
 
+## Unreleased
+
+- **Steering.** `agent.send(draft, { mode: 'steer' })` no longer gets `AGENT_BUSY` while the Agent works: the message is in `messages` at once with `unread: true`, and at the Agent's next step (after its current tool results) it joins the conversation as its own user message and loses `unread`. When no loop is running before that (it finished, failed or was stopped), it starts the next one. Without `mode`, `send` behaves as before. The Agent's reply continues in a new assistant message after messages that join it. Needs an Agent deployment with steering; older Agents reject `mode` as `INVALID_INPUT`.
+- **Playground.** Send stays available while the Agent works and steers the message; user messages show one check until the Agent reads them and two after.
+
 ## 0.1.0-preview.4
 
 Changes since `0.1.0-preview.3`.

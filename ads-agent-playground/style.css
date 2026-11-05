@@ -596,6 +596,29 @@ h4 {
   cursor: pointer;
   text-decoration: underline;
 }
+/* A user message's read state: one check while the Agent has not read it yet, two after. */
+.message-receipt {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  font-size: 11px;
+  color: #a0a894;
+}
+.message-receipt svg {
+  width: 13px;
+  height: 13px;
+}
+.message-receipt[data-read="read"] span {
+  display: none;
+}
+.message-receipt[data-read="read"]:hover span {
+  display: inline;
+}
+.message-receipt[data-read="unread"] {
+  color: #8c967f;
+}
 .agent-activity {
   display: flex;
   align-items: center;

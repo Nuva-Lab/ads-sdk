@@ -22,6 +22,7 @@ import type {
 	PaginationQuery,
 	ResponseReceipt,
 	SendReceipt,
+	SendOptions,
 	MessageView,
 } from './types.js';
 import type { MessageDraft } from './message.js';
@@ -135,9 +136,13 @@ class AgentController implements AgentHandle {
 		this.state = frozen({ ...this.state, messages: { ...this.state.messages, items } });
 		this.emit();
 	}
-	send = async (message: MessageDraft, options?: CommandOptions): Promise<SendReceipt> => {
+	send = async (message: MessageDraft, options?: SendOptions): Promise<SendReceipt> => {
 		this.start();
-		return this.transport.socket('agent.send', { sessionId: this.sessionId, message: draftValue(message) }, options?.requestId);
+		return this.transport.socket(
+			'agent.send',
+			{ sessionId: this.sessionId, message: draftValue(message), ...(options?.mode === undefined ? {} : { mode: options.mode }) },
+			options?.requestId,
+		);
 	};
 	stop = async (options?: CommandOptions) => {
 		this.start();

@@ -138,3 +138,18 @@ test('waiting is optional state: it parses with its exact fields, and clients bu
 	assert.equal(old.status, 'idle');
 	assert.equal('waiting' in old, false);
 });
+
+test('a steered send is an explicit mode, and a user message is unread until the Agent reads it; clients built before them are unaffected', () => {
+	const message = { content: [publicText], attachments: [] };
+	assert.equal(clientSendSchema.parse({ sessionId: 'work', message, mode: 'steer' }).mode, 'steer');
+	assert.equal('mode' in clientSendSchema.parse({ sessionId: 'work', message }), false, 'Without a mode, a busy Session rejects the send.');
+	for (const mode of ['queue', 'later', null]) assert.equal(clientSendSchema.safeParse({ sessionId: 'work', message, mode }).success, false, String(mode));
+	const user = { ref, role: 'user', metadata: { user: { userId: 'owner' } }, createdAt: '2026-11-04T00:00:01Z', content: [publicText], attachments: [], state: 'complete' };
+	assert.equal(messageSchema.parse({ ...user, unread: true }).unread, true);
+	assert.equal('unread' in messageSchema.parse(user), false, 'Absent once read.');
+	assert.equal(messageSchema.safeParse({ ...user, unread: false }).success, false, 'Only `true`; a read message has no field.');
+	assert.equal('unread' in messageSchema.parse({ ...user, role: 'assistant', metadata: undefined, unread: true }), false, 'Not an assistant field.');
+	// The message schema of the release before `unread`, as an old client compiled it: the field is dropped.
+	const previous = z.object({ ref: z.object({ sessionId: z.string(), messageId: z.string() }), role: z.literal('user'), metadata: z.object({ user: identitySchema }) });
+	assert.equal('unread' in previous.parse({ ...user, unread: true }), false);
+});

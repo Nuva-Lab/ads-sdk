@@ -15,6 +15,7 @@ import type {
   MessageRef,
 } from "@nuva/sdk";
 import { ResourceCards } from "./resource-cards.js";
+import { icon } from "./icons.js";
 import { WaitingBar } from "./waiting.js";
 import { readResource } from "./resources.js";
 import { usefulLabel, resourcePresentation } from "./resource-presentation.js";
@@ -46,7 +47,8 @@ export class ChatController {
   private connectionError = "";
   private agent?: AgentHandle;
   private unsubscribe?: () => void;
-  private retry?: { draft: MessageDraft; requestId: string; preserveComposer?: boolean };
+  /** `steer`: the request was sent steered once, so a retry stays steered and the Agent answers with its first receipt. */
+  private retry?: { draft: MessageDraft; requestId: string; preserveComposer?: boolean; steer?: boolean };
   private attached: ResourceLink[] = [];
   private sending = false;
   private epoch = 0;
@@ -399,7 +401,7 @@ export class ChatController {
       !this.agent ||
       this.sending ||
       this.messageReferences.hasPendingAnnotation() ||
-      ["running", "waiting_for_response", "loading"].includes(this.status)
+      ["waiting_for_response", "loading"].includes(this.status)
     )
       return;
     if (!workspaceDraft && this.composer.empty() && !this.attached.length && !this.messageReferences.hasQuotes() && !this.retry) return;
@@ -416,7 +418,17 @@ export class ChatController {
     this.sending = true;
     this.controls();
     try {
-      await target.send(request.draft, { requestId: request.requestId });
+      // While the Agent works the message is steered: it shows at once and the Agent reads it at its next step. An idle
+      // send carries no mode, so it works with Agents from before steering; if the Agent got busy meanwhile, it is
+      // steered instead.
+      if (this.status === "running") request.steer = true;
+      try {
+        await target.send(request.draft, { requestId: request.requestId, ...(request.steer ? { mode: "steer" as const } : {}) });
+      } catch (error) {
+        if ((error as { code?: string }).code !== "AGENT_BUSY") throw error;
+        request.steer = true;
+        await target.send(request.draft, { requestId: request.requestId, mode: "steer" });
+      }
       if (this.closed || target !== this.agent) return;
       this.retry = undefined;
       if (!request.preserveComposer) {
@@ -477,7 +489,8 @@ export class ChatController {
       "aria-label",
       this.retry && !this.sending ? msg("Retry send") : msg("Send message"),
     );
-    send.hidden = busy;
+    // While the Agent works, Send steers the message into its work; Stop stays next to it.
+    send.hidden = this.status === "waiting_for_response" || (busy && this.composer.empty() && !this.attached.length && !this.messageReferences.hasQuotes() && !this.retry);
     send.disabled =
       this.sending ||
       this.messageReferences.hasPendingAnnotation() ||
@@ -798,6 +811,22 @@ export class ChatController {
         }
         failure.textContent = message.error.message;
       } else failure?.remove();
+      // A user message's read state: one check while the Agent has not read it yet (sent while it worked), two after.
+      let receipt = wrapper.querySelector<HTMLElement>(":scope > .message-receipt");
+      const read = message.role !== "user" || message.state === "failed" ? undefined : message.unread === true ? "unread" : "read";
+      if (read === undefined) receipt?.remove();
+      else {
+        if (!receipt) {
+          receipt = node("div", "", "message-receipt");
+          wrapper.append(receipt);
+        }
+        if (receipt.dataset.read !== read) {
+          receipt.dataset.read = read;
+          const label = read === "unread" ? msg("Sent · the Agent reads it at its next step") : msg("Read by the Agent");
+          receipt.replaceChildren(icon(read === "unread" ? "check" : "checks"), node("span", label));
+          setAttribute(receipt, "title", label);
+        }
+      }
       bubble.hidden =
         body.childElementCount === 0 && message.state !== "failed";
       if (this.list.children[index] !== wrapper)
