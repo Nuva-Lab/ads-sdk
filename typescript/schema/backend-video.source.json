@@ -1,12 +1,12 @@
 {
   "repository": "Nuva-Lab/WhatIf",
-  "commit": "b71d1b55fd16b5b7b094b671241ae32b5ee95d08",
+  "commit": "db8ea00a09c095615fdd90e641044bd0a8282a61",
   "path": "ads_backend/openapi.json",
-  "pullRequest": "https://github.com/Nuva-Lab/WhatIf/pull/2450",
-  "verifiedAt": "2026-11-03",
-  "status": "target-only; Storyboards, asset labels and Prompt clip_id from WhatIf PR #2442, with video generation back to a Prompt ID or raw input (WhatIf PR #2450)",
-  "upstreamSha256": "de3e65a00aaeca162aef5a032f60f8150c0dc01f673b47ef284735903b8a7c7a",
-  "sha256": "63902803db25eed12931e096412035951693f3398d420f73772baf963f251ac4",
+  "pullRequest": "https://github.com/Nuva-Lab/WhatIf/pull/2487",
+  "verifiedAt": "2026-11-05",
+  "status": "target-only; Storyboards, asset labels and Prompt clip_id from WhatIf PR #2442, with video generation back to a Prompt ID or raw input (WhatIf PR #2450); Product videos (WhatIf PR #2487)",
+  "upstreamSha256": "6b1ffa8ba8070288ad07bace0f005c688dcb840837b2ff73c69a5a4d37092394",
+  "sha256": "aec1bd6613fd5960dc49d33b77bf69232460faab1f5c569e82e57229e1eb1a6e",
   "overlaySchemas": [
     "GenerateVideo",
     "RawPromptInput",

@@ -6,20 +6,22 @@
  * clips is a Storyboard decision.
  *
  * A Storyboard is how the Script is shot: who plays each role (`cast`), one `direction` for the whole video, and its
- * clips, each a list of shots written as text. Shots name people, Product images and Script lines with tokens:
+ * clips, each a list of shots written as text. Shots name people, the Product, other files and Script lines with tokens:
  *
- *   {{host}}            the role host, as cast (a cast Character's default image, its first)
- *   {{host:<asset id>}} the role host, with that image of its Character
- *   {{product}}         the Product (its default image, its first)
- *   {{product:<id>}}    that image of the Product
- *   {{L04}}             Script line L04, spoken by its speaker
+ *   {{host}}             the role host, as cast (a cast Character's default image, its first)
+ *   {{host:<asset id>}}  the role host, with that file of its Character
+ *   {{product}}          the Product (its default image, its first)
+ *   {{product:<id>}}     that file of the Product
+ *   {{asset:<id>}}       any image, video or audio Asset the user may use
+ *   {{L04}}              Script line L04, spoken by its speaker
  *
- * The references each clip renders with are worked out from its tokens (`clipReferences`), so a cast Character's image
- * and voice go into every clip it appears or speaks in.
+ * A token never names a kind: the Asset's own kind (image, video, audio) decides it. The references each clip renders
+ * with are worked out from its tokens (`clipReferences`), so a cast Character's image and voice go into every clip it
+ * appears or speaks in.
  */
 import { z } from 'zod';
 import { CATEGORIES, MAX_CLIP_MS, MAX_REFERENCES, MAX_VIDEO_ASSETS, MIN_CLIP_MS, SPEECH_MODES, factId, factSchema, imageSchema } from './service-schemas.js';
-import { backendIdSchema } from './backend-id.js';
+import { backendIdPattern, backendIdSchema } from './backend-id.js';
 
 const text = z.string().max(32000);
 const issue = (ctx: z.RefinementCtx, path: (string | number)[], message: string) => ctx.addIssue({ code: 'custom', path, message });
@@ -27,9 +29,10 @@ const duplicates = (values: readonly string[]) => [...new Set(values.filter((val
 
 // ── Script v3 ────────────────────────────────────────────────────────────
 
-/** A speaker who is not a role: an unseen narrator. On screen, `product` stands for the Product. */
+/** A speaker who is not a role: an unseen narrator. On screen, `product` stands for the Product; `asset` names any file. */
 export const NARRATOR = 'narrator',
-	PRODUCT = 'product';
+	PRODUCT = 'product',
+	ASSET = 'asset';
 export const ROLE_ID = /^[a-z][a-z0-9_]{0,39}$/,
 	LINE_ID = /^L\d{2,3}$/;
 const roleId = z
@@ -128,8 +131,18 @@ export const scriptSchema = scriptGenerationSchema
 		scriptChecks(value, ctx);
 		if (duplicates(value.images.map((image) => image.asset_id)).length) issue(ctx, ['images'], 'Duplicate asset IDs.');
 	});
-/** A Script draft as a writer submits it, checked without the service-owned fields. */
-export const scriptAuthoringSchema = scriptGenerationSchema.superRefine(scriptChecks);
+/**
+ * A Script draft as a writer submits it, checked without the service-owned fields. `asset` is reserved: a stored
+ * Script with a role called `asset` (from before the name was reserved) still reads, and there `{{asset}}` names that
+ * role, but it cannot be revised; generate a new Script instead.
+ */
+export const scriptAuthoringSchema = scriptGenerationSchema.superRefine((value, ctx) => {
+	scriptChecks(value, ctx);
+	value.roles.forEach((role, index) => role.id === ASSET && issue(ctx, ['roles', index, 'id'], 'narrator, product and asset are reserved.'));
+});
+/** Whether a stored Script has a role called `asset` (from before the name was reserved), so it cannot be revised. */
+export const hasAssetRole = (script: Pick<ScriptGeneration, 'roles'>) => script.roles.some((role) => role.id === ASSET);
+export const ASSET_ROLE_MESSAGE = 'This Script has a role called asset, a name now reserved for {{asset:<id>}} files, so it cannot be revised: generate a new Script instead.';
 export type ScriptContent = z.infer<typeof scriptSchema>;
 export type ScriptGeneration = z.infer<typeof scriptGenerationSchema>;
 export type ScriptLine = z.infer<typeof lineSchema>;
@@ -163,7 +176,7 @@ export const storyboardClipSchema = z
 			.array(z.string().min(1).max(3000))
 			.min(1)
 			.max(20)
-			.describe('One text per shot, in order: framing, camera, setting, action and acting, with tokens for people, Product images and lines.'),
+			.describe('One text per shot, in order: framing, camera, setting, action and acting, with tokens for people, the Product, other files and lines.'),
 	})
 	.strict();
 export const storyboardSchema = z
@@ -180,14 +193,17 @@ export type CastEntry = z.infer<typeof castEntrySchema>;
 export interface StoryboardToken {
 	/** The token as written, braces included. */
 	raw: string;
-	/** A role ID, `product`, or a line ID. */
+	/** A role ID, `product`, `asset`, or a line ID. */
 	name: string;
 	/** The asset ID after a colon, if any. */
 	asset?: string;
 	index: number;
 }
 const TOKEN = /\{\{([^{}]*)\}\}/g;
-const TOKEN_BODY = /^\s*([A-Za-z][A-Za-z0-9_]{0,39})(?:\s*:\s*([0-9a-fA-F-]{36}))?\s*$/;
+/** An Asset ID as the backend issues it (OrderedUUID). */
+const ID = backendIdPattern.slice(1, -1);
+/** A token's body: a name and, after a colon (ASCII or full-width, as Chinese input methods type it), an Asset ID. */
+const TOKEN_BODY = new RegExp(`^\\s*([A-Za-z][A-Za-z0-9_]{0,39})(?:\\s*[:：]\\s*(${ID}))?\\s*$`);
 /** The tokens in a shot or direction text; a malformed one has an empty `name`. */
 export function storyboardTokens(value: string): StoryboardToken[] {
 	return [...value.matchAll(TOKEN)].map((match) => {
@@ -201,53 +217,114 @@ export function storyboardTokens(value: string): StoryboardToken[] {
 	});
 }
 
-/** What a Storyboard is checked against: its Script, the Product's images and the Characters it may cast. */
+/** What a Storyboard is checked against: its Script, the Product's and Characters' files and the Assets it may name. */
 export interface StoryboardContext {
 	script: Pick<ScriptGeneration, 'roles' | 'panels' | 'duration_ms'>;
-	/** The Product's image asset IDs; the first is its default image. */
-	productImages: readonly string[];
-	/** Characters by ID: their image asset IDs (the first is the default) and their voice asset, if any. */
-	characters: Readonly<Record<string, { images: readonly string[]; voice: string | null }>>;
+	/** The Product's files (asset IDs of any kind); its first image is the default. */
+	product: { media: readonly string[] };
+	/** Characters by ID: their files (asset IDs of any kind; the first image is the default) and their voice asset, if any. */
+	characters: Readonly<Record<string, { media: readonly string[]; voice: string | null }>>;
+	/**
+	 * Files by ID, as the user may use them: each one's kind, label and description. An `{{asset:<id>}}` must be one
+	 * of them. A Product or Character file missing here is taken to be an image; a Character's voice is audio.
+	 */
+	assets?: Readonly<Record<string, { kind: 'image' | 'video' | 'audio'; label?: string | null; description?: string | null }>>;
 }
 export interface ClipReferences {
 	images: string[];
+	videos: string[];
 	audio: string[];
+}
+/**
+ * Whether a token names a file with `{{asset:<id>}}`. In a stored Script with a role called `asset` (from before the
+ * name was reserved), the token keeps naming that role.
+ */
+export function namesAsset(token: Pick<StoryboardToken, 'name'>, script: Pick<ScriptGeneration, 'roles'>) {
+	return token.name === ASSET && !script.roles.some((role) => role.id === ASSET);
+}
+/** Session files (`sf_…`) are not Assets: a token names one only after it is promoted to an Asset. */
+const SESSION_FILE_TOKEN = /^\{\{\s*[A-Za-z][A-Za-z0-9_]{0,39}\s*[:：]\s*sf_[0-9a-f]{32}\s*\}\}$/;
+const SESSION_FILE_MESSAGE = (raw: string) => `${raw} names a Session file, which is not an Asset: promote it to an Asset first and use the Asset ID.`;
+/** A name, a colon and any value: what an attempted file token looks like before its ID is checked. */
+const LOOSE_TOKEN = /^\{\{\s*([A-Za-z][A-Za-z0-9_]{0,39})\s*[:：]\s*([\s\S]*?)\s*\}\}$/;
+/** A run of hex digits and hyphens long enough to be an Asset ID, mistyped, cut off or with something added. */
+const ID_ATTEMPT = /[0-9a-fA-F-]{20,}/;
+/**
+ * The problems with the file tokens in an instruction (`scripts.generate`, `storyboards.generate`). An instruction is
+ * free text, so braces are reported only when they clearly try to name a file: a Session file (`sf_…`), `{{asset}}`
+ * or `{{asset:…}}` without a valid Asset ID, or a value holding something like an Asset ID that is not exactly one
+ * (`{{product:<id>.}}`, `{{product: <id> 主图}}`, `{{product:<id>,<id>}}`). Anything else, such as
+ * `{{host}}`, `{{L01}}` or `{{时间: 3秒}}`, is left as text. With `script`, `{{asset}}` names that Script's role called
+ * `asset` if it has one.
+ */
+export function instructionTokenIssues(instruction: string, script?: Pick<ScriptGeneration, 'roles'>): string[] {
+	return storyboardTokens(instruction).flatMap((token) => {
+		if (token.name === '') {
+			const loose = LOOSE_TOKEN.exec(token.raw);
+			if (loose === null) return [];
+			const [, name, value] = loose;
+			if (/^sf_/i.test(value!)) return [SESSION_FILE_MESSAGE(token.raw)];
+			if (name === ASSET || ID_ATTEMPT.test(value!))
+				return [`${token.raw} is not a file token: write {{asset:<asset id>}}, {{product:<asset id>}} or {{role:<asset id>}} with the full Asset ID.`];
+			return [];
+		}
+		if (token.name === ASSET && token.asset === undefined && (script === undefined || namesAsset(token, script))) return ['{{asset}} needs an Asset ID: {{asset:<asset id>}}.'];
+		return [];
+	});
 }
 
 /** How far a Storyboard's total length may be from its Script's target: 15%, and at least 2 seconds. */
 export const durationTolerance = (target: number) => Math.max(2000, Math.round(target * 0.15));
 
+type FileKind = 'image' | 'video' | 'audio';
+/** A Product or Character file's kind: as `assets` says, the voice is audio, anything else an image. */
+const fileKind = (context: StoryboardContext, id: string, voice?: string | null): FileKind => context.assets?.[id]?.kind ?? (id === voice ? 'audio' : 'image');
+/** An owner's default file: its first image. */
+const defaultImage = (context: StoryboardContext, media: readonly string[] | undefined) => media?.find((id) => fileKind(context, id) === 'image');
+/** Whether a file is one of a Character's: one of its files, or its voice. */
+const characterHas = (entry: StoryboardContext['characters'][string] | undefined, id: string) => entry !== undefined && (entry.media.includes(id) || entry.voice === id);
+
 /**
- * The references one clip renders with, worked out from its shots' tokens, in order of first mention: the image of
- * each cast Character and the Product it names (the named image, or the default), and the voice file of each speaker
- * whose line it contains when that role's voice is the Character's. Tokens that do not resolve are skipped; the checks
- * in `storyboardIssues` report them.
+ * The references one clip renders with, worked out from its shots' tokens, in order of first mention within each
+ * kind: the file of each cast Character and the Product it names (the named file, or the default image), each
+ * `{{asset:<id>}}`, and the voice file of each speaker whose line it contains when that role's voice is the
+ * Character's. Each file goes in the list of its own kind. Tokens that do not resolve are skipped; the checks in
+ * `storyboardIssues` report them.
  */
 export function clipReferences(storyboard: Pick<StoryboardContent, 'cast' | 'clips'>, clip: number, context: StoryboardContext): ClipReferences {
-	const images: string[] = [];
-	const audio: string[] = [];
-	const add = (list: string[], value: string | undefined) => value !== undefined && !list.includes(value) && list.push(value);
+	const references: ClipReferences = { images: [], videos: [], audio: [] };
+	const lists = { image: references.images, video: references.videos, audio: references.audio };
+	const add = (value: string | undefined, kind: FileKind) => value !== undefined && !lists[kind].includes(value) && lists[kind].push(value);
 	const speakers = new Map(scriptLines(context.script).map((line) => [line.id, line.speaker]));
 	for (const shot of storyboard.clips[clip]?.shots ?? [])
 		for (const token of storyboardTokens(shot)) {
-			if (token.name === PRODUCT) add(images, token.asset ?? context.productImages[0]);
-			else if (LINE_ID.test(token.name)) {
+			if (token.name === PRODUCT) {
+				const id = token.asset ?? defaultImage(context, context.product.media);
+				if (id !== undefined) add(id, fileKind(context, id));
+			} else if (namesAsset(token, context.script)) {
+				const asset = token.asset === undefined ? undefined : context.assets?.[token.asset];
+				if (asset !== undefined) add(token.asset, asset.kind);
+			} else if (LINE_ID.test(token.name)) {
 				const speaker = speakers.get(token.name);
 				const entry = speaker === undefined ? undefined : storyboard.cast[speaker];
-				if (entry?.voice === CHARACTER_VOICE && entry.character !== undefined) add(audio, context.characters[entry.character]?.voice ?? undefined);
+				if (entry?.voice === CHARACTER_VOICE && entry.character !== undefined) add(context.characters[entry.character]?.voice ?? undefined, 'audio');
 			} else {
 				const character = storyboard.cast[token.name]?.character;
-				if (character !== undefined) add(images, token.asset ?? context.characters[character]?.images[0]);
+				const entry = character === undefined ? undefined : context.characters[character];
+				const id = token.asset ?? defaultImage(context, entry?.media);
+				if (character !== undefined && id !== undefined) add(id, fileKind(context, id, entry?.voice));
 			}
 		}
-	return { images, audio };
+	return references;
 }
 
 /**
  * Checks a Storyboard against its Script, Product and Characters. Returns every problem as a message a writer or a
- * person editing it can act on, so they can be fixed together; an empty list means it is accepted.
+ * person editing it can act on, so they can be fixed together; an empty list means it is accepted. With `stored`, it
+ * checks a saved Storyboard before it is compiled: a file named in its direction reaches no clip, so such a token is
+ * not checked at all (Storyboards saved before files were refused there still compile); its shots get every check.
  */
-export function storyboardIssues(storyboard: StoryboardContent, context: StoryboardContext): string[] {
+export function storyboardIssues(storyboard: StoryboardContent, context: StoryboardContext, options: { stored?: boolean } = {}): string[] {
 	const problems: string[] = [];
 	const say = (where: string, message: string) => problems.push(`${where}: ${message}`);
 	const { script } = context;
@@ -285,26 +362,39 @@ export function storyboardIssues(storyboard: StoryboardContent, context: Storybo
 	}
 	for (const repeated of duplicates(characters)) say('cast', `Character ${repeated} plays more than one role.`);
 
-	// Tokens: everything named must exist; asset tokens must be that person's or the Product's image.
-	const product = new Set(context.productImages);
-	const checkToken = (where: string, token: StoryboardToken, allowLines: boolean) => {
-		if (token.name === '') return say(where, `${token.raw} is not a token; write {{role}}, {{role:<image id>}}, {{product}}, {{product:<image id>}} or {{L01}}.`);
+	// Tokens: everything named must exist; a file named for a person or the Product must be theirs; an {{asset:…}} one the user may use.
+	const product = new Set(context.product.media);
+	const checkToken = (where: string, token: StoryboardToken, inShot: boolean) => {
+		// A stored Storyboard compiles as saved: a file named in its direction reaches no clip, so it is not checked.
+		if (!inShot && options.stored && token.asset !== undefined) return;
+		if (token.name === '') {
+			if (SESSION_FILE_TOKEN.test(token.raw)) return say(where, SESSION_FILE_MESSAGE(token.raw));
+			return say(where, `${token.raw} is not a token; write {{role}}, {{role:<asset id>}}, {{product}}, {{product:<asset id>}}, {{asset:<asset id>}} or {{L01}}.`);
+		}
 		if (LINE_ID.test(token.name)) {
-			if (!allowLines) return say(where, `Line ${token.raw} belongs in a shot, not in the direction.`);
+			if (!inShot) return say(where, `Line ${token.raw} belongs in a shot, not in the direction.`);
 			if (!lineById.has(token.name)) say(where, `${token.raw} is not a line of the Script.`);
-			if (token.asset !== undefined) say(where, `${token.raw}: a line token takes no image.`);
+			if (token.asset !== undefined) say(where, `${token.raw}: a line token takes no file.`);
 			return;
 		}
+		if (namesAsset(token, script)) {
+			if (token.asset === undefined) return say(where, '{{asset}} needs an Asset ID: {{asset:<asset id>}}.');
+			if (context.assets?.[token.asset] === undefined) return say(where, `${token.raw}: there is no image, video or audio Asset with this ID that you may use.`);
+			if (!inShot) say(where, `${token.raw} belongs in the shots that use it: a clip renders only the files its shots name.`);
+			return;
+		}
+		// A file reaches only the clips whose shots name it, so a named file in the direction reaches none.
+		if (!inShot && token.asset !== undefined) return say(where, `${token.raw} belongs in the shots that use it: a clip renders only the files its shots name.`);
 		if (token.name === PRODUCT) {
-			if (token.asset !== undefined && !product.has(token.asset)) say(where, `${token.raw}: that image is not one of the Product's.`);
-			if (token.asset === undefined && product.size === 0) say(where, '{{product}}: the Product has no images.');
+			if (token.asset !== undefined && !product.has(token.asset)) say(where, `${token.raw}: that file is not one of the Product's files.`);
+			if (token.asset === undefined && defaultImage(context, context.product.media) === undefined) say(where, '{{product}}: the Product has no images.');
 			return;
 		}
 		if (!roles.has(token.name)) return say(where, `${token.raw}: ${token.name} is not a role of the Script.`);
 		if (token.asset === undefined) return;
 		const character = storyboard.cast[token.name]?.character;
-		if (character === undefined) say(where, `${token.raw}: ${token.name} has no Character, so there is no image to name.`);
-		else if (!(context.characters[character]?.images ?? []).includes(token.asset)) say(where, `${token.raw}: that image is not one of ${token.name}'s Character's.`);
+		if (character === undefined) say(where, `${token.raw}: ${token.name} has no Character, so there is no file to name.`);
+		else if (!characterHas(context.characters[character], token.asset)) say(where, `${token.raw}: that file is not one of ${token.name}'s Character's files.`);
 	};
 	for (const token of storyboardTokens(storyboard.direction)) checkToken('direction', token, false);
 
@@ -329,10 +419,14 @@ export function storyboardIssues(storyboard: StoryboardContent, context: Storybo
 		});
 		const references = clipReferences(storyboard, c, context);
 		if (references.images.length > MAX_REFERENCES.image)
-			say(where, `This clip names ${references.images.length} images; at most ${MAX_REFERENCES.image}. Name fewer people or Product images, or split the clip.`);
-		if (references.audio.length > MAX_REFERENCES.audio) say(where, `This clip has ${references.audio.length} voice files; at most ${MAX_REFERENCES.audio}.`);
-		if (references.images.length + references.audio.length > MAX_VIDEO_ASSETS) say(where, `At most ${MAX_VIDEO_ASSETS} references in total.`);
-		if (references.images.length === 0) say(where, 'A clip needs at least one image: name {{product}} or a cast Character in a shot.');
+			say(where, `This clip names ${references.images.length} images; at most ${MAX_REFERENCES.image}. Name fewer people, Product images or image Assets, or split the clip.`);
+		if (references.videos.length > MAX_REFERENCES.video) say(where, `This clip names ${references.videos.length} videos; at most ${MAX_REFERENCES.video}.`);
+		if (references.audio.length > MAX_REFERENCES.audio) say(where, `This clip has ${references.audio.length} audio files (voices and named audio); at most ${MAX_REFERENCES.audio}.`);
+		const count = references.images.length + references.videos.length + references.audio.length;
+		if (count > MAX_VIDEO_ASSETS) say(where, `This clip has ${count} references in all; at most ${MAX_VIDEO_ASSETS}.`);
+		// The video model needs something to see: an image or a video.
+		if (references.images.length === 0 && references.videos.length === 0)
+			say(where, 'A clip needs at least one image or video: name {{product}}, a cast Character or an image or video {{asset:…}} in a shot.');
 	});
 	for (const repeated of duplicates(placed)) say('clips', `Line ${repeated} is placed more than once; each line is spoken once.`);
 	for (const line of lines) if (!placed.includes(line.id)) say('clips', `Line ${line.id} is not placed in any shot.`);

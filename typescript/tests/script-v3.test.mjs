@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {
 	scriptSchema,
 	scriptAuthoringSchema,
+	hasAssetRole,
+	instructionTokenIssues,
 	storyboardSchema,
 	storyboardIssues,
 	storyboardTokens,
@@ -21,7 +23,7 @@ const facts = [
 	{ id: 'fact_product_selling_points', claim: '舒缓修护、抗皱紧致', source_field: 'product.data.selling_points', source_excerpt: '舒缓修护、抗皱紧致' },
 ];
 const productImages = [uuid(1), uuid(2)];
-const presenter = { id: uuid(100), images: [uuid(101), uuid(102)], voice: uuid(103) };
+const presenter = { id: uuid(100), media: [uuid(101), uuid(102)], voice: uuid(103) };
 
 // The case behind the change: one presenter across three clips, who must look and sound the same in each.
 function script() {
@@ -61,7 +63,7 @@ function storyboard() {
 		})),
 	};
 }
-const context = (value = script()) => ({ script: value, productImages, characters: { [presenter.id]: presenter } });
+const context = (value = script()) => ({ script: value, product: { media: productImages }, characters: { [presenter.id]: presenter } });
 
 test('a v3 Script has no clips: panels hold lines with IDs, and its checks catch unknown speakers, silent roles and narrator modes', () => {
 	assert.equal(scriptSchema.safeParse(script()).success, true);
@@ -82,10 +84,30 @@ test('a cast Character goes into every clip it appears in: its default image, an
 	assert.equal(storyboardSchema.safeParse(storyboard()).success, true);
 	assert.deepEqual(storyboardIssues(storyboard(), context()), []);
 	for (const clip of [0, 1, 2])
-		assert.deepEqual(clipReferences(storyboard(), clip, context()), { images: [presenter.images[0], productImages[0]], audio: [presenter.voice] });
+		assert.deepEqual(clipReferences(storyboard(), clip, context()), { images: [presenter.media[0], productImages[0]], videos: [], audio: [presenter.voice] });
 	const named = storyboard();
-	named.clips[1].shots = [`特写。{{presenter:${presenter.images[1]}}}拿起{{product:${productImages[1]}}}说{{L02}}。`];
-	assert.deepEqual(clipReferences(named, 1, context()), { images: [presenter.images[1], productImages[1]], audio: [presenter.voice] });
+	named.clips[1].shots = [`特写。{{presenter:${presenter.media[1]}}}拿起{{product:${productImages[1]}}}说{{L02}}。`];
+	assert.deepEqual(clipReferences(named, 1, context()), { images: [presenter.media[1], productImages[1]], videos: [], audio: [presenter.voice] });
+});
+
+test('a Product or Character file of any kind may be named; its kind decides its list, and {{product}} is the first image', () => {
+	const demo = uuid(110);
+	const clip = uuid(111);
+	const owned = {
+		...context(),
+		product: { media: [clip, ...productImages] },
+		characters: { [presenter.id]: { ...presenter, media: [...presenter.media, demo] } },
+		assets: { [clip]: { kind: 'video' }, [demo]: { kind: 'video' } },
+	};
+	const value = storyboard();
+	value.clips[0].shots = [`中景。{{presenter:${demo}}}的动作，{{product:${clip}}}开场，{{product}}特写，{{presenter:${presenter.voice}}}的声音说{{L01}}。`];
+	assert.deepEqual(storyboardIssues(value, owned), []);
+	assert.deepEqual(clipReferences(value, 0, owned), { images: [productImages[0]], videos: [demo, clip], audio: [presenter.voice] });
+	const foreign = storyboard();
+	foreign.clips[0].shots = [`{{presenter:${clip}}}说{{L01}}，{{product:${demo}}}。`];
+	const issues = storyboardIssues(foreign, owned);
+	assert.ok(issues.some((message) => message.includes("that file is not one of presenter's Character's")), issues.join('\n'));
+	assert.ok(issues.some((message) => message.includes("that file is not one of the Product's")), issues.join('\n'));
 });
 
 test('an on-camera line needs its speaker named in the shot, so the speaker cannot drop out of a clip', () => {
@@ -113,7 +135,7 @@ test('lines are placed once each, in Script order, and only in shots', () => {
 
 test('tokens must resolve: roles of the Script, images of that Character or the Product, well formed', () => {
 	const value = storyboard();
-	value.clips[0].shots = [`{{presenter:${productImages[0]}}}拿着{{product:${presenter.images[0]}}}，{{son}}在旁边，{{ presenter#2 }}说{{L01}}。{{L99}}`];
+	value.clips[0].shots = [`{{presenter:${productImages[0]}}}拿着{{product:${presenter.media[0]}}}，{{son}}在旁边，{{ presenter#2 }}说{{L01}}。{{L99}}`];
 	const issues = storyboardIssues(value, context());
 	for (const expected of ["not one of presenter's Character's", "not one of the Product's", 'son is not a role', 'is not a token', 'not a line of the Script'])
 		assert.ok(issues.some((message) => message.includes(expected)), `${expected}\n${issues.join('\n')}`);
@@ -122,6 +144,178 @@ test('tokens must resolve: roles of the Script, images of that Character or the 
 		['L04', undefined],
 		['product', uuid(1)],
 	]);
+});
+
+// Any file the user may use, named by ID: its own kind decides which list it joins; the token never says.
+const upload = { image: uuid(500), video: uuid(501), music: uuid(502), voice: uuid(503) };
+const withAssets = (value = script()) => ({
+	...context(value),
+	assets: {
+		[upload.image]: { kind: 'image', label: '门店外景', description: '白天的门店正面' },
+		[upload.video]: { kind: 'video', label: '开箱视频', description: null },
+		[upload.music]: { kind: 'audio', label: '轻快背景音乐' },
+		[upload.voice]: { kind: 'audio', label: '店长录音' },
+		[presenter.media[1]]: { kind: 'image', label: '侧脸' },
+	},
+});
+
+test('{{asset:<id>}} names any usable file; each goes in the list of its own kind, in order of first mention', () => {
+	assert.deepEqual(storyboardTokens(`{{asset:${upload.video}}} {{ asset : ${upload.image.toUpperCase()} }}`).map(({ name, asset }) => [name, asset]), [
+		['asset', upload.video],
+		['asset', upload.image],
+	]);
+	const value = storyboard();
+	value.clips[0].shots = [
+		`开场，{{asset:${upload.video}}}的开箱画面；背景音乐用{{asset:${upload.music}}}。`,
+		`{{presenter}}站在{{asset:${upload.image}}}前，拿着{{product}}，用{{asset:${upload.voice}}}的声音说{{L01}}。`,
+		`再次出现{{asset:${upload.video}}}和{{asset:${presenter.media[1]}}}。`,
+	];
+	assert.deepEqual(storyboardIssues(value, withAssets()), []);
+	assert.deepEqual(clipReferences(value, 0, withAssets()), {
+		images: [presenter.media[0], upload.image, productImages[0], presenter.media[1]],
+		videos: [upload.video],
+		audio: [upload.music, upload.voice, presenter.voice],
+	});
+	// Without the Asset in the context it is not usable: reported, and left out of the references.
+	const issues = storyboardIssues(value, context());
+	assert.ok(issues.some((message) => message.startsWith('C01 shot 1') && message.includes('no image, video or audio Asset with this ID that you may use')), issues.join('\n'));
+	assert.deepEqual(clipReferences(value, 0, context()).videos, []);
+});
+
+test('asset tokens are checked: an ID is required, Session files must be promoted first, and files belong in shots', () => {
+	const value = storyboard();
+	const sessionFile = 'sf_' + 'a'.repeat(32);
+	value.direction = `全程背景音乐用{{asset:${upload.music}}}。`;
+	value.clips[0].shots = [`{{asset}}和{{asset:${sessionFile}}}，{{presenter}}说{{L01}}，{{product}}。`];
+	const issues = storyboardIssues(value, withAssets());
+	for (const expected of ['direction: {{asset:', 'belongs in the shots that use it', '{{asset}} needs an Asset ID', `{{asset:${sessionFile}}} names a Session file`, 'promote it to an Asset'])
+		assert.ok(issues.some((message) => message.includes(expected)), `${expected}\n${issues.join('\n')}`);
+	// A Product or Character file must be that owner's, whatever its kind.
+	const owned = storyboard();
+	owned.clips[0].shots = [`{{presenter:${upload.image}}}拿着{{product:${upload.video}}}说{{L01}}。`];
+	const wrong = storyboardIssues(owned, withAssets());
+	assert.ok(wrong.some((message) => message.includes("that file is not one of presenter's Character's")), wrong.join('\n'));
+	assert.ok(wrong.some((message) => message.includes("that file is not one of the Product's")), wrong.join('\n'));
+});
+
+test('a named Product or Character file in the direction is rejected; plain {{product}} and {{role}} there are not', () => {
+	const value = storyboard();
+	value.direction = `{{presenter}}和{{product}}始终在暖光下。{{product:${productImages[1]}}}，{{presenter:${presenter.media[1]}}}，{{asset:${upload.music}}}。`;
+	const issues = storyboardIssues(value, withAssets()).filter((message) => message.startsWith('direction'));
+	assert.deepEqual(issues, [
+		`direction: {{product:${productImages[1]}}} belongs in the shots that use it: a clip renders only the files its shots name.`,
+		`direction: {{presenter:${presenter.media[1]}}} belongs in the shots that use it: a clip renders only the files its shots name.`,
+		`direction: {{asset:${upload.music}}} belongs in the shots that use it: a clip renders only the files its shots name.`,
+	]);
+	// A stored Storyboard is compiled as saved: one written before this rule still compiles. A file in its direction
+	// reaches no clip, so no file token there is checked, whoever's file it names; its shots keep every check.
+	const stranger = '01a1af02-0000-7000-8000-000000000001';
+	value.direction += `{{product:${stranger}}}{{ghost:${stranger}}}{{asset:${stranger}}}`;
+	assert.deepEqual(storyboardIssues(value, withAssets(), { stored: true }).filter((message) => message.startsWith('direction')), []);
+	value.clips[0].shots[0] += `{{product:${stranger}}}`;
+	assert.ok(storyboardIssues(value, withAssets(), { stored: true }).some((message) => message.startsWith('C01') && message.includes("not one of the Product's files")));
+});
+
+test('a full-width colon in a token reads as a colon, and a token needs a well-formed Asset ID', () => {
+	const value = storyboard();
+	value.clips[0].shots = [`{{presenter：${presenter.media[1]}}}拿着{{product：${productImages[1]}}}说{{L01}}，背景是{{asset：${upload.image}}}。`];
+	assert.deepEqual(storyboardIssues(value, withAssets()).filter((message) => message.startsWith('C01')), []);
+	assert.deepEqual(clipReferences(value, 0, withAssets()).images, [presenter.media[1], productImages[1], upload.image]);
+	const [token] = storyboardTokens(`{{asset:${'-'.repeat(36)}}}`);
+	assert.equal(token.name, '');
+	value.clips[0].shots = [`{{presenter}}说{{L01}}，{{product}}，{{asset:${'0'.repeat(8)}-${'0'.repeat(27)}}}。`];
+	assert.ok(storyboardIssues(value, withAssets()).some((message) => message.startsWith('C01 shot 1') && message.includes('is not a token')));
+});
+
+test('instruction file tokens: Session files, broken Asset IDs and {{asset}} without an ID are reported; other braces are not', () => {
+	const sessionFile = 'sf_' + 'A'.repeat(32);
+	const broken = (raw) => `${raw} is not a file token: write {{asset:<asset id>}}, {{product:<asset id>}} or {{role:<asset id>}} with the full Asset ID.`;
+	const issues = instructionTokenIssues(
+		`用{{asset:${upload.image}}}、{{asset：${upload.image}}}、{{ asset : ${upload.image.toUpperCase()} }}、{{presenter}}、{{product}}、{{L01}}、{{some note}}。` +
+			`{{asset}}，{{asset:${sessionFile}}}，{{asset:${upload.image.slice(0, 30)}}}，{{product:${'-'.repeat(36)}}}，{{asset: 背景音乐}}。`,
+	);
+	assert.deepEqual(issues, [
+		'{{asset}} needs an Asset ID: {{asset:<asset id>}}.',
+		`{{asset:${sessionFile}}} names a Session file, which is not an Asset: promote it to an Asset first and use the Asset ID.`,
+		broken(`{{asset:${upload.image.slice(0, 30)}}}`),
+		broken(`{{product:${'-'.repeat(36)}}}`),
+		broken('{{asset: 背景音乐}}'),
+	]);
+	// An Asset ID with anything else inside the braces is reported, not dropped; in a shot it is not a token.
+	const extra = [`{{product:${upload.image}.}}`, `{{product:${upload.image}，}}`, `{{product: ${upload.image} 主图}}`, `{{product:${upload.image},${upload.video}}}`, `{{product:(${upload.image})}}`, `{{asset:${upload.image} 背景}}`, `{{presenter:${upload.image}!}}`];
+	assert.deepEqual(instructionTokenIssues(extra.join('、')), extra.map(broken));
+	const shot = storyboard();
+	shot.clips[0].shots = [`{{presenter}}说{{L01}}，${extra.join('')}`];
+	const notTokens = storyboardIssues(shot, withAssets()).filter((message) => message.startsWith('C01 shot 1') && message.includes('is not a token'));
+	assert.equal(notTokens.length, extra.length, notTokens.join('\n'));
+	// Instructions are free text: braces that don't try to name a file stay text.
+	assert.deepEqual(
+		instructionTokenIssues('{{时间: 3秒}}{{host: 热情一点}}{{L01: 开场}}{{product: 爆款}}{{https://example.com/a}}{{"b":1}}{{注意：别太快}}{{9.9}}{{L01: 2026-11-05}}'),
+		[],
+	);
+	// In a stored Script with a role called asset, {{asset}} names that role.
+	assert.deepEqual(instructionTokenIssues('让{{asset}}开场。', assetRoleScript()), []);
+});
+
+/** A Script whose presenter role is called `asset`, as one stored before the name was reserved could be. */
+function assetRoleScript() {
+	const value = script();
+	value.roles[0].id = 'asset';
+	for (const panel of value.panels) {
+		panel.on_screen = ['asset', 'product'];
+		panel.lines[0].speaker = 'asset';
+	}
+	return value;
+}
+
+test('asset is reserved for new Scripts: a draft may not call a role it', () => {
+	const { facts: _facts, images: _images, ...draft } = assetRoleScript();
+	assert.ok(scriptAuthoringSchema.safeParse(draft).error.issues.some((issue) => issue.message === 'narrator, product and asset are reserved.'));
+});
+
+test('a stored Script with a role called asset is recognised, so it is not revised', () => {
+	assert.equal(hasAssetRole(assetRoleScript()), true);
+	assert.equal(hasAssetRole(script()), false);
+});
+
+test('a stored Script with a role called asset still reads, and its Storyboard keeps {{asset}} as that role', () => {
+	const stored = assetRoleScript();
+	const content = decodeScript(encodeScript(scriptSchema.parse(stored)));
+	assert.equal(content.roles[0].id, 'asset');
+	const board = storyboard();
+	board.cast = { asset: { character: presenter.id, voice: 'character' } };
+	board.clips = board.clips.map((clip, i) => ({ ...clip, shots: [`中景。{{asset}}拿着{{product}}说{{L0${i + 1}}}。`] }));
+	board.clips[1].shots = [`特写。{{asset:${presenter.media[1]}}}拿着{{product}}说{{L02}}。`];
+	const roleContext = { ...context(content), assets: {} };
+	assert.deepEqual(storyboardIssues(decodeStoryboard(encodeStoryboard(board)), roleContext), []);
+	assert.deepEqual(clipReferences(board, 0, roleContext), { images: [presenter.media[0], productImages[0]], videos: [], audio: [presenter.voice] });
+	assert.deepEqual(clipReferences(board, 1, roleContext).images, [presenter.media[1], productImages[0]], '{{asset:<id>}} is that role with that image of its Character.');
+});
+
+test('per clip: at most 9 images, 3 videos, 3 audio files and 12 references in all, each kind reported by name', () => {
+	const many = (kind, n, from) => Object.fromEntries(Array.from({ length: n }, (_, i) => [uuid(from + i), { kind }]));
+	const assets = { ...many('image', 10, 600), ...many('video', 4, 700), ...many('audio', 4, 800) };
+	const limited = { ...context(), assets };
+	const names = (from, n) => Array.from({ length: n }, (_, i) => `{{asset:${uuid(from + i)}}}`).join('');
+	const clip = (text) => {
+		const value = storyboard();
+		value.clips[0].shots = [`${text}{{presenter}}说{{L01}}。`];
+		return storyboardIssues(value, limited).filter((message) => message.startsWith('C01:'));
+	};
+	assert.deepEqual(clip(names(600, 7)), [], 'The presenter, 7 more images and the voice fit.');
+	assert.ok(clip(names(600, 9)).some((message) => message.includes('names 10 images; at most 9')));
+	assert.ok(clip(names(700, 4)).some((message) => message.includes('names 4 videos; at most 3')));
+	// The presenter's voice file is one of the clip's audio files.
+	assert.ok(clip(names(800, 3)).some((message) => message.includes('4 audio files (voices and named audio); at most 3')));
+	const total = clip(names(600, 6) + names(700, 3) + names(800, 2));
+	assert.deepEqual(total, ['C01: This clip has 13 references in all; at most 12.']);
+	// A video alone is something to see, as the backend accepts; audio alone is not.
+	const value = storyboard();
+	value.cast.presenter = { look: '约30岁女性', voice: '清晰女声' };
+	value.clips[0].shots = [`{{asset:${uuid(700)}}}，{{presenter}}说{{L01}}。`];
+	assert.deepEqual(storyboardIssues(value, limited).filter((message) => message.startsWith('C01')), []);
+	value.clips[0].shots = [`{{asset:${uuid(800)}}}，{{presenter}}说{{L01}}。`];
+	assert.ok(storyboardIssues(value, limited).some((message) => message.startsWith('C01') && message.includes('at least one image or video')));
 });
 
 test('casting: every role once, a Character or a look, a voice for speakers, and "character" only with a voice file', () => {
@@ -146,7 +340,7 @@ test('a described person carries no image, so a clip that names only them is rej
 	const value = storyboard();
 	value.cast.presenter = { look: '约30岁女性，齐肩黑发，米白色圆领上衣', voice: '中高音，清晰，语速稍快' };
 	assert.deepEqual(storyboardIssues(value, context()), []);
-	assert.deepEqual(clipReferences(value, 0, context()), { images: [productImages[0]], audio: [] });
+	assert.deepEqual(clipReferences(value, 0, context()), { images: [productImages[0]], videos: [], audio: [] });
 	value.clips[0].shots = ['近景。{{presenter}}对镜头说{{L01}}。'];
 	assert.ok(storyboardIssues(value, context()).some((message) => message.startsWith('C01') && message.includes('at least one image')));
 });
@@ -160,14 +354,14 @@ test('clips are numbered in order, add up to the Script length, and stay within 
 	short.clips[1].shots = ['{{presenter}}说{{L02}}，再说{{L03}}，手持{{product}}。'];
 	assert.ok(storyboardIssues(short, context()).some((message) => message.includes('the Script is 30000 ms')));
 	const crowded = context();
-	crowded.characters = { [presenter.id]: { ...presenter, images: Array.from({ length: 10 }, (_, i) => uuid(200 + i)) } };
+	crowded.characters = { [presenter.id]: { ...presenter, media: Array.from({ length: 10 }, (_, i) => uuid(200 + i)) } };
 	const many = storyboard();
 	many.clips[0].shots = [Array.from({ length: 10 }, (_, i) => `{{presenter:${uuid(200 + i)}}}`).join('') + '说{{L01}}'];
 	assert.ok(storyboardIssues(many, crowded).some((message) => message.includes('names 10 images; at most 9')));
 });
 
 test('eval case 1 (three people, a product, a voiceover) fits: Characters with and without voice files and a described person', () => {
-	const host = { id: uuid(300), images: [uuid(301), uuid(302)], voice: null };
+	const host = { id: uuid(300), media: [uuid(301), uuid(302)], voice: null };
 	const spray = uuid(10);
 	const value = {
 		schema_version: 3,
@@ -213,17 +407,17 @@ test('eval case 1 (three people, a product, a voiceover) fits: Characters with a
 				shots: [
 					`近景，深色背景。{{presenter}}右手拿{{product:${spray}}}朝脸喷洒，边涂边说{{L01}}；约1秒处画面突然推近。`,
 					'特写，手持自拍。{{host}}在右侧凑近镜头说{{L02}}，{{cohost}}从左后方凑上来插话{{L03}}。上方三行花字保留到演示结束。',
-					`近景，自拍。{{host:${host.images[1]}}}把浸透液体的棉片敷在脸的下半部分。`,
-					`特写。{{host:${host.images[1]}}}揭下右脸颊上的棉片。`,
-					`特写。{{host:${host.images[1]}}}手指抵住脸颊展示皮肤；{{L04}}画外音。`,
+					`近景，自拍。{{host:${host.media[1]}}}把浸透液体的棉片敷在脸的下半部分。`,
+					`特写。{{host:${host.media[1]}}}揭下右脸颊上的棉片。`,
+					`特写。{{host:${host.media[1]}}}手指抵住脸颊展示皮肤；{{L04}}画外音。`,
 					`俯拍自拍，逐渐推近。{{cohost}}把{{product:${spray}}}举在画面左侧说{{L05}}。左上角竖排花字“@明星推荐”。`,
 				],
 			},
 		],
 	};
-	const evalContext = { script: value, productImages: [spray, uuid(11)], characters: { [presenter.id]: presenter, [host.id]: host } };
+	const evalContext = { script: value, product: { media: [spray, uuid(11)] }, characters: { [presenter.id]: presenter, [host.id]: host } };
 	assert.deepEqual(storyboardIssues(board, evalContext), []);
-	assert.deepEqual(clipReferences(board, 0, evalContext), { images: [presenter.images[0], spray, host.images[0], host.images[1]], audio: [presenter.voice] });
+	assert.deepEqual(clipReferences(board, 0, evalContext), { images: [presenter.media[0], spray, host.media[0], host.media[1]], videos: [], audio: [presenter.voice] });
 });
 
 test('Scripts and Storyboards round-trip through their stored text; v2 packages stay readable as legacy', () => {

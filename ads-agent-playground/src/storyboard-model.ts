@@ -10,6 +10,7 @@ import {
   MIN_CLIP_MS,
   NARRATOR,
   PRODUCT,
+  namesAsset,
   scriptLines,
   storyboardIssues,
   storyboardTokens,
@@ -22,7 +23,7 @@ import type {
   StoryboardToken,
 } from "@nuva/sdk/internal";
 import type { Character, NuvaClient, Product, Script } from "@nuva/sdk";
-import { msg, translate, type UiLabel } from "./i18n.js";
+import { msg, translate, UiError, type UiLabel } from "./i18n.js";
 
 /** A file a view can show: its download URL and what its uploader said it shows. */
 export interface MediaInfo {
@@ -45,8 +46,8 @@ export interface StoryboardMaterial {
   script: ScriptContent;
   /** The Script's Product at the revision it was written from, when the Script is linked to one. */
   product?: Pick<Product, "id" | "version"> & { name: string };
-  /** The Product's image asset IDs in order; the first is its default image. */
-  productImages: string[];
+  /** The Product's files in order (its images, then its videos); its first image is the default. */
+  productMedia: string[];
   /** Cast (and castable) Characters by ID. */
   characters: Record<string, Character>;
   media: Record<string, MediaInfo>;
@@ -104,6 +105,42 @@ export function castCharacters(content: Pick<StoryboardContent, "cast">) {
     ),
   ];
 }
+/** The Assets a Storyboard names with `{{asset:<id>}}`, in its shots and direction. */
+export function assetTokenIds(
+  content: Pick<StoryboardContent, "direction" | "clips">,
+  script: Pick<ScriptContent, "roles">,
+) {
+  return [
+    ...new Set(
+      [content.direction, ...content.clips.flatMap((clip) => clip.shots)].flatMap((text) =>
+        storyboardTokens(text).flatMap((token) =>
+          namesAsset(token, script) && token.asset !== undefined ? [token.asset] : [],
+        ),
+      ),
+    ),
+  ];
+}
+/**
+ * Reads an Asset a Storyboard names. Only NOT_FOUND means the user may not use it (the checks then report it);
+ * any other failure is raised as an error the user can retry.
+ */
+export async function readNamedAsset(sdk: Pick<NuvaClient, "assets">, id: string): Promise<unknown> {
+  try {
+    return await sdk.assets.get(id);
+  } catch (error) {
+    if ((error as { code?: unknown } | null)?.code === "NOT_FOUND") return undefined;
+    throw new UiError(msg("File {p0} could not be read. Try again.", { p0: id }));
+  }
+}
+/** Adds Assets the caller read (files a Storyboard names with `{{asset:<id>}}`) to the material. */
+export function withAssets(material: StoryboardMaterial, assets: readonly unknown[]): StoryboardMaterial {
+  const media = { ...material.media };
+  addMedia(media, Object.fromEntries(assets.flatMap((asset) => {
+    const id = (asset as AssetLike | undefined)?.id;
+    return id === undefined ? [] : [[id, asset]];
+  })));
+  return { ...material, media };
+}
 /** Adds a Character, and its images and voice, to the material it can be cast from. */
 export function withCharacter(
   material: StoryboardMaterial,
@@ -119,13 +156,14 @@ export function withCharacter(
 }
 /**
  * Reads what a Storyboard of `script` is checked against, as the service does: the Script's linked Product at its
- * revision (or, for a Script without a Product link, the images it saved), and each Character named. A Character
- * that cannot be read is left out, so the checks report it as unavailable.
+ * revision (or, for a Script without a Product link, the images it saved), each Character named, and each Asset
+ * named with `{{asset:<id>}}`. A Character or Asset that cannot be read is left out, so the checks report it.
  */
 export async function loadMaterial(
-  sdk: Pick<NuvaClient, "products" | "characters">,
+  sdk: Pick<NuvaClient, "products" | "characters"> & Partial<Pick<NuvaClient, "assets">>,
   script: Script & { format: 3 },
   characterIds: readonly string[],
+  assetIds: readonly string[] = [],
 ): Promise<StoryboardMaterial> {
   const media: Record<string, MediaInfo> = {};
   for (const image of script.content.images)
@@ -134,7 +172,7 @@ export async function loadMaterial(
   let material: StoryboardMaterial = {
     scriptId: script.id,
     script: script.content,
-    productImages: script.content.images.map((image) => image.asset_id),
+    productMedia: script.content.images.map((image) => image.asset_id),
     characters: {},
     media,
   };
@@ -145,7 +183,7 @@ export async function loadMaterial(
     material = {
       ...material,
       product: { id: product.id, version: product.version, name: product.data.name },
-      productImages: [...(product.data.images ?? [])],
+      productMedia: [...(product.data.images ?? []), ...(product.data.videos ?? [])],
     };
   }
   const characters = await Promise.all(
@@ -155,19 +193,31 @@ export async function loadMaterial(
   );
   for (const character of characters)
     if (character) material = withCharacter(material, character);
-  return material;
+  const assets = sdk.assets === undefined ? [] : await Promise.all([...new Set(assetIds)].map((id) => readNamedAsset(sdk as Pick<NuvaClient, "assets">, id)));
+  return withAssets(material, assets.filter((asset) => asset !== undefined));
 }
+const FILE_KINDS = ["image", "video", "audio"] as const;
 export function storyboardContext(
-  material: Pick<StoryboardMaterial, "script" | "productImages" | "characters">,
+  material: Pick<StoryboardMaterial, "script" | "productMedia" | "characters"> &
+    Partial<Pick<StoryboardMaterial, "media">>,
 ): StoryboardContext {
+  // Every file the playground could read is one the user may use.
+  const assets: NonNullable<StoryboardContext["assets"]> = Object.fromEntries(
+    Object.values(material.media ?? {}).flatMap((file) =>
+      FILE_KINDS.includes(file.kind as (typeof FILE_KINDS)[number])
+        ? [[file.id, { kind: file.kind as (typeof FILE_KINDS)[number], label: file.label ?? null, description: file.description ?? null }]]
+        : [],
+    ),
+  );
   return {
     script: material.script,
-    productImages: material.productImages,
+    product: { media: material.productMedia },
+    assets,
     characters: Object.fromEntries(
       Object.entries(material.characters).map(([id, character]) => [
         id,
         {
-          images: character.data.image_asset_ids,
+          media: character.data.image_asset_ids,
           voice: character.data.voice_asset_id ?? null,
         },
       ]),
@@ -325,6 +375,7 @@ export type TokenView =
   | { kind: "person"; role: string; label: string; image?: MediaInfo; described: boolean }
   | { kind: "image"; owner: string; label: string; image?: MediaInfo }
   | { kind: "product"; label: string; image?: MediaInfo }
+  | { kind: "file"; label: string; file?: MediaInfo }
   | { kind: "line"; id: string; text: string; speaker: string }
   | { kind: "unknown"; raw: string };
 /** A role's display name: the Script's name for it, or "Narrator". */
@@ -355,6 +406,11 @@ export function describeToken(
       ? { kind: "line", id: line.id, text: line.text, speaker: speakerName(material.script, line.speaker) }
       : unknown;
   }
+  if (namesAsset(token, material.script)) {
+    const file = token.asset === undefined ? undefined : material.media[token.asset];
+    const kind = file?.kind === "video" ? "Video" : file?.kind === "audio" ? "Audio" : "Image";
+    return file ? { kind: "file", label: file.label ?? translate(kind), file } : unknown;
+  }
   if (token.name === PRODUCT) {
     const name = material.product?.name ?? translate("Product");
     if (token.asset !== undefined) {
@@ -366,7 +422,7 @@ export function describeToken(
         ...(image ? { image } : {}),
       };
     }
-    const first = material.productImages[0];
+    const first = productImage(material);
     const image = first === undefined ? undefined : material.media[first];
     return { kind: "product", label: name, ...(image ? { image } : {}) };
   }
@@ -394,6 +450,10 @@ export function describeToken(
   };
 }
 
+/** The Product's default file: its first image. */
+function productImage(material: Pick<StoryboardMaterial, "productMedia" | "media">) {
+  return material.productMedia.find((id) => (material.media[id]?.kind ?? "image") === "image");
+}
 /** What the shot editor's Insert menu offers, in groups. */
 export interface InsertGroup {
   label: UiLabel;
@@ -429,13 +489,13 @@ export function insertGroups(
       })),
     });
   }
-  if (material.productImages.length) {
+  if (material.productMedia.length) {
     const name = material.product?.name ?? translate("Product");
     groups.push({
-      label: msg("Product images"),
+      label: msg("Product files"),
       options: [
-        { token: "{{product}}", label: name },
-        ...material.productImages.map((id, index) => ({
+        ...(productImage(material) === undefined ? [] : [{ token: "{{product}}", label: name }]),
+        ...material.productMedia.map((id, index) => ({
           token: `{{product:${id}}}`,
           label: material.media[id]?.label ?? `${name} ${index + 1}`,
         })),

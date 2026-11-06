@@ -156,3 +156,7 @@ export function SessionFileName(): string {
 	});
 	return 'files';
 }
+
+// An Asset is attached and quoted as is: its own `label` may be missing or null.
+declare const uploaded: Asset;
+void Message.create().attach(uploaded).quote(uploaded);

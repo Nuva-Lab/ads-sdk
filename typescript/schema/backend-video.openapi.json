@@ -1101,6 +1101,17 @@
             "description": "Image asset ids.",
             "default": []
           },
+          "videos": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "Videos",
+            "description": "Video asset ids.",
+            "default": []
+          },
           "selling_points": {
             "items": {
               "type": "string",
