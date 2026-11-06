@@ -345,7 +345,7 @@ export function storyboardIssues(storyboard: StoryboardContent, context: Storybo
 			return;
 		}
 		if (token.name === PRODUCT) {
-			if (token.asset !== undefined && !product.has(token.asset)) say(where, `${token.raw}: that file is not one of the Product's.`);
+			if (token.asset !== undefined && !product.has(token.asset)) say(where, `${token.raw}: that file is not one of the Product's files.`);
 			if (token.asset === undefined && defaultImage(context, context.product.media) === undefined) say(where, '{{product}}: the Product has no images.');
 			return;
 		}
@@ -353,7 +353,7 @@ export function storyboardIssues(storyboard: StoryboardContent, context: Storybo
 		if (token.asset === undefined) return;
 		const character = storyboard.cast[token.name]?.character;
 		if (character === undefined) say(where, `${token.raw}: ${token.name} has no Character, so there is no file to name.`);
-		else if (!characterHas(context.characters[character], token.asset)) say(where, `${token.raw}: that file is not one of ${token.name}'s Character's.`);
+		else if (!characterHas(context.characters[character], token.asset)) say(where, `${token.raw}: that file is not one of ${token.name}'s Character's files.`);
 	};
 	for (const token of storyboardTokens(storyboard.direction)) checkToken('direction', token, false);
 
