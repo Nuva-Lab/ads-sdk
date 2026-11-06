@@ -247,12 +247,13 @@ const SESSION_FILE_TOKEN = /^\{\{\s*[A-Za-z][A-Za-z0-9_]{0,39}\s*[:：]\s*sf_[0-
 const SESSION_FILE_MESSAGE = (raw: string) => `${raw} names a Session file, which is not an Asset: promote it to an Asset first and use the Asset ID.`;
 /** A name, a colon and any value: what an attempted file token looks like before its ID is checked. */
 const LOOSE_TOKEN = /^\{\{\s*([A-Za-z][A-Za-z0-9_]{0,39})\s*[:：]\s*([\s\S]*?)\s*\}\}$/;
-/** A value of hex digits and hyphens long enough to be a mistyped or cut-off Asset ID. */
-const ID_ATTEMPT = /^[0-9a-fA-F-]{20,}$/;
+/** A run of hex digits and hyphens long enough to be an Asset ID, mistyped, cut off or with something added. */
+const ID_ATTEMPT = /[0-9a-fA-F-]{20,}/;
 /**
  * The problems with the file tokens in an instruction (`scripts.generate`, `storyboards.generate`). An instruction is
  * free text, so braces are reported only when they clearly try to name a file: a Session file (`sf_…`), `{{asset}}`
- * or `{{asset:…}}` without a valid Asset ID, or a value that looks like a mistyped Asset ID. Anything else, such as
+ * or `{{asset:…}}` without a valid Asset ID, or a value holding something like an Asset ID that is not exactly one
+ * (`{{product:<id>.}}`, `{{product: <id> 主图}}`, `{{product:<id>,<id>}}`). Anything else, such as
  * `{{host}}`, `{{L01}}` or `{{时间: 3秒}}`, is left as text. With `script`, `{{asset}}` names that Script's role called
  * `asset` if it has one.
  */
@@ -320,8 +321,8 @@ export function clipReferences(storyboard: Pick<StoryboardContent, 'cast' | 'cli
 /**
  * Checks a Storyboard against its Script, Product and Characters. Returns every problem as a message a writer or a
  * person editing it can act on, so they can be fixed together; an empty list means it is accepted. With `stored`, it
- * checks a saved Storyboard before it is compiled: rules added for new writes, such as no named file in the
- * direction, are not applied, so Storyboards saved before them still compile.
+ * checks a saved Storyboard before it is compiled: a file named in its direction reaches no clip, so such a token is
+ * not checked at all (Storyboards saved before files were refused there still compile); its shots get every check.
  */
 export function storyboardIssues(storyboard: StoryboardContent, context: StoryboardContext, options: { stored?: boolean } = {}): string[] {
 	const problems: string[] = [];
@@ -364,6 +365,8 @@ export function storyboardIssues(storyboard: StoryboardContent, context: Storybo
 	// Tokens: everything named must exist; a file named for a person or the Product must be theirs; an {{asset:…}} one the user may use.
 	const product = new Set(context.product.media);
 	const checkToken = (where: string, token: StoryboardToken, inShot: boolean) => {
+		// A stored Storyboard compiles as saved: a file named in its direction reaches no clip, so it is not checked.
+		if (!inShot && options.stored && token.asset !== undefined) return;
 		if (token.name === '') {
 			if (SESSION_FILE_TOKEN.test(token.raw)) return say(where, SESSION_FILE_MESSAGE(token.raw));
 			return say(where, `${token.raw} is not a token; write {{role}}, {{role:<asset id>}}, {{product}}, {{product:<asset id>}}, {{asset:<asset id>}} or {{L01}}.`);
@@ -377,11 +380,11 @@ export function storyboardIssues(storyboard: StoryboardContent, context: Storybo
 		if (namesAsset(token, script)) {
 			if (token.asset === undefined) return say(where, '{{asset}} needs an Asset ID: {{asset:<asset id>}}.');
 			if (context.assets?.[token.asset] === undefined) return say(where, `${token.raw}: there is no image, video or audio Asset with this ID that you may use.`);
-			if (!inShot && !options.stored) say(where, `${token.raw} belongs in the shots that use it: a clip renders only the files its shots name.`);
+			if (!inShot) say(where, `${token.raw} belongs in the shots that use it: a clip renders only the files its shots name.`);
 			return;
 		}
 		// A file reaches only the clips whose shots name it, so a named file in the direction reaches none.
-		if (!inShot && token.asset !== undefined) return options.stored ? undefined : say(where, `${token.raw} belongs in the shots that use it: a clip renders only the files its shots name.`);
+		if (!inShot && token.asset !== undefined) return say(where, `${token.raw} belongs in the shots that use it: a clip renders only the files its shots name.`);
 		if (token.name === PRODUCT) {
 			if (token.asset !== undefined && !product.has(token.asset)) say(where, `${token.raw}: that file is not one of the Product's files.`);
 			if (token.asset === undefined && defaultImage(context, context.product.media) === undefined) say(where, '{{product}}: the Product has no images.');
