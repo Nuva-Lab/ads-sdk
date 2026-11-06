@@ -21,7 +21,7 @@ const facts = [
 	{ id: 'fact_product_selling_points', claim: '舒缓修护、抗皱紧致', source_field: 'product.data.selling_points', source_excerpt: '舒缓修护、抗皱紧致' },
 ];
 const productImages = [uuid(1), uuid(2)];
-const presenter = { id: uuid(100), images: [uuid(101), uuid(102)], voice: uuid(103) };
+const presenter = { id: uuid(100), media: [uuid(101), uuid(102)], voice: uuid(103) };
 
 // The case behind the change: one presenter across three clips, who must look and sound the same in each.
 function script() {
@@ -61,7 +61,7 @@ function storyboard() {
 		})),
 	};
 }
-const context = (value = script()) => ({ script: value, productImages, characters: { [presenter.id]: presenter } });
+const context = (value = script()) => ({ script: value, product: { media: productImages }, characters: { [presenter.id]: presenter } });
 
 test('a v3 Script has no clips: panels hold lines with IDs, and its checks catch unknown speakers, silent roles and narrator modes', () => {
 	assert.equal(scriptSchema.safeParse(script()).success, true);
@@ -82,10 +82,30 @@ test('a cast Character goes into every clip it appears in: its default image, an
 	assert.equal(storyboardSchema.safeParse(storyboard()).success, true);
 	assert.deepEqual(storyboardIssues(storyboard(), context()), []);
 	for (const clip of [0, 1, 2])
-		assert.deepEqual(clipReferences(storyboard(), clip, context()), { images: [presenter.images[0], productImages[0]], videos: [], audio: [presenter.voice] });
+		assert.deepEqual(clipReferences(storyboard(), clip, context()), { images: [presenter.media[0], productImages[0]], videos: [], audio: [presenter.voice] });
 	const named = storyboard();
-	named.clips[1].shots = [`特写。{{presenter:${presenter.images[1]}}}拿起{{product:${productImages[1]}}}说{{L02}}。`];
-	assert.deepEqual(clipReferences(named, 1, context()), { images: [presenter.images[1], productImages[1]], videos: [], audio: [presenter.voice] });
+	named.clips[1].shots = [`特写。{{presenter:${presenter.media[1]}}}拿起{{product:${productImages[1]}}}说{{L02}}。`];
+	assert.deepEqual(clipReferences(named, 1, context()), { images: [presenter.media[1], productImages[1]], videos: [], audio: [presenter.voice] });
+});
+
+test('a Product or Character file of any kind may be named; its kind decides its list, and {{product}} is the first image', () => {
+	const demo = uuid(110);
+	const clip = uuid(111);
+	const owned = {
+		...context(),
+		product: { media: [clip, ...productImages] },
+		characters: { [presenter.id]: { ...presenter, media: [...presenter.media, demo] } },
+		assets: { [clip]: { kind: 'video' }, [demo]: { kind: 'video' } },
+	};
+	const value = storyboard();
+	value.clips[0].shots = [`中景。{{presenter:${demo}}}的动作，{{product:${clip}}}开场，{{product}}特写，{{presenter:${presenter.voice}}}的声音说{{L01}}。`];
+	assert.deepEqual(storyboardIssues(value, owned), []);
+	assert.deepEqual(clipReferences(value, 0, owned), { images: [productImages[0]], videos: [demo, clip], audio: [presenter.voice] });
+	const foreign = storyboard();
+	foreign.clips[0].shots = [`{{presenter:${clip}}}说{{L01}}，{{product:${demo}}}。`];
+	const issues = storyboardIssues(foreign, owned);
+	assert.ok(issues.some((message) => message.includes("that file is not one of presenter's Character's")), issues.join('\n'));
+	assert.ok(issues.some((message) => message.includes("that file is not one of the Product's")), issues.join('\n'));
 });
 
 test('an on-camera line needs its speaker named in the shot, so the speaker cannot drop out of a clip', () => {
@@ -113,7 +133,7 @@ test('lines are placed once each, in Script order, and only in shots', () => {
 
 test('tokens must resolve: roles of the Script, images of that Character or the Product, well formed', () => {
 	const value = storyboard();
-	value.clips[0].shots = [`{{presenter:${productImages[0]}}}拿着{{product:${presenter.images[0]}}}，{{son}}在旁边，{{ presenter#2 }}说{{L01}}。{{L99}}`];
+	value.clips[0].shots = [`{{presenter:${productImages[0]}}}拿着{{product:${presenter.media[0]}}}，{{son}}在旁边，{{ presenter#2 }}说{{L01}}。{{L99}}`];
 	const issues = storyboardIssues(value, context());
 	for (const expected of ["not one of presenter's Character's", "not one of the Product's", 'son is not a role', 'is not a token', 'not a line of the Script'])
 		assert.ok(issues.some((message) => message.includes(expected)), `${expected}\n${issues.join('\n')}`);
@@ -133,7 +153,7 @@ const withAssets = (value = script()) => ({
 		[upload.video]: { kind: 'video', label: '开箱视频', description: null },
 		[upload.music]: { kind: 'audio', label: '轻快背景音乐' },
 		[upload.voice]: { kind: 'audio', label: '店长录音' },
-		[presenter.images[1]]: { kind: 'image', label: '侧脸' },
+		[presenter.media[1]]: { kind: 'image', label: '侧脸' },
 	},
 });
 
@@ -146,11 +166,11 @@ test('{{asset:<id>}} names any usable file; each goes in the list of its own kin
 	value.clips[0].shots = [
 		`开场，{{asset:${upload.video}}}的开箱画面；背景音乐用{{asset:${upload.music}}}。`,
 		`{{presenter}}站在{{asset:${upload.image}}}前，拿着{{product}}，用{{asset:${upload.voice}}}的声音说{{L01}}。`,
-		`再次出现{{asset:${upload.video}}}和{{asset:${presenter.images[1]}}}。`,
+		`再次出现{{asset:${upload.video}}}和{{asset:${presenter.media[1]}}}。`,
 	];
 	assert.deepEqual(storyboardIssues(value, withAssets()), []);
 	assert.deepEqual(clipReferences(value, 0, withAssets()), {
-		images: [presenter.images[0], upload.image, productImages[0], presenter.images[1]],
+		images: [presenter.media[0], upload.image, productImages[0], presenter.media[1]],
 		videos: [upload.video],
 		audio: [upload.music, upload.voice, presenter.voice],
 	});
@@ -172,7 +192,7 @@ test('asset tokens are checked: an ID is required, Session files must be promote
 	const owned = storyboard();
 	owned.clips[0].shots = [`{{presenter:${upload.image}}}拿着{{product:${upload.video}}}说{{L01}}。`];
 	const wrong = storyboardIssues(owned, withAssets());
-	assert.ok(wrong.some((message) => message.includes("that file is not one of presenter's Character's images")), wrong.join('\n'));
+	assert.ok(wrong.some((message) => message.includes("that file is not one of presenter's Character's")), wrong.join('\n'));
 	assert.ok(wrong.some((message) => message.includes("that file is not one of the Product's")), wrong.join('\n'));
 });
 
@@ -199,11 +219,11 @@ test('a stored Script with a role called asset still reads, and its Storyboard k
 	const board = storyboard();
 	board.cast = { asset: { character: presenter.id, voice: 'character' } };
 	board.clips = board.clips.map((clip, i) => ({ ...clip, shots: [`中景。{{asset}}拿着{{product}}说{{L0${i + 1}}}。`] }));
-	board.clips[1].shots = [`特写。{{asset:${presenter.images[1]}}}拿着{{product}}说{{L02}}。`];
+	board.clips[1].shots = [`特写。{{asset:${presenter.media[1]}}}拿着{{product}}说{{L02}}。`];
 	const roleContext = { ...context(content), assets: {} };
 	assert.deepEqual(storyboardIssues(decodeStoryboard(encodeStoryboard(board)), roleContext), []);
-	assert.deepEqual(clipReferences(board, 0, roleContext), { images: [presenter.images[0], productImages[0]], videos: [], audio: [presenter.voice] });
-	assert.deepEqual(clipReferences(board, 1, roleContext).images, [presenter.images[1], productImages[0]], '{{asset:<id>}} is that role with that image of its Character.');
+	assert.deepEqual(clipReferences(board, 0, roleContext), { images: [presenter.media[0], productImages[0]], videos: [], audio: [presenter.voice] });
+	assert.deepEqual(clipReferences(board, 1, roleContext).images, [presenter.media[1], productImages[0]], '{{asset:<id>}} is that role with that image of its Character.');
 });
 
 test('per clip: at most 9 images, 3 videos, 3 audio files and 12 references in all, each kind reported by name', () => {
@@ -268,14 +288,14 @@ test('clips are numbered in order, add up to the Script length, and stay within 
 	short.clips[1].shots = ['{{presenter}}说{{L02}}，再说{{L03}}，手持{{product}}。'];
 	assert.ok(storyboardIssues(short, context()).some((message) => message.includes('the Script is 30000 ms')));
 	const crowded = context();
-	crowded.characters = { [presenter.id]: { ...presenter, images: Array.from({ length: 10 }, (_, i) => uuid(200 + i)) } };
+	crowded.characters = { [presenter.id]: { ...presenter, media: Array.from({ length: 10 }, (_, i) => uuid(200 + i)) } };
 	const many = storyboard();
 	many.clips[0].shots = [Array.from({ length: 10 }, (_, i) => `{{presenter:${uuid(200 + i)}}}`).join('') + '说{{L01}}'];
 	assert.ok(storyboardIssues(many, crowded).some((message) => message.includes('names 10 images; at most 9')));
 });
 
 test('eval case 1 (three people, a product, a voiceover) fits: Characters with and without voice files and a described person', () => {
-	const host = { id: uuid(300), images: [uuid(301), uuid(302)], voice: null };
+	const host = { id: uuid(300), media: [uuid(301), uuid(302)], voice: null };
 	const spray = uuid(10);
 	const value = {
 		schema_version: 3,
@@ -321,17 +341,17 @@ test('eval case 1 (three people, a product, a voiceover) fits: Characters with a
 				shots: [
 					`近景，深色背景。{{presenter}}右手拿{{product:${spray}}}朝脸喷洒，边涂边说{{L01}}；约1秒处画面突然推近。`,
 					'特写，手持自拍。{{host}}在右侧凑近镜头说{{L02}}，{{cohost}}从左后方凑上来插话{{L03}}。上方三行花字保留到演示结束。',
-					`近景，自拍。{{host:${host.images[1]}}}把浸透液体的棉片敷在脸的下半部分。`,
-					`特写。{{host:${host.images[1]}}}揭下右脸颊上的棉片。`,
-					`特写。{{host:${host.images[1]}}}手指抵住脸颊展示皮肤；{{L04}}画外音。`,
+					`近景，自拍。{{host:${host.media[1]}}}把浸透液体的棉片敷在脸的下半部分。`,
+					`特写。{{host:${host.media[1]}}}揭下右脸颊上的棉片。`,
+					`特写。{{host:${host.media[1]}}}手指抵住脸颊展示皮肤；{{L04}}画外音。`,
 					`俯拍自拍，逐渐推近。{{cohost}}把{{product:${spray}}}举在画面左侧说{{L05}}。左上角竖排花字“@明星推荐”。`,
 				],
 			},
 		],
 	};
-	const evalContext = { script: value, productImages: [spray, uuid(11)], characters: { [presenter.id]: presenter, [host.id]: host } };
+	const evalContext = { script: value, product: { media: [spray, uuid(11)] }, characters: { [presenter.id]: presenter, [host.id]: host } };
 	assert.deepEqual(storyboardIssues(board, evalContext), []);
-	assert.deepEqual(clipReferences(board, 0, evalContext), { images: [presenter.images[0], spray, host.images[0], host.images[1]], videos: [], audio: [presenter.voice] });
+	assert.deepEqual(clipReferences(board, 0, evalContext), { images: [presenter.media[0], spray, host.media[0], host.media[1]], videos: [], audio: [presenter.voice] });
 });
 
 test('Scripts and Storyboards round-trip through their stored text; v2 packages stay readable as legacy', () => {

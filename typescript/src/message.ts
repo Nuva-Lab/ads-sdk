@@ -14,6 +14,8 @@ function validateResource(record: ResourceLink): ResourceLink {
 		throw new TypeError('A saved record with kind, id and label is required.');
 	return { ref: clone(record.ref), label: record.label };
 }
+/** A resource without a display label, such as an Asset whose own `label` is missing or null. */
+type UnlabeledResource = Omit<ResourceLink, 'label'> & { label?: string | null };
 export class MessageDraft {
 	private constructor(value: DraftValue) {
 		values.set(this, clone(value));
@@ -34,13 +36,13 @@ export class MessageDraft {
 	mention(record: ResourceLink): MessageDraft {
 		return this.quote(record);
 	}
-	/** Attaches a resource. A record without a display label (an Asset whose `label` is null) is shown by its ID. */
-	attach(record: ResourceLink | (Omit<ResourceLink, 'label'> & { label: string | null })): MessageDraft {
+	/** Attaches a resource. A record without a display label (an Asset whose `label` is missing or null) is shown by its ID. */
+	attach(record: ResourceLink | UnlabeledResource): MessageDraft {
 		const saved = validateResource({ ...record, label: record.label ?? record.ref.id });
 		const v = draftValue(this);
 		return new MessageDraft({ ...v, attachments: [...v.attachments, saved] });
 	}
-	quote(target: ResourceLink | (Omit<ResourceLink, 'label'> & { label: string | null }) | MessageView, selectedText?: string): MessageDraft {
+	quote(target: ResourceLink | UnlabeledResource | MessageView, selectedText?: string): MessageDraft {
 		if (selectedText !== undefined && (typeof selectedText !== 'string' || !selectedText))
 			throw new TypeError('A non-empty quotation is required.');
 		const quoted = 'role' in target ? clone(target.ref) : validateResource({ ...target, label: target.label ?? target.ref.id });

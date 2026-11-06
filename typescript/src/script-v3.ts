@@ -210,16 +210,16 @@ export function storyboardTokens(value: string): StoryboardToken[] {
 	});
 }
 
-/** What a Storyboard is checked against: its Script, the Product's images, the Characters it may cast and the Assets it may name. */
+/** What a Storyboard is checked against: its Script, the Product's and Characters' files and the Assets it may name. */
 export interface StoryboardContext {
 	script: Pick<ScriptGeneration, 'roles' | 'panels' | 'duration_ms'>;
-	/** The Product's image asset IDs; the first is its default image. */
-	productImages: readonly string[];
-	/** Characters by ID: their image asset IDs (the first is the default) and their voice asset, if any. */
-	characters: Readonly<Record<string, { images: readonly string[]; voice: string | null }>>;
+	/** The Product's files (asset IDs of any kind); its first image is the default. */
+	product: { media: readonly string[] };
+	/** Characters by ID: their files (asset IDs of any kind; the first image is the default) and their voice asset, if any. */
+	characters: Readonly<Record<string, { media: readonly string[]; voice: string | null }>>;
 	/**
-	 * The Assets the Storyboard references, by ID, as the user may use them: each one's kind, label and description.
-	 * An `{{asset:<id>}}` must be one of them. A Product or Character file missing here is taken to be an image.
+	 * Files by ID, as the user may use them: each one's kind, label and description. An `{{asset:<id>}}` must be one
+	 * of them. A Product or Character file missing here is taken to be an image; a Character's voice is audio.
 	 */
 	assets?: Readonly<Record<string, { kind: 'image' | 'video' | 'audio'; label?: string | null; description?: string | null }>>;
 }
@@ -241,6 +241,14 @@ const SESSION_FILE_TOKEN = /^\{\{\s*[A-Za-z][A-Za-z0-9_]{0,39}\s*:\s*sf_[0-9a-f]
 /** How far a Storyboard's total length may be from its Script's target: 15%, and at least 2 seconds. */
 export const durationTolerance = (target: number) => Math.max(2000, Math.round(target * 0.15));
 
+type FileKind = 'image' | 'video' | 'audio';
+/** A Product or Character file's kind: as `assets` says, the voice is audio, anything else an image. */
+const fileKind = (context: StoryboardContext, id: string, voice?: string | null): FileKind => context.assets?.[id]?.kind ?? (id === voice ? 'audio' : 'image');
+/** An owner's default file: its first image. */
+const defaultImage = (context: StoryboardContext, media: readonly string[] | undefined) => media?.find((id) => fileKind(context, id) === 'image');
+/** Whether a file is one of a Character's: one of its files, or its voice. */
+const characterHas = (entry: StoryboardContext['characters'][string] | undefined, id: string) => entry !== undefined && (entry.media.includes(id) || entry.voice === id);
+
 /**
  * The references one clip renders with, worked out from its shots' tokens, in order of first mention within each
  * kind: the file of each cast Character and the Product it names (the named file, or the default image), each
@@ -251,13 +259,14 @@ export const durationTolerance = (target: number) => Math.max(2000, Math.round(t
 export function clipReferences(storyboard: Pick<StoryboardContent, 'cast' | 'clips'>, clip: number, context: StoryboardContext): ClipReferences {
 	const references: ClipReferences = { images: [], videos: [], audio: [] };
 	const lists = { image: references.images, video: references.videos, audio: references.audio };
-	const add = (value: string | undefined, kind: keyof typeof lists = (value === undefined ? undefined : context.assets?.[value]?.kind) ?? 'image') =>
-		value !== undefined && !lists[kind].includes(value) && lists[kind].push(value);
+	const add = (value: string | undefined, kind: FileKind) => value !== undefined && !lists[kind].includes(value) && lists[kind].push(value);
 	const speakers = new Map(scriptLines(context.script).map((line) => [line.id, line.speaker]));
 	for (const shot of storyboard.clips[clip]?.shots ?? [])
 		for (const token of storyboardTokens(shot)) {
-			if (token.name === PRODUCT) add(token.asset ?? context.productImages[0]);
-			else if (namesAsset(token, context.script)) {
+			if (token.name === PRODUCT) {
+				const id = token.asset ?? defaultImage(context, context.product.media);
+				if (id !== undefined) add(id, fileKind(context, id));
+			} else if (namesAsset(token, context.script)) {
 				const asset = token.asset === undefined ? undefined : context.assets?.[token.asset];
 				if (asset !== undefined) add(token.asset, asset.kind);
 			} else if (LINE_ID.test(token.name)) {
@@ -266,7 +275,9 @@ export function clipReferences(storyboard: Pick<StoryboardContent, 'cast' | 'cli
 				if (entry?.voice === CHARACTER_VOICE && entry.character !== undefined) add(context.characters[entry.character]?.voice ?? undefined, 'audio');
 			} else {
 				const character = storyboard.cast[token.name]?.character;
-				if (character !== undefined) add(token.asset ?? context.characters[character]?.images[0]);
+				const entry = character === undefined ? undefined : context.characters[character];
+				const id = token.asset ?? defaultImage(context, entry?.media);
+				if (character !== undefined && id !== undefined) add(id, fileKind(context, id, entry?.voice));
 			}
 		}
 	return references;
@@ -315,11 +326,11 @@ export function storyboardIssues(storyboard: StoryboardContent, context: Storybo
 	for (const repeated of duplicates(characters)) say('cast', `Character ${repeated} plays more than one role.`);
 
 	// Tokens: everything named must exist; a file named for a person or the Product must be theirs; an {{asset:…}} one the user may use.
-	const product = new Set(context.productImages);
+	const product = new Set(context.product.media);
 	const checkToken = (where: string, token: StoryboardToken, inShot: boolean) => {
 		if (token.name === '') {
 			if (SESSION_FILE_TOKEN.test(token.raw)) return say(where, `${token.raw} names a Session file, which is not an Asset: promote it to an Asset first and use the Asset ID.`);
-			return say(where, `${token.raw} is not a token; write {{role}}, {{role:<image id>}}, {{product}}, {{product:<image id>}}, {{asset:<asset id>}} or {{L01}}.`);
+			return say(where, `${token.raw} is not a token; write {{role}}, {{role:<asset id>}}, {{product}}, {{product:<asset id>}}, {{asset:<asset id>}} or {{L01}}.`);
 		}
 		if (LINE_ID.test(token.name)) {
 			if (!inShot) return say(where, `Line ${token.raw} belongs in a shot, not in the direction.`);
@@ -334,15 +345,15 @@ export function storyboardIssues(storyboard: StoryboardContent, context: Storybo
 			return;
 		}
 		if (token.name === PRODUCT) {
-			if (token.asset !== undefined && !product.has(token.asset)) say(where, `${token.raw}: that file is not one of the Product's images.`);
-			if (token.asset === undefined && product.size === 0) say(where, '{{product}}: the Product has no images.');
+			if (token.asset !== undefined && !product.has(token.asset)) say(where, `${token.raw}: that file is not one of the Product's.`);
+			if (token.asset === undefined && defaultImage(context, context.product.media) === undefined) say(where, '{{product}}: the Product has no images.');
 			return;
 		}
 		if (!roles.has(token.name)) return say(where, `${token.raw}: ${token.name} is not a role of the Script.`);
 		if (token.asset === undefined) return;
 		const character = storyboard.cast[token.name]?.character;
 		if (character === undefined) say(where, `${token.raw}: ${token.name} has no Character, so there is no file to name.`);
-		else if (!(context.characters[character]?.images ?? []).includes(token.asset)) say(where, `${token.raw}: that file is not one of ${token.name}'s Character's images.`);
+		else if (!characterHas(context.characters[character], token.asset)) say(where, `${token.raw}: that file is not one of ${token.name}'s Character's.`);
 	};
 	for (const token of storyboardTokens(storyboard.direction)) checkToken('direction', token, false);
 

@@ -292,8 +292,10 @@ export function tokenChip(view: TokenView, raw: string) {
     chip.append(thumb(view.image, "subject"), node("span", view.label));
     if (view.described) chip.classList.add("token-described");
   } else if (view.kind === "image") {
-    chip.dataset.color = "1";
-    chip.append(thumb(view.image, "image"), node("span", view.label));
+    // A named Product or Character file may be a video or audio file too.
+    const kind = view.image?.kind === "video" ? "video" : view.image?.kind === "audio" ? "audio" : "image";
+    chip.dataset.color = kind === "audio" ? "2" : "1";
+    chip.append(thumb(kind === "image" ? view.image : undefined, kind), node("span", view.label));
   } else if (view.kind === "product") {
     chip.dataset.color = "3";
     chip.append(thumb(view.image, "layers"), node("span", view.label));

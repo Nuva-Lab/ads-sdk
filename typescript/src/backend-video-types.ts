@@ -1,4 +1,4 @@
-// Generated from ads_backend/openapi.json at b71d1b55fd16b5b7b094b671241ae32b5ee95d08. PR target only; deployment not asserted. Do not edit.
+// Generated from ads_backend/openapi.json at db8ea00a09c095615fdd90e641044bd0a8282a61. PR target only; deployment not asserted. Do not edit.
 export type paths = Record<string, never>;
 export type webhooks = Record<string, never>;
 export interface components {
@@ -495,6 +495,12 @@ export interface components {
              * @default []
              */
             images?: string[];
+            /**
+             * Videos
+             * @description Video asset ids.
+             * @default []
+             */
+            videos?: string[];
             /**
              * Selling Points
              * @default []

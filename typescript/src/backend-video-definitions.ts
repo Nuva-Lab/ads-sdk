@@ -1,4 +1,4 @@
-// Generated from ads_backend/openapi.json at b71d1b55fd16b5b7b094b671241ae32b5ee95d08. PR target only; deployment not asserted. Do not edit.
+// Generated from ads_backend/openapi.json at db8ea00a09c095615fdd90e641044bd0a8282a61. PR target only; deployment not asserted. Do not edit.
 import type { z } from "zod";
 export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.fromJSONSchema>[0], boolean>> = {
   "AdCreate": {
@@ -1093,6 +1093,17 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "maxItems": 20,
         "title": "Images",
         "description": "Image asset ids.",
+        "default": []
+      },
+      "videos": {
+        "items": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": "array",
+        "maxItems": 5,
+        "title": "Videos",
+        "description": "Video asset ids.",
         "default": []
       },
       "selling_points": {

@@ -5,11 +5,11 @@ import { browser, bundle, ids, mia, product } from "./storyboard-fixture.mjs";
 const built = await bundle(
   "playground-characters-",
   `export { characterForm } from './src/characters.ts';
-   export { uploadProductImage } from './src/product.ts';
+   export { uploadProductImage, uploadProductVideo, removeProductVideo } from './src/product.ts';
    export { setLocale } from './src/i18n.ts';`,
 );
 after(built.cleanup);
-const { characterForm, uploadProductImage, setLocale } = built.module;
+const { characterForm, uploadProductImage, uploadProductVideo, removeProductVideo, setLocale } = built.module;
 let env;
 before(() => {
   env = browser();
@@ -142,4 +142,23 @@ test("a Product image with a label uploads with it and is attached to the Produc
   let plain = 0;
   await uploadProductImage({ products: { uploadImage: async () => (plain++, { product }) } }, product, file, { label: "", description: "" });
   assert.equal(plain, 1, "Without a label the SDK's own upload is used.");
+});
+
+test("a Product video uploads with its label, is attached to the Product's videos, and can be removed", async () => {
+  const calls = [];
+  const client = {
+    assets: { upload: async (file, options) => (calls.push(["upload", file.name, options]), { id: "asset-video", kind: "video" }) },
+    products: { update: async (input) => (calls.push(["update", input]), { ...input.base, data: input.data }) },
+  };
+  const file = new env.window.File(["clip"], "demo.mp4", { type: "video/mp4" });
+  const updated = await uploadProductVideo(client, product, file, { label: "Unboxing", description: "" });
+  assert.deepEqual(calls, [
+    ["upload", "demo.mp4", { kind: "video", label: "Unboxing" }],
+    ["update", { base: product, data: { ...product.data, videos: ["asset-video"] }, brand_id: product.brand_id }],
+  ]);
+  assert.deepEqual(updated.data.videos, ["asset-video"]);
+  const removed = await removeProductVideo(client, updated, "asset-video");
+  assert.deepEqual(removed.data.videos, []);
+  const full = { ...product, data: { ...product.data, videos: ["a", "b", "c", "d", "e"] } };
+  await assert.rejects(uploadProductVideo(client, full, file, { label: "", description: "" }), /already has 5 videos/);
 });

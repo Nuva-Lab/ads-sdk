@@ -325,7 +325,7 @@ test("the cast selector writes the Character, look and voice each role's entry n
   choose(select("host"), ids.leo);
   assert.deepEqual(handle.content().cast.host, { character: ids.leo });
   assert.deepEqual(issuesAt(root, "cast.host"), ["host speaks and needs a voice."]);
-  assert.ok(issuesAt(root, "C01 shot 1").some((issue) => issue.includes("that file is not one of host's Character's images")));
+  assert.ok(issuesAt(root, "C01 shot 1").some((issue) => issue.includes("that file is not one of host's Character's")));
   type(root.querySelector('input[name="voice-host"]'), "Bright young voice");
   assert.deepEqual(handle.content().cast.host, { character: ids.leo, voice: "Bright young voice" });
   // A Character with a voice file speaks with it.

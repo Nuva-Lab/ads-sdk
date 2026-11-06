@@ -46,8 +46,8 @@ export interface StoryboardMaterial {
   script: ScriptContent;
   /** The Script's Product at the revision it was written from, when the Script is linked to one. */
   product?: Pick<Product, "id" | "version"> & { name: string };
-  /** The Product's image asset IDs in order; the first is its default image. */
-  productImages: string[];
+  /** The Product's files in order (its images, then its videos); its first image is the default. */
+  productMedia: string[];
   /** Cast (and castable) Characters by ID. */
   characters: Record<string, Character>;
   media: Record<string, MediaInfo>;
@@ -172,7 +172,7 @@ export async function loadMaterial(
   let material: StoryboardMaterial = {
     scriptId: script.id,
     script: script.content,
-    productImages: script.content.images.map((image) => image.asset_id),
+    productMedia: script.content.images.map((image) => image.asset_id),
     characters: {},
     media,
   };
@@ -183,7 +183,7 @@ export async function loadMaterial(
     material = {
       ...material,
       product: { id: product.id, version: product.version, name: product.data.name },
-      productImages: [...(product.data.images ?? [])],
+      productMedia: [...(product.data.images ?? []), ...(product.data.videos ?? [])],
     };
   }
   const characters = await Promise.all(
@@ -198,7 +198,7 @@ export async function loadMaterial(
 }
 const FILE_KINDS = ["image", "video", "audio"] as const;
 export function storyboardContext(
-  material: Pick<StoryboardMaterial, "script" | "productImages" | "characters"> &
+  material: Pick<StoryboardMaterial, "script" | "productMedia" | "characters"> &
     Partial<Pick<StoryboardMaterial, "media">>,
 ): StoryboardContext {
   // Every file the playground could read is one the user may use.
@@ -211,13 +211,13 @@ export function storyboardContext(
   );
   return {
     script: material.script,
-    productImages: material.productImages,
+    product: { media: material.productMedia },
     assets,
     characters: Object.fromEntries(
       Object.entries(material.characters).map(([id, character]) => [
         id,
         {
-          images: character.data.image_asset_ids,
+          media: character.data.image_asset_ids,
           voice: character.data.voice_asset_id ?? null,
         },
       ]),
@@ -422,7 +422,7 @@ export function describeToken(
         ...(image ? { image } : {}),
       };
     }
-    const first = material.productImages[0];
+    const first = productImage(material);
     const image = first === undefined ? undefined : material.media[first];
     return { kind: "product", label: name, ...(image ? { image } : {}) };
   }
@@ -450,6 +450,10 @@ export function describeToken(
   };
 }
 
+/** The Product's default file: its first image. */
+function productImage(material: Pick<StoryboardMaterial, "productMedia" | "media">) {
+  return material.productMedia.find((id) => (material.media[id]?.kind ?? "image") === "image");
+}
 /** What the shot editor's Insert menu offers, in groups. */
 export interface InsertGroup {
   label: UiLabel;
@@ -485,13 +489,13 @@ export function insertGroups(
       })),
     });
   }
-  if (material.productImages.length) {
+  if (material.productMedia.length) {
     const name = material.product?.name ?? translate("Product");
     groups.push({
-      label: msg("Product images"),
+      label: msg("Product files"),
       options: [
-        { token: "{{product}}", label: name },
-        ...material.productImages.map((id, index) => ({
+        ...(productImage(material) === undefined ? [] : [{ token: "{{product}}", label: name }]),
+        ...material.productMedia.map((id, index) => ({
           token: `{{product:${id}}}`,
           label: material.media[id]?.label ?? `${name} ${index + 1}`,
         })),

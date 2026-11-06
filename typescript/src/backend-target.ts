@@ -3,7 +3,7 @@ import type { BackendSchemas as Deployed } from './backend-types.js';
 import type { BackendSchemas as VideoTarget } from './backend-video-types.js';
 import type { JsonObject } from './types.js';
 /** Source-verified PR target; recursive JSON attributes use the SDK JsonObject type. */
-export type ProductData = Deployed['ProductDataV1'] & { attributes?: JsonObject };
+export type ProductData = VideoTarget['ProductDataV1'] & { attributes?: JsonObject };
 type WithData<T> = Omit<T, 'data'> & { data: ProductData };
 // Verified ads_backend source at 47b9f5fa0844fa1ccfd78d5c98e7ed7853fd8007 (PR #2374).
 // openapi-typescript renders the bare oneOf input object as Record<string, never>;

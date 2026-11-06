@@ -421,6 +421,62 @@ export async function renderProduct(
             save.disabled = false;
           }
         });
+      // Product videos: writers read their labels and descriptions; {{product:<video id>}} puts one in a clip.
+      const videos = node("div", "", "gallery");
+      for (const id of base.data.videos ?? []) {
+        const asset = base.assets[id],
+          tile = node("div");
+        if (asset) tile.append(media(asset.download_url, "video"));
+        else tile.append(node("p", msg("Video access unavailable")));
+        const label = assetText(asset).label;
+        if (label) tile.append(node("p", label, "image-label"));
+        tile.append(
+          node("p", id, "resource-id"),
+          button(msg("Remove video"), () =>
+            void action(async () => {
+              current = await removeProductVideo(sdk, base, id);
+              pick(current);
+              upsert(current);
+              draw();
+              notice(msg("Video removed."));
+            }),
+          ),
+        );
+        videos.append(tile);
+      }
+      const videoUpload = node("input");
+      videoUpload.type = "file";
+      videoUpload.accept = "video/mp4";
+      setAttribute(videoUpload, "aria-label", msg("Upload Product video"));
+      videoUpload.hidden = true;
+      editor.append(
+        node("h4", msg("Product videos")),
+        videos,
+        button(msg("Add video"), () => videoUpload.click(), "", "plus"),
+        videoUpload,
+      );
+      videoUpload.onchange = () =>
+        void action(async () => {
+          if (productFormChanged(original, getValues(), base.brand_id, brand.value))
+            throw new UiError(msg("Save your form changes before uploading a video."));
+          const file = videoUpload.files?.[0];
+          if (!file) return;
+          videoUpload.disabled = true;
+          save.disabled = true;
+          try {
+            current = await uploadProductVideo(sdk, base, file, {
+              label: imageLabel.input.value.trim(),
+              description: imageDescription.input.value.trim(),
+            });
+            pick(current);
+            upsert(current);
+            draw();
+            notice(msg("Video uploaded and attached."));
+          } finally {
+            videoUpload.disabled = false;
+            save.disabled = false;
+          }
+        });
       const extra = details(msg("Product details"), {
         id: base.id,
         version: base.version,
@@ -433,6 +489,40 @@ export async function renderProduct(
   if (openSelected && selected) await show(selected);
 }
 
+/** The most videos a Product holds. */
+const MAX_PRODUCT_VIDEOS = 5;
+/** Uploads a video (with the label and description, if any) and attaches it to the Product's videos. */
+export async function uploadProductVideo(
+  sdk: Pick<NuvaClient, "products" | "assets">,
+  base: Product,
+  file: File,
+  text: { label: string; description: string },
+): Promise<Product> {
+  const videos = base.data.videos ?? [];
+  if (videos.length >= MAX_PRODUCT_VIDEOS)
+    throw new UiError(msg("This Product already has {p0} videos; remove one first.", { p0: MAX_PRODUCT_VIDEOS }));
+  const asset = await sdk.assets.upload(file, {
+    kind: "video",
+    ...(text.label ? { label: text.label } : {}),
+    ...(text.description ? { description: text.description } : {}),
+  });
+  if (videos.includes(asset.id)) return base;
+  try {
+    return await sdk.products.update({ base, data: { ...base.data, videos: [...videos, asset.id] }, brand_id: base.brand_id });
+  } catch (error) {
+    throw new UiError(
+      msg("The video was uploaded ({p0}) but could not be attached: {p1}", { p0: asset.id, p1: (error as Error).message }),
+    );
+  }
+}
+/** Removes a video from the Product (the Asset itself stays). */
+export async function removeProductVideo(sdk: Pick<NuvaClient, "products">, base: Product, id: string): Promise<Product> {
+  return sdk.products.update({
+    base,
+    data: { ...base.data, videos: (base.data.videos ?? []).filter((video) => video !== id) },
+    brand_id: base.brand_id,
+  });
+}
 /**
  * Uploads an image and attaches it to the Product. With a label or description, the image is uploaded with them
  * and attached the way `products.uploadImage` attaches it (that call cannot pass them).
