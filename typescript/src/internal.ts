@@ -7,7 +7,8 @@ export { MIN_CLIP_MS, MAX_CLIP_MS, MAX_REFERENCES, MAX_VIDEO_ASSETS, SPEECH_MODE
 export {
 	scriptGenerationSchema,
 	scriptAuthoringSchema,
-	scriptRevisionSchema,
+	hasAssetRole,
+	ASSET_ROLE_MESSAGE,
 	instructionTokenIssues,
 	storyboardClipSchema,
 	castEntrySchema,

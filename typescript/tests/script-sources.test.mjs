@@ -78,7 +78,7 @@ test('a v2 ScriptPackage Script reads as read-only legacy, and an update writes 
   } finally { sdk.close(); globalThis.fetch = original; }
 });
 
-test('asset is reserved for new Scripts: create refuses it, and a new version may keep it only if the Script has it', async () => {
+test('asset is reserved: create and update refuse it, and a stored Script with that role cannot get a new version', async () => {
   const original = globalThis.fetch, requests = [];
   const withAsset = structuredClone(content);
   const role = withAsset.roles[0].id;
@@ -102,7 +102,9 @@ test('asset is reserved for new Scripts: create refuses it, and a new version ma
     await assert.rejects(sdk.scripts.update({ kind: 'script', id }, { content: withAsset }), (e) => e.code === 'INVALID_INPUT');
     assert.deepEqual(requests, ['GET']);
     stored = withAsset;
-    const kept = await sdk.scripts.update({ kind: 'script', id }, { content: withAsset });
-    assert.equal(kept.content.roles[0].id, 'asset');
+    await assert.rejects(sdk.scripts.update({ kind: 'script', id }, { content }), (e) => e.code === 'INVALID_INPUT' && e.message.includes('generate a new Script'));
+    const read = await sdk.scripts.get({ kind: 'script', id });
+    assert.equal(read.content.roles[0].id, 'asset');
+    assert.ok(!requests.includes('POST'));
   } finally { sdk.close(); globalThis.fetch = original; }
 });

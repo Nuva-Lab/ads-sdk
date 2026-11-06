@@ -21,7 +21,7 @@
  */
 import { z } from 'zod';
 import { CATEGORIES, MAX_CLIP_MS, MAX_REFERENCES, MAX_VIDEO_ASSETS, MIN_CLIP_MS, SPEECH_MODES, factId, factSchema, imageSchema } from './service-schemas.js';
-import { backendIdSchema } from './backend-id.js';
+import { backendIdPattern, backendIdSchema } from './backend-id.js';
 
 const text = z.string().max(32000);
 const issue = (ctx: z.RefinementCtx, path: (string | number)[], message: string) => ctx.addIssue({ code: 'custom', path, message });
@@ -132,17 +132,17 @@ export const scriptSchema = scriptGenerationSchema
 		if (duplicates(value.images.map((image) => image.asset_id)).length) issue(ctx, ['images'], 'Duplicate asset IDs.');
 	});
 /**
- * A Script draft as a writer submits it, checked without the service-owned fields. `asset` is reserved for new
- * Scripts only: a stored Script with a role called `asset` still reads, and there `{{asset}}` names that role.
+ * A Script draft as a writer submits it, checked without the service-owned fields. `asset` is reserved: a stored
+ * Script with a role called `asset` (from before the name was reserved) still reads, and there `{{asset}}` names that
+ * role, but it cannot be revised; generate a new Script instead.
  */
-const authoringSchema = (kept: readonly string[]) =>
-	scriptGenerationSchema.superRefine((value, ctx) => {
-		scriptChecks(value, ctx);
-		if (!kept.includes(ASSET)) value.roles.forEach((role, index) => role.id === ASSET && issue(ctx, ['roles', index, 'id'], 'narrator, product and asset are reserved.'));
-	});
-export const scriptAuthoringSchema = authoringSchema([]);
-/** A revision's draft: as `scriptAuthoringSchema`, but it may keep a role its base Script has, even one called `asset`. */
-export const scriptRevisionSchema = (base: { roles: readonly { id: string }[] }) => authoringSchema(base.roles.map((role) => role.id));
+export const scriptAuthoringSchema = scriptGenerationSchema.superRefine((value, ctx) => {
+	scriptChecks(value, ctx);
+	value.roles.forEach((role, index) => role.id === ASSET && issue(ctx, ['roles', index, 'id'], 'narrator, product and asset are reserved.'));
+});
+/** Whether a stored Script has a role called `asset` (from before the name was reserved), so it cannot be revised. */
+export const hasAssetRole = (script: Pick<ScriptGeneration, 'roles'>) => script.roles.some((role) => role.id === ASSET);
+export const ASSET_ROLE_MESSAGE = 'This Script has a role called asset, a name now reserved for {{asset:<id>}} files, so it cannot be revised: generate a new Script instead.';
 export type ScriptContent = z.infer<typeof scriptSchema>;
 export type ScriptGeneration = z.infer<typeof scriptGenerationSchema>;
 export type ScriptLine = z.infer<typeof lineSchema>;
@@ -200,7 +200,10 @@ export interface StoryboardToken {
 	index: number;
 }
 const TOKEN = /\{\{([^{}]*)\}\}/g;
-const TOKEN_BODY = /^\s*([A-Za-z][A-Za-z0-9_]{0,39})(?:\s*:\s*([0-9a-fA-F-]{36}))?\s*$/;
+/** An Asset ID as the backend issues it (OrderedUUID). */
+const ID = backendIdPattern.slice(1, -1);
+/** A token's body: a name and, after a colon (ASCII or full-width, as Chinese input methods type it), an Asset ID. */
+const TOKEN_BODY = new RegExp(`^\\s*([A-Za-z][A-Za-z0-9_]{0,39})(?:\\s*[:：]\\s*(${ID}))?\\s*$`);
 /** The tokens in a shot or direction text; a malformed one has an empty `name`. */
 export function storyboardTokens(value: string): StoryboardToken[] {
 	return [...value.matchAll(TOKEN)].map((match) => {
@@ -240,20 +243,29 @@ export function namesAsset(token: Pick<StoryboardToken, 'name'>, script: Pick<Sc
 	return token.name === ASSET && !script.roles.some((role) => role.id === ASSET);
 }
 /** Session files (`sf_…`) are not Assets: a token names one only after it is promoted to an Asset. */
-const SESSION_FILE_TOKEN = /^\{\{\s*[A-Za-z][A-Za-z0-9_]{0,39}\s*:\s*sf_[0-9a-f]{32}\s*\}\}$/;
+const SESSION_FILE_TOKEN = /^\{\{\s*[A-Za-z][A-Za-z0-9_]{0,39}\s*[:：]\s*sf_[0-9a-f]{32}\s*\}\}$/;
 const SESSION_FILE_MESSAGE = (raw: string) => `${raw} names a Session file, which is not an Asset: promote it to an Asset first and use the Asset ID.`;
+/** A name, a colon and any value: what an attempted file token looks like before its ID is checked. */
+const LOOSE_TOKEN = /^\{\{\s*([A-Za-z][A-Za-z0-9_]{0,39})\s*[:：]\s*([\s\S]*?)\s*\}\}$/;
+/** A value of hex digits and hyphens long enough to be a mistyped or cut-off Asset ID. */
+const ID_ATTEMPT = /^[0-9a-fA-F-]{20,}$/;
 /**
- * The problems with the file tokens in an instruction (`scripts.generate`, `storyboards.generate`): one naming a
- * Session file, a malformed one (a token with a colon but no valid Asset ID), and `{{asset}}` without an ID. Other
- * text in braces, such as `{{host}}`, `{{product}}` or `{{L01}}`, is left alone. With `script`, `{{asset}}` names
- * that Script's role called `asset` if it has one.
+ * The problems with the file tokens in an instruction (`scripts.generate`, `storyboards.generate`). An instruction is
+ * free text, so braces are reported only when they clearly try to name a file: a Session file (`sf_…`), `{{asset}}`
+ * or `{{asset:…}}` without a valid Asset ID, or a value that looks like a mistyped Asset ID. Anything else, such as
+ * `{{host}}`, `{{L01}}` or `{{时间: 3秒}}`, is left as text. With `script`, `{{asset}}` names that Script's role called
+ * `asset` if it has one.
  */
 export function instructionTokenIssues(instruction: string, script?: Pick<ScriptGeneration, 'roles'>): string[] {
 	return storyboardTokens(instruction).flatMap((token) => {
 		if (token.name === '') {
-			if (!token.raw.includes(':')) return [];
-			if (/:\s*sf_/i.test(token.raw)) return [SESSION_FILE_MESSAGE(token.raw)];
-			return [`${token.raw} is not a file token: write {{asset:<asset id>}}, {{product:<asset id>}} or {{role:<asset id>}} with the full Asset ID.`];
+			const loose = LOOSE_TOKEN.exec(token.raw);
+			if (loose === null) return [];
+			const [, name, value] = loose;
+			if (/^sf_/i.test(value!)) return [SESSION_FILE_MESSAGE(token.raw)];
+			if (name === ASSET || ID_ATTEMPT.test(value!))
+				return [`${token.raw} is not a file token: write {{asset:<asset id>}}, {{product:<asset id>}} or {{role:<asset id>}} with the full Asset ID.`];
+			return [];
 		}
 		if (token.name === ASSET && token.asset === undefined && (script === undefined || namesAsset(token, script))) return ['{{asset}} needs an Asset ID: {{asset:<asset id>}}.'];
 		return [];
@@ -307,9 +319,11 @@ export function clipReferences(storyboard: Pick<StoryboardContent, 'cast' | 'cli
 
 /**
  * Checks a Storyboard against its Script, Product and Characters. Returns every problem as a message a writer or a
- * person editing it can act on, so they can be fixed together; an empty list means it is accepted.
+ * person editing it can act on, so they can be fixed together; an empty list means it is accepted. With `stored`, it
+ * checks a saved Storyboard before it is compiled: rules added for new writes, such as no named file in the
+ * direction, are not applied, so Storyboards saved before them still compile.
  */
-export function storyboardIssues(storyboard: StoryboardContent, context: StoryboardContext): string[] {
+export function storyboardIssues(storyboard: StoryboardContent, context: StoryboardContext, options: { stored?: boolean } = {}): string[] {
 	const problems: string[] = [];
 	const say = (where: string, message: string) => problems.push(`${where}: ${message}`);
 	const { script } = context;
@@ -363,11 +377,11 @@ export function storyboardIssues(storyboard: StoryboardContent, context: Storybo
 		if (namesAsset(token, script)) {
 			if (token.asset === undefined) return say(where, '{{asset}} needs an Asset ID: {{asset:<asset id>}}.');
 			if (context.assets?.[token.asset] === undefined) return say(where, `${token.raw}: there is no image, video or audio Asset with this ID that you may use.`);
-			if (!inShot) say(where, `${token.raw} belongs in the shots that use it: a clip renders only the files its shots name.`);
+			if (!inShot && !options.stored) say(where, `${token.raw} belongs in the shots that use it: a clip renders only the files its shots name.`);
 			return;
 		}
 		// A file reaches only the clips whose shots name it, so a named file in the direction reaches none.
-		if (!inShot && token.asset !== undefined) return say(where, `${token.raw} belongs in the shots that use it: a clip renders only the files its shots name.`);
+		if (!inShot && token.asset !== undefined) return options.stored ? undefined : say(where, `${token.raw} belongs in the shots that use it: a clip renders only the files its shots name.`);
 		if (token.name === PRODUCT) {
 			if (token.asset !== undefined && !product.has(token.asset)) say(where, `${token.raw}: that file is not one of the Product's files.`);
 			if (token.asset === undefined && defaultImage(context, context.product.media) === undefined) say(where, '{{product}}: the Product has no images.');
