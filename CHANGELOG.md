@@ -22,6 +22,7 @@ Each entry describes the change from the previous released version.
 | `scripts.create({content})` | `scripts.generate`, then `scripts.revise` or `scripts.update` |
 | `prompts.create({data})` | `videos.generate({input: {schema_version: 1, data}})`, or change the Storyboard and run `prompts.generate` again |
 | `artifacts.create` / `artifacts.update` | The kind's own client: `scripts`, `storyboards`, `prompts` |
+| `scripts.update` on a Script saved before Storyboards (`format: 2`), which wrote it forward as v3 | `422 REJECTED`: it is read-only; write a new Script with `scripts.generate` |
 
 The removed methods no longer exist. The old `scripts.generate({base})` and `storyboards.generate({base})` / `({content})` forms throw `INVALID_INPUT` naming the new method, before any request is sent.
 
