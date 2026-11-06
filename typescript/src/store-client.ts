@@ -6,7 +6,7 @@ import { frozen, stableJSON } from './protocol.js';
 import { backendSchema } from './backend-schema.js';
 import { decodeScriptPackage } from './script-content.js';
 import { PromptSchema, generateScriptSchema, generateStoryboardSchema, generatePromptSchema } from './schemas.js';
-import { decodeScript, decodeStoryboard, encodeScript, scriptVersion, type ScriptContent } from './script-v3.js';
+import { ASSET, decodeScript, decodeStoryboard, encodeScript, scriptVersion, type ScriptContent } from './script-v3.js';
 import type { BackendSchemas as B } from './backend-target.js';
 import type { NuvaClientOptions, NuvaErrorInfo, ResourceRef, ResourceLink } from './types.js';
 import type {
@@ -303,6 +303,11 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 			content: checked({ parse: decodeStoryboard }, data.text),
 		} as Storyboard;
 	};
+	/** `asset` is reserved for new Scripts; a new version may keep it when the Script already has that role. */
+	const reservedRoles = (content: ScriptContent, kept: readonly { id: string }[]) => {
+		if (content?.roles?.some((role) => role.id === ASSET) && !kept.some((role) => role.id === ASSET))
+			throw new NuvaError({ code: 'INVALID_INPUT', message: 'roles: narrator, product and asset are reserved.', retryable: false, acceptance: 'not_accepted' });
+	};
 	const writeScript = (input: { content: ScriptContent; relationships?: never; batch_id?: string | null }) => {
 		assertClientRelationships(input);
 		const { content, batch_id, ...unexpected } = input;
@@ -390,6 +395,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 			get: async (ref) => typedScript(await artifacts.get(ref)),
 			create: async (input, o) => {
 				const { relationships, ...scriptInput } = input;
+				reservedRoles(scriptInput.content, []);
 				const body = checked(backendSchema('ScriptCreate'), {
 					schema_version: 1,
 					...writeScript(scriptInput),
@@ -399,7 +405,8 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 					{ parse: value => typedScript(artifact(value)) }, o?.requestId, o?.idempotencyKey, true);
 			},
 			update: async (ref, input, o) => {
-				await api.scripts.get(ref);
+				const current = await api.scripts.get(ref);
+				reservedRoles(input.content, current.format === 3 ? current.content.roles : []);
 				return typedScript(await artifacts.update(ref, writeScript(input), o));
 			},
 			generate: (input, o) =>

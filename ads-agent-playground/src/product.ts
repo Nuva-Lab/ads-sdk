@@ -449,9 +449,17 @@ export async function renderProduct(
       videoUpload.accept = "video/mp4";
       setAttribute(videoUpload, "aria-label", msg("Upload Product video"));
       videoUpload.hidden = true;
+      // What the next video shows, e.g. an unboxing; writers read it.
+      const videoLabel = field(msg("Video label (optional)"));
+      videoLabel.input.name = "video-label";
+      const videoDescription = field(msg("Video description (optional)"));
+      videoDescription.input.name = "video-description";
+      const videoText = node("div", "", "row image-text-fields");
+      videoText.append(videoLabel.wrapper, videoDescription.wrapper);
       editor.append(
         node("h4", msg("Product videos")),
         videos,
+        videoText,
         button(msg("Add video"), () => videoUpload.click(), "", "plus"),
         videoUpload,
       );
@@ -465,8 +473,8 @@ export async function renderProduct(
           save.disabled = true;
           try {
             current = await uploadProductVideo(sdk, base, file, {
-              label: imageLabel.input.value.trim(),
-              description: imageDescription.input.value.trim(),
+              label: videoLabel.input.value.trim(),
+              description: videoDescription.input.value.trim(),
             });
             pick(current);
             upsert(current);

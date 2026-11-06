@@ -77,3 +77,32 @@ test('a v2 ScriptPackage Script reads as read-only legacy, and an update writes 
     assert.deepEqual(requests, [['GET', `https://backend.invalid/v1/artifacts/script/${id}`], ['GET', `https://backend.invalid/v1/artifacts/script/${id}`], ['POST', `https://backend.invalid/v1/artifacts/script/${id}/versions`]]);
   } finally { sdk.close(); globalThis.fetch = original; }
 });
+
+test('asset is reserved for new Scripts: create refuses it, and a new version may keep it only if the Script has it', async () => {
+  const original = globalThis.fetch, requests = [];
+  const withAsset = structuredClone(content);
+  const role = withAsset.roles[0].id;
+  withAsset.roles[0].id = 'asset';
+  for (const panel of withAsset.panels) {
+    panel.on_screen = panel.on_screen.map((name) => (name === role ? 'asset' : name));
+    for (const line of panel.lines) if (line.speaker === role) line.speaker = 'asset';
+  }
+  let stored = content;
+  const saved = (data, extra = {}) => ({ kind: 'script', id, lineage_id: id, base_id: null, schema_version: 1, data, batch_id: null, relationships,
+    assets: {}, entities: {}, skills: {}, created_at: '2026-10-26T12:00:00Z', ...extra });
+  globalThis.fetch = async (url, init) => {
+    requests.push(init.method ?? 'GET');
+    if (init.method === 'POST') return Response.json(saved(JSON.parse(init.body).data, { id: '01a175e0-3000-cccc-1111-abcdefabcdef', base_id: id }), { status: 201 });
+    return Response.json(saved({ text: JSON.stringify({ format: 'nuva.script', version: 3, content: stored }) }));
+  };
+  const sdk = createNuva({ getAccessToken: async () => 'fixture', storeBaseUrl: 'https://backend.invalid' });
+  try {
+    await assert.rejects(sdk.scripts.create({ content: withAsset }), (e) => e.code === 'INVALID_INPUT' && e.acceptance === 'not_accepted' && e.message.includes('asset are reserved'));
+    assert.deepEqual(requests, []);
+    await assert.rejects(sdk.scripts.update({ kind: 'script', id }, { content: withAsset }), (e) => e.code === 'INVALID_INPUT');
+    assert.deepEqual(requests, ['GET']);
+    stored = withAsset;
+    const kept = await sdk.scripts.update({ kind: 'script', id }, { content: withAsset });
+    assert.equal(kept.content.roles[0].id, 'asset');
+  } finally { sdk.close(); globalThis.fetch = original; }
+});

@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {
 	scriptSchema,
 	scriptAuthoringSchema,
+	scriptRevisionSchema,
+	instructionTokenIssues,
 	storyboardSchema,
 	storyboardIssues,
 	storyboardTokens,
@@ -196,6 +198,31 @@ test('asset tokens are checked: an ID is required, Session files must be promote
 	assert.ok(wrong.some((message) => message.includes("that file is not one of the Product's")), wrong.join('\n'));
 });
 
+test('a named Product or Character file in the direction is rejected; plain {{product}} and {{role}} there are not', () => {
+	const value = storyboard();
+	value.direction = `{{presenter}}和{{product}}始终在暖光下。{{product:${productImages[1]}}}，{{presenter:${presenter.media[1]}}}。`;
+	const issues = storyboardIssues(value, withAssets()).filter((message) => message.startsWith('direction'));
+	assert.deepEqual(issues, [
+		`direction: {{product:${productImages[1]}}} belongs in the shots that use it: a clip renders only the files its shots name.`,
+		`direction: {{presenter:${presenter.media[1]}}} belongs in the shots that use it: a clip renders only the files its shots name.`,
+	]);
+});
+
+test('instruction file tokens: Session files, malformed tokens and {{asset}} without an ID are reported; other braces are not', () => {
+	const sessionFile = 'sf_' + 'A'.repeat(32);
+	const issues = instructionTokenIssues(
+		`用{{asset:${upload.image}}}、{{presenter}}、{{product}}、{{L01}}、{{some note}}。{{asset}}，{{asset:${sessionFile}}}，{{asset:${upload.image.slice(0, 30)}}}，{{product:}}。`,
+	);
+	assert.deepEqual(issues, [
+		'{{asset}} needs an Asset ID: {{asset:<asset id>}}.',
+		`{{asset:${sessionFile}}} names a Session file, which is not an Asset: promote it to an Asset first and use the Asset ID.`,
+		`{{asset:${upload.image.slice(0, 30)}}} is not a file token: write {{asset:<asset id>}}, {{product:<asset id>}} or {{role:<asset id>}} with the full Asset ID.`,
+		'{{product:}} is not a file token: write {{asset:<asset id>}}, {{product:<asset id>}} or {{role:<asset id>}} with the full Asset ID.',
+	]);
+	// In a stored Script with a role called asset, {{asset}} names that role.
+	assert.deepEqual(instructionTokenIssues('让{{asset}}开场。', assetRoleScript()), []);
+});
+
 /** A Script whose presenter role is called `asset`, as one stored before the name was reserved could be. */
 function assetRoleScript() {
 	const value = script();
@@ -210,6 +237,12 @@ function assetRoleScript() {
 test('asset is reserved for new Scripts: a draft may not call a role it', () => {
 	const { facts: _facts, images: _images, ...draft } = assetRoleScript();
 	assert.ok(scriptAuthoringSchema.safeParse(draft).error.issues.some((issue) => issue.message === 'narrator, product and asset are reserved.'));
+});
+
+test('a revision of a stored Script may keep its role called asset, but may not add one', () => {
+	const { facts: _facts, images: _images, ...draft } = assetRoleScript();
+	assert.equal(scriptRevisionSchema(assetRoleScript()).safeParse(draft).success, true);
+	assert.equal(scriptRevisionSchema(script()).safeParse(draft).success, false);
 });
 
 test('a stored Script with a role called asset still reads, and its Storyboard keeps {{asset}} as that role', () => {

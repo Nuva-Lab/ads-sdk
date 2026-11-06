@@ -528,6 +528,8 @@ export const zh: Record<string, string> = {
   "A Character has at most 10 images.": "一个角色最多 10 张图片。",
   "Image label (optional)": "图片标签（可选）",
   "Image description (optional)": "图片描述（可选）",
+  "Video label (optional)": "视频标签（可选）",
+  "Video description (optional)": "视频描述（可选）",
   "This Product already has 20 images. The uploaded image {p0} is kept but not attached.": "此产品已有 20 张图片。已上传的图片 {p0} 会保留，但未添加到产品。",
   "The image was uploaded ({p0}) but could not be attached: {p1}": "图片已上传（{p0}），但未能添加到产品：{p1}",
 };
