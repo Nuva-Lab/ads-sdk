@@ -26,6 +26,7 @@ const writes = new Set([
 	'prompts.generate',
 	'products.create',
 	'products.update',
+	'products.delete',
 	'scripts.generate',
 	'scripts.update',
 	'agent.send',
@@ -359,6 +360,11 @@ export class Transport {
 			});
 			const raw = await response.text();
 			this.wire({ transport: 'http', direction: 'receive', event: 'frame', data: raw, status: response.status });
+			// A delete answers No Content: there is no body to parse.
+			if (route.method === 'DELETE' && response.status === 204) {
+				this.assertOpen();
+				return undefined as T;
+			}
 			let result: unknown;
 			try {
 				result = JSON.parse(raw);

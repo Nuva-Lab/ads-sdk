@@ -57,6 +57,12 @@ export interface ProductImageUploadResult {
 }
 export interface ProductsClient extends ProfilesClient<Product, B['ProductCreate'], B['ProductUpdate']> {
 	uploadImage(input: { base: Product; file: File }, options?: CommandOptions): Promise<ProductImageUploadResult>;
+	/**
+	 * Deletes the Product for everyone in the organization: it is no longer listed, `get` of any version is `NOT_FOUND`,
+	 * and it can't be edited or used for new Scripts. What was made from it stays readable but can't be revised.
+	 * Deleting it again succeeds.
+	 */
+	delete(id: string, options?: CommandOptions): Promise<void>;
 }
 export interface AssetsClient {
 	get(id: string): Promise<Asset>;

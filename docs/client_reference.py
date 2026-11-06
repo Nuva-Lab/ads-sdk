@@ -340,7 +340,7 @@ def guide_pages(locale='zh'):
         section('resources', 'Resource and generation methods', '资源与生成方法',
             table([t('Module', '模块'), t('Methods', '方法')], [
                 ['<code>products / brands / characters</code>', '<code>create / get / list / update</code>'],
-                ['<code>products</code>', '<code>uploadImage({base, file})</code>'],
+                ['<code>products</code>', t('<code>uploadImage({base, file})</code>; <code>delete(id)</code> for the whole organization: what was made from it stays but can\'t be revised', '<code>uploadImage({base, file})</code>；<code>delete(id)</code> 对整个组织生效：已做出的内容保留，但不能再修订')],
                 ['<code>assets</code>', '<code>upload / uploadIntent / register / get</code>'],
                 ['<code>artifacts</code>', t('<code>get / forSchema</code> (read only)', '<code>get / forSchema</code>（只读）')],
                 ['<code>scripts</code>', '<code>get / generate / revise / update</code>'],

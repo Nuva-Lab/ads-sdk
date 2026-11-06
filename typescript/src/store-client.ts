@@ -300,7 +300,16 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 	const api: StoreClients = {
 		artifacts,
 		products: {
-			...(profiles('Product') as Omit<StoreClients['products'], 'uploadImage'>),
+			...(profiles('Product') as Omit<StoreClients['products'], 'uploadImage' | 'delete'>),
+			delete: async (id, options) => {
+				const empty = {
+					parse: (v: unknown) => {
+						if (v !== undefined) throw new TypeError('A delete returns no content.');
+						return undefined;
+					},
+				};
+				await request('products.delete', { id }, empty, options?.requestId);
+			},
 			uploadImage: async ({ base, file }, options) => {
 				const capturedBase = structuredClone(base);
 				const original = backendSchema('Product').parse(capturedBase);

@@ -56,6 +56,7 @@ export function dataRequest(
 			const { id: rid, ...body } = p;
 			return { method: 'PUT', path: base + '/' + resourceId(rid), body };
 		}
+		if (action === 'delete' && collection === 'products') return { method: 'DELETE', path: base + '/' + resourceId(p.id) };
 	}
 	throw new NuvaError({
 		code: 'UNSUPPORTED_OPERATION',
