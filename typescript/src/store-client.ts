@@ -11,12 +11,13 @@ import {
 	generateStoryboardSchema,
 	generatePromptSchema,
 	newScriptSchema,
+	editScriptSchema,
 	reviseScriptSchema,
 	newStoryboardSchema,
 	reviseStoryboardSchema,
 	updateStoryboardSchema,
 } from './schemas.js';
-import { ASSET, ASSET_ROLE_MESSAGE, decodeScript, decodeStoryboard, encodeScript, hasAssetRole, scriptVersion, type ScriptContent } from './script-v3.js';
+import { ASSET, ASSET_ROLE_MESSAGE, decodeScript, decodeStoryboard, hasAssetRole, scriptVersion, type ScriptContent } from './script-v3.js';
 import type { BackendSchemas as B } from './backend-target.js';
 import type { NuvaClientOptions, NuvaErrorInfo, ResourceRef, ResourceLink } from './types.js';
 import type {
@@ -273,13 +274,6 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 		if (content?.roles?.some((role) => role.id === ASSET))
 			throw new NuvaError({ code: 'INVALID_INPUT', message: 'roles: narrator, product and asset are reserved.', retryable: false, acceptance: 'not_accepted' });
 	};
-	const writeScript = (input: { content: ScriptContent; relationships?: never; batch_id?: string | null }) => {
-		assertClientRelationships(input);
-		const { content, batch_id, ...unexpected } = input;
-		if (Object.keys(unexpected).length)
-			throw new NuvaError({ code: 'INVALID_INPUT', message: 'Script inputs accept content and an optional batch_id.', retryable: false });
-		return { data: { text: checked({ parse: encodeScript }, content, true) }, ...(batch_id === undefined ? {} : { batch_id }) };
-	};
 	const prompts = artifacts.forSchema(PromptSchema);
 	/** Every Storyboard write goes through the Agent's Storyboard endpoint and its checks. */
 	const storyboardRequest = (input: unknown, o?: { requestId?: string; idempotencyKey?: string }) =>
@@ -385,9 +379,19 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 			get: async (ref) => typedScript(await artifacts.get(ref)),
 			update: async (ref, input, o) => {
 				assertClientRelationships(input);
+				const { content, ...unexpected } = input;
+				if (Object.keys(unexpected).length)
+					throw new NuvaError({ code: 'INVALID_INPUT', message: 'scripts.update takes the edited content; the new version keeps its base\'s Batch.', retryable: false, acceptance: 'not_accepted' });
 				const current = await api.scripts.get(ref);
-				reservedRoles(input.content, current);
-				return typedScript(await artifactVersion(ref, writeScript(input), o));
+				reservedRoles(content, current);
+				// The edit goes through the Agent's Script endpoint, with the same checks and pins as a written Script.
+				return request(
+					'scripts.generate',
+					checked(editScriptSchema, { base: current.id, content }, true),
+					{ parse: (v) => typedScript(artifact(v)) },
+					o?.requestId,
+					o?.idempotencyKey,
+				);
 			},
 			generate: (input, o) => {
 				if (input !== null && typeof input === 'object' && 'base' in input)

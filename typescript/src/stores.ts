@@ -93,12 +93,8 @@ export interface ScriptsClient {
 	generate(input: ScriptInput, options?: StoreCommandOptions): Promise<Script>;
 	/** The writer changes the Script as instructed and saves a new Script. Without `acceptable_duration_ms` it keeps the Script's length. */
 	revise(ref: ResourceRef<'script'>, input: ReviseScriptInput, options?: StoreCommandOptions): Promise<Script>;
-	/** Saves your edited content as a new version of the Script. */
-	update(
-		ref: ResourceRef<'script'>,
-		input: { content: ScriptContent; batch_id?: string | null; relationships?: never },
-		options?: StoreCommandOptions,
-	): Promise<Script>;
+	/** Checks your edited content as a written Script is checked and saves it as a new version, in the base's Batch. */
+	update(ref: ResourceRef<'script'>, input: { content: ScriptContent; relationships?: never }, options?: StoreCommandOptions): Promise<Script>;
 }
 export interface StoryboardsClient {
 	get(ref: ResourceRef<'storyboard'>): Promise<Storyboard>;

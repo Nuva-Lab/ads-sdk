@@ -1,6 +1,6 @@
 import { backendIdSchema } from './backend-id.js';
 import { z } from 'zod';
-import { storyboardSchema } from './script-v3.js';
+import { scriptSchema, storyboardSchema } from './script-v3.js';
 /** Shared Agent-owned creation inputs. They do not change the pinned backend DTOs. The writers choose their Skills from their agent setups; a request names none. */
 export const skillSelectionSchema = z.object({ id: backendIdSchema, version: z.number().int().positive().optional() }).strict();
 export const generateScriptSchema = z
@@ -60,6 +60,11 @@ export const reviseStoryboardSchema = z
 	.strict();
 /** `storyboards.update(ref, …)`: an edited Storyboard, checked and saved as a new version. */
 export const updateStoryboardSchema = z.object({ content: storyboardSchema }).strict();
+/**
+ * The Agent's Script endpoint also takes an edit, `{ base, content }`: the user's edited Script, checked as a Session
+ * save of a revision is (schema, the pinned Product's facts and images, reserved roles) and saved as a new version.
+ */
+export const editScriptSchema = z.object({ base: backendIdSchema, content: scriptSchema }).strict();
 /** `scripts.generate`: a new Script for a Product. */
 export const newScriptSchema = generateScriptSchema.omit({ base: true });
 /** `scripts.revise(ref, …)`: the writer changes a Script as instructed. Without a range it keeps the Script's length. */
@@ -87,6 +92,7 @@ export const generatePromptSchema = z
 export type SkillSelection = z.infer<typeof skillSelectionSchema>;
 export type GenerateScriptInput = z.infer<typeof generateScriptSchema>;
 export type GenerateStoryboardInput = z.infer<typeof generateStoryboardSchema>;
+export type EditScriptInput = z.infer<typeof editScriptSchema>;
 export type NewScriptInput = z.infer<typeof newScriptSchema>;
 export type ReviseScriptInput = z.infer<typeof reviseScriptSchema>;
 export type NewStoryboardInput = z.infer<typeof newStoryboardSchema>;

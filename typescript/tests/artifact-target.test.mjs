@@ -61,6 +61,8 @@ test('customers write Artifacts only through their own clients: no generic creat
   const data = kind === 'prompt' ? prompt : { text: JSON.stringify({ format: 'nuva.script', version: 3, content }) };
   if ((options.method ?? 'GET') === 'GET') return Response.json(record(kind, data));
   const body = JSON.parse(options.body);
+  // A Script edit goes to the Agent's Script endpoint as { base, content }.
+  if (String(url).endsWith('/v1/generate/script')) return Response.json({ ...record('script', { text: JSON.stringify({ format: 'nuva.script', version: 3, content: body.content }) }), id: other, base_id: body.base }, { status: 201 });
   return Response.json({ ...record(kind, body.data), id: other, base_id: id }, { status: 201 });
  };
  const client = createNuva({ baseUrl: 'http://127.0.0.1:9010/api', storeBaseUrl: 'http://127.0.0.1:9011', getAccessToken: async () => 'local-test-only' });

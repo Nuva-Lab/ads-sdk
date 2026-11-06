@@ -393,7 +393,6 @@ export async function editLine(
   }));
   return client.scripts.update(script.ref, {
     content: { ...script.content, panels },
-    batch_id: script.batch_id,
   });
 }
 // #endregion save-script
