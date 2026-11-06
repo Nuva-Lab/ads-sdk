@@ -207,8 +207,13 @@ test('a named Product or Character file in the direction is rejected; plain {{pr
 		`direction: {{presenter:${presenter.media[1]}}} belongs in the shots that use it: a clip renders only the files its shots name.`,
 		`direction: {{asset:${upload.music}}} belongs in the shots that use it: a clip renders only the files its shots name.`,
 	]);
-	// A stored Storyboard is compiled as saved: one written before this rule still compiles.
+	// A stored Storyboard is compiled as saved: one written before this rule still compiles. A file in its direction
+	// reaches no clip, so no file token there is checked, whoever's file it names; its shots keep every check.
+	const stranger = '01a1af02-0000-7000-8000-000000000001';
+	value.direction += `{{product:${stranger}}}{{ghost:${stranger}}}{{asset:${stranger}}}`;
 	assert.deepEqual(storyboardIssues(value, withAssets(), { stored: true }).filter((message) => message.startsWith('direction')), []);
+	value.clips[0].shots[0] += `{{product:${stranger}}}`;
+	assert.ok(storyboardIssues(value, withAssets(), { stored: true }).some((message) => message.startsWith('C01') && message.includes("not one of the Product's files")));
 });
 
 test('a full-width colon in a token reads as a colon, and a token needs a well-formed Asset ID', () => {
@@ -236,6 +241,13 @@ test('instruction file tokens: Session files, broken Asset IDs and {{asset}} wit
 		broken(`{{product:${'-'.repeat(36)}}}`),
 		broken('{{asset: 背景音乐}}'),
 	]);
+	// An Asset ID with anything else inside the braces is reported, not dropped; in a shot it is not a token.
+	const extra = [`{{product:${upload.image}.}}`, `{{product:${upload.image}，}}`, `{{product: ${upload.image} 主图}}`, `{{product:${upload.image},${upload.video}}}`, `{{product:(${upload.image})}}`, `{{asset:${upload.image} 背景}}`, `{{presenter:${upload.image}!}}`];
+	assert.deepEqual(instructionTokenIssues(extra.join('、')), extra.map(broken));
+	const shot = storyboard();
+	shot.clips[0].shots = [`{{presenter}}说{{L01}}，${extra.join('')}`];
+	const notTokens = storyboardIssues(shot, withAssets()).filter((message) => message.startsWith('C01 shot 1') && message.includes('is not a token'));
+	assert.equal(notTokens.length, extra.length, notTokens.join('\n'));
 	// Instructions are free text: braces that don't try to name a file stay text.
 	assert.deepEqual(
 		instructionTokenIssues('{{时间: 3秒}}{{host: 热情一点}}{{L01: 开场}}{{product: 爆款}}{{https://example.com/a}}{{"b":1}}{{注意：别太快}}{{9.9}}{{L01: 2026-11-05}}'),
