@@ -19,15 +19,16 @@ export const generateScriptSchema = z
  * The Storyboard request the Agent's writer endpoint takes, in one of three forms:
  * - new: `{ script, cast?, instruction? }`; the writer casts, stages and shoots the Script (`storyboards.generate`);
  * - revision: `{ base, instruction, cast? }`; the writer changes the base Storyboard as instructed (`storyboards.revise`);
- * - edit: `{ base, content }`; saves an edited Storyboard as a new version of its base (`storyboards.update`).
- * Every form saves through the same checks. There is no form that saves a Storyboard from scratch.
+ * - edit: `{ content, base }`; saves an edited Storyboard as a new version of its base (`storyboards.update`).
+ * `{ content }` without a base is how the Session Agent saves a Storyboard it wrote itself; the endpoint refuses it
+ * from a direct request, so a customer's Storyboard always comes from the writer. Every form runs the same checks.
  * `generatePromptSchema` turns a Storyboard's clips into video Prompts.
  */
 export const generateStoryboardSchema = z
 	.object({
 		script: backendIdSchema.optional(),
 		base: backendIdSchema.optional().describe('The Storyboard this one revises or edits.'),
-		content: storyboardSchema.optional().describe('The edited Storyboard, saved as a new version of base.'),
+		content: storyboardSchema.optional().describe('A complete Storyboard to save as written: an edit of base.'),
 		cast: z
 			.record(z.string().max(40), backendIdSchema)
 			.optional()
@@ -39,7 +40,6 @@ export const generateStoryboardSchema = z
 	.superRefine((value, ctx) => {
 		const fail = (message: string) => ctx.addIssue({ code: 'custom', message });
 		if (value.content !== undefined) {
-			if (value.base === undefined) fail('An edited Storyboard needs the base it edits: a Storyboard is not saved from scratch.');
 			if (value.script !== undefined || value.cast !== undefined || value.instruction !== undefined)
 				fail('content is a complete Storyboard: leave out script, cast and instruction.');
 		} else if ((value.script === undefined) === (value.base === undefined)) fail('Give a script for a new Storyboard, or a base to revise.');
