@@ -205,8 +205,8 @@ def guide_pages(locale='zh'):
                 '更新产物会返回新 ID，原记录保持不变。后续操作应使用返回的新引用，<code>base_id</code> 指向前一版本。类型化客户端会校验 <code>script.content</code> 并处理存储编码。')
             + p('Use <code>artifacts.get({kind, id})</code> when you need a generic reader. Use <code>scripts</code>, <code>storyboards</code> and <code>prompts</code> for typed reads. <code>prompts.get</code> reads a clip\'s video Prompt, for example <code>job.prompt</code>.',
                 '需要通用读取入口时使用 <code>artifacts.get({kind, id})</code>；类型化读取使用 <code>scripts</code>、<code>storyboards</code> 和 <code>prompts</code>。<code>prompts.get</code> 读取片段的视频提示词，例如 <code>job.prompt</code>。')
-            + p('Returned <code>relationships</code> describe source provenance. The Agent maintains them; customer SDK create/update calls do not accept explicit relationship writes. Pass editable content rather than copying the entire returned record into a write.',
-                '返回的 <code>relationships</code> 描述来源关系，由 Agent 维护；客户 SDK 的创建和更新操作不接受直接写入这些关系。写入时传递可编辑内容，不要复制整条返回记录。')),
+            + p('Returned <code>relationships</code> describe source provenance. The Agent maintains them; customer SDK updates do not accept explicit relationship writes. Pass editable content rather than copying the entire returned record into a write. Scripts, Storyboards and Prompts are created by the writers, not by your own writes.',
+                '返回的 <code>relationships</code> 描述来源关系，由 Agent 维护；客户 SDK 的更新操作不接受直接写入这些关系。写入时传递可编辑内容，不要复制整条返回记录。脚本、分镜和提示词由编写服务创建，不能由你直接创建。')),
         section('ads-batches', 'Read final Ads and Batches', '读取成片广告与批次',
             c("const batch = await client.batches.get(batchId);\nconst ads = await client.ads.list({ batch_id: batchId });\nconst ad = await client.ads.get(adId);\nconst video = ad.asset;")
             + p('To have Ads Agent assemble completed video Assets, attach them in the desired order and state the editing requirements in the same Session. This sends a conversation request; progress and the saved Ad arrive through the Agent subscription.',
@@ -226,8 +226,8 @@ def guide_pages(locale='zh'):
                 '传入产品 ID，不要重复传入事实和图片地址。服务会读取已授权的产品版本。结果包含已保存的脚本 ID 和经过校验的 <code>content</code>；拍摄前通过 <code>content.roles</code> 和 <code>content.panels</code> 检查创意和台词。')),
         section('revision', 'Revise the Script', '修改脚本',
             ex('revise-script')
-            + p('Set <code>base</code> to the Script being revised. The writer receives the original content and returns a new Script. Keep both references when your UI supports comparing revisions.',
-                '将待修改脚本的 ID 设为 <code>base</code>。编写服务会读取原内容并返回新脚本。界面需要对比版本时，应保留两个引用。')),
+            + p('<code>scripts.revise(ref, {instruction, acceptable_duration_ms?})</code> has the writer change a Script as instructed. It reads the original and returns a new Script for the same Product; without <code>acceptable_duration_ms</code> it keeps the original\'s length. To change the text yourself, save it with <code>scripts.update(ref, {content})</code>. Keep both references when your UI supports comparing revisions.',
+                '<code>scripts.revise(ref, {instruction, acceptable_duration_ms?})</code> 让编写服务按 instruction 修改脚本：它读取原脚本，为同一产品返回新脚本；不传 <code>acceptable_duration_ms</code> 时保持原脚本时长。需要自己修改文字时，用 <code>scripts.update(ref, {content})</code> 保存。界面需要对比版本时，应保留两个引用。')),
         section('storyboard', 'Shoot the Script as a Storyboard', '将脚本拍成分镜',
             p('A Storyboard says how a Script is shot: who plays each role (<code>cast</code>), one <code>direction</code> for the whole video (look, setting, sound, music, on-screen text), and the <code>clips</code>. Each clip is 5 to 15 seconds and is a list of <code>shots</code> written as text. Each clip becomes one video.',
                 '分镜说明脚本如何拍摄：每个角色由谁出演（<code>cast</code>），整条视频统一的 <code>direction</code>（画面风格、场景、声音、音乐、屏幕文字），以及各个片段 <code>clips</code>。每个片段 5 到 15 秒，由若干以文字描述的镜头 <code>shots</code> 组成。每个片段生成一条视频。')
@@ -254,14 +254,14 @@ def guide_pages(locale='zh'):
                 '保存的分镜需通过以下检查：每个脚本角色（以及有旁白台词时的 narrator）各有一个选角项；片段按顺序编号为 <code>C01</code>、<code>C02</code>…；每句台词按脚本顺序恰好出现一次；<code>on_camera</code> 或 <code>dialogue</code> 台词所在镜头必须提到其说话人；每个片段至少使用一张图片，最多 9 张图片、3 段声音录音、共 12 个参考素材；片段总时长与脚本 <code>duration_ms</code> 相差不超过 15%（至少允许 2 秒）。台词标记只能写在镜头中，不能写在 <code>direction</code> 中。')),
         section('storyboard-edit', 'Revise or edit a Storyboard', '修改与编辑分镜',
             ex('read-storyboard')
-            + p('To have the writer change a Storyboard, pass it as <code>base</code> with an <code>instruction</code>. You can also pass <code>cast</code> to recast roles.',
-                '需要编写服务修改分镜时，将其作为 <code>base</code> 传入，并提供 <code>instruction</code>。也可以传入 <code>cast</code> 重新选角。')
+            + p('To have the writer change a Storyboard, call <code>storyboards.revise(ref, {instruction, cast?})</code>. Pass <code>cast</code> to recast roles.',
+                '需要编写服务修改分镜时，调用 <code>storyboards.revise(ref, {instruction, cast?})</code>。需要重新选角时传入 <code>cast</code>。')
             + ex('revise-storyboard')
-            + p('To save your own edits, pass the complete edited Storyboard as <code>content</code>, with the original as <code>base</code>. Leave out <code>script</code>, <code>cast</code> and <code>instruction</code>. <code>content.script</code> must be the base\'s Script.',
-                '保存自己的编辑时，将编辑后的完整分镜作为 <code>content</code> 传入，并将原分镜作为 <code>base</code>。不要传 <code>script</code>、<code>cast</code> 和 <code>instruction</code>。<code>content.script</code> 必须是 base 的脚本。')
+            + p('To save your own edits, call <code>storyboards.update(ref, {content})</code> with the complete edited Storyboard. <code>content.script</code> must be the original\'s Script. A Storyboard is always written by the writer or edited from one; there is no way to save one from scratch.',
+                '保存自己的编辑时，调用 <code>storyboards.update(ref, {content})</code> 并传入编辑后的完整分镜。<code>content.script</code> 必须是原分镜的脚本。分镜总是由编写服务写出，或在已有分镜上编辑，不能从零保存。')
             + ex('edit-storyboard')
-            + p('Every save creates a new Storyboard version and leaves the base unchanged. Content that fails the checks is rejected with <code>422 REJECTED</code>, and the message lists every problem so they can be fixed together.',
-                '每次保存都会创建新的分镜版本，base 保持不变。未通过检查的内容返回 <code>422 REJECTED</code>，错误信息列出全部问题，便于一次修正。')),
+            + p('Every save creates a new Storyboard version and leaves the original unchanged. An edit gets the same checks as the writer\'s Storyboards; content that fails them is rejected with <code>422 REJECTED</code>, and the message lists every problem so they can be fixed together.',
+                '每次保存都会创建新的分镜版本，原分镜保持不变。编辑后的内容与编写服务写出的分镜经过相同检查；未通过检查的内容返回 <code>422 REJECTED</code>，错误信息列出全部问题，便于一次修正。')),
         section('prompts', 'Compile clips into Prompts', '将片段编译为提示词',
             ex('generate-prompts', "import type { NuvaClient, Storyboard } from '@nuva/sdk';")
             + response('prompts')
@@ -271,6 +271,16 @@ def guide_pages(locale='zh'):
                 '已用相同输入（镜头、选角、台词、参考素材和画面比例）编译过的片段直接返回已保存的提示词，不会再次编译或计费。修改或编辑后的分镜中，未变化的片段沿用 base 提示词的文本。')
             + p('If some Prompts are saved and a later one fails, the call throws <code>PartialCreationError</code>; <code>saved.prompts</code> holds the Prompts saved so far. Retry the same input with the same <code>idempotencyKey</code> to finish the remaining clips.',
                 '如果部分提示词已保存、之后某条失败，调用会抛出 <code>PartialCreationError</code>；<code>saved.prompts</code> 是已保存的提示词。使用相同输入和相同 <code>idempotencyKey</code> 重试即可完成剩余片段。')),
+        section('change-render', 'Change what gets rendered', '修改生成的内容',
+            p('A Prompt is compiled from its Storyboard clip, the Product and the cast Characters. To change an image, a person, a shot or a line, change it there and compile again; never edit a compiled Prompt\'s text by hand. The text names each attached file by its position (<code>&lt;Picture 1&gt;</code> is the first image), so a hand edit that drops or reorders one makes the video ignore that file.',
+                '提示词由分镜片段、产品和已选角人物编译而成。需要修改图片、人物、镜头或台词时，请在这些来源中修改后重新编译；不要手动编辑已编译提示词的文本。提示词按位置指代附带的文件（<code>&lt;Picture 1&gt;</code> 是第一张图片），手动编辑时漏掉或打乱这些标记，视频就会忽略对应文件。')
+            + table([t('To change', '要修改'), t('Do this, then run <code>prompts.generate</code> again', '执行以下操作，然后重新调用 <code>prompts.generate</code>')], [
+                [t('A Product image', '产品图片'), t('Update the Product\'s images, then revise the Storyboard so it uses the new Product version.', '更新产品图片，然后修改分镜，使其使用新的产品版本。')],
+                [t('Shots, casting or which files a clip uses', '镜头、选角或片段使用的文件'), t('<code>storyboards.revise</code> (the writer changes it) or <code>storyboards.update</code> (your edit).', '<code>storyboards.revise</code>（由编写服务修改）或 <code>storyboards.update</code>（自己编辑）。')],
+                [t('A line', '台词'), t('<code>scripts.revise</code> or <code>scripts.update</code>, then write a Storyboard for the new Script.', '<code>scripts.revise</code> 或 <code>scripts.update</code>，然后为新脚本生成分镜。')],
+            ])
+            + p('To render text of your own that no Storyboard describes, send it as raw input with <code>videos.generate({input})</code>. Its text must name every file it attaches; otherwise the request is rejected with <code>422 INVALID_PROMPT</code>.',
+                '需要生成不来自分镜的自定义文本时，用 <code>videos.generate({input})</code> 以原始输入提交。文本必须提到附带的每个文件，否则请求返回 <code>422 INVALID_PROMPT</code>。')),
         section('video', 'Submit a video Job and display the result', '提交视频任务并展示结果',
             ex('generate-video')
             + response('job')
@@ -332,10 +342,10 @@ def guide_pages(locale='zh'):
                 ['<code>products / brands / characters</code>', '<code>create / get / list / update</code>'],
                 ['<code>products</code>', '<code>uploadImage({base, file})</code>'],
                 ['<code>assets</code>', '<code>upload / uploadIntent / register / get</code>'],
-                ['<code>artifacts</code>', '<code>get / create / update / forSchema</code>'],
-                ['<code>scripts</code>', '<code>get / create / update / generate</code>'],
-                ['<code>storyboards</code>', '<code>get / generate</code>'],
-                ['<code>prompts</code>', t('<code>get / generate</code>; <code>create / update</code> (advanced)', '<code>get / generate</code>；<code>create / update</code>（高级用法）')],
+                ['<code>artifacts</code>', t('<code>get / forSchema</code> (read only)', '<code>get / forSchema</code>（只读）')],
+                ['<code>scripts</code>', '<code>get / generate / revise / update</code>'],
+                ['<code>storyboards</code>', '<code>get / generate / revise / update</code>'],
+                ['<code>prompts</code>', t('<code>get / generate</code>; <code>update</code> (advanced)', '<code>get / generate</code>；<code>update</code>（高级用法）')],
                 ['<code>videos</code>', '<code>generate</code>'],
                 ['<code>jobs</code>', '<code>get / subscribe</code>'],
                 ['<code>ads / batches</code>', '<code>get / list</code>'],

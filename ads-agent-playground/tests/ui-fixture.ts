@@ -443,8 +443,15 @@ const sdk = {
     get: async () => storyboard,
     generate: async (input: any) => {
       void fetch("/test-events", { method: "POST", body: JSON.stringify({ action: "storyboards.generate", input }) });
-      if (input.content) return { ...storyboard, id: crypto.randomUUID(), base_id: storyboard.id, content: input.content };
       return storyboard;
+    },
+    revise: async (ref: any, input: any) => {
+      void fetch("/test-events", { method: "POST", body: JSON.stringify({ action: "storyboards.revise", input: { base: ref.id, ...input } }) });
+      return { ...storyboard, id: crypto.randomUUID(), base_id: ref.id };
+    },
+    update: async (ref: any, input: any) => {
+      void fetch("/test-events", { method: "POST", body: JSON.stringify({ action: "storyboards.update", input: { base: ref.id, ...input } }) });
+      return { ...storyboard, id: crypto.randomUUID(), base_id: ref.id, content: input.content };
     },
   },
   characters: {

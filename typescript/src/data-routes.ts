@@ -24,15 +24,11 @@ export function dataRequest(
 	// Known backend artifacts have OrderedUUID IDs. Explicit custom codecs retain their
 	// declared opaque identifier contract; an invalid known ID never falls back to it.
 	const artifactId = (kind: string, value: unknown) =>
-		['script', 'storyboard', 'prompt', 'directing_plan'].includes(kind) ? resourceId(value) : id(value);
+		['script', 'storyboard', 'prompt'].includes(kind) ? resourceId(value) : id(value);
 	const [collection, action] = method.split('.');
 	if (collection === 'artifacts') {
 		const ref = p.ref as { kind: string; id: string } | undefined;
 		if (action === 'get') return { method: 'GET', path: `/v1/artifacts/${id(ref!.kind)}/${artifactId(ref!.kind, ref!.id)}` };
-		if (action === 'create') {
-			const { kind, ...body } = p;
-			return { method: 'POST', path: `/v1/artifacts/${id(kind)}`, body };
-		}
 		if (action === 'update') {
 			const { ref: _, ...body } = p;
 			return { method: 'POST', path: `/v1/artifacts/${id(ref!.kind)}/${artifactId(ref!.kind, ref!.id)}/versions`, body };

@@ -12,47 +12,38 @@ const relationships = [
   { type: 'based_on', target: { kind: 'skill', id: '01a175e0-2000-0000-ffff-abcdefabcdef' } },
 ];
 
-test('Script creation optionally forwards source links without resolving or validating their targets', async () => {
+test('there is no scripts.create: a Script is written by the writer, and a version is checked before it is sent', async () => {
   const original = globalThis.fetch, requests = [];
   globalThis.fetch = async (url, init) => {
-    const body = JSON.parse(init.body);
-    requests.push({ url: String(url), method: init.method, body, key: new Headers(init.headers).get('Idempotency-Key') });
+    requests.push([init.method ?? 'GET', String(url)]);
     return Response.json({ kind: 'script', id, lineage_id: id, base_id: null, schema_version: 1,
-      data: body.data, batch_id: body.batch_id ?? null, relationships: body.relationships ?? [],
-      assets: {}, entities: {}, skills: {}, created_at: '2026-10-26T12:00:00Z' }, { status: 201 });
+      data: { text: JSON.stringify({ format: 'nuva.script', version: 3, content }) }, batch_id: null, relationships,
+      assets: {}, entities: {}, skills: {}, created_at: '2026-10-26T12:00:00Z' });
   };
   const sdk = createNuva({ getAccessToken: async () => 'fixture', storeBaseUrl: 'https://backend.invalid' });
   try {
-    const manual = await sdk.scripts.create({ content });
-    assert.equal(manual.format, 3);
-    assert.deepEqual(manual.content, content);
-    assert.deepEqual(decodeScript(requests[0].body.data.text), content);
-    assert.equal(Object.hasOwn(requests[0].body, 'relationships'), false);
-    const linked = await sdk.scripts.create({ content, batch_id: id, relationships }, { idempotencyKey: 'manual-source-links' });
-    assert.deepEqual(linked.content, content);
-    assert.deepEqual(linked.relationships, relationships);
-    assert.equal(linked.batch_id, id);
-    assert.equal(requests.length, 2);
-    assert.ok(requests.every(r => r.method === 'POST' && r.url.endsWith('/v1/artifacts/script')));
-    assert.equal(requests[1].key, 'manual-source-links');
-    await assert.rejects(sdk.scripts.create({ content, relationships: [{ type: 'based_on', target: { kind: 'product', id: 'invalid-id' } }] }), e => e.code === 'INVALID_INPUT');
-    await assert.rejects(sdk.scripts.create({ content: { schema_version: 2, clips: [] } }), e => e.code === 'INVALID_INPUT');
-    await assert.rejects(sdk.scripts.create({ content: legacy }), e => e.code === 'INVALID_INPUT', 'v2 ScriptPackages are read-only.');
-    assert.equal(requests.length, 2, 'Schema-invalid inputs must fail before HTTP');
+    assert.equal(sdk.scripts.create, undefined);
+    await assert.rejects(sdk.scripts.update({ kind: 'script', id }, { content: { schema_version: 2, clips: [] } }), e => e.code === 'INVALID_INPUT');
+    await assert.rejects(sdk.scripts.update({ kind: 'script', id }, { content: legacy }), e => e.code === 'INVALID_INPUT', 'v2 ScriptPackages are read-only.');
+    assert.ok(requests.every(([method]) => method === 'GET'), 'Schema-invalid versions fail before any write');
   } finally { sdk.close(); globalThis.fetch = original; }
 });
 
-test('backend relationship rejection is returned without a second request', async () => {
+test('a backend rejection of a new version is returned without a second write', async () => {
   const original = globalThis.fetch;
-  let calls = 0;
-  globalThis.fetch = async () => {
-    calls++;
-    return Response.json({ error: { code: 'FORBIDDEN', message: 'Relationship target is not accessible.', retryable: false, acceptance: 'not_accepted' }, request_id: 'fixture-rejection' }, { status: 403 });
+  const writes = [];
+  globalThis.fetch = async (url, init) => {
+    if ((init.method ?? 'GET') === 'GET')
+      return Response.json({ kind: 'script', id, lineage_id: id, base_id: null, schema_version: 1,
+        data: { text: JSON.stringify({ format: 'nuva.script', version: 3, content }) }, batch_id: null, relationships,
+        assets: {}, entities: {}, skills: {}, created_at: '2026-10-26T12:00:00Z' });
+    writes.push(String(url));
+    return Response.json({ error: { code: 'FORBIDDEN', message: 'Not your Script.', retryable: false, acceptance: 'not_accepted' }, request_id: 'fixture-rejection' }, { status: 403 });
   };
   const sdk = createNuva({ getAccessToken: async () => 'fixture', storeBaseUrl: 'https://backend.invalid' });
   try {
-    await assert.rejects(sdk.scripts.create({ content, relationships }), e => e.code === 'FORBIDDEN');
-    assert.equal(calls, 1);
+    await assert.rejects(sdk.scripts.update({ kind: 'script', id }, { content }), e => e.code === 'FORBIDDEN');
+    assert.equal(writes.length, 1);
   } finally { sdk.close(); globalThis.fetch = original; }
 });
 
@@ -78,7 +69,7 @@ test('a v2 ScriptPackage Script reads as read-only legacy, and an update writes 
   } finally { sdk.close(); globalThis.fetch = original; }
 });
 
-test('asset is reserved: create and update refuse it, and a stored Script with that role cannot get a new version', async () => {
+test('asset is reserved: update refuses it, and a stored Script with that role cannot get a new version', async () => {
   const original = globalThis.fetch, requests = [];
   const withAsset = structuredClone(content);
   const role = withAsset.roles[0].id;
@@ -97,9 +88,7 @@ test('asset is reserved: create and update refuse it, and a stored Script with t
   };
   const sdk = createNuva({ getAccessToken: async () => 'fixture', storeBaseUrl: 'https://backend.invalid' });
   try {
-    await assert.rejects(sdk.scripts.create({ content: withAsset }), (e) => e.code === 'INVALID_INPUT' && e.acceptance === 'not_accepted' && e.message.includes('asset are reserved'));
-    assert.deepEqual(requests, []);
-    await assert.rejects(sdk.scripts.update({ kind: 'script', id }, { content: withAsset }), (e) => e.code === 'INVALID_INPUT');
+    await assert.rejects(sdk.scripts.update({ kind: 'script', id }, { content: withAsset }), (e) => e.code === 'INVALID_INPUT' && e.acceptance === 'not_accepted' && e.message.includes('asset are reserved'));
     assert.deepEqual(requests, ['GET']);
     stored = withAsset;
     await assert.rejects(sdk.scripts.update({ kind: 'script', id }, { content }), (e) => e.code === 'INVALID_INPUT' && e.message.includes('generate a new Script'));

@@ -442,15 +442,9 @@ export async function writeScript(client: NuvaClient, productId: string) {
 // #endregion write-script
 
 // #region revise-script
-export async function reviseScript(
-  client: NuvaClient,
-  productId: string,
-  base: Script,
-) {
-  return client.scripts.generate({
-    product: productId,
-    base: base.id,
-    acceptable_duration_ms: { min: 8000, max: 15000 },
+export async function reviseScript(client: NuvaClient, base: Script) {
+  // Without acceptable_duration_ms the revision keeps the Script's length.
+  return client.scripts.revise(base.ref, {
     instruction: "Keep the product facts and shorten the opening.",
   });
 }
@@ -485,8 +479,7 @@ export async function readStoryboard(client: NuvaClient, storyboardId: string) {
 
 // #region revise-storyboard
 export async function reviseStoryboard(client: NuvaClient, base: Storyboard) {
-  return client.storyboards.generate({
-    base: base.id,
+  return client.storyboards.revise(base.ref, {
     instruction: "Open on a close-up of the product before the host speaks.",
   });
 }
@@ -505,7 +498,7 @@ export async function editShot(
       ? { ...clip, shots: clip.shots.map((value, i) => (i === shot ? text : value)) }
       : clip,
   );
-  return client.storyboards.generate({ base: base.id, content: { ...base.content, clips } });
+  return client.storyboards.update(base.ref, { content: { ...base.content, clips } });
 }
 // #endregion edit-storyboard
 

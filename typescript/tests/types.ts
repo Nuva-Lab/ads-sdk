@@ -4,12 +4,12 @@ const client = createNuva({ baseUrl: 'http://127.0.0.1:8940/api', getAccessToken
 const scripts = client.artifacts.forSchema(ScriptSchema);
 const snapshots = client.artifacts.forSchema(PerformanceSnapshotSchema);
 declare const script: ScriptPackage;
-void scripts.update({ kind: 'script', id: 'a' }, { data: { text: 'plain text' } });
+void scripts.get({ kind: 'script', id: 'a' }).then((read) => read.data.text);
 void snapshots.get({ kind: 'performance_snapshot', id: 'b' });
-// @ts-expect-error Read-only kinds do not expose update.
-snapshots.update({ kind: 'performance_snapshot', id: 'b' }, { data: {} });
-// @ts-expect-error A typed Script client requires Script data.
-void scripts.update({ kind: 'script', id: 'a' }, { data: { title: 'wrong shape' } });
+// @ts-expect-error The generic Artifact client only reads; Scripts, Storyboards and Prompts are written through their own clients.
+scripts.update({ kind: 'script', id: 'a' }, { data: { text: 'plain text' } });
+// @ts-expect-error The generic Artifact client cannot create an Artifact.
+void client.artifacts.create({ kind: 'storyboard', schema_version: 1, data: { text: '' } });
 // @ts-expect-error A typed reference cannot silently select another kind.
 void scripts.get({ kind: 'prompt', id: 'a' });
 // @ts-expect-error Full kind/id references are required.
@@ -40,7 +40,16 @@ void client.storyboards.generate({ script: '00000000-0000-4000-8000-000000000001
 void client.prompts.generate({ script: '00000000-0000-4000-8000-000000000001' });
 // @ts-expect-error The generation service accepts omission, not an explicit null ratio.
 void client.prompts.generate({ storyboard: '00000000-0000-4000-8000-000000000001', ratio: null });
-const storyboard: Promise<import('@nuva/sdk').Storyboard> = client.storyboards.generate({ base: '00000000-0000-4000-8000-000000000001', instruction: 'Shorter' });
+// @ts-expect-error A revision is storyboards.revise(ref, { instruction }).
+void client.storyboards.generate({ base: '00000000-0000-4000-8000-000000000001', instruction: 'Shorter' });
+// @ts-expect-error There is no Storyboard from scratch: an edit is storyboards.update(ref, { content }).
+void client.storyboards.generate({ content: {} as import('@nuva/sdk/schemas').StoryboardContent });
+// @ts-expect-error A revision is scripts.revise(ref, { instruction }).
+void client.scripts.generate({ product: '00000000-0000-4000-8000-000000000001', base: '00000000-0000-4000-8000-000000000002', acceptable_duration_ms: { min: 5000, max: 9000 } });
+void client.scripts.revise({ kind: 'script', id: '00000000-0000-4000-8000-000000000002' }, { instruction: 'Warmer', acceptable_duration_ms: { min: 8000, max: 12000 } });
+declare const editedBoard: import('@nuva/sdk/schemas').StoryboardContent;
+void client.storyboards.update({ kind: 'storyboard', id: '00000000-0000-4000-8000-000000000001' }, { content: editedBoard });
+const storyboard: Promise<import('@nuva/sdk').Storyboard> = client.storyboards.revise({ kind: 'storyboard', id: '00000000-0000-4000-8000-000000000001' }, { instruction: 'Shorter' });
 void storyboard.then(async (board) => {
 	const shots: string[] = board.content.clips[0]!.shots;
 	const { prompts } = await client.prompts.generate({ storyboard: board.id, clip: 'C01', ratio: '9:16' });
@@ -120,19 +129,18 @@ const privateLogBatch: BackendSchemas['BatchCreate'] = { intent: 'Create', log_u
 void [adVersion, adBatch, adComposition, nullableAd, privateLogBatch];
 
 const artifactSources: BackendSchemas['ArtifactRelationship'][] = [{ type: 'based_on', target: { kind: 'product', id: 'revision' } }];
+// @ts-expect-error Prompts are compiled from a Storyboard or saved by raw videos.generate({ input }); there is no prompts.create.
+void client.prompts.create({ data: { prompt: 'Clip', image_asset_ids: ['asset'] } });
 // @ts-expect-error Relationship writes belong to the Agent.
-void scripts.create({ data: { text: 'Draft' }, relationships: artifactSources });
-// @ts-expect-error Relationship writes belong to the Agent.
-void client.prompts.create({ data: { prompt: 'Clip', image_asset_ids: ['asset'] }, relationships: artifactSources });
+void client.prompts.update({ kind: 'prompt', id: 'a' }, { data: { prompt: '<Picture 1>', image_asset_ids: ['asset'] }, relationships: artifactSources });
 // @ts-expect-error Script data no longer carries source identities.
 const oldScriptData: BackendSchemas['ScriptDataV1'] = { text: 'Draft', product: 'revision' };
 // @ts-expect-error Plan v1 now requires text content.
 const oldPlanData: BackendSchemas['DirectingPlanDataV1'] = { script: 'id', specs: [] };
-// @ts-expect-error The typed Script writer does not accept Product-source metadata.
-void client.scripts.create({ content: {} as import('@nuva/sdk/schemas').ScriptContent, product: 'revision' });
-void client.scripts.create({ content: {} as import('@nuva/sdk/schemas').ScriptContent, relationships: [{ type: 'based_on', target: { kind: 'product', id: 'revision-id' } }] });
+// @ts-expect-error Scripts are written by the writer (scripts.generate); there is no scripts.create.
+void client.scripts.create({ content: {} as import('@nuva/sdk/schemas').ScriptContent });
 // @ts-expect-error v2 ScriptPackages are read-only; Scripts are written as v3.
-void client.scripts.create({ content: script });
+void client.scripts.update({ kind: 'script', id: 'a' }, { content: script });
 declare const readScript: import('@nuva/sdk').Script;
 if (readScript.format === 3) void readScript.content.panels;
 else void readScript.legacy.clips;

@@ -6,6 +6,25 @@ Each entry describes the change from the previous released version.
 
 - **Steering.** `agent.send(draft, { mode: 'steer' })` no longer gets `AGENT_BUSY` while the Agent works: the message is in `messages` at once with `unread: true`, and at the Agent's next step (after its current tool results) it joins the conversation as its own user message and loses `unread`. When no loop is running before that (it finished, failed or was stopped), it starts the next one. Without `mode`, `send` behaves as before. The Agent's reply continues in a new assistant message after messages that join it. Needs an Agent deployment with steering; older Agents reject `mode` as `INVALID_INPUT`.
 - **Playground.** Send stays available while the Agent works and steers the message; user messages show one check until the Agent reads them and two after.
+- **Changing a Script or Storyboard has its own methods** (breaking). `scripts.revise(ref, {instruction, acceptable_duration_ms?})` has the writer change a Script; without a range it keeps the Script's length. `storyboards.revise(ref, {instruction, cast?})` has the writer change a Storyboard, and `storyboards.update(ref, {content})` saves your edit as a new version with the same checks. `scripts.generate` and `storyboards.generate` only write new ones now. The requests on the wire are unchanged.
+- **Scripts, Storyboards and Prompts are created by the writers only** (breaking). `scripts.create`, `prompts.create`, `artifacts.create` and `artifacts.update` are removed; `artifacts` reads (`get`, `forSchema`) and `ArtifactSchema` has no `writable`. A Storyboard can no longer be saved from scratch. Raw `videos.generate({input})` still renders and saves text of your own, and `scripts.update` and `prompts.update` still save new versions.
+- **The `directing_plan` Artifact kind is gone** from the SDK types (`ArtifactKind`, `DirectingPlan`).
+
+**Migrating**
+
+| Before | Now |
+| --- | --- |
+| `scripts.generate({product, base, acceptable_duration_ms, instruction})` | `scripts.revise(ref, {instruction, acceptable_duration_ms?})` |
+| `storyboards.generate({base, instruction, cast?})` | `storyboards.revise(ref, {instruction, cast?})` |
+| `storyboards.generate({base, content})` | `storyboards.update(ref, {content})` |
+| `storyboards.generate({content})` (no base) | Write one with `storyboards.generate({script})`, then `storyboards.update` it |
+| `scripts.create({content})` | `scripts.generate`, then `scripts.revise` or `scripts.update` |
+| `prompts.create({data})` | `videos.generate({input: {schema_version: 1, data}})`, or change the Storyboard and run `prompts.generate` again |
+| `artifacts.create` / `artifacts.update` | The kind's own client: `scripts`, `storyboards`, `prompts` |
+
+The old forms throw `INVALID_INPUT` naming the new method, before any request is sent.
+
+To change what gets rendered, change its source (revise or update the Storyboard, or update the Product and revise the Storyboard) and run `prompts.generate` again. Don't edit a compiled Prompt's text by hand: it names each attached file by position (`<Picture 1>` is the first image), and a file the text doesn't name is ignored by the video model.
 
 ## 0.1.0-preview.4
 

@@ -40,11 +40,12 @@ test('shared creation schemas accept exact service boundaries without tightening
 		assert.equal(generatePromptSchema.safeParse(invalid).success, false, JSON.stringify(invalid));
 });
 
-test('a Storyboard request is a new Storyboard for a Script, a revision of a base, or complete content', () => {
+test('a Storyboard request is a new Storyboard for a Script, a revision of a base, or edited content for a base', () => {
 	const content = { script: id, cast: { presenter: { look: '短发女性', voice: '中音' } }, direction: '', clips: [{ id: 'C01', duration_ms: 8000, shots: ['{{presenter}}说{{L01}}'] }] };
-	for (const valid of [{ script: id, cast: { presenter: id }, instruction: 'Warm' }, { base: id, instruction: 'Shorter' }, { content }, { content, base: id }])
+	for (const valid of [{ script: id, cast: { presenter: id }, instruction: 'Warm' }, { base: id, instruction: 'Shorter' }, { content, base: id }])
 		assert.equal(generateStoryboardSchema.safeParse(valid).success, true, JSON.stringify(valid));
-	for (const invalid of [{}, { script: id, base: id }, { base: id }, { content, script: id }, { content, instruction: 'Edit' }, { content: { ...content, clips: [] } }])
+	// There is no Storyboard from scratch: content is always an edit of a base.
+	for (const invalid of [{}, { script: id, base: id }, { base: id }, { content }, { content, base: id, script: id }, { content, base: id, instruction: 'Edit' }, { content: { ...content, clips: [] }, base: id }])
 		assert.equal(generateStoryboardSchema.safeParse(invalid).success, false, JSON.stringify(invalid));
 });
 
