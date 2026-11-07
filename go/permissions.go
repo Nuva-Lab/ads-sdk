@@ -65,7 +65,8 @@ type UserMemberships struct {
 }
 
 // ItemRef names a shareable item: a brand, product, character, asset, script, storyboard,
-// directing_plan or prompt, by its ID.
+// directing_plan or prompt, by its ID. An Artifact may be named by any of its versions' IDs; its
+// shares cover every version and carry the ID of its first version.
 type ItemRef struct {
 	Kind string
 	ID   string
@@ -79,10 +80,12 @@ type Share struct {
 }
 
 var shareableKinds = map[string]bool{"brand": true, "product": true, "character": true, "asset": true, "script": true, "storyboard": true, "directing_plan": true, "prompt": true}
+var artifactKinds = map[string]bool{"script": true, "storyboard": true, "directing_plan": true, "prompt": true}
 
-// A scope or user external ID: 1–255 characters without control characters or "/".
+// A scope or user external ID: 1–255 characters without control characters or "/", and not "."
+// or "..", which would change the request path.
 func validExternalID(id string) bool {
-	return id != "" && validText(id, 255) && strings.IndexFunc(id, func(r rune) bool { return r < 32 || r == 127 || r == '/' }) < 0
+	return id != "" && id != "." && id != ".." && validText(id, 255) && strings.IndexFunc(id, func(r rune) bool { return r < 32 || r == 127 || r == '/' }) < 0
 }
 func validScope(s Scope) bool {
 	return uuidPattern.MatchString(s.ID) && validExternalID(s.ExternalID) && (s.Kind == ScopeOrg || s.Kind == ScopeGroup) && s.Parent != "" && !s.CreatedAt.IsZero()
@@ -91,13 +94,15 @@ func validRole(role string) bool {
 	return role == RoleMember || role == RoleAdmin || role == RoleViewer
 }
 func validShare(s Share, item ItemRef) bool {
-	return s.Kind == item.Kind && s.ID == item.ID && s.Scope != "" && (s.Access == AccessRead || s.Access == AccessWrite) && !s.CreatedAt.IsZero()
+	// An Artifact's share carries its first version's ID, whichever version named it.
+	sameItem := strings.EqualFold(s.ID, item.ID) || artifactKinds[item.Kind] && uuidPattern.MatchString(s.ID)
+	return s.Kind == item.Kind && sameItem && s.Scope != "" && (s.Access == AccessRead || s.Access == AccessWrite) && !s.CreatedAt.IsZero()
 }
 func itemPath(item ItemRef) (string, error) {
 	if !shareableKinds[item.Kind] || !uuidPattern.MatchString(item.ID) {
 		return "", invalid("A shareable item kind and UUID are required.")
 	}
-	return "/v1/shares/" + item.Kind + "/" + item.ID, nil
+	return "/v1/shares/" + item.Kind + "/" + strings.ToLower(item.ID), nil
 }
 
 // PutScope creates the scope, or updates its name or parent. It is idempotent.
@@ -152,7 +157,8 @@ func (c *AdminClient) ArchiveScope(ctx context.Context, externalID string) error
 	return c.connection.request(ctx, "DELETE", "/v1/admin/scopes/"+externalID, nil, nil, nil)
 }
 
-// SetMemberships replaces the user's memberships; it takes effect at once. Membership{Scope:
+// SetMemberships replaces the user's memberships. It takes effect at once for the API; the Agent
+// follows within a minute for Session access. Membership{Scope:
 // "customer", Role: RoleAdmin} makes a customer admin. The first call for an ID creates the user,
 // as a first token does.
 func (c *AdminClient) SetMemberships(ctx context.Context, externalUserID string, memberships []Membership) (UserMemberships, error) {
@@ -204,7 +210,8 @@ func validMemberships(m UserMemberships, externalUserID string) bool {
 	return true
 }
 
-// ListShares lists the item's shares. The customer's API key reads any of its items' shares.
+// ListShares lists the item's shares. It takes the right to share the item: the API key, its
+// owner, or an admin above them.
 func (c *AdminClient) ListShares(ctx context.Context, item ItemRef) ([]Share, error) {
 	path, err := itemPath(item)
 	if err != nil {

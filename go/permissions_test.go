@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -135,11 +136,42 @@ func TestPermissionInputsAreCheckedBeforeSending(t *testing.T) {
 			_, err := admin.SetShare(ctx, ItemRef{Kind: "product", ID: productID}, "a1", "delete")
 			return err
 		}(),
+		func() error {
+			_, err := admin.SetShare(ctx, ItemRef{Kind: "product", ID: productID}, "..", AccessRead)
+			return err
+		}(),
+		admin.ArchiveScope(ctx, "."),
 	}
 	for i, err := range checks {
 		var apiErr *APIError
 		if !errors.As(err, &apiErr) || apiErr.Code != "INVALID_INPUT" {
 			t.Errorf("check %d: %v", i, err)
 		}
+	}
+}
+
+func TestAnArtifactsShareCarriesItsFirstVersionsID(t *testing.T) {
+	const first = "00000000-0000-4000-8000-000000000021"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/shares/script/"+productID+"/customer" {
+			t.Errorf("path %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"kind":"script","id":"`+first+`","scope":"customer","access":"write","created_at":"2026-11-07T00:00:00Z"}`)
+	}))
+	defer server.Close()
+	admin, _ := NewAdminClient(server.URL, "admin-key")
+	// Named by a later version's ID, in upper case.
+	share, err := admin.SetShare(context.Background(), ItemRef{Kind: "script", ID: strings.ToUpper(productID)}, CustomerScope, AccessWrite)
+	if err != nil || share.ID != first {
+		t.Fatalf("SetShare: %v %+v", err, share)
+	}
+	// A Product's share names the Product itself, whatever the case.
+	server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"kind":"product","id":"`+first+`","scope":"customer","access":"read","created_at":"2026-11-07T00:00:00Z"}`)
+	})
+	if _, err := admin.SetShare(context.Background(), ItemRef{Kind: "product", ID: productID}, CustomerScope, AccessRead); err == nil {
+		t.Fatal("a share for another Product is accepted")
 	}
 }
