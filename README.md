@@ -10,6 +10,8 @@ Build ad creation into your application with Agent chat, product and media manag
 - **Go Admin SDK:** issue user tokens and manage Skills from your backend.
 - **Playground:** try the creation flow locally with a visual workspace and Agent chat.
 
+**Upgrading?** Coming from an earlier preview, follow the docs page *Upgrade to preview.5* (`docs/customer/migration.en.html` after `pnpm docs:build`) and the [CHANGELOG](CHANGELOG.md): some calls are removed, and Prompt text must name every attached file.
+
 ## Try the playground
 
 You need Node.js 22.13 or newer, pnpm 11.7.0, Go 1.22+, and a customer Admin API key.

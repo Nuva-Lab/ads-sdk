@@ -6,6 +6,7 @@ from build import ROOT
 from customer_layout import DOCUMENTS, filename, page
 from go_reference import go_sections
 from client_reference import guide_pages, message_example
+from migration_guide import migration_sections
 
 DEST = ROOT / 'customer'
 EXAMPLES = ('guide.tsx', 'guide_backend.go', 'creation-chain.ts', 'backend_client.go', 'react-usage.tsx', 'store-usage.ts')
@@ -27,6 +28,7 @@ def build_customer():
     for locale in ('zh', 'en'):
         guides = guide_pages(locale)
         guides['backend-go'] = go_sections(locale)
+        guides['migration'] = migration_sections(locale)
         for key, _, _ in DOCUMENTS:
             (DEST / filename(key, locale)).write_text(page(key, guides[key], locale))
     shutil.copyfile(DEST / 'frontend.html', DEST / 'index.html')
@@ -34,8 +36,8 @@ def build_customer():
         'Ads SDK 0.1.0-preview.4\n\n'
         'Open index.html or frontend.html to start. Use the header language selector for English.\n'
         '从 index.html 或 frontend.html 开始，使用页首语言选项切换中文和英文。\n\n'
-        'Getting started; Agent conversations; resources; generation; backend setup; methods and errors.\n'
-        '开始使用；Agent 对话；资源；内容生成；后端接入；方法与错误。\n'
+        'Getting started; Agent conversations; resources; generation; backend setup; methods and errors; upgrading to preview.5.\n'
+        '开始使用；Agent 对话；资源；内容生成；后端接入；方法与错误；升级到 preview.5。\n'
         'examples/ contains the complete source used in the guides.\n'
     )
     with zipfile.ZipFile(ROOT / 'customer-sdk-docs.zip', 'w', zipfile.ZIP_DEFLATED) as archive:

@@ -53,6 +53,7 @@ DOCUMENTS = (
     ('generation', 'Generate content', '生成内容'),
     ('backend-go', 'Backend setup', '后端接入'),
     ('reference', 'Methods and errors', '方法与错误'),
+    ('migration', 'Upgrade to preview.5', '升级到 preview.5'),
 )
 
 
