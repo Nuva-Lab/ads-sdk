@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { backendSchema, generateScriptSchema, generateStoryboardSchema, generatePromptSchema, skillSelectionSchema } from '../dist/internal.js';
-import { internalBackendSchema } from '../dist/internal-backend.js';
 
 const id = '11111111-1111-4111-8111-111111111111';
 test('backend Product creation requires a Brand and rejects unsupported profile fields', () => {
@@ -17,11 +16,7 @@ test('backend Artifact v1 remains explicit rather than interpreting ScriptPackag
 	assert.equal(backendSchema('ScriptDataV1').parse({ text: 'An ad script' }).text, 'An ad script');
 	assert.equal(backendSchema('ScriptDataV1').safeParse({ schema_version: 2, concept: {}, clips: [] }).success, false);
 });
-test('backend Ad registration (the Agent\'s) requires the final video and preserves editor data', () => {
-	const value = { batch_id: id, schema_version: 1, asset_id: id, composition: { clips: [{ asset_id: id }], editor: { zoom: 2 } } };
-	assert.deepEqual(internalBackendSchema('AdCreate').parse(value).composition.editor, { zoom: 2 });
-	assert.equal(internalBackendSchema('AdCreate').safeParse({ batch_id: id, schema_version: 1, composition: value.composition }).success, false);
-	// Customers don't register Ads: the public contract has no AdCreate.
+test('customers don\'t register Ads: the public contract has no AdCreate', () => {
 	assert.throws(() => backendSchema('AdCreate'));
 });
 
@@ -74,7 +69,6 @@ test('backend OrderedUUID uses GUID shape without RFC version or variant restric
 	const job = '01a175e0-3000-cccc-1111-abcdefabcdef';
 	for (const value of [product, script, skill, asset, job]) assert.equal(backendIdSchema.parse(value), value);
 	assert.equal(backendSchema('ProductCreate').parse({ brand_id: product, data: { name: 'Ordered' } }).brand_id, product);
-	assert.equal(internalBackendSchema('ScriptCreate').parse({ schema_version: 1, data: { text: 'Script' }, relationships: [{ type: 'based_on', target: { kind: 'product', id: product } }] }).relationships[0].target.id, product);
 	assert.equal(backendSchema('SkillRef').parse({ skill_id: skill, name: 'writer', version: 1 }).skill_id, skill);
 	assert.equal(backendSchema('GenerateVideo').parse({ prompt: script, batch_id: job }).batch_id, job);
 	assert.equal(

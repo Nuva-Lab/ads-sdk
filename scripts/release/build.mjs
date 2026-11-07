@@ -20,8 +20,7 @@ export async function buildRelease({ output = DIST, origins } = {}) {
 			if (manifest.version !== VERSION) throw new Error(`Package version mismatch: ${manifest.name}`);
 			for (const path of [
 				// `internal` is the workspace entry the Agent, mock server and playground share: the npm package leaves it out (the source archive keeps its source for the playground).
-				// `internal-backend` and the internal contract (`backend-internal-*`) are the Agent's alone: in neither the package nor the source archive.
-				...(await files(resolve(source, 'dist'))).filter((name) => !/^(internal\.|internal-backend\.|backend-internal-)/.test(name)).map((name) => `dist/${name}`),
+				...(await files(resolve(source, 'dist'))).filter((name) => !/^internal\./.test(name)).map((name) => `dist/${name}`),
 				'README.md',
 				...(directory === 'typescript' ? ['schema/backend.source.json'] : []),
 			])
@@ -40,7 +39,6 @@ export async function buildRelease({ output = DIST, origins } = {}) {
 			// Only distribution fields: no maintainer build commands, development dependencies or workspace-only entries.
 			if (manifest.exports) {
 				delete manifest.exports['./internal'];
-				delete manifest.exports['./internal-backend'];
 			}
 			delete manifest.scripts;
 			delete manifest.devDependencies;
@@ -56,7 +54,7 @@ export async function buildRelease({ output = DIST, origins } = {}) {
 				'package.json',
 				'README.md',
 				'tsconfig.json',
-				...(await files(resolve(source, 'src'))).filter((name) => !/^(internal-backend\.|backend-internal-)/.test(name)).map((name) => `src/${name}`),
+				...(await files(resolve(source, 'src'))).map((name) => `src/${name}`),
 				...(directory === 'typescript'
 					? [
 							'schema/backend.source.json',

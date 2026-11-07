@@ -125,7 +125,7 @@
           "assets"
         ],
         "summary": "Register an asset from an upload or a URL",
-        "description": "Returns 201 with a new asset, or 200 with your existing asset when you registered the same file, with the same MIME type, before.",
+        "description": "Returns 201 with a new asset, or 200 with your existing asset when you registered the same file, with the same MIME type, before. A different label or description for a file you already have is 409 ASSET_EXISTS: change them with PATCH /v1/assets/{asset_id}.",
         "operationId": "create_asset_v1_assets_post",
         "security": [
           {
@@ -264,6 +264,83 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Edit an asset's label and description",
+        "description": "Changes the fields the body sends and keeps the rest; null removes a value. The file itself never changes. Only the user who uploaded it, or an admin above them, edits it.",
+        "operationId": "update_asset_v1_assets__asset_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetEdit"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -3742,12 +3819,47 @@
               }
             ],
             "title": "Description",
-            "description": "A longer description of what the file shows. Registering the same file again with a label or description replaces it."
+            "description": "A longer description of what the file shows."
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "AssetCreate"
+      },
+      "AssetEdit": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "A short name for what the file shows; null removes it."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "A longer description of what the file shows; null removes it."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AssetEdit"
       },
       "AssetOut": {
         "properties": {
@@ -3797,7 +3909,7 @@
               }
             ],
             "title": "Label",
-            "description": "A short name for what the file shows, given at upload."
+            "description": "A short name for what the file shows, given at upload or edited since."
           },
           "description": {
             "anyOf": [
@@ -3809,7 +3921,7 @@
               }
             ],
             "title": "Description",
-            "description": "A longer description of what the file shows, given at upload."
+            "description": "A longer description of what the file shows, given at upload or edited since."
           },
           "created_at": {
             "type": "string",

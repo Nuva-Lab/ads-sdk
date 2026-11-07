@@ -52,25 +52,52 @@ DOCUMENTS = (
     ('store', 'Manage resources', '管理资源'),
     ('generation', 'Generate content', '生成内容'),
     ('backend-go', 'Backend setup', '后端接入'),
-    ('reference', 'Methods and errors', '方法与错误'),
-    ('reference-fields', 'Field reference', '接口字段参考'),
+    ('reference', 'API reference', '接口参考'),
+    ('reference-assets', 'Assets', '素材（Asset）'),
+    ('reference-brands', 'Brands', '品牌'),
+    ('reference-products', 'Products', '产品'),
+    ('reference-characters', 'Characters', '人物'),
+    ('reference-scripts', 'Scripts', '脚本'),
+    ('reference-storyboards', 'Storyboards', '分镜'),
+    ('reference-prompts', 'Prompts', '提示词'),
+    ('reference-videos', 'Videos and Jobs', '视频与任务'),
+    ('reference-ads', 'Ads and Batches', '成片广告与批次'),
+    ('reference-skills', 'Skills', 'Skill'),
+    ('reference-shares', 'Shares', '共享'),
+    ('reference-sessions', 'Agent and Sessions', 'Agent 与 Session'),
     ('migration', 'Upgrade to preview.5', '升级到 preview.5'),
 )
+# The API reference: an Introduction page and one page per resource, grouped in the navigation.
+REFERENCE = tuple(key for key, _, _ in DOCUMENTS if key.startswith('reference'))
 
 
 def filename(page_id, locale):
     return page_id + ('.en.html' if locale == 'en' else '.html')
 
 
+def md_filename(page_id, locale):
+    """A reference page's Markdown twin."""
+    return page_id + ('.en.md' if locale == 'en' else '.md')
+
+
 def page(page_id, sections, locale='zh'):
     tr = lambda en, zh: zh if locale == 'zh' else en
     position = next(i for i, doc in enumerate(DOCUMENTS) if doc[0] == page_id)
     title = DOCUMENTS[position][2 if locale == 'zh' else 1]
-    nav = ''.join(
-        f'<a class="document-link{" current" if key == page_id else ""}" href="{filename(key, locale)}"'
-        + (' aria-current="page"' if key == page_id else '')
-        + f'>{escape(tr(en, zh))}</a>' for key, en, zh in DOCUMENTS
-    )
+    def nav_link(key, label, extra=''):
+        current = key == page_id
+        return (f'<a class="document-link{extra}{" current" if current else ""}" href="{filename(key, locale)}"'
+                + (' aria-current="page"' if current else '') + f'>{escape(label)}</a>')
+    nav = ''.join(nav_link(key, tr(en, zh)) for key, en, zh in DOCUMENTS if key not in REFERENCE)
+    reference_nav = ''
+    for key, en, zh in DOCUMENTS:
+        if key not in REFERENCE:
+            continue
+        reference_nav += nav_link(key, tr('Introduction', '简介') if key == 'reference' else tr(en, zh), '' if key == 'reference' else ' nav-resource')
+        if key == page_id and key != 'reference':
+            # The current resource's methods and models, as OpenAI's reference lists them.
+            reference_nav += ''.join(f'<a class="nav-section" href="#{escape(anchor)}">{escape(name)}</a>' for anchor, name, _ in sections if anchor != 'overview')
+    markdown = md_filename(page_id, locale) if page_id in REFERENCE else None
     toc = ''.join(f'<a href="#{escape(key)}">{escape(name)}</a>' for key, name, _ in sections)
     body = ''.join(
         f'<section id="{escape(key)}"><h2>{escape(name)}'
@@ -96,6 +123,7 @@ def page(page_id, sections, locale='zh'):
 <link rel="stylesheet" href="style.css">
 <link rel="alternate" hreflang="en" href="{filename(page_id, 'en')}">
 <link rel="alternate" hreflang="zh-CN" href="{filename(page_id, 'zh')}">
+{f'<link rel="alternate" type="text/markdown" href="{markdown}">' if markdown else ''}
 <script src="docs.js" defer></script>
 </head>
 <body>
@@ -113,9 +141,10 @@ def page(page_id, sections, locale='zh'):
 <div class="docs-layout">
   <aside class="docs-sidebar" id="docs-sidebar" aria-label="{tr('Documentation navigation', '文档导航')}">
     <div class="nav-group"><p class="nav-heading">{tr('Documentation', '文档')}</p><nav>{nav}</nav></div>
+    <div class="nav-group"><p class="nav-heading">{tr('API reference', '接口参考')}</p><nav>{reference_nav}</nav></div>
   </aside>
   <main id="main-content" tabindex="-1">
-    <div class="page-heading"><h1>{escape(title)}</h1></div>
+    <div class="page-heading"><h1>{escape(title)}</h1>{f'<a class="markdown-link" href="{markdown}">Markdown</a>' if markdown else ''}</div>
     <div class="mobile-toc"><details><summary>{tr('On this page', '本页内容')}</summary><nav>{toc}</nav></details></div>
     <article>{body}</article>
     <nav class="page-footer" aria-label="{tr('Continue reading', '继续阅读')}">{''.join(peers)}</nav>

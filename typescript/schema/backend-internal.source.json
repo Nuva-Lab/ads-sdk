@@ -1,7 +1,0 @@
-{
-  "repository": "Nuva-Lab/WhatIf",
-  "commit": "pending",
-  "path": "ads_backend/openapi.internal.json",
-  "sha256": "da3a1eef48c01cff20501ae35b2e7d9e1295acbdc0bef2289240c077262d3a23",
-  "note": "The API version 2026-11-07 contract (SDK 0.1.0-preview.5). Internal: the Agent's entry point only; not published."
-}

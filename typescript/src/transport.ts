@@ -30,6 +30,7 @@ const writes = new Set([
 	'jobs.cancel',
 	'assets.register',
 	'assets.uploadIntent',
+	'assets.update',
 	'ads.create',
 	'batches.create',
 	'brands.create',

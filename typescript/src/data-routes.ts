@@ -72,7 +72,7 @@ export function dataRequest(
 		}
 		if (action === 'list') return { method: 'GET', path: base, query: p, ...(collection === 'sessions' ? { agent: true } : {}) };
 		if (action === 'create') return { method: 'POST', path: base, body: p, ...(collection === 'sessions' ? { agent: true } : {}) };
-		if (action === 'update' && ['products', 'brands', 'characters'].includes(collection!)) {
+		if (action === 'update' && ['products', 'brands', 'characters', 'assets'].includes(collection!)) {
 			const { id: rid, ...body } = p;
 			return { method: 'PATCH', path: base + '/' + resourceId(rid), body };
 		}

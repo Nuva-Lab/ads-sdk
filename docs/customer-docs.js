@@ -67,9 +67,18 @@
     }
     return inlineMarkdown(node);
   }
-  document.querySelector('[data-copy-page]').addEventListener('click', event => {
-    const text = [`# ${document.querySelector('h1').textContent}`, ...[...document.querySelectorAll('article > section')].flatMap(section => [...section.children].map(blockMarkdown))].join('\n\n');
-    copy(event.currentTarget, text, 'Page');
+  document.querySelector('[data-copy-page]').addEventListener('click', async event => {
+    const button = event.currentTarget;
+    let text = [`# ${document.querySelector('h1').textContent}`, ...[...document.querySelectorAll('article > section')].flatMap(section => [...section.children].map(blockMarkdown))].join('\n\n');
+    // A reference page copies its Markdown twin when the page is served over HTTP.
+    const twin = document.querySelector('link[rel="alternate"][type="text/markdown"]');
+    if (twin && location.protocol.startsWith('http')) {
+      try {
+        const response = await fetch(twin.href);
+        if (response.ok) text = await response.text();
+      } catch { /* Keep the text read from the page. */ }
+    }
+    copy(button, text, 'Page');
   });
 
   const sections = [...document.querySelectorAll('article > section')];

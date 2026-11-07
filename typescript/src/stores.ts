@@ -59,13 +59,21 @@ export interface AssetsClient {
 	get(id: string): Promise<Asset>;
 	/**
 	 * Adds a file, uploaded or fetched from a public HTTPS URL. `label` and `description` say what it shows (for example
-	 * which side of a package); the writers read them. The same file added again returns the same Asset.
+	 * which side of a package); the writers read them. The same file added again returns the same Asset, so retrying a
+	 * file upload is safe; `idempotencyKey` applies to a URL. To change the text later, use `update`.
 	 */
 	upload(
 		source: File | { readonly url: string },
 		options?: StoreCommandOptions & { kind?: B['AssetOut']['kind']; label?: string; description?: string },
 	): Promise<Asset>;
+	/**
+	 * Changes an Asset's `label` and `description`: only the fields you send; `null` removes one. The file never
+	 * changes. Only the user who uploaded it, or an admin above them, can edit it.
+	 */
+	update(id: string, changes: AssetChanges, options?: CommandOptions): Promise<Asset>;
 }
+/** What `assets.update` changes. */
+export type AssetChanges = B['AssetEdit'];
 export type JobState<T = unknown> = B['JobOut'];
 export interface ResultOptions {
 	signal?: AbortSignal;

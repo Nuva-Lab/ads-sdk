@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createNuva, PartialCreationError } from '../dist/index.js';
 import { backendSchema, encodeStoryboard } from '../dist/internal.js';
-import { internalBackendSchema } from '../dist/internal-backend.js';
 const id = '01a175e0-31b3-da69-176e-0842e6f6602e';
 const relationships = [{ type: 'based_on', target: { kind: 'product', id } }, { type: 'based_on', target: { kind: 'skill', id: '01a175e0-2000-0000-ffff-abcdefabcdef' } }];
 const other = '01a175e0-3000-cccc-1111-abcdefabcdef';
@@ -18,13 +17,7 @@ test('Script and Storyboard content is text; source relationships are explicit a
 		for (const old of [{ product: id }, { skill: id }, { script: id }, { specs: [] }])
 			assert.equal(backendSchema(name).safeParse({ ...saved, data: { ...saved.data, ...old } }).success, false);
 		// Only the Agent writes Scripts and Storyboards: their write bodies are in the internal contract alone.
-		for (const suffix of ['Create', 'VersionCreate']) {
-			assert.throws(() => backendSchema(name + suffix));
-			const base = { data: saved.data, ...(suffix === 'Create' ? { schema_version: 1 } : {}) };
-			assert.equal(Object.hasOwn(internalBackendSchema(name + suffix).parse(base), 'relationships'), false, 'Omission preserves server inheritance semantics');
-			for (const refs of [[], relationships]) assert.deepEqual(internalBackendSchema(name + suffix).parse({ ...base, relationships: refs }).relationships, refs);
-			assert.equal(internalBackendSchema(name + suffix).safeParse({ ...base, relationships: null }).success, false);
-		}
+		for (const suffix of ['Create', 'VersionCreate']) assert.throws(() => backendSchema(name + suffix));
 	}
 });
 

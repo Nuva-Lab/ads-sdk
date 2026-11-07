@@ -224,12 +224,47 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
           }
         ],
         "title": "Description",
-        "description": "A longer description of what the file shows. Registering the same file again with a label or description replaces it."
+        "description": "A longer description of what the file shows."
       }
     },
     "additionalProperties": false,
     "type": "object",
     "title": "AssetCreate"
+  },
+  "AssetEdit": {
+    "properties": {
+      "label": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Label",
+        "description": "A short name for what the file shows; null removes it."
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description",
+        "description": "A longer description of what the file shows; null removes it."
+      }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "title": "AssetEdit"
   },
   "AssetOut": {
     "properties": {
@@ -279,7 +314,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
           }
         ],
         "title": "Label",
-        "description": "A short name for what the file shows, given at upload."
+        "description": "A short name for what the file shows, given at upload or edited since."
       },
       "description": {
         "anyOf": [
@@ -291,7 +326,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
           }
         ],
         "title": "Description",
-        "description": "A longer description of what the file shows, given at upload."
+        "description": "A longer description of what the file shows, given at upload or edited since."
       },
       "created_at": {
         "type": "string",

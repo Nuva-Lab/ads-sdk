@@ -17,7 +17,7 @@ type Video<S extends { GenerateVideo: unknown; RawPromptInput: unknown }> = Omit
 	({ prompt: string; input?: null } | { input: S['RawPromptInput']; prompt?: null });
 export type GenerateVideoInput = Video<Public>;
 
-/** The overlays, for either contract's schemas (the internal one is typed in internal-backend.ts). */
+/** The overlays, for either contract's schemas (WhatIf's packages/internal-contract types the internal one with them). */
 export type Overlay<S extends Pick<Public, 'GenerateVideo' | 'RawPromptInput' | 'Product' | 'ProductCreate' | 'ProductEdit' | 'ProductPage'>> = {
 	GenerateVideo: Video<S>;
 	ProductDataV2: ProductData;

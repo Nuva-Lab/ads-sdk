@@ -39,3 +39,6 @@ export {
 	MAX_SCRIPT_MS,
 } from './script-v3.js';
 export type { ScriptGeneration, ScriptLine, CastEntry, StoryboardToken, ClipReferences } from './script-v3.js';
+// What the Agent's internal contract (agents/ads-agent/packages/internal-contract in WhatIf) is compiled with.
+export { adapted, compiler } from './backend-schema.js';
+export type { Overlay as BackendOverlay } from './backend-target.js';

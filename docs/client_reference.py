@@ -205,10 +205,12 @@ def guide_pages(locale='zh'):
                 '<code>scripts.createFrom(base, changes)</code> 用传入的顶层内容字段（此处为 <code>panels</code>）保存一个新脚本，其余字段从 <code>base</code> 复制。它与编写服务写出的脚本经过相同检查，返回新 ID，<code>base</code> 保持不变，<code>base_id</code> 指向它。客户端会校验 <code>script.content</code> 并处理存储编码。')
             + p('Read each kind with its own client: <code>scripts.get</code>, <code>storyboards.get</code> and <code>prompts.get</code>. <code>prompts.get</code> reads a clip\'s video Prompt, for example the one <code>job.prompt</code> names.',
                 '每种产物用各自的客户端读取：<code>scripts.get</code>、<code>storyboards.get</code> 和 <code>prompts.get</code>。<code>prompts.get</code> 读取片段的视频提示词，例如 <code>job.prompt</code> 所指的提示词。')
-            + p('Returned <code>relationships</code> say what an Artifact was made from: another Artifact by its ID, or a Product or Character as <code>{kind, id, version}</code>. The service sets them; you cannot write them. Scripts, Storyboards and Prompts never change: each method returns a new one, written by the writer or checked like the writer\'s.',
-                '返回的 <code>relationships</code> 说明产物的来源：另一个产物（按 ID），或以 <code>{kind, id, version}</code> 表示的产品或人物。它们由服务设置，不能写入。脚本、分镜和提示词不会被修改：每个方法都返回一个新的，由编写服务写出，或与其经过相同检查。')),
+            + p('Returned <code>relationships</code> say what an Artifact was made from: another Artifact by its ID, or a Product or Character as <code>{kind, id, version}</code>. The service sets them; you cannot write them. Scripts, Storyboards and Prompts never change: each method returns a new one, written by the writer or checked like the writer\'s. Each has its own ID; <code>base_id</code> is the one it was made from and <code>lineage_id</code> the first one\'s, so versions form a tree.',
+                '返回的 <code>relationships</code> 说明产物的来源：另一个产物（按 ID），或以 <code>{kind, id, version}</code> 表示的产品或人物。它们由服务设置，不能写入。脚本、分镜和提示词不会被修改：每个方法都返回一个新的，由编写服务写出，或与其经过相同检查。每个都有自己的 ID；<code>base_id</code> 是它所基于的那个，<code>lineage_id</code> 是第一个的 ID，因此各版本构成一棵树。')),
         section('ads-batches', 'Read final Ads and Batches', '读取成片广告与批次',
             c("const batch = await client.batches.get(batchId);\nconst ads = await client.ads.list({ batch_id: batchId });\nconst ad = await client.ads.get(adId);\nconst video = ad.asset;")
+            + p('A Batch groups the work of one attempt; its <code>intent</code> says what it tries. A Script made in a Batch (<code>batch_id</code>) passes it to its Storyboards and their Prompts, and a Job joins its Prompt\'s Batch unless you pass <code>batch_id</code>. A Batch lists its Ads and counts its Jobs by status.',
+                '批次汇集一次尝试中的工作，<code>intent</code> 说明它的目的。在某个批次中生成的脚本（<code>batch_id</code>）会把批次传给其分镜和提示词；任务沿用提示词的批次，除非你传入 <code>batch_id</code>。批次列出其广告，并按状态统计其任务数量。')
             + p('To have Ads Agent assemble completed video Assets, attach them in the desired order and state the editing requirements in the same Session. This sends a conversation request; progress and the saved Ad arrive through the Agent subscription.',
                 '需要 Ads Agent 合成已完成的视频 Asset 时，按顺序附加片段，并在同一个 Session 中说明编辑要求。这会发送一条对话请求；通过 Agent 订阅接收进度和已保存的广告。')
             + ex('request-assembly', "import { Message } from '@nuva/sdk';\nimport type { AgentHandle, Asset } from '@nuva/sdk';")
@@ -281,7 +283,9 @@ def guide_pages(locale='zh'):
                 [t('A line', '台词'), t('<code>scripts.generateFrom</code> or <code>scripts.createFrom</code>, then write a Storyboard for the new Script.', '<code>scripts.generateFrom</code> 或 <code>scripts.createFrom</code>，然后为新脚本生成分镜。')],
             ])
             + p('To render text of your own that no Storyboard describes, send it as raw input with <code>videos.generate({input})</code>. Its text must name every file it attaches; otherwise the request is rejected with <code>422 INVALID_PROMPT</code>.',
-                '需要生成不来自分镜的自定义文本时，用 <code>videos.generate({input})</code> 以原始输入提交。文本必须提到附带的每个文件，否则请求返回 <code>422 INVALID_PROMPT</code>。')),
+                '需要生成不来自分镜的自定义文本时，用 <code>videos.generate({input})</code> 以原始输入提交。文本必须提到附带的每个文件，否则请求返回 <code>422 INVALID_PROMPT</code>。')
+            + p('Either way, the video model sees only the prompt text, the files attached to it, the length and the frame. So a Character or Product reaches a clip only through a Storyboard, or, in a raw render, when you attach its pictures and name them in the text. Earlier SDKs sent a <code>characters</code> list with raw input; it never reached the video model, and a non-empty one is now refused.',
+                '无论哪种方式，视频模型只看到提示词文本、附带的文件、时长和画面比例。因此人物或产品只能通过分镜进入片段；在原始渲染中，则需要你自己附加其图片并在文本中提到。早期 SDK 在原始输入中发送的 <code>characters</code> 列表从未传给视频模型，现在非空时会被拒绝。')),
         section('video', 'Submit a video Job and display the result', '提交视频任务并展示结果',
             ex('generate-video')
             + response('job')
@@ -308,7 +312,9 @@ def guide_pages(locale='zh'):
         section('skill', 'Set the output language and creative direction', '指定输出语言与创意方向',
             c("const script = await client.scripts.generate({\n  product: { id: productId },\n  acceptable_duration_ms: { min: 8000, max: 15000 },\n  instruction: 'Write in English. Keep the supplied product facts.',\n});")
             + p('Nuva selects the writing guidance (Skills) configured for your account; a request does not name one. Use <code>instruction</code> for a requested output language or creative change; <code>storyboards.generate</code> takes it the same way for the shooting style. Product and brand names, approved dialogue, and saved source facts remain tied to their sources. A Storyboard speaks the Script\'s lines word for word; to change a line, revise the Script.',
-                'Nuva 使用为你的账户配置的编写指导（Skill），请求中不指定 Skill。使用 <code>instruction</code> 指定输出语言或创意修改；<code>storyboards.generate</code> 以同样方式用它说明拍摄风格。产品和品牌名称、已确认对白及已保存事实仍以来源内容为准。分镜逐字使用脚本台词；需要修改台词时请修改脚本。')),
+                'Nuva 使用为你的账户配置的编写指导（Skill），请求中不指定 Skill。使用 <code>instruction</code> 指定输出语言或创意修改；<code>storyboards.generate</code> 以同样方式用它说明拍摄风格。产品和品牌名称、已确认对白及已保存事实仍以来源内容为准。分镜逐字使用脚本台词；需要修改台词时请修改脚本。')
+            + p(f'Your backend registers Skills with the <a href="{link("backend-go", "skills")}">Go Admin SDK</a>; <code>main_version</code> is the version new work uses. Content records the Skill versions it was made with in <code>skills</code>; read one with <code>skills.version</code>.',
+                f'你的后端通过 <a href="{link("backend-go", "skills")}">Go Admin SDK</a> 注册 Skill；<code>main_version</code> 是新工作使用的版本。内容在 <code>skills</code> 中记录所用的 Skill 版本，可用 <code>skills.version</code> 读取。')),
         section('retry', 'Retry the same submission', '重试同一次提交',
             ex('idempotency')
             + p('Create this object once per deliberate generation. Retrying <code>submit()</code> reuses the same input and operation key. Persist both if retries must survive a page reload. Create a new object for a deliberate regeneration, even when the input is unchanged.',
@@ -319,81 +325,4 @@ def guide_pages(locale='zh'):
                 '下载<a href="examples/creation-chain.ts">从产品到视频片段的完整示例</a>。保留由调用方持有的 progress 对象，并在应用中实现 saveProgress。createProductVideo 只启动一次新流程并记录已接受的资源、分镜和提示词的操作 key 及视频操作 key；submitPendingVideos 用于主动恢复已保存的提交；waitForProductVideos 只恢复查询，不创建新任务。准备阶段中断时，先检查保留的 ID 和 SDK 错误详情，再决定下一项操作。')),
     ]
 
-    reference = [
-        section('client', 'Client and Sessions', '客户端与 Session',
-            table([t('Method', '方法'), t('Behavior', '行为')], [
-                ['<code>createNuva({getAccessToken})</code>', t('Create a user-scoped client.', '创建以用户为范围的客户端。')],
-                ['<code>client.sessions.create({title})</code>', t('Create a Session.', '创建 Session。')],
-                ['<code>client.sessions.get(id) / list({limit, cursor})</code>', t('Read accessible Sessions.', '读取有权访问的 Session。')],
-                ['<code>client.sessions.list({owner})</code>', t('An admin lists the Sessions of a user below them (<code>owner</code> is <code>session.owner.userId</code>). For anyone else the page is empty.', '管理员列出其下级用户的 Session（<code>owner</code> 即 <code>session.owner.userId</code>）。其他人得到空列表。')],
-                ['<code>client.sessions.history(id, {limit, cursor})</code>', t('Read saved messages without opening a live handle.', '读取已保存消息，无需打开实时 handle。')],
-                ['<code>client.agent({sessionId})</code>', t('Bind chat operations to one Session.', '将对话操作绑定到一个 Session。')],
-                ['<code>client.close()</code>', t('Release local connections on logout or account change.', '退出或切换账号时释放本地连接。')],
-            ])),
-        section('agent', 'Agent methods', 'Agent 方法',
-            table([t('Method', '方法'), t('Result or effect', '返回结果或效果')], [
-                ['<code>send(message)</code>', t('A receipt for accepted input. Replies arrive through subscribe.', '已接受输入的回执；回复通过 subscribe 返回。')],
-                ['<code>subscribe(listener)</code>', t('Current state and updates; returns an unsubscribe function.', '当前状态及后续更新；返回取消订阅函数。')],
-                ['<code>stop()</code>', t('Stop the current loop; preserve submitted Jobs.', '停止当前循环，保留已提交任务。')],
-                ['<code>respond(call, output) / fail(call, failure)</code>', t('Answer a pending client tool. The Ads Agent declares none today.', '答复待处理的客户端工具。Ads Agent 目前未声明任何客户端工具。')],
-                ['<code>onClientTool(listener) / onHostCall(listener)</code>', t('Observe client tools and host calls. These never fire while the Ads Agent declares none.', '接收客户端工具和宿主调用。Ads Agent 未声明时不会触发。')],
-                ['<code>refresh() / loadEarlierMessages()</code>', t('Resynchronize or page history without resending input.', '重新同步或加载历史，不重发输入。')],
-                ['<code>listPendingCalls() / getHostCall(id)</code>', t('Read stored client-tool and host-call records. Both are empty for the Ads Agent today.', '读取已保存的客户端工具和宿主调用记录。Ads Agent 目前均为空。')],
-                ['<code>files.get(id)</code>', t('A Session file (an image or voice sample the Agent made in this Session): <code>{id, mime, label, download_url, download_url_expires_at}</code>. Show it by <code>mime</code>; <code>download_url</code> works directly in <code>&lt;img&gt;</code> or <code>&lt;audio&gt;</code> and is valid until <code>download_url_expires_at</code> (at least 12 hours); call <code>files.get</code> again after that.', '会话文件（Agent 在本会话中生成的图片或语音样本）：<code>{id, mime, label, download_url, download_url_expires_at}</code>。请按 <code>mime</code> 展示；<code>download_url</code> 可直接用于 <code>&lt;img&gt;</code> 或 <code>&lt;audio&gt;</code>，在 <code>download_url_expires_at</code> 之前有效（至少 12 小时），之后请再次调用 <code>files.get</code>。')],
-            ])),
-        section('resources', 'Resource and generation methods', '资源与生成方法',
-            table([t('Module', '模块'), t('Methods', '方法')], [
-                ['<code>products / brands / characters</code>', '<code>create / get / list / update</code>'],
-                ['<code>products</code>', t('<code>delete(id)</code>, for the whole organization: what was made from it stays but can\'t be revised', '<code>delete(id)</code>，对整个组织生效：已做出的内容保留，但不能再修订')],
-                ['<code>assets</code>', '<code>upload / get</code>'],
-                ['<code>scripts</code>', '<code>get / generate / generateFrom / createFrom</code>'],
-                ['<code>storyboards</code>', '<code>get / generate / generateFrom / createFrom</code>'],
-                ['<code>prompts</code>', t('<code>get / generate</code>; <code>createFrom</code> (advanced)', '<code>get / generate</code>；<code>createFrom</code>（高级用法）')],
-                ['<code>videos</code>', '<code>generate</code>'],
-                ['<code>jobs</code>', '<code>get / subscribe / cancel</code>'],
-                ['<code>ads / batches</code>', '<code>get / list</code>'],
-                ['<code>skills</code>', '<code>get / list / version</code>'],
-                ['<code>shares</code>', t('<code>list(item) / set(item, scope, access) / remove(item, scope)</code>: share a Brand, Product, Character, Asset or Artifact with everyone at or below a scope, for <code>read</code> or <code>write</code>. Only an admin of the scope or above shares into it; <code>list</code> takes the right to share the item.', '<code>list(item) / set(item, scope, access) / remove(item, scope)</code>：将品牌、产品、角色、Asset 或产物共享给某范围内（含下级）的所有人，权限为 <code>read</code> 或 <code>write</code>。只有该范围或上级范围的管理员可以共享；<code>list</code> 需要共享该内容的权限。')],
-            ])
-            + p('Use the input and output types shipped with each method. IDs identify resources; a resource\'s <code>label</code> is for display only. An Asset\'s <code>label</code> is what its uploader said it shows, or null. Brands, Products and Characters change in place: <code>update</code> takes the version you read and saves the next one. Scripts, Storyboards and Prompts never change: <code>generateFrom</code> and <code>createFrom</code> return a new one.',
-                '按各方法提供的输入输出类型调用。资源以 ID 标识，资源的 <code>label</code> 仅用于展示。Asset 的 <code>label</code> 是上传者对文件内容的说明，可能为 null。品牌、产品和人物原地修改：<code>update</code> 需要读取到的版本，并保存下一个版本。脚本、分镜和提示词不会被修改：<code>generateFrom</code> 和 <code>createFrom</code> 返回新的产物。')),
-        section('errors', 'Handle errors and uncertain writes', '处理错误与不确定的写入',
-            ex('errors', "import { NuvaError, type NuvaClient } from '@nuva/sdk';")
-            + table([t('Error', '错误'), t('Handling', '处理方式')], [
-                ['<code>UNAUTHENTICATED / FORBIDDEN</code>', t('Check login and resource access.', '检查登录状态和资源权限。')],
-                ['<code>REVISION_CONFLICT</code>', t('Retain edits and compare with the latest record.', '保留编辑并与最新记录对比。')],
-                ['<code>CALL_ALREADY_RESOLVED / CALL_OBSOLETE</code>', t('Read current interaction state.', '读取当前交互状态。')],
-                ['<code>PARTIAL_CREATION</code>', t('Some clip Prompts were saved but not all. Retain saved.prompts, then retry with the same operation key.', '部分片段提示词已保存，但并非全部。保留 saved.prompts，再使用相同操作 key 重试。')],
-                ['<code>REJECTED</code>', t('The service refused the input, for example a Storyboard that fails its checks. The message lists the problems.', '服务拒绝了输入，例如分镜未通过检查。错误信息列出具体问题。')],
-                ['<code>INVALID_INPUT</code>', t('The input is malformed or uses a removed form; nothing was done. The message says what to change.', '输入格式错误或使用了已移除的写法，未执行任何操作。错误信息说明需要修改的内容。')],
-                ['<code>IDEMPOTENCY_CONFLICT</code>', t('The key belongs to different input. Use the original input for recovery, or a new key for new work.', '该 key 已绑定不同输入。恢复时使用原输入；新任务使用新 key。')],
-                ['<code>acceptance: "unknown"</code>', t('Inspect the resource or recover with the saved operation key before issuing another write.', '再次写入前先检查资源，或使用已保存的操作 key 恢复。')],
-            ])
-            + p('<code>requestId</code> correlates a request; it is not a durable idempotency key. A duplicate chat send may repeat work. The SDK only retries a write after authentication refresh when the backend explicitly reports <code>acceptance: "not_accepted"</code>. Timeouts and lost responses do not establish that a write failed.',
-                '<code>requestId</code> 用于关联请求，不是持久化幂等 key。重复发送聊天消息可能重复执行工作。仅当后端明确返回 <code>acceptance: "not_accepted"</code> 时，SDK 才会在刷新认证后重试写入。超时或响应丢失不代表写入失败。')),
-        section('options', 'Client options', '客户端选项',
-            table([t('Option', '选项'), t('Use', '用途')], [
-                ['<code>getAccessToken</code>', t('Application-provided callback returning {token, expiresAt}; the SDK calls it for authentication and refresh.', '由应用实现的回调，返回 {token, expiresAt}；SDK 在认证和刷新时调用。')],
-                ['<code>environment</code>', t('sandbox (default, staging) or production. Selects the paired Agent and API addresses.', 'sandbox（默认值，对应 staging）或 production，选择配套的 Agent 和 API 地址。')],
-                ['<code>baseUrl / storeBaseUrl / generationBaseUrl</code>', t('Override service addresses for another environment.', '为其他环境覆盖服务地址。')],
-                ['<code>requestTimeoutMs</code>', t('Override per-request deadlines. storyboards.generate, generateFrom and createFrom and prompts.generate default to 300 seconds; scripts.generate, generateFrom and createFrom, and the file upload and registration in assets.upload, to 180 seconds. All other requests, including video submission, default to 8 seconds. job.result({timeoutMs}) separately bounds completion waiting.', '覆盖单次请求超时。storyboards.generate、generateFrom、createFrom 和 prompts.generate 默认 300 秒；scripts.generate、generateFrom、createFrom，以及 assets.upload 中的文件上传和登记默认 180 秒。其他请求（包括视频任务提交）默认 8 秒。job.result({timeoutMs}) 另行控制等待任务完成的时长。')],
-                ['<code>jobPollIntervalMs</code>', t('Set the interval between Job status polls.', '设置任务状态轮询间隔。')],
-                ['<code>tokenRefreshSkewMs</code>', t('Set how early expiry-aware tokens refresh.', '设置令牌在过期前多久刷新。')],
-                ['<code>onTrace / onWireTrace</code>', t('Inspect SDK diagnostics. Redact credentials and private content before retaining or sharing traces.', '查看 SDK 诊断信息。保存或分享前应去除凭证和私有内容。')],
-            ])),
-        section('versions', 'Versions and stored content', '版本与存储内容',
-            table([t('Value', '值'), t('Meaning', '含义')], [
-                ['<code>0.1.0-preview.4</code>', t('SDK package version.', 'SDK 包版本。')],
-                ['<code>/v1/…</code>', t('Public HTTP API version.', '公开 HTTP API 版本。')],
-                ['<code>Nuva-Api-Version: 2026-11-07</code>', t('The API version the SDK sends with every request; you do not set it.', 'SDK 在每个请求中发送的 API 版本，无需自行设置。')],
-                ['<code>version: 1</code>', t('Agent message-envelope protocol revision; omission also means v1.', 'Agent 消息封装协议版本；省略时同样按 v1 处理。')],
-                ['<code>schema_version: 1</code>', t('Current backend Artifact schema.', '当前后端产物 schema。')],
-                ['<code>product.schema_version: 2</code>', t('Product data with <code>image_asset_ids</code> and <code>video_asset_ids</code>.', '包含 <code>image_asset_ids</code> 和 <code>video_asset_ids</code> 的产品数据。')],
-                ['<code>script.format: 3</code>', t('Script content in script.content (stored as nuva.script version 3).', '通过 script.content 返回的脚本内容（存储为 nuva.script 版本 3）。')],
-                ['<code>script.format: 2</code>', t('A read-only ScriptPackage saved before Storyboards, in script.legacy.', '分镜功能推出前保存的只读 ScriptPackage，位于 script.legacy。')],
-                ['<code>nuva.storyboard version 1</code>', t('Storyboard content in storyboard.content.', '通过 storyboard.content 返回的分镜内容。')],
-            ])
-            + p('The Script and Storyboard clients validate content and decode it into <code>content</code>.',
-                '脚本和分镜客户端会校验内容，并解码到 <code>content</code>。')),
-    ]
-    return {'frontend': start, 'agent': agent, 'store': resources, 'generation': generation, 'reference': reference}
+    return {'frontend': start, 'agent': agent, 'store': resources, 'generation': generation}

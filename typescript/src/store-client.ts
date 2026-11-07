@@ -290,13 +290,16 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 		characters: profiles('Character') as StoreClients['characters'],
 		assets: {
 			get: (id) => request('assets.get', { id }, assetParser) as Promise<Asset>,
+			update: async (id, changes, o) =>
+				request('assets.update', { id, ...checked(backendSchema('AssetEdit'), changes, true) }, assetParser, o?.requestId) as Promise<Asset>,
 			upload: async (source, o) => {
 				const text = { ...(o?.label === undefined ? {} : { label: o.label }), ...(o?.description === undefined ? {} : { description: o.description }) };
-				const register = (body: object) =>
-					request('assets.register', checked(backendSchema('AssetCreate'), { ...body, ...text }, true), assetParser, o?.requestId, o?.idempotencyKey) as Promise<Asset>;
+				// A URL's fetch is keyed; a file is not: each upload is new, and the same file registered again is the same Asset.
+				const register = (body: object, key?: string) =>
+					request('assets.register', checked(backendSchema('AssetCreate'), { ...body, ...text }, true), assetParser, o?.requestId, key) as Promise<Asset>;
 				if (!(source instanceof File)) {
 					if (typeof source?.url !== 'string') throw moved('Upload a File, or { url } for a public HTTPS URL.');
-					return register({ url: source.url, ...(o?.kind === undefined ? {} : { kind: o.kind }) });
+					return register({ url: source.url, ...(o?.kind === undefined ? {} : { kind: o.kind }) }, o?.idempotencyKey);
 				}
 				const prefix = source.type.split('/')[0];
 				const kind = o?.kind ?? (prefix === 'image' || prefix === 'video' || prefix === 'audio' ? prefix : undefined);

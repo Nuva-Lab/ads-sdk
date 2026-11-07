@@ -57,12 +57,11 @@ assert.equal(existsSync('node_modules/react'),false);
 assert.equal(CLIENT_PROTOCOL_REVISION,1);
 const id='01a175e0-20c1-3f18-da7c-5afa67a79363'; assert.equal(backendIdSchema.parse(id),id);
 assert.equal(backendSchema('GenerateVideo').parse({prompt:id}).prompt,id);
-// The Agent's contract (Ads, Batches, Script creation) is not in the package, nor are the internal entries.
+// The Agent's contract (Ads, Batches, Script creation) is not in the package, nor is the workspace entry.
 assert.throws(()=>backendSchema('AdCreate'));
-for (const entry of ['@nuva/sdk/internal','@nuva/sdk/internal-backend']) await assert.rejects(import(entry));
 const schemas=await import('@nuva/sdk/schemas');
 for (const name of ['scriptSchema','storyboardSchema','encodeScript','decodeScript','encodeStoryboard','decodeStoryboard']) assert.ok(schemas[name]!==undefined,name);
-for (const name of ['scriptLines','storyboardTokens','NARRATOR','MIN_CLIP_MS','scriptAuthoringSchema','scriptVersion','clipReferences','storyboardIssues','generateScriptSchema','encodeScriptPackage','scriptRequestSchema','internalBackendSchema']) assert.equal(name in schemas,false,name+' is internal');
+for (const name of ['scriptLines','storyboardTokens','NARRATOR','MIN_CLIP_MS','scriptAuthoringSchema','scriptVersion','clipReferences','storyboardIssues','generateScriptSchema','encodeScriptPackage','scriptRequestSchema','adapted','compiler']) assert.equal(name in schemas,false,name+' is internal');
 await assert.rejects(import('@nuva/sdk/internal'),error=>error.code==='ERR_PACKAGE_PATH_NOT_EXPORTED');
 const client=createNuva({baseUrl:'https://fixture.invalid/api',storeBaseUrl:'https://fixture.invalid',getAccessToken:async()=> 'not-used'});
 assert.equal(typeof client.agent({sessionId:'fixture'}).respond,'function'); assert.equal(client.sessions.getMain,undefined);

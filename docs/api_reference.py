@@ -1,43 +1,51 @@
-"""The field-level API reference page (`reference-fields`), generated from the Client SDK's contract.
+"""The API reference: an Introduction page (`reference`) and one page per resource (`reference-products`, ...), each with
+its methods and models, generated from the Client SDK's contract.
 
-Everything a table shows is read at build time from the contract, so the page cannot drift from it:
+Everything a field list shows is read at build time from the contract, so the pages cannot drift from it:
 
 - `typescript/schema/backend.openapi.json`, the public backend contract (API version 2026-11-07): each field's type,
-  whether it is required, its default, its limits and its English `description`. The internal contract
-  (`backend-internal.openapi.json`) is never read.
+  whether it is required, its default, its limits and its English `description`. The backend's internal contract
+  (WhatIf's `ads_backend/openapi.internal.json`) is never read; the docs check only makes sure no page names it.
 - `reference_contract.mjs` (a small node script) for what the OpenAPI file does not hold:
   * the zod schemas of the generate inputs and of Script and Storyboard content, turned into JSON Schema with
-    `z.toJSONSchema` in the same zod instance the sources use. That is more robust than reading `.describe()` from the
-    source text: shared schemas, `.optional()`, `.extend()`, `.omit()`, limits and descriptions come out resolved,
-    exactly as zod validates them, and the result is walked by the same code as the OpenAPI schemas;
+    `z.toJSONSchema` in the same zod instance the sources use, so limits and descriptions come out exactly as zod
+    validates them;
   * the client interfaces (`StoreClients`, `SessionsClient`, `AgentHandle`, `NuvaClientOptions`, ...), read with the
     TypeScript checker: every method with its parameter names, and every property with its TSDoc.
-  The script loads the TypeScript sources as they are (reference_loader.mjs transpiles them), so no SDK build is needed.
-- `METHODS` below, the only hand-written mapping: which schema each method takes and returns, a one-sentence purpose,
-  and the descriptions the contract does not have (SDK-only fields, zod fields without `.describe()`), in English and
-  Chinese.
+- `reference_examples.mjs`, which runs each method's example (`examples/reference.ts`) through the SDK against the
+  backend answers in `examples/reference-responses.ts`: each answer is checked against its route's public schema with
+  the SDK's `backendSchema`, the example's last request must be the method's route, and the value the call returns is
+  the response the page shows.
+- `PAGES`, `MODELS` and the notes below, the only hand-written part: which schema each method takes and returns, its
+  title and purpose, and the descriptions the contract does not have, in English and Chinese.
 - `reference_zh.json`: the Chinese for each English description the contract supplies.
 
 `problems()` lists every gap: a reachable field without a description, a description without Chinese, a public method
 or interface member missing from the map, a map entry the contract no longer has, a mapped schema that no longer matches
-its backend route, and unused translations or notes. `build_customer.py` and `check_customer.py` fail on any of them.
+its backend route, an example that fails or is missing, and unused translations or notes. `build_customer.py` and
+`check_customer.py` fail on any of them.
 """
 from functools import lru_cache
 from html import escape
 import json
-from pathlib import Path
 import re
 import subprocess
+from textwrap import dedent
 
-from build import ROOT
-from customer_layout import code, filename
+from build import ROOT, table
+from customer_layout import DOCUMENTS, REFERENCE, code, filename
+from client_reference import source_example
 
 SDK = ROOT.parent
 OPENAPI = SDK / 'typescript' / 'schema' / 'backend.openapi.json'
 ZH_FILE = ROOT / 'reference_zh.json'
-PAGE = 'reference-fields'
+EXAMPLES_FILE = ROOT / 'examples' / 'reference.ts'
+INTRO = 'reference'
+API_VERSION = '2026-11-07'
 SAFE_INTEGER = 9007199254740991
 ID_PATTERN = '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+# The writers' routes are a separate service, not in the public OpenAPI file; the SDK checks their answers.
+GENERATION_ROUTES = {'/v1/generate/script', '/v1/generate/storyboard', '/v1/generate/prompt'}
 
 
 @lru_cache(maxsize=None)
@@ -45,17 +53,36 @@ def openapi():
     return json.loads(OPENAPI.read_text())
 
 
+def node(script):
+    result = subprocess.run(['node', str(ROOT / script)], capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        raise RuntimeError(f'{script} failed:\n' + result.stderr)
+    return json.loads(result.stdout)
+
+
 @lru_cache(maxsize=None)
 def contract():
-    result = subprocess.run(['node', str(ROOT / 'reference_contract.mjs')], capture_output=True, text=True, check=False)
-    if result.returncode != 0:
-        raise RuntimeError('reference_contract.mjs failed:\n' + result.stderr)
-    return json.loads(result.stdout)
+    return node('reference_contract.mjs')
+
+
+@lru_cache(maxsize=None)
+def runs():
+    """Each example's requests, returned value and problems, from reference_examples.mjs."""
+    return node('reference_examples.mjs')
 
 
 @lru_cache(maxsize=None)
 def translations():
     return json.loads(ZH_FILE.read_text())
+
+
+def region(name):
+    """One `#region` of examples/reference.ts, dedented."""
+    text = EXAMPLES_FILE.read_text()
+    found = re.findall(rf'^[\t ]*// #region {re.escape(name)}\n(.*?)^[\t ]*// #endregion {re.escape(name)}$', text, re.M | re.S)
+    if len(found) != 1:
+        raise ValueError(f'Expected one example region {name} in examples/reference.ts')
+    return dedent(found[0].replace('\t', '  ')).strip()
 
 
 # ── Text ─────────────────────────────────────────────────────────────────
@@ -109,10 +136,10 @@ class Query:
 
 
 class Row:
-    """A field the SDK adds or shapes, described here. `link` points its type at a full expansion elsewhere."""
+    """A field the SDK adds or shapes, described here. Its type may name models (`Prompt[]`), which are linked."""
 
-    def __init__(self, path, type_, required, en, zh, default='', link=None):
-        self.path, self.type, self.required, self.desc, self.default, self.link = path, type_, required, T(en, zh), default, link
+    def __init__(self, path, type_, required, en, zh, default=''):
+        self.path, self.type, self.required, self.desc, self.default = path, type_, required, T(en, zh), default
 
 
 class Field:
@@ -123,16 +150,30 @@ class Field:
 
 
 class P:
-    """A method parameter: `spec` for an object (its fields get a table), or a scalar with a description."""
+    """A method parameter: `spec` for an object (its fields are listed under it), or a scalar with a description.
+    A parameter typed StoreCommandOptions or CommandOptions links to the Introduction instead."""
 
     def __init__(self, name, type_, spec=None, en=None, zh=None):
         self.name, self.type, self.spec, self.desc = name, type_, spec, (T(en, zh) if en else None)
 
 
 class Method:
-    def __init__(self, path, params, returns, purpose, output=(), route=None, body=None, notes=()):
-        self.path, self.params, self.returns, self.purpose = path, params, returns, T(*purpose)
-        self.output, self.route, self.body, self.notes = list(output), route, body, [T(*note) for note in notes]
+    """`route` is the request the method ends with (the example's last request); `body` and `response` are the
+    contract schemas that route takes and returns, checked against backend.openapi.json."""
+
+    def __init__(self, path, title, params, returns, purpose, route, body=None, response=None, notes=(), output=None):
+        self.path, self.title, self.params, self.returns, self.purpose = path, T(*title), params, returns, T(*purpose)
+        self.route, self.body, self.response, self.notes, self.output = route, body, response, [T(*note) for note in notes], output
+        self.optional = set()
+
+    @property
+    def anchor(self):
+        return self.path.replace('.', '-')
+
+
+class Page:
+    def __init__(self, key, title, blurb, summary, methods, models):
+        self.key, self.title, self.blurb, self.summary, self.methods, self.models = key, title, T(*blurb), [T(*s) for s in summary], methods, models
 
 
 def links(kind, en, zh):
@@ -146,9 +187,8 @@ def links(kind, en, zh):
 
 ARTIFACT = lambda kind: links(kind, 'Added by the SDK: the id, for display.', '由 SDK 添加：用于展示的 ID。') + [
     Row('schemaVersion', 'number', True, 'Added by the SDK: the same as `schema_version`.', '由 SDK 添加：与 <code>schema_version</code> 相同。')]
-NEXT = Row('nextCursor', 'string | null', True, 'Added by the SDK: the same as `next_cursor`; null at the end of the list.', '由 SDK 添加：与 <code>next_cursor</code> 相同；为 null 表示已到列表末尾。')
-OPTIONS = P('options', 'StoreCommandOptions', Ts('StoreCommandOptions'))
-COMMAND = P('options', 'CommandOptions', Ts('CommandOptions'))
+OPTIONS = P('options', 'StoreCommandOptions')
+COMMAND = P('options', 'CommandOptions')
 ID = lambda what_en, what_zh: P('id', 'string', None, f'The {what_en}\'s id.', f'{what_zh}的 ID。')
 REF = lambda kind, what_en, what_zh: P('ref', f'ResourceRef<"{kind}">', None, f'The {what_en}: `{{kind: "{kind}", id}}`, with the id of the version to read.', f'{what_zh}：<code>{{kind: "{kind}", id}}</code>，id 为要读取的版本的 ID。')
 BASE = lambda kind, record, what_en, what_zh: P('base', f'ResourceRef<"{kind}"> | {record}', None,
@@ -158,175 +198,273 @@ BASE_REF = lambda kind, what_en, what_zh: P('base', f'ResourceRef<"{kind}">', No
     f'作为起点的{what_zh}：<code>{{kind: "{kind}", id}}</code>。它保持不变。')
 VERSION_QUERY = P('query', '{version?: number}', Query(None, ('version',)))
 LIST_QUERY = lambda route, *names: P('query', 'StoreQuery', Query(route, ('limit', 'cursor') + names))
+READS_BASE = ('With a reference as `base`, it reads `base` first (`GET`), then saves.', '<code>base</code> 为引用时，先读取 <code>base</code>（<code>GET</code>），再保存。')
+
+
+NEXT_CURSOR = Row('nextCursor', 'string | null', True, 'Added by the SDK: the same as `next_cursor`.', '由 SDK 添加：与 <code>next_cursor</code> 相同。')
+
+
+def page_of(component):
+    """What a list method returns: the page's items, as the contract describes them, and its cursor."""
+    return [Field(component, 'items'), Field(component, 'next_cursor'), NEXT_CURSOR]
 
 
 def profiles(kind, name, en, zh):
     """create / get / list / update for a Brand, Product or Character."""
     plural = kind + 's'
-    record = links(kind, f'Added by the SDK: the {en}\'s name (`data.name`), for display.', f'由 SDK 添加：{zh}名称（<code>data.name</code>），用于展示。')
     return [
-        Method(f'{plural}.create', [P('input', f'{name}Create', Api(f'{name}Create')), OPTIONS], f'Promise<{name}>',
+        Method(f'{plural}.create', (f'Create a {en}', f'创建{zh}'), [P('input', f'{name}Create', Api(f'{name}Create')), OPTIONS], f'Promise<{name}>',
                (f'Creates a {en} and returns its first version.', f'创建{zh}，返回其第一个版本。'),
-               output=[Api(name), *record], route=('POST', f'/v1/{plural}'), body=f'{name}Create'),
-        Method(f'{plural}.get', [ID(en, zh), VERSION_QUERY], f'Promise<{name}>',
+               ('POST', f'/v1/{plural}'), body=f'{name}Create', response=name),
+        Method(f'{plural}.get', (f'Retrieve a {en}', f'读取{zh}'), [ID(en, zh), VERSION_QUERY], f'Promise<{name}>',
                (f'Reads the latest version of a {en}, or the `version` you ask for.', f'读取{zh}的最新版本，或指定的 <code>version</code>。'),
-               output=[Api(name)], route=('GET', f'/v1/{plural}/{{{kind}_id}}')),
-        Method(f'{plural}.list', [LIST_QUERY(('GET', f'/v1/{plural}'), *(('brand_id',) if kind == 'product' else ()))], f'Promise<BackendPage<{name}>>',
+               ('GET', f'/v1/{plural}/{{{kind}_id}}'), response=name),
+        Method(f'{plural}.list', (f'List {en}s', f'列出{zh}'), [LIST_QUERY(('GET', f'/v1/{plural}'), *(('brand_id',) if kind == 'product' else ()))], f'Promise<BackendPage<{name}>>',
                (f'Lists the {en}s you can read, a page at a time, each at its latest version.', f'分页列出你有权读取的{zh}，每个均为最新版本。'),
-               output=[Field(f'{name}Page', 'items'), Field(f'{name}Page', 'next_cursor'), NEXT], route=('GET', f'/v1/{plural}')),
-        Method(f'{plural}.update', [P('ref', 'EntityRef', Ts('EntityRef')), P('changes', f'{name}Changes', Api(f'{name}Edit', omit=('version',))), OPTIONS], f'Promise<{name}>',
-               (f'Changes the fields you send and saves the next version; if someone saved a newer version since you read it, it fails with `REVISION_CONFLICT` and nothing changes.',
-                f'修改传入的字段并保存下一个版本；如果读取之后已有人保存了更新的版本，返回 <code>REVISION_CONFLICT</code>，不做任何修改。'),
-               output=[Api(name)], route=('PATCH', f'/v1/{plural}/{{{kind}_id}}'), body=f'{name}Edit'),
+               ('GET', f'/v1/{plural}'), response=f'{name}Page', output=page_of(f'{name}Page')),
+        Method(f'{plural}.update', (f'Update a {en}', f'修改{zh}'), [P('ref', 'EntityRef', Ts('EntityRef')), P('changes', f'{name}Changes', Api(f'{name}Edit', omit=('version',))), OPTIONS], f'Promise<{name}>',
+               (f'Changes the fields you send and saves the next version; a list is replaced as a whole and `null` clears an optional value. If someone saved a newer version since the one you pass, it fails with `REVISION_CONFLICT` and nothing changes.',
+                f'修改传入的字段并保存下一个版本；列表整体替换，<code>null</code> 清空可选值。如果传入的版本之后已有人保存了更新的版本，返回 <code>REVISION_CONFLICT</code>，不做任何修改。'),
+               ('PATCH', f'/v1/{plural}/{{{kind}_id}}'), body=f'{name}Edit', response=name),
     ]
 
 
-SCRIPT_OUT = [Api('Script'), *ARTIFACT('script'),
-              Row('format', '3 | 2', True, 'Added by the SDK: 3 for a Script with `content`; 2 for a read-only Script saved before Storyboards, in `legacy`.',
-                  '由 SDK 添加：3 表示带 <code>content</code> 的脚本；2 表示分镜功能推出前保存的只读脚本，内容在 <code>legacy</code> 中。'),
-              Zod('ScriptContent', prefix='content'),
-              Row('legacy', 'ScriptPackage', False, 'Added by the SDK for `format: 2` only: the old ScriptPackage, read-only. It cannot be revised or shot; write a new Script instead.',
-                  '仅 <code>format: 2</code> 时由 SDK 添加：旧的 ScriptPackage，只读。不能修改或拍成分镜，请生成新脚本。')]
-STORYBOARD_OUT = [Api('Storyboard'), *ARTIFACT('storyboard'), Zod('StoryboardContent', prefix='content')]
-PROMPT_OUT = [Api('Prompt'), *ARTIFACT('prompt')]
+def profile_record(kind, en, zh):
+    return links(kind, f'Added by the SDK: the {en}\'s name (`data.name`), for display.', f'由 SDK 添加：{zh}名称（<code>data.name</code>），用于展示。')
+
+
+CONTENT_SCRIPT = Row('content', 'ScriptContent', False, 'Added by the SDK for `format: 3`: the Script decoded from `data.text` and validated. Read this, not `data.text`.',
+                     '仅 <code>format: 3</code> 时由 SDK 添加：从 <code>data.text</code> 解码并校验后的脚本。请读取此字段，而不是 <code>data.text</code>。')
+CONTENT_STORYBOARD = Row('content', 'StoryboardContent', True, 'Added by the SDK: the Storyboard decoded from `data.text` and validated. Read this, not `data.text`.',
+                         '由 SDK 添加：从 <code>data.text</code> 解码并校验后的分镜。请读取此字段，而不是 <code>data.text</code>。')
 JOB_METHODS = [
-    Row('subscribe(listener, onError?)', 'Unsubscribe', True,
-        'Added by the SDK: calls `listener` with each state of this Job, polled every `jobPollIntervalMs`, until it is `completed`, `failed` or `cancelled`. The returned function stops it locally; the Job keeps running.',
-        '由 SDK 添加：按 <code>jobPollIntervalMs</code> 轮询，将任务的每个状态传给 <code>listener</code>，直到 <code>completed</code>、<code>failed</code> 或 <code>cancelled</code>。返回的函数只停止本地轮询，任务继续运行。'),
+    Row('subscribe(listener, onError?)', '() => void', True,
+        'Calls `listener` with each state of this Job, polled every `jobPollIntervalMs`, until it is `completed`, `failed` or `cancelled`. The returned function stops it locally; the Job keeps running.',
+        '按 <code>jobPollIntervalMs</code> 轮询，将任务的每个状态传给 <code>listener</code>，直到 <code>completed</code>、<code>failed</code> 或 <code>cancelled</code>。返回的函数只停止本地轮询，任务继续运行。'),
     Row('result(options?)', 'Promise<Asset>', True,
-        'Added by the SDK: resolves to the generated Asset once the Job completes, and rejects when it fails or is cancelled. `options.timeoutMs` and `options.signal` stop waiting locally, not the Job.',
-        '由 SDK 添加：任务完成后返回生成的 Asset；任务失败或取消时抛出错误。<code>options.timeoutMs</code> 和 <code>options.signal</code> 只停止本地等待，不会停止任务。'),
+        'Resolves to the generated Asset once the Job completes, and rejects when it fails or is cancelled. `options.timeoutMs` and `options.signal` stop waiting locally, not the Job.',
+        '任务完成后返回生成的 Asset；任务失败或取消时抛出错误。<code>options.timeoutMs</code> 和 <code>options.signal</code> 只停止本地等待，不会停止任务。'),
 ]
 
-# Sections in page order; each holds the methods of one or more clients.
-SECTIONS = [
-    ('assets', 'Assets', '素材（Asset）', [
-        Method('assets.upload', [P('source', 'File | {url: string}', None, 'The file: a `File` from your upload UI, or `{url}` for a public HTTPS URL the service fetches.',
-                                   '文件：上传控件中的 <code>File</code>，或由服务抓取的公开 HTTPS 地址 <code>{url}</code>。'),
-                                 P('options', 'StoreCommandOptions & {kind?, label?, description?}', [
-                                     Field('UploadRequest', 'kind', required=False, note=T('`image` (JPEG, PNG or WebP), `video` (MP4) or `audio` (MP3, WAV or MP4). For a `File`, taken from its MIME type when left out; required with `{url}`.',
-                                                                                         '<code>image</code>（JPEG、PNG 或 WebP）、<code>video</code>（MP4）或 <code>audio</code>（MP3、WAV 或 MP4）。上传 <code>File</code> 时可省略，按其 MIME 类型确定；使用 <code>{url}</code> 时必填。')),
-                                     Field('AssetCreate', 'label'), Field('AssetCreate', 'description'),
-                                     Row('idempotencyKey', 'string', False, 'See `StoreCommandOptions`.', '参见 <code>StoreCommandOptions</code>。'),
-                                     Row('requestId', 'string', False, 'See `StoreCommandOptions`.', '参见 <code>StoreCommandOptions</code>。')])],
-               'Promise<Asset>', ('Adds a file, uploaded or fetched from a public HTTPS URL, and returns its Asset; the same file added again returns the same Asset.',
-                                  '添加文件（上传或从公开 HTTPS 地址抓取），返回其 Asset；再次添加同一文件会返回同一个 Asset。'),
-               output=[Api('AssetOut'), Row('ref', '{kind, id}', True, 'Added by the SDK: `{kind: "asset", id}`, the reference to attach to a message.', '由 SDK 添加：<code>{kind: "asset", id}</code>，可附加到消息的引用。')],
-               route=('POST', '/v1/assets'), body='AssetCreate',
-               notes=[('Uploading a `File` takes three requests: an upload URL, the upload, then registration; a file larger than the kind allows is refused before it is sent.',
-                       '上传 <code>File</code> 需要三次请求：获取上传地址、上传文件、登记文件；超过该类型大小上限的文件会在发送前被拒绝。')]),
-        Method('assets.get', [ID('Asset', 'Asset ')], 'Promise<Asset>',
-               ('Reads an Asset you uploaded or generated, or one a shared Product or Character uses, with a fresh download URL.',
-                '读取你上传或生成的 Asset，或共享产品、人物使用的 Asset，并返回新的下载地址。'),
-               output=[Api('AssetOut')], route=('GET', '/v1/assets/{asset_id}')),
-    ]),
-    ('profiles', 'Brands, Products and Characters', '品牌、产品与人物',
-        profiles('brand', 'Brand', 'Brand', '品牌') + profiles('product', 'Product', 'Product', '产品') + [
-        Method('products.delete', [ID('Product', '产品'), COMMAND], 'Promise<void>',
-               ('Deletes the Product for everyone in the organization: it is no longer listed or readable, and what was made from it stays readable but cannot be revised. Deleting it again succeeds.',
-                '为整个组织删除该产品：不再出现在列表中，也不能读取；已用它做出的内容仍可读取，但不能再修订。重复删除同样成功。'),
-               route=('DELETE', '/v1/products/{product_id}')),
-        ] + profiles('character', 'Character', 'Character', '人物')),
-    ('scripts', 'Scripts', '脚本', [
-        Method('scripts.generate', [P('input', 'ScriptInput', Zod('NewScriptInput')), OPTIONS], 'Promise<Script>',
-               ('The writer writes a new Script for a Product and saves it.', '编写服务为产品写出一个新脚本并保存。'), output=SCRIPT_OUT),
-        Method('scripts.get', [REF('script', 'Script', '脚本')], 'Promise<Script>',
-               ('Reads a Script; its `content` is validated and decoded.', '读取脚本；其 <code>content</code> 已校验并解码。'), output=[Api('Script')],
-               route=('GET', '/v1/artifacts/script/{artifact_id}')),
-        Method('scripts.generateFrom', [BASE_REF('script', 'Script', '脚本'), P('input', 'ReviseScriptInput', Zod('ReviseScriptInput')), OPTIONS], 'Promise<Script>',
-               ('The writer writes a new Script from `base`, as instructed, for the same Product.', '编写服务按指示从 <code>base</code> 写出一个新脚本，产品不变。'), output=[Api('Script')]),
-        Method('scripts.createFrom', [BASE('script', 'Script', 'Script', '脚本'), P('changes', 'Partial<ScriptContent>', Zod('ScriptContent', partial=True)), OPTIONS], 'Promise<Script>',
-               ('Saves a new Script with the top-level content fields you pass; the rest is copied from `base`, and it gets the same checks as a written Script.',
-                '用传入的顶层内容字段保存一个新脚本，其余字段从 <code>base</code> 复制；它与编写服务写出的脚本经过相同检查。'), output=[Api('Script')]),
-    ]),
-    ('storyboards', 'Storyboards', '分镜', [
-        Method('storyboards.generate', [P('input', 'StoryboardInput', Zod('NewStoryboardInput')), OPTIONS], 'Promise<Storyboard>',
-               ('The writer casts and shoots a Script as a new Storyboard, with every clip\'s shots, and saves it.', '编写服务为脚本选角并编写拍法，生成包含每个片段镜头的新分镜并保存。'),
-               output=STORYBOARD_OUT),
-        Method('storyboards.get', [REF('storyboard', 'Storyboard', '分镜')], 'Promise<Storyboard>',
-               ('Reads a Storyboard; its `content` is validated and decoded.', '读取分镜；其 <code>content</code> 已校验并解码。'), output=[Api('Storyboard')],
-               route=('GET', '/v1/artifacts/storyboard/{artifact_id}')),
-        Method('storyboards.generateFrom', [BASE_REF('storyboard', 'Storyboard', '分镜'), P('input', 'ReviseStoryboardInput', Zod('ReviseStoryboardInput')), OPTIONS], 'Promise<Storyboard>',
-               ('The writer writes a new Storyboard from `base`, as instructed, for the same Script.', '编写服务按指示从 <code>base</code> 写出一个新分镜，脚本不变。'), output=[Api('Storyboard')]),
-        Method('storyboards.createFrom', [BASE('storyboard', 'Storyboard', 'Storyboard', '分镜'), P('changes', 'Partial<Omit<StoryboardContent, "script">>', Zod('StoryboardContent', omit=('script',), partial=True)), OPTIONS], 'Promise<Storyboard>',
-               ('Saves a new Storyboard with the top-level content fields you pass (`cast`, `direction`, `clips`); the rest, including its Script and the Product and Character versions, is copied from `base`.',
-                '用传入的顶层内容字段（<code>cast</code>、<code>direction</code>、<code>clips</code>）保存一个新分镜；其余内容（包括脚本以及产品和人物版本）从 <code>base</code> 复制。'),
-               output=[Api('Storyboard')],
-               notes=[('An edit gets the same checks as the writer\'s Storyboards; content that fails them is refused with `422 REJECTED`, listing every problem.',
-                       '编辑后的内容与编写服务写出的分镜经过相同检查；未通过时返回 <code>422 REJECTED</code>，并列出全部问题。')]),
-    ]),
-    ('prompts', 'Prompts', '提示词', [
-        Method('prompts.get', [REF('prompt', 'Prompt', '提示词')], 'Promise<Prompt>',
-               ('Reads a Prompt, for example the one a Job renders (`job.prompt`).', '读取提示词，例如任务所渲染的提示词（<code>job.prompt</code>）。'), output=PROMPT_OUT,
-               route=('GET', '/v1/artifacts/prompt/{artifact_id}')),
-        Method('prompts.generate', [P('input', 'PromptInput', Zod('GeneratePromptInput')), OPTIONS], 'Promise<{prompts: Prompt[]}>',
-               ('Compiles a Storyboard\'s clips, or one clip, into saved Prompts in clip order; a clip compiled before from the same inputs returns its saved Prompt.',
-                '将分镜的所有片段（或一个片段）按顺序编译为已保存的提示词；已用相同输入编译过的片段直接返回已保存的提示词。'),
-               output=[Row('prompts', 'Prompt[]', True, 'One saved Prompt per clip, in clip order, each with `data.clip_id` naming its clip.',
-                           '每个片段一条已保存的提示词，按片段顺序排列，每条的 <code>data.clip_id</code> 指明其片段。', link='out-Prompt')],
-               notes=[('If some Prompts are saved and a later clip fails, it throws `PartialCreationError` with `saved.prompts`; retry with the same input and `idempotencyKey` to finish.',
-                       '如果部分提示词已保存而之后的片段失败，会抛出带有 <code>saved.prompts</code> 的 <code>PartialCreationError</code>；使用相同输入和 <code>idempotencyKey</code> 重试即可完成。')]),
-        Method('prompts.createFrom', [BASE('prompt', 'Prompt', 'Prompt', '提示词'),
-                                      P('changes', 'PromptChanges', Api('PromptReadV1', only=('prompt', 'image_asset_ids', 'video_asset_ids', 'audio_asset_ids', 'seconds', 'ratio'), partial=True)), OPTIONS],
-               'Promise<Prompt>',
-               ('Saves a new Prompt from `base` with the render fields you pass; the rest is copied from `base`.', '用传入的渲染字段从 <code>base</code> 保存一个新提示词，其余字段从 <code>base</code> 复制。'),
-               output=[Api('Prompt')], route=('POST', '/v1/artifacts/prompt/{artifact_id}/versions'), body='PromptVersionCreate',
-               notes=[('Its text must name every attached file (see How a Prompt names its files); otherwise it is refused with `422 INVALID_PROMPT`. To change what a compiled clip shows, change its Storyboard and compile again instead.',
-                       '其文本必须提到每个附带的文件（参见“提示词如何指代文件”），否则返回 <code>422 INVALID_PROMPT</code>。要修改已编译片段的内容，应修改分镜后重新编译。')]),
-    ]),
-    ('videos', 'Videos and Jobs', '视频与任务', [
-        Method('videos.generate', [P('input', 'GenerateVideoInput', Api('GenerateVideo')), OPTIONS], 'Promise<Job<Asset>>',
-               ('Starts a Job that renders one clip, from a saved Prompt (`prompt`) or from raw input (`input`), and returns it before the video is ready.',
-                '启动一个渲染片段的任务，来源为已保存的提示词（<code>prompt</code>）或原始输入（<code>input</code>），在视频完成前返回。'),
-               output=[Api('JobOut'), *JOB_METHODS], route=('POST', '/v1/generate/video'), body='GenerateVideo',
-               notes=[('Give exactly one of `prompt` or `input`.', '<code>prompt</code> 和 <code>input</code> 只能且必须给出一个。')]),
-        Method('jobs.get', [ID('Job', '任务')], 'Promise<JobState>', ('Reads a Job\'s current state.', '读取任务的当前状态。'), output=[Api('JobOut')],
-               route=('GET', '/v1/jobs/{job_id}')),
-        Method('jobs.subscribe', [ID('Job', '任务'), P('listener', '(state: JobState) => void', None, 'Called with each state, polled every `jobPollIntervalMs`, until the Job is `completed`, `failed` or `cancelled`.',
-                                                     '按 <code>jobPollIntervalMs</code> 轮询，每个状态都会传入，直到任务为 <code>completed</code>、<code>failed</code> 或 <code>cancelled</code>。'),
-                                  P('onError', '(error: NuvaErrorInfo) => void', None, 'Called when a poll fails; polling continues.', '某次轮询失败时调用；轮询继续。')],
-               'Unsubscribe', ('Watches a Job; the returned function stops watching locally, not the Job.', '关注任务状态；返回的函数只停止本地关注，不会停止任务。')),
-        Method('jobs.cancel', [ID('Job', '任务'), COMMAND], 'Promise<JobState>',
-               ('Stops a queued or running Job, which ends `cancelled`; a finished Job cannot be cancelled (`JOB_FINISHED`).', '停止排队中或运行中的任务，任务以 <code>cancelled</code> 结束；已结束的任务不能取消（<code>JOB_FINISHED</code>）。'),
-               output=[Api('JobOut')], route=('POST', '/v1/jobs/{job_id}/cancel')),
-    ]),
-    ('ads-batches', 'Ads and Batches', '成片广告与批次', [
-        Method('ads.get', [ID('Ad', '广告')], 'Promise<Ad>', ('Reads a final Ad: its video and how it was put together.', '读取成片广告：其视频及合成方式。'),
-               output=[Api('AdOut'), *links('ad', 'Added by the SDK: the id, for display.', '由 SDK 添加：用于展示的 ID。')], route=('GET', '/v1/ads/{ad_id}')),
-        Method('ads.list', [LIST_QUERY(('GET', '/v1/ads'), 'batch_id')], 'Promise<BackendPage<Ad>>', ('Lists Ads, newest first, optionally of one Batch.', '按从新到旧列出广告，可只列出某个批次的广告。'),
-               output=[Field('AdPage', 'items'), Field('AdPage', 'next_cursor'), NEXT], route=('GET', '/v1/ads')),
-        Method('batches.get', [ID('Batch', '批次')], 'Promise<Batch>', ('Reads a Batch with its Ads and how many of its Jobs are in each status.', '读取批次，包括其广告和各状态的任务数量。'),
-               output=[Api('BatchOut'), *links('batch', 'Added by the SDK: the Batch\'s `intent`, for display.', '由 SDK 添加：批次的 <code>intent</code>，用于展示。')], route=('GET', '/v1/batches/{batch_id}')),
-        Method('batches.list', [LIST_QUERY(('GET', '/v1/batches'))], 'Promise<BackendPage<BatchSummary>>', ('Lists Batches, newest first.', '按从新到旧列出批次。'),
-               output=[Api('BatchPage'), NEXT], route=('GET', '/v1/batches')),
-    ]),
-    ('skills', 'Skills', 'Skill', [
-        Method('skills.get', [ID('Skill', 'Skill ')], 'Promise<Skill>', ('Reads a Skill and its main version, with download URLs for its files.', '读取 Skill 及其主版本，并附带文件下载地址。'),
-               output=[Api('SkillDetail'), *links('skill', 'Added by the SDK: the Skill\'s `name`, for display.', '由 SDK 添加：Skill 的 <code>name</code>，用于展示。')], route=('GET', '/v1/skills/{skill_id}')),
-        Method('skills.list', [LIST_QUERY(('GET', '/v1/skills'))], 'Promise<BackendPage<SkillOut>>', ('Lists the Skills you can use, newest first.', '按从新到旧列出你可使用的 Skill。'),
-               output=[Api('SkillPage'), NEXT], route=('GET', '/v1/skills')),
-        Method('skills.version', [ID('Skill', 'Skill '), P('version', 'number', None, 'The version\'s number, 1 or more.', '版本号，从 1 开始。')], 'Promise<SkillVersionOut>',
-               ('Reads one version of a Skill, for example one that `skills` on a Script names.', '读取 Skill 的某个版本，例如脚本 <code>skills</code> 中所列的版本。'),
-               output=[Api('SkillVersionOut')], route=('GET', '/v1/skills/{skill_id}/versions/{version}')),
-    ]),
-    ('shares', 'Shares', '共享', [
-        Method('shares.set', [P('item', 'ShareTarget', Ts('ShareTarget')),
-                              P('scope', 'string', None, '`customer` (everyone in the organization) or the external id of an org or group: 1–255 characters, without `/` or control characters.',
-                                '<code>customer</code>（组织内所有人）或某个 org 或 group 的外部 ID：1–255 个字符，不含 <code>/</code> 或控制字符。'),
-                              P('access', 'ShareAccess', None, '`read` lets everyone at or below the scope see and use the item; `write` also lets them edit it.',
-                                '<code>read</code> 允许该范围内（含下级）的所有人查看和使用；<code>write</code> 还允许编辑。'), COMMAND], 'Promise<Share>',
-               ('Shares the item with everyone at or below `scope`; a repeat changes the access. Only an admin of the scope or above shares into it.',
-                '将内容共享给 <code>scope</code> 范围内（含下级）的所有人；重复调用会修改权限。只有该范围或上级范围的管理员可以共享到该范围。'),
-               output=[Api('ShareOut')], route=('PUT', '/v1/shares/{kind}/{item_id}/{scope}'), body='ShareRequest'),
-        Method('shares.list', [P('item', 'ShareTarget', Ts('ShareTarget'))], 'Promise<Share[]>',
-               ('Lists an item\'s shares, for whoever may share it (its owner or an admin above them); others who can read it get `FORBIDDEN`.',
-                '列出某项内容的共享，仅限可共享它的人（所有者或其上级管理员）；其他能读取它的人得到 <code>FORBIDDEN</code>。'),
-               output=[Field('SharesOut', 'items', '[]')], route=('GET', '/v1/shares/{kind}/{item_id}')),
-        Method('shares.remove', [P('item', 'ShareTarget', Ts('ShareTarget')), P('scope', 'string', None, 'The scope to stop sharing with.', '要停止共享的范围。'), COMMAND], 'Promise<void>',
-               ('Removes the item\'s share with `scope`; it succeeds when there was none, and those it reached get `NOT_FOUND` again.', '移除内容与 <code>scope</code> 的共享；原本没有共享时同样成功，原先通过它访问的人再次得到 <code>NOT_FOUND</code>。'),
-               route=('DELETE', '/v1/shares/{kind}/{item_id}/{scope}')),
-    ]),
+# Every type a method returns, defined once on the page that lists it. The key is the SDK's name for it.
+MODELS = {
+    'Asset': [Api('AssetOut'), Row('ref', '{kind, id}', True, 'Added by the SDK: `{kind: "asset", id}`, the reference to attach to a message.', '由 SDK 添加：<code>{kind: "asset", id}</code>，可附加到消息的引用。')],
+    'Brand': [Api('Brand'), *profile_record('brand', 'Brand', '品牌')],
+    'Product': [Api('Product'), *profile_record('product', 'Product', '产品')],
+    'Character': [Api('Character'), *profile_record('character', 'Character', '人物')],
+    'Script': [Api('Script'), *ARTIFACT('script'),
+               Row('format', '3 | 2', True, 'Added by the SDK: 3 for a Script with `content`; 2 for a read-only Script saved before Storyboards, in `legacy`.',
+                   '由 SDK 添加：3 表示带 <code>content</code> 的脚本；2 表示分镜功能推出前保存的只读脚本，内容在 <code>legacy</code> 中。'),
+               CONTENT_SCRIPT, Zod('ScriptContent', prefix='content'),
+               Row('legacy', 'ScriptPackage', False, 'Added by the SDK for `format: 2` only: the old ScriptPackage, read-only. It cannot be revised or shot; write a new Script instead.',
+                   '仅 <code>format: 2</code> 时由 SDK 添加：旧的 ScriptPackage，只读。不能修改或拍成分镜，请生成新脚本。')],
+    'Storyboard': [Api('Storyboard'), *ARTIFACT('storyboard'), CONTENT_STORYBOARD, Zod('StoryboardContent', prefix='content')],
+    'Prompt': [Api('Prompt'), *ARTIFACT('prompt')],
+    'JobState': [Api('JobOut')],
+    'Job': JOB_METHODS,
+    'Ad': [Api('AdOut'), *links('ad', 'Added by the SDK: the id, for display.', '由 SDK 添加：用于展示的 ID。')],
+    'Batch': [Api('BatchOut'), *links('batch', 'Added by the SDK: the Batch\'s `intent`, for display.', '由 SDK 添加：批次的 <code>intent</code>，用于展示。')],
+    'BatchSummary': [Api('BatchSummary')],
+    'Skill': [Api('SkillDetail'), *links('skill', 'Added by the SDK: the Skill\'s `name`, for display.', '由 SDK 添加：Skill 的 <code>name</code>，用于展示。')],
+    'SkillOut': [Api('SkillOut')],
+    'SkillVersionOut': [Api('SkillVersionOut')],
+    'Share': [Api('ShareOut')],
+    'SessionFile': [Ts('SessionFile')],
+}
+# The contract component each model shows, so a field of that type links to the model instead of repeating it.
+COMPONENT_MODELS = {'AssetOut': 'Asset', 'Brand': 'Brand', 'Product': 'Product', 'Character': 'Character', 'Script': 'Script',
+                    'Storyboard': 'Storyboard', 'Prompt': 'Prompt', 'JobOut': 'JobState', 'AdOut': 'Ad', 'BatchOut': 'Batch',
+                    'BatchSummary': 'BatchSummary', 'SkillDetail': 'Skill', 'SkillOut': 'SkillOut', 'SkillVersionOut': 'SkillVersionOut',
+                    'ShareOut': 'Share'}
+MODEL_NOTES = {
+    'Job': ('What `videos.generate` returns: a JobState and two methods.', '<code>videos.generate</code> 的返回值：JobState 加两个方法。'),
+    'BatchSummary': ('A Batch in a list: without its Ads and Job counts.', '列表中的批次：不含广告和任务数量。'),
+    'SkillOut': ('A Skill in a list: without its main version.', '列表中的 Skill：不含主版本。'),
+}
+# Types defined on the Introduction page.
+INTRO_TYPES = ('NuvaClientOptions', 'AccessToken', 'NuvaError', 'StoreCommandOptions', 'CommandOptions', 'BackendPage')
+
+PAGES = [
+    Page('reference-assets', ('Assets', '素材（Asset）'),
+         ('Upload files and read them with fresh download URLs.', '上传文件，并读取带新下载地址的文件。'),
+         [('An Asset is a file: an image, video or audio you add, or a clip a Job renders. Products, Characters, Prompts and messages name Assets by id. `download_url` expires; read the Asset again for a new one.',
+           'Asset 是一个文件：你添加的图片、视频或音频，或任务渲染出的片段。产品、人物、提示词和消息都按 ID 引用 Asset。<code>download_url</code> 会过期，需要时重新读取 Asset 获取新地址。')],
+         [Method('assets.upload', ('Upload a file', '上传文件'),
+                 [P('source', 'File | {url: string}', None, 'The file: a `File` from your upload control, or `{url}` for a public HTTPS URL the service fetches.',
+                    '文件：上传控件中的 <code>File</code>，或由服务抓取的公开 HTTPS 地址 <code>{url}</code>。'),
+                  P('options', 'StoreCommandOptions & {kind?, label?, description?}', [
+                      Field('UploadRequest', 'kind', required=False, note=T('`image` (JPEG, PNG or WebP), `video` (MP4) or `audio` (MP3, WAV or MP4). For a `File`, taken from its MIME type when left out; required with `{url}`.',
+                                                                          '<code>image</code>（JPEG、PNG 或 WebP）、<code>video</code>（MP4）或 <code>audio</code>（MP3、WAV 或 MP4）。上传 <code>File</code> 时可省略，按其 MIME 类型确定；使用 <code>{url}</code> 时必填。')),
+                      Field('AssetCreate', 'label'), Field('AssetCreate', 'description'),
+                      Row('idempotencyKey', 'string', False, 'For `{url}`: see StoreCommandOptions. A `File` needs none: adding the same file again returns the same Asset.',
+                          '用于 <code>{url}</code>，参见 StoreCommandOptions。<code>File</code> 不需要：再次添加同一文件会返回同一个 Asset。'),
+                      Row('requestId', 'string', False, 'See StoreCommandOptions.', '参见 StoreCommandOptions。')])],
+                 'Promise<Asset>', ('Adds a file and returns its Asset. The same file added again returns the same Asset; with a different `label` or `description` it fails with `ASSET_EXISTS` (change them with `assets.update`).',
+                                    '添加文件并返回其 Asset。再次添加同一文件会返回同一个 Asset；若 <code>label</code> 或 <code>description</code> 不同，返回 <code>ASSET_EXISTS</code>（请用 <code>assets.update</code> 修改）。'),
+                 ('POST', '/v1/assets'), body='AssetCreate', response='AssetOut',
+                 notes=[('A `File` takes three requests: `POST /v1/assets/uploads` for an upload URL, `PUT` to it, then `POST /v1/assets`. A file larger than its kind allows is refused before it is sent. `{url}` takes only the last.',
+                         '<code>File</code> 需要三次请求：<code>POST /v1/assets/uploads</code> 获取上传地址，<code>PUT</code> 上传，再 <code>POST /v1/assets</code> 登记。超过该类型大小上限的文件在发送前被拒绝。<code>{url}</code> 只需最后一次请求。')]),
+          Method('assets.get', ('Retrieve an Asset', '读取 Asset'), [ID('Asset', 'Asset ')], 'Promise<Asset>',
+                 ('Reads an Asset you uploaded or generated, or one a shared Product or Character uses, with a fresh download URL.',
+                  '读取你上传或生成的 Asset，或共享产品、人物使用的 Asset，并返回新的下载地址。'),
+                 ('GET', '/v1/assets/{asset_id}'), response='AssetOut'),
+          Method('assets.update', ('Update an Asset', '修改 Asset'), [ID('Asset', 'Asset '), P('changes', 'AssetChanges', Api('AssetEdit')), COMMAND], 'Promise<Asset>',
+                 ('Changes the `label` and `description` you send and keeps the other; `null` removes one. The file never changes. Only the user who uploaded it, or an admin above them, can edit it.',
+                  '修改传入的 <code>label</code> 和 <code>description</code>，未传入的保持不变；<code>null</code> 删除该值。文件本身不会改变。只有上传者或其上级管理员可以修改。'),
+                 ('PATCH', '/v1/assets/{asset_id}'), body='AssetEdit', response='AssetOut')],
+         ['Asset']),
+    Page('reference-brands', ('Brands', '品牌'),
+         ('Create, read, list and update Brands, which group Products.', '创建、读取、列出和修改品牌；品牌用于归类产品。'),
+         [('A Brand groups Products. Brands, Products and Characters change in place: `update` keeps the `id` and saves the next `version`, and takes the version you read so it never overwrites a newer one.',
+           '品牌用于归类产品。品牌、产品和人物原地修改：<code>update</code> 保留 <code>id</code> 并保存下一个 <code>version</code>；它需要传入读取到的版本，因此不会覆盖更新的版本。')],
+         profiles('brand', 'Brand', 'Brand', '品牌'), ['Brand']),
+    Page('reference-products', ('Products', '产品'),
+         ('Create, read, list, update and delete the Products ads are made for.', '创建、读取、列出、修改和删除广告所推广的产品。'),
+         [('A Product is what the ads sell: its name, pictures and the facts the writers may use. It changes in place like a Brand (`update` saves the next `version`); a Script records the Product version it was written from.',
+           '产品是广告推广的商品：名称、图片以及编写服务可以使用的事实。它与品牌一样原地修改（<code>update</code> 保存下一个 <code>version</code>）；脚本记录其所依据的产品版本。')],
+         profiles('product', 'Product', 'Product', '产品') + [
+             Method('products.delete', ('Delete a Product', '删除产品'), [ID('Product', '产品'), COMMAND], 'Promise<void>',
+                    ('Deletes the Product for everyone in the organization: it is no longer listed or readable, and what was made from it stays readable but cannot be revised. Deleting it again succeeds.',
+                     '为整个组织删除该产品：不再出现在列表中，也不能读取；已用它做出的内容仍可读取，但不能再修订。重复删除同样成功。'),
+                    ('DELETE', '/v1/products/{product_id}'))],
+         ['Product']),
+    Page('reference-characters', ('Characters', '人物'),
+         ('Create, read, list and update the Characters that play Script roles.', '创建、读取、列出和修改出演脚本角色的人物。'),
+         [('A Character is a person who can play a Script role: their pictures and voice keep them the same in every clip. It changes in place like a Brand (`version`); a Storyboard records the Character version it casts.',
+           '人物是可以出演脚本角色的人：其图片和声音让人物在每个片段中保持一致。它与品牌一样原地修改（<code>version</code>）；分镜记录其选用的人物版本。')],
+         profiles('character', 'Character', 'Character', '人物'), ['Character']),
+    Page('reference-scripts', ('Scripts', '脚本'),
+         ('Have the writer write Scripts, read them and save your own edits.', '让编写服务写出脚本、读取脚本并保存你的编辑。'),
+         [('A Script is the idea of the ad and its exact lines, written for a Product. Scripts never change: `generate`, `generateFrom` and `createFrom` each return a new one, `base_id` points to the one it was made from, and that one stays as it was.',
+           '脚本是为某个产品写的广告创意及其准确台词。脚本不会被修改：<code>generate</code>、<code>generateFrom</code> 和 <code>createFrom</code> 都返回一个新脚本，<code>base_id</code> 指向它所基于的脚本，后者保持不变。')],
+         [Method('scripts.generate', ('Generate a Script', '生成脚本'), [P('input', 'ScriptInput', Zod('NewScriptInput')), OPTIONS], 'Promise<Script>',
+                 ('The writer writes a new Script for a Product and saves it.', '编写服务为产品写出一个新脚本并保存。'), ('POST', '/v1/generate/script')),
+          Method('scripts.get', ('Retrieve a Script', '读取脚本'), [REF('script', 'Script', '脚本')], 'Promise<Script>',
+                 ('Reads a Script; its `content` is validated and decoded.', '读取脚本；其 <code>content</code> 已校验并解码。'),
+                 ('GET', '/v1/artifacts/script/{artifact_id}'), response='Script'),
+          Method('scripts.generateFrom', ('Generate a Script from another', '基于已有脚本生成'), [BASE_REF('script', 'Script', '脚本'), P('input', 'ReviseScriptInput', Zod('ReviseScriptInput')), OPTIONS], 'Promise<Script>',
+                 ('The writer writes a new Script from `base`, as instructed, for the same Product.', '编写服务按指示从 <code>base</code> 写出一个新脚本，产品不变。'), ('POST', '/v1/generate/script'),
+                 notes=[('It reads `base` first (`GET`).', '它会先读取 <code>base</code>（<code>GET</code>）。')]),
+          Method('scripts.createFrom', ('Save an edited Script', '保存编辑后的脚本'), [BASE('script', 'Script', 'Script', '脚本'), P('changes', 'Partial<ScriptContent>', Zod('ScriptContent', partial=True)), OPTIONS], 'Promise<Script>',
+                 ('Saves a new Script with the top-level content fields you pass; the rest is copied from `base`. It gets the same checks as a written Script.',
+                  '用传入的顶层内容字段保存一个新脚本，其余字段从 <code>base</code> 复制；它与编写服务写出的脚本经过相同检查。'), ('POST', '/v1/generate/script'),
+                 notes=[READS_BASE])],
+         ['Script']),
+    Page('reference-storyboards', ('Storyboards', '分镜'),
+         ('Have the writer cast and shoot a Script as a Storyboard, read it and save your own edits.', '让编写服务为脚本选角并编写拍法、读取分镜并保存你的编辑。'),
+         [('A Storyboard is how a Script is shot: who plays each role (`cast`), one `direction` for the whole video, and clips of 5 to 15 seconds, each a list of shots that name people, the Product, files and lines with tokens. Like Scripts, Storyboards never change: each method returns a new one.',
+           '分镜说明脚本如何拍摄：每个角色由谁出演（<code>cast</code>）、整条视频统一的 <code>direction</code>，以及 5 到 15 秒的片段；每个片段由若干镜头组成，镜头用标记指代人物、产品、文件和台词。与脚本一样，分镜不会被修改：每个方法都返回一个新分镜。'),
+          ('Tokens and the checks a Storyboard passes: <a href="@guide:generation#tokens">Write shots with tokens</a>.', '标记及分镜需通过的检查：<a href="@guide:generation#tokens">在镜头中使用标记</a>。')],
+         [Method('storyboards.generate', ('Generate a Storyboard', '生成分镜'), [P('input', 'StoryboardInput', Zod('NewStoryboardInput')), OPTIONS], 'Promise<Storyboard>',
+                 ('The writer casts and shoots a Script as a new Storyboard, with every clip\'s shots, and saves it. Several Storyboards for the same Script are shot differently from each other.',
+                  '编写服务为脚本选角并编写拍法，生成包含每个片段镜头的新分镜并保存。同一脚本的多个分镜拍法互不相同。'), ('POST', '/v1/generate/storyboard')),
+          Method('storyboards.get', ('Retrieve a Storyboard', '读取分镜'), [REF('storyboard', 'Storyboard', '分镜')], 'Promise<Storyboard>',
+                 ('Reads a Storyboard; its `content` is validated and decoded.', '读取分镜；其 <code>content</code> 已校验并解码。'),
+                 ('GET', '/v1/artifacts/storyboard/{artifact_id}'), response='Storyboard'),
+          Method('storyboards.generateFrom', ('Generate a Storyboard from another', '基于已有分镜生成'), [BASE_REF('storyboard', 'Storyboard', '分镜'), P('input', 'ReviseStoryboardInput', Zod('ReviseStoryboardInput')), OPTIONS], 'Promise<Storyboard>',
+                 ('The writer writes a new Storyboard from `base`, as instructed, for the same Script, with the latest Product and Characters.', '编写服务按指示从 <code>base</code> 写出一个新分镜，脚本不变，使用最新的产品和人物。'), ('POST', '/v1/generate/storyboard')),
+          Method('storyboards.createFrom', ('Save an edited Storyboard', '保存编辑后的分镜'), [BASE('storyboard', 'Storyboard', 'Storyboard', '分镜'), P('changes', 'Partial<Omit<StoryboardContent, "script">>', Zod('StoryboardContent', omit=('script',), partial=True)), OPTIONS], 'Promise<Storyboard>',
+                 ('Saves a new Storyboard with the top-level content fields you pass (`cast`, `direction`, `clips`); the rest, including its Script and the Product and Character versions, is copied from `base`.',
+                  '用传入的顶层内容字段（<code>cast</code>、<code>direction</code>、<code>clips</code>）保存一个新分镜；其余内容（包括脚本以及产品和人物版本）从 <code>base</code> 复制。'),
+                 ('POST', '/v1/generate/storyboard'),
+                 notes=[('It gets the same checks as the writer\'s Storyboards; content that fails them is refused with `422 REJECTED`, listing every problem.',
+                         '它与编写服务写出的分镜经过相同检查；未通过时返回 <code>422 REJECTED</code>，并列出全部问题。'), READS_BASE])],
+         ['Storyboard']),
+    Page('reference-prompts', ('Prompts', '提示词'),
+         ('Compile a Storyboard\'s clips into Prompts, read them and save edited copies.', '将分镜的片段编译为提示词、读取提示词并保存修改后的副本。'),
+         [('A Prompt is one clip as the video model takes it: its text and the files attached to it. The text names each file by its position: `<Picture 1>` is the first of `image_asset_ids`, likewise `<Video N>` and `<Audio N>`; `<Subject N>` is a label the text defines, not a file. Only attached and named files reach the video model, so to change what a clip shows, change its Storyboard and compile again.',
+           '提示词是视频模型接收的一个片段：文本和附带的文件。文本按位置指代每个文件：<code>&lt;Picture 1&gt;</code> 是 <code>image_asset_ids</code> 的第一个，<code>&lt;Video N&gt;</code> 和 <code>&lt;Audio N&gt;</code> 同理；<code>&lt;Subject N&gt;</code> 是文本中定义的标签，不是文件。只有附带且被提到的文件才会传给视频模型，因此要修改片段内容，应修改分镜后重新编译。')],
+         [Method('prompts.generate', ('Compile Prompts', '编译提示词'), [P('input', 'PromptInput', Zod('GeneratePromptInput')), OPTIONS], 'Promise<{prompts: Prompt[]}>',
+                 ('Compiles a Storyboard\'s clips, or one clip, into saved Prompts in clip order. A clip compiled before from the same inputs returns its saved Prompt and is not charged again.',
+                  '将分镜的所有片段（或一个片段）按顺序编译为已保存的提示词。已用相同输入编译过的片段直接返回已保存的提示词，不再计费。'),
+                 ('POST', '/v1/generate/prompt'),
+                 output=[Row('prompts', 'Prompt[]', True, 'One saved Prompt per clip, in clip order, each with `data.clip_id` naming its clip.',
+                             '每个片段一条已保存的提示词，按片段顺序排列，每条的 <code>data.clip_id</code> 指明其片段。')],
+                 notes=[('If some Prompts are saved and a later clip fails, it throws `PartialCreationError` with `saved.prompts`; retry with the same input and `idempotencyKey` to finish.',
+                         '如果部分提示词已保存而之后的片段失败，会抛出带有 <code>saved.prompts</code> 的 <code>PartialCreationError</code>；使用相同输入和 <code>idempotencyKey</code> 重试即可完成。')]),
+          Method('prompts.get', ('Retrieve a Prompt', '读取提示词'), [REF('prompt', 'Prompt', '提示词')], 'Promise<Prompt>',
+                 ('Reads a Prompt, for example the one a Job renders (`job.prompt`).', '读取提示词，例如任务所渲染的提示词（<code>job.prompt</code>）。'),
+                 ('GET', '/v1/artifacts/prompt/{artifact_id}'), response='Prompt'),
+          Method('prompts.createFrom', ('Save an edited Prompt', '保存编辑后的提示词'), [BASE('prompt', 'Prompt', 'Prompt', '提示词'),
+                 P('changes', 'PromptChanges', Api('PromptReadV1', only=('prompt', 'image_asset_ids', 'video_asset_ids', 'audio_asset_ids', 'seconds', 'ratio'), partial=True)), OPTIONS],
+                 'Promise<Prompt>',
+                 ('Saves a new Prompt from `base` with the render fields you pass; the rest is copied from `base`. Its text must name every attached file and no other, or it is refused with `422 INVALID_PROMPT`.',
+                  '用传入的渲染字段从 <code>base</code> 保存一个新提示词，其余字段从 <code>base</code> 复制。其文本必须提到每个附带文件且不提其他文件，否则返回 <code>422 INVALID_PROMPT</code>。'),
+                 ('POST', '/v1/artifacts/prompt/{artifact_id}/versions'), body='PromptVersionCreate', response='Prompt', notes=[READS_BASE])],
+         ['Prompt']),
+    Page('reference-videos', ('Videos and Jobs', '视频与任务'),
+         ('Render clips and follow, wait for or cancel their Jobs.', '渲染片段，并关注、等待或取消其任务。'),
+         [('`videos.generate` starts a Job that renders one clip, from a saved Prompt or from a raw Prompt of your own, and returns before the video exists. A Job is `queued`, then `running`, and ends `completed` with its Asset, `failed` or `cancelled`. Stopping a wait or a subscription never stops the Job.',
+           '<code>videos.generate</code> 启动一个渲染片段的任务，来源为已保存的提示词或你自己编写的原始提示词，并在视频生成前返回。任务先 <code>queued</code>、再 <code>running</code>，最后以带 Asset 的 <code>completed</code>、<code>failed</code> 或 <code>cancelled</code> 结束。停止等待或订阅不会停止任务。')],
+         [Method('videos.generate', ('Render a clip', '渲染片段'), [P('input', 'GenerateVideoInput', Api('GenerateVideo')), OPTIONS], 'Promise<Job>',
+                 ('Starts a Job that renders one clip and returns it queued. Give exactly one of `prompt` (a saved Prompt) or `input` (raw).',
+                  '启动一个渲染片段的任务，并以排队状态返回。<code>prompt</code>（已保存的提示词）和 <code>input</code>（原始输入）只能且必须给出一个。'),
+                 ('POST', '/v1/generate/video'), body='GenerateVideo', response='JobOut',
+                 notes=[('A Character or Product reaches a raw render only through the pictures you attach and name in its text.', '在原始渲染中，人物或产品只能通过你附加并在文本中提到的图片进入片段。')]),
+          Method('jobs.get', ('Retrieve a Job', '读取任务'), [ID('Job', '任务')], 'Promise<JobState>', ('Reads a Job\'s current state.', '读取任务的当前状态。'),
+                 ('GET', '/v1/jobs/{job_id}'), response='JobOut'),
+          Method('jobs.subscribe', ('Watch a Job', '关注任务'), [ID('Job', '任务'), P('listener', '(state: JobState) => void', None, 'Called with each state, polled every `jobPollIntervalMs`, until the Job is `completed`, `failed` or `cancelled`.',
+                                                       '按 <code>jobPollIntervalMs</code> 轮询，每个状态都会传入，直到任务为 <code>completed</code>、<code>failed</code> 或 <code>cancelled</code>。'),
+                                    P('onError', '(error: NuvaErrorInfo) => void', None, 'Called when a poll fails; polling continues.', '某次轮询失败时调用；轮询继续。')],
+                 '() => void', ('Polls a Job and calls `listener` with each state; the returned function stops watching locally, not the Job.', '轮询任务并将每个状态传给 <code>listener</code>；返回的函数只停止本地关注，不会停止任务。'),
+                 ('GET', '/v1/jobs/{job_id}'), response='JobOut'),
+          Method('jobs.cancel', ('Cancel a Job', '取消任务'), [ID('Job', '任务'), COMMAND], 'Promise<JobState>',
+                 ('Stops a queued or running Job, which ends `cancelled`; a finished Job cannot be cancelled (`JOB_FINISHED`).', '停止排队中或运行中的任务，任务以 <code>cancelled</code> 结束；已结束的任务不能取消（<code>JOB_FINISHED</code>）。'),
+                 ('POST', '/v1/jobs/{job_id}/cancel'), response='JobOut')],
+         ['Job', 'JobState']),
+    Page('reference-ads', ('Ads and Batches', '成片广告与批次'),
+         ('Read final Ads and the Batches they were made in.', '读取成片广告及其所属的批次。'),
+         [('An Ad is a final video and how it was put together. A Batch groups the work of one attempt: a Script made in a Batch passes it to its Storyboards, their Prompts and the Jobs that render them, and the Batch lists the Ads made in it. The Agent creates Ads and Batches; the SDK reads them.',
+           '成片广告（Ad）是最终视频及其合成方式。批次（Batch）汇集一次尝试中的工作：在某个批次中生成的脚本，其分镜、提示词以及渲染它们的任务都沿用该批次；批次列出其中做出的广告。广告和批次由 Agent 创建，SDK 负责读取。')],
+         [Method('ads.get', ('Retrieve an Ad', '读取广告'), [ID('Ad', '广告')], 'Promise<Ad>', ('Reads a final Ad: its video and how it was put together.', '读取成片广告：其视频及合成方式。'),
+                 ('GET', '/v1/ads/{ad_id}'), response='AdOut'),
+          Method('ads.list', ('List Ads', '列出广告'), [LIST_QUERY(('GET', '/v1/ads'), 'batch_id')], 'Promise<BackendPage<Ad>>', ('Lists Ads, newest first, optionally of one Batch.', '按从新到旧列出广告，可只列出某个批次的广告。'),
+                 ('GET', '/v1/ads'), response='AdPage', output=page_of('AdPage')),
+          Method('batches.get', ('Retrieve a Batch', '读取批次'), [ID('Batch', '批次')], 'Promise<Batch>', ('Reads a Batch with its Ads and how many of its Jobs are in each status.', '读取批次，包括其广告和各状态的任务数量。'),
+                 ('GET', '/v1/batches/{batch_id}'), response='BatchOut'),
+          Method('batches.list', ('List Batches', '列出批次'), [LIST_QUERY(('GET', '/v1/batches'))], 'Promise<BackendPage<BatchSummary>>', ('Lists Batches, newest first.', '按从新到旧列出批次。'),
+                 ('GET', '/v1/batches'), response='BatchPage', output=page_of('BatchPage'))],
+         ['Ad', 'Batch', 'BatchSummary']),
+    Page('reference-skills', ('Skills', 'Skill'),
+         ('Read the Skills the writers use and their versions.', '读取编写服务使用的 Skill 及其版本。'),
+         [('A Skill is versioned writing guidance, a `SKILL.md` and its files, that the Agent and the writers load. Your backend registers Skills with the <a href="@guide:backend-go#skills">Go Admin SDK</a>; Nuva uses the Skills configured for your account, and content records the versions it was made with in `skills`.',
+           'Skill 是带版本的编写指导（一个 <code>SKILL.md</code> 及其文件），由 Agent 和编写服务加载。你的后端通过 <a href="@guide:backend-go#skills">Go Admin SDK</a> 注册 Skill；Nuva 使用为你的账户配置的 Skill，内容在 <code>skills</code> 中记录所用的版本。')],
+         [Method('skills.get', ('Retrieve a Skill', '读取 Skill'), [ID('Skill', 'Skill ')], 'Promise<Skill>', ('Reads a Skill and its main version, with download URLs for its files.', '读取 Skill 及其主版本，并附带文件下载地址。'),
+                 ('GET', '/v1/skills/{skill_id}'), response='SkillDetail'),
+          Method('skills.list', ('List Skills', '列出 Skill'), [LIST_QUERY(('GET', '/v1/skills'))], 'Promise<BackendPage<SkillOut>>', ('Lists the Skills you can use, newest first.', '按从新到旧列出你可使用的 Skill。'),
+                 ('GET', '/v1/skills'), response='SkillPage', output=page_of('SkillPage')),
+          Method('skills.version', ('Retrieve a Skill version', '读取 Skill 版本'), [ID('Skill', 'Skill '), P('version', 'number', None, 'The version\'s number, 1 or more.', '版本号，从 1 开始。')], 'Promise<SkillVersionOut>',
+                 ('Reads one version of a Skill, for example one that `skills` on a Script names.', '读取 Skill 的某个版本，例如脚本 <code>skills</code> 中所列的版本。'),
+                 ('GET', '/v1/skills/{skill_id}/versions/{version}'), response='SkillVersionOut')],
+         ['Skill', 'SkillOut', 'SkillVersionOut']),
+    Page('reference-shares', ('Shares', '共享'),
+         ('Share Brands, Products, Characters, Assets and Artifacts with an organization, org or group.', '将品牌、产品、人物、Asset 和产物共享给组织、org 或 group。'),
+         [('An item is private to the user who made it, and to the admins above them, until it is shared with a scope: `customer` (everyone in the organization) or an org or group. Only an admin of the scope or above it shares into it. A share never allows deleting the item or sharing it on.',
+           '内容在共享给某个范围之前，只有创建者及其上级管理员可见；范围可以是 <code>customer</code>（组织内所有人）或某个 org、group。只有该范围或上级范围的管理员可以共享到该范围。共享不允许删除内容或再次共享。')],
+         [Method('shares.set', ('Share an item', '共享内容'), [P('item', 'ShareTarget', Ts('ShareTarget')),
+                 P('scope', 'string', None, '`customer` or the external id of an org or group: 1–255 characters, without `/` or control characters.',
+                   '<code>customer</code> 或某个 org、group 的外部 ID：1–255 个字符，不含 <code>/</code> 或控制字符。'),
+                 P('access', 'ShareAccess', None, '`read` lets everyone at or below the scope see and use the item; `write` also lets them edit it.',
+                   '<code>read</code> 允许该范围内（含下级）的所有人查看和使用；<code>write</code> 还允许编辑。'), COMMAND], 'Promise<Share>',
+                 ('Shares the item with everyone at or below `scope`; a repeat changes the access.', '将内容共享给 <code>scope</code> 范围内（含下级）的所有人；重复调用会修改权限。'),
+                 ('PUT', '/v1/shares/{kind}/{item_id}/{scope}'), body='ShareRequest', response='ShareOut'),
+          Method('shares.list', ('List an item\'s shares', '列出共享'), [P('item', 'ShareTarget', Ts('ShareTarget'))], 'Promise<Share[]>',
+                 ('Lists an item\'s shares, oldest first, for whoever may share it (its owner or an admin above them); others who can read it get `FORBIDDEN`.',
+                  '按从旧到新列出某项内容的共享，仅限可共享它的人（所有者或其上级管理员）；其他能读取它的人得到 <code>FORBIDDEN</code>。'),
+                 ('GET', '/v1/shares/{kind}/{item_id}'), response='SharesOut'),
+          Method('shares.remove', ('Stop sharing', '取消共享'), [P('item', 'ShareTarget', Ts('ShareTarget')), P('scope', 'string', None, 'The scope to stop sharing with.', '要停止共享的范围。'), COMMAND], 'Promise<void>',
+                 ('Removes the item\'s share with `scope`; it succeeds when there was none, and those it reached get `NOT_FOUND` again.', '移除内容与 <code>scope</code> 的共享；原本没有共享时同样成功，原先通过它访问的人再次得到 <code>NOT_FOUND</code>。'),
+                 ('DELETE', '/v1/shares/{kind}/{item_id}/{scope}'))],
+         ['Share']),
+    Page('reference-sessions', ('Agent and Sessions', 'Agent 与 Session'),
+         ('Open Sessions with the Ads Agent and bind a handle to one.', '与 Ads Agent 打开 Session，并将 handle 绑定到 Session。'),
+         [('A Session is one conversation with the Ads Agent. Its behaviour (states, sending while the Agent works, waiting for renders, Stop) is in <a href="@guide:agent">Agent conversations</a>; message and state types are the ones the SDK exports.',
+           'Session 是与 Ads Agent 的一次对话。其行为（状态、Agent 工作时发送消息、等待渲染、停止）参见 <a href="@guide:agent">Agent 对话</a>；消息和状态类型以 SDK 导出的类型为准。')],
+         [], ['SessionFile']),
 ]
+PAGE_KEYS = [page.key for page in PAGES]
+MODEL_PAGE = {name: page.key for page in PAGES for name in page.models}
+SECTIONS = [(page.key, page.title[0], page.title[1], page.methods) for page in PAGES]
 
 # Members of the Agent-side clients, documented briefly; behaviour is on the Agent page.
 AGENT_METHODS = {
@@ -566,47 +704,42 @@ def render_limits(items, locale):
 
 
 class Walker:
-    """Expands schemas into rows. A named object is shown in full once per direction; later uses link to it."""
+    """Expands schemas into rows. A field whose type is a model (COMPONENT_MODELS) links to it instead of repeating it."""
 
     def __init__(self):
-        self.anchors = {}
         self.problems = []
         self.used = set()  # English strings translated through reference_zh.json
         self.notes_used = set()
 
-    def anchor(self, direction, name):
-        return f'{direction}-{name}'
-
-    def type_html(self, node, defs, direction):
+    def type_html(self, node, defs):
         schema, nullable, name = unwrap(node, defs)
-        text = self.base_type(schema, name, defs, direction)
+        text = self.base_type(schema, name, defs)
         return text + (' | null' if nullable else '')
 
-    def base_type(self, schema, name, defs, direction):
+    def base_type(self, schema, name, defs):
         if 'anyOf' in schema:
-            return ' | '.join(self.type_html(branch, defs, direction) for branch in schema['anyOf'])
+            return ' | '.join(self.type_html(branch, defs) for branch in schema['anyOf'])
         if 'const' in schema:
             return escape(json.dumps(schema['const']))
         if 'enum' in schema:
             return ' | '.join(escape(json.dumps(value)) for value in schema['enum'])
         kind = schema.get('type')
         if kind == 'array':
-            item = self.type_html(schema.get('items', {}), defs, direction)
+            item = self.type_html(schema.get('items', {}), defs)
             return (f'({item})' if ' | ' in item else item) + '[]'
         if is_object(schema):
             if name is None:
                 return 'object'
-            key = self.anchor(direction, name)
-            return f'<a href="#{key}">{escape(name)}</a>' if key in self.anchors else escape(name)
+            return type_link(COMPONENT_MODELS[name]) if name in COMPONENT_MODELS else escape(name)
         values = map_values(schema)
         if kind == 'object' or values is not None or 'additionalProperties' in schema:
             if values is not None and unwrap(values, defs)[0] != {}:
-                return '{[key]: ' + self.type_html(values, defs, direction) + '}'
+                return '{[key]: ' + self.type_html(values, defs) + '}'
             return 'JSON object'
         if kind == 'string':
             fmt = schema.get('format')
             if fmt == 'uuid' or schema.get('pattern') == ID_PATTERN:
-                return 'string (UUID)'
+                return 'string (id)'
             if fmt == 'date-time':
                 return 'string (date-time)'
             if fmt == 'uri':
@@ -628,20 +761,16 @@ class Walker:
                     text = item.get('description')
         return T(text, source=source) if text else None
 
-    def component_note(self, name, schema, source):
-        text = schema.get('description')
-        return [T(' '.join(text.split()), source=source + ' (component)')] if text else []
-
-    def fields(self, schema, defs, direction, rows, prefix='', omit=(), only=None, partial=False, source='', notes=None):
+    def fields(self, schema, defs, rows, prefix='', omit=(), only=None, partial=False, source='', notes=None):
         schema, _, _ = unwrap(schema, defs)
         required = set(schema.get('required', ()))
         for key, prop in schema.get('properties', {}).items():
             if key in omit or (only is not None and key not in only):
                 continue
             path = f'{prefix}.{key}' if prefix else key
-            self.field(prop, defs, direction, rows, path, key in required and not partial, f'{source}.{key}', notes)
+            self.field(prop, defs, rows, path, key in required and not partial, f'{source}.{key}', notes)
 
-    def field(self, prop, defs, direction, rows, path, required, source, notes=None, desc=None):
+    def field(self, prop, defs, rows, path, required, source, notes=None, desc=None):
         schema, nullable, name = unwrap(prop, defs)
         if desc is None:
             desc = self.description(prop, defs, source)
@@ -652,15 +781,15 @@ class Walker:
                 self.notes_used.add((notes['__name__'], path))
         elif desc is not None and notes is not None and path in notes:
             self.problems.append(f'{source}: has a description in the schema, so ZOD_NOTES[{notes["__name__"]!r}, {path!r}] is not needed.')
-        row = {'path': path, 'type': self.type_html(prop, defs, direction), 'required': required, 'default': prop.get('default', schema.get('default')),
-               'limits': limits(schema, defs), 'desc': [desc] if desc else [], 'id': None, 'source': source}
+        row = {'path': path, 'type': self.type_html(prop, defs), 'required': required, 'default': prop.get('default', schema.get('default')),
+               'limits': limits(schema, defs), 'desc': [desc] if desc else [], 'source': source}
         if source in FIELD_NOTES:
             row['desc'].append(T(*FIELD_NOTES[source], source=source))
             self.notes_used.add('field:' + source)
         if not row['desc']:
             self.problems.append(f'{source}: no description (field {path}).')
         rows.append(row)
-        # Expand what it holds: an object, the objects of an array, or the values of a map.
+        # Expand what it holds, unless it is a model: an object, the objects of an array, or the values of a map.
         target, target_name, child = None, None, None
         if is_object(schema):
             target, target_name, child = schema, name, path
@@ -673,19 +802,23 @@ class Walker:
             if is_object(value):
                 key = MAP_KEYS.get(path.rsplit('.', 1)[-1].rstrip('[]'), '<id>')
                 target, target_name, child = value, value_name, f'{path}.{key}'
-        if target is None:
+        if target is None or target_name in COMPONENT_MODELS:
             return
-        if target_name is not None:
-            key = self.anchor(direction, target_name)
-            if key in self.anchors:
-                return
-            self.anchors[key] = path
-            row['id'] = key
-            row['desc'] += self.component_note(target_name, target, f'{source}:{target_name}')
-        self.fields(target, defs, direction, rows, child, source=source, notes=notes)
+        self.fields(target, defs, rows, child, source=source, notes=notes)
 
 
-# ── The model of the page ────────────────────────────────────────────────
+def type_link(name, text=None):
+    """A link to a type's definition, resolved per page and language when rendered (`@type:Name`)."""
+    return f'<a href="@type:{name}">{escape(text or name)}</a>'
+
+
+def link_types(text):
+    """Escape a TypeScript type and link every model or Introduction type it names."""
+    known = set(MODELS) | set(INTRO_TYPES)
+    return re.sub(r'\b[A-Z][A-Za-z]+\b', lambda m: type_link(m.group()) if m.group() in known else m.group(), escape(text))
+
+
+# ── The model of the pages ───────────────────────────────────────────────
 
 def components():
     return openapi()['components']['schemas']
@@ -698,7 +831,7 @@ def ts_members(name):
     return members
 
 
-def ts_rows(walker, spec, direction):
+def ts_rows(walker, spec):
     rows = []
     for member in ts_members(spec.name):
         if member['name'] in spec.omit:
@@ -728,8 +861,8 @@ def ts_rows(walker, spec, direction):
         default = TS_DEFAULTS.get(key)
         if default is not None:
             walker.notes_used.add('default:' + key)
-        rows.append({'path': path, 'type': escape(type_), 'required': not member.get('optional', False), 'default': default, 'limits': [],
-                     'desc': [desc] if desc else [], 'id': None, 'source': key, 'raw_default': True})
+        rows.append({'path': path, 'type': link_types(type_), 'required': not member.get('optional', False), 'default': default, 'limits': [],
+                     'desc': [desc] if desc else [], 'source': key, 'raw_default': True})
     return rows
 
 
@@ -760,23 +893,16 @@ def query_rows(walker, spec, route):
             desc = None
             walker.problems.append(f'{method} {path}: query parameter {name} has no description and no QUERY_NOTES entry.')
         inner, _, _ = unwrap(schema, {})
-        rows.append({'path': name, 'type': walker.type_html(schema, {}, 'in'), 'required': False, 'default': schema.get('default'),
-                     'limits': limits(inner, {}), 'desc': [desc] if desc else [], 'id': None, 'source': f'{path}?{name}'})
+        rows.append({'path': name, 'type': walker.type_html(schema, {}), 'required': False, 'default': schema.get('default'),
+                     'limits': limits(inner, {}), 'desc': [desc] if desc else [], 'source': f'{path}?{name}'})
     return rows
 
 
-def spec_rows(walker, specs, direction, method):
-    """Rows for a list of specs. Returns (rows, same_as): same_as names an earlier full expansion to link to instead."""
+def spec_rows(walker, specs, owner, route=None):
+    """The rows of a list of specs, in order."""
     if not isinstance(specs, list):
         specs = [specs]
     rows = []
-    first = specs[0] if specs else None
-    plain = isinstance(first, (Api, Ts)) and not getattr(first, 'omit', ()) and getattr(first, 'only', None) is None and not getattr(first, 'partial', False) and not getattr(first, 'prefix', '')
-    if plain:
-        key = walker.anchor(direction, first.name)
-        if key in walker.anchors:
-            return [], key
-        walker.anchors[key] = method
     for spec in specs:
         if isinstance(spec, Zod):
             schema = contract()['zod'].get(spec.name)
@@ -784,10 +910,10 @@ def spec_rows(walker, specs, direction, method):
                 walker.problems.append(f'reference_contract.mjs does not report the zod schema {spec.name}.')
                 continue
             notes = {path: note for (name, path), note in ZOD_NOTES.items() if name == spec.name}
-            # A prefix moves the rows under it; the notes keep their unprefixed paths.
-            local = []
             notes['__name__'] = spec.name
-            walker.fields(schema, schema.get('$defs', {}), direction, local, '', spec.omit, spec.only, spec.partial, f'zod:{spec.name}', notes)
+            local = []
+            walker.fields(schema, schema.get('$defs', {}), local, '', spec.omit, spec.only, spec.partial, f'zod:{spec.name}', notes)
+            # A prefix moves the rows under it; the notes keep their unprefixed paths.
             for row in local:
                 if spec.prefix:
                     row['path'] = spec.prefix + '.' + row['path']
@@ -797,11 +923,11 @@ def spec_rows(walker, specs, direction, method):
             if schema is None:
                 walker.problems.append(f'backend.openapi.json has no schema {spec.name}.')
                 continue
-            walker.fields(schema, components(), direction, rows, spec.prefix, spec.omit, spec.only, spec.partial, spec.name)
+            walker.fields(schema, components(), rows, spec.prefix, spec.omit, spec.only, spec.partial, spec.name)
         elif isinstance(spec, Ts):
-            rows += ts_rows(walker, spec, direction)
+            rows += ts_rows(walker, spec)
         elif isinstance(spec, Query):
-            rows += query_rows(walker, spec, spec.route or method_route(method))
+            rows += query_rows(walker, spec, spec.route or route)
         elif isinstance(spec, Field):
             schema = components().get(spec.schema)
             prop = (schema or {}).get('properties', {}).get(spec.name)
@@ -809,73 +935,44 @@ def spec_rows(walker, specs, direction, method):
                 walker.problems.append(f'backend.openapi.json has no field {spec.schema}.{spec.name}.')
                 continue
             required = spec.required if spec.required is not None else spec.name in schema.get('required', ())
-            walker.field(prop, components(), direction, rows, spec.path, required, f'{spec.schema}.{spec.name}', desc=spec.note)
+            walker.field(prop, components(), rows, spec.path, required, f'{spec.schema}.{spec.name}', desc=spec.note)
         elif isinstance(spec, Row):
-            type_ = f'<a href="#{spec.link}">{escape(spec.type)}</a>' if spec.link else escape(spec.type)
-            row = {'path': spec.path, 'type': type_, 'required': spec.required, 'default': spec.default or None, 'limits': [],
-                   'desc': [spec.desc], 'id': None, 'source': f'{method}:{spec.path}', 'raw_default': True}
-            rows.append(row)
-    return rows, None
-
-
-ROUTES = {}
-
-
-def method_route(method):
-    return ROUTES.get(method)
-
-
-def build_model():
-    """Rows for the whole page, expanded in page order so a type is shown in full where it first appears."""
-    walker = Walker()
-    model = {'sections': [], 'walker': walker}
-    model['errors'] = spec_rows(walker, [Api('Error'), Field('ErrorResponse', 'request_id', 'requestId', required=False),
-                                         Row('saved', '{prompts: Prompt[]}', False, 'For `PARTIAL_CREATION` only (`PartialCreationError`): the Prompts saved before a later clip failed.',
-                                             '仅用于 <code>PARTIAL_CREATION</code>（<code>PartialCreationError</code>）：之后的片段失败前已保存的提示词。')], 'out', 'errors')[0]
-    model['options'] = options_model(walker)
-    model['session_file'] = ts_rows(walker, Ts('SessionFile'), 'out')
-    model['agent'] = agent_model(walker)
-    for section, en, zh, methods in SECTIONS:
-        items = []
-        for method in methods:
-            ROUTES[method.path] = method.route
-        for method in methods:
-            items.append(method_model(walker, method))
-        model['sections'].append((section, en, zh, items))
-    return model
-
-
-def options_model(walker):
-    rows = {}
-    for name in ('NuvaClientOptions', 'AccessToken', 'StoreCommandOptions', 'CommandOptions'):
-        rows[name] = spec_rows(walker, Ts(name), 'in', 'options')[0]
+            rows.append({'path': spec.path, 'type': link_types(spec.type), 'required': spec.required, 'default': spec.default or None, 'limits': [],
+                         'desc': [spec.desc], 'source': f'{owner}:{spec.path}', 'raw_default': True})
     return rows
 
 
-def method_model(walker, method):
-    params = []
-    tables = []
-    for param in method.params:
-        spec = param.spec
-        if spec is None:
-            params.append((param, None))
-            continue
-        specs = spec if isinstance(spec, list) else [spec]
-        rows, same = spec_rows(walker, specs, 'in', method.path)
-        key = walker.anchor('in', specs[0].name) if isinstance(specs[0], (Api, Ts)) else None
-        params.append((param, same or (key if key in walker.anchors and walker.anchors[key] == method.path else None)))
-        if rows:
-            tables.append((param.name, rows, key if key in walker.anchors and walker.anchors[key] == method.path else None))
-    output, same = (spec_rows(walker, method.output, 'out', method.path) if method.output else ([], None))
-    out_key = walker.anchor('out', method.output[0].name) if method.output and isinstance(method.output[0], (Api, Ts)) else None
-    return {'method': method, 'params': params, 'tables': tables, 'output': output, 'same': same,
-            'out_anchor': out_key if out_key and walker.anchors.get(out_key) == method.path else None}
+ERROR_ROWS = [Api('Error'), Field('ErrorResponse', 'request_id', 'requestId', required=False),
+              Row('saved', '{prompts: Prompt[]}', False, 'For `PARTIAL_CREATION` only (`PartialCreationError`): the Prompts saved before a later clip failed.',
+                  '仅用于 <code>PARTIAL_CREATION</code>（<code>PartialCreationError</code>）：之后的片段失败前已保存的提示词。')]
+PAGE_ROWS = [Row('items', 'T[]', True, 'The page\'s items.', '本页的条目。'), Field('ProductPage', 'next_cursor'), NEXT_CURSOR]
+
+
+def build_model():
+    walker = Walker()
+    built = {'walker': walker, 'methods': {}, 'models': {}, 'intro': {}}
+    for name in ('NuvaClientOptions', 'AccessToken', 'StoreCommandOptions', 'CommandOptions'):
+        built['intro'][name] = spec_rows(walker, Ts(name), name)
+    built['intro']['NuvaError'] = spec_rows(walker, ERROR_ROWS, 'NuvaError')
+    built['intro']['BackendPage'] = spec_rows(walker, PAGE_ROWS, 'BackendPage')
+    for name, specs in MODELS.items():
+        built['models'][name] = spec_rows(walker, specs, name)
+    for page in PAGES:
+        for method in page.methods:
+            params = []
+            for param in method.params:
+                rows = spec_rows(walker, param.spec, method.path, method.route) if param.spec is not None else []
+                params.append((param, rows))
+            output = spec_rows(walker, method.output, method.path) if method.output else []
+            built['methods'][method.path] = {'method': method, 'params': params, 'output': output}
+    built['agent'] = agent_model(walker)
+    return built
 
 
 def agent_model(walker):
     entries = []
+    store = set(contract()['clients']['StoreClients'])
     for interface, prefix in (('NuvaClient', 'client'), ('SessionsClient', 'client.sessions'), ('AgentHandle', 'agent'), ('SessionFilesClient', 'agent.files')):
-        store = set(contract()['clients']['StoreClients'])
         for member in ts_members(interface):
             if interface == 'NuvaClient' and (member['name'] in store or member['name'] == 'sessions'):
                 continue
@@ -895,23 +992,27 @@ def agent_model(walker):
 
 # ── Checks ───────────────────────────────────────────────────────────────
 
+def all_methods():
+    return [method for page in PAGES for method in page.methods]
+
+
 def check_methods(walker):
     store = contract()['clients']['StoreClients']
-    mapped = {method.path: method for _, _, _, methods in SECTIONS for method in methods}
+    mapped = {method.path: method for method in all_methods()}
     for client, members in store.items():
         for member in members:
             path = f'{client}.{member["name"]}'
             method = mapped.pop(path, None)
             if method is None:
-                walker.problems.append(f'{path}: a public method of StoreClients missing from METHODS.')
+                walker.problems.append(f'{path}: a public method of StoreClients missing from PAGES.')
                 continue
             declared = [(p['name'], p['optional']) for p in member['parameters']]
             listed = [param.name for param in method.params]
             if [name for name, _ in declared] != listed:
-                walker.problems.append(f'{path}: METHODS lists parameters {listed}; stores.ts declares {[name for name, _ in declared]}.')
+                walker.problems.append(f'{path}: PAGES lists parameters {listed}; stores.ts declares {[name for name, _ in declared]}.')
             method.optional = {name for name, optional in declared if optional}
     for path in mapped:
-        walker.problems.append(f'{path}: in METHODS but not a method of StoreClients.')
+        walker.problems.append(f'{path}: in PAGES but not a method of StoreClients.')
     job = {member['name'] for member in ts_members('Job')}
     documented = {row.path.split('(')[0] for row in JOB_METHODS}
     if job != documented:
@@ -919,32 +1020,62 @@ def check_methods(walker):
     for key in AGENT_METHODS:
         if 'agent:' + key not in walker.notes_used:
             walker.problems.append(f'AGENT_METHODS[{key!r}]: no such public member.')
+    titles = {key: (en, zh) for key, en, zh in DOCUMENTS}
+    if [INTRO, *PAGE_KEYS] != list(REFERENCE):
+        walker.problems.append(f'customer_layout.DOCUMENTS lists the reference pages {list(REFERENCE)}; PAGES has {[INTRO, *PAGE_KEYS]}.')
+    for page in PAGES:
+        if titles.get(page.key) != page.title:
+            walker.problems.append(f'{page.key}: titled {page.title} in PAGES, {titles.get(page.key)} in customer_layout.DOCUMENTS.')
+    for name in MODELS:
+        if name not in MODEL_PAGE:
+            walker.problems.append(f'MODELS[{name!r}]: on no page.')
+    known = set(MODELS) | set(INTRO_TYPES)
+    for method in all_methods():
+        named = set(re.findall(r'\b[A-Z][A-Za-z]+\b', method.returns)) - {'Promise'}
+        if not named & known and method.output is None and method.returns not in ('Promise<void>', '() => void'):
+            walker.problems.append(f'{method.path}: returns {method.returns}, which names no model.')
 
 
 def check_routes(walker):
     """Each mapped schema matches its backend route: request body and success response."""
     paths = openapi()['paths']
-    for _, _, _, methods in SECTIONS:
-        for method in methods:
-            if method.route is None:
-                continue
-            verb, path = method.route
-            operation = paths.get(path, {}).get(verb.lower())
-            if operation is None:
-                walker.problems.append(f'{method.path}: {verb} {path} is not in backend.openapi.json.')
-                continue
-            body = operation.get('requestBody', {}).get('content', {}).get('application/json', {}).get('schema', {}).get('$ref', '').rsplit('/', 1)[-1] or None
-            if body != method.body:
-                walker.problems.append(f'{method.path}: {verb} {path} takes {body}; METHODS says {method.body}.')
-            success = [response for status, response in operation['responses'].items() if status.startswith('2')]
-            returned = {response.get('content', {}).get('application/json', {}).get('schema', {}).get('$ref', '').rsplit('/', 1)[-1] for response in success}
-            first = method.output[0] if method.output else None
-            expected = first.name if isinstance(first, Api) else (first.schema if isinstance(first, Field) else '')
-            if returned != {expected}:
-                walker.problems.append(f'{method.path}: {verb} {path} returns {sorted(returned)}; METHODS says {expected or "nothing"}.')
+    for method in all_methods():
+        verb, path = method.route
+        if path in GENERATION_ROUTES:
+            continue
+        operation = paths.get(path, {}).get(verb.lower())
+        if operation is None:
+            walker.problems.append(f'{method.path}: {verb} {path} is not in backend.openapi.json.')
+            continue
+        body = operation.get('requestBody', {}).get('content', {}).get('application/json', {}).get('schema', {}).get('$ref', '').rsplit('/', 1)[-1] or None
+        if body != method.body:
+            walker.problems.append(f'{method.path}: {verb} {path} takes {body}; PAGES says {method.body}.')
+        success = [response for status, response in operation['responses'].items() if status.startswith('2')]
+        returned = {response.get('content', {}).get('application/json', {}).get('schema', {}).get('$ref', '').rsplit('/', 1)[-1] for response in success}
+        if returned != {method.response or ''}:
+            walker.problems.append(f'{method.path}: {verb} {path} returns {sorted(returned)}; PAGES says {method.response or "nothing"}.')
 
 
-def check_text(walker, model, rows_iter):
+def check_examples(walker):
+    """Every method has an example that ran cleanly and ended with the method's route."""
+    results = dict(runs())
+    for method in all_methods():
+        run = results.pop(method.path, None)
+        if run is None:
+            walker.problems.append(f'{method.path}: no example in examples/reference.ts.')
+            continue
+        for problem in run['problems']:
+            walker.problems.append(f'{method.path} example: {problem}')
+        last = run['requests'][-1] if run['requests'] else None
+        if last is None or (last['method'], last['path']) != tuple(method.route):
+            walker.problems.append(f'{method.path} example: ends with {last and (last["method"], last["path"])}, not {method.route}.')
+        if method.returns not in ('Promise<void>',) and run['result'] is None:
+            walker.problems.append(f'{method.path} example: returns nothing to show.')
+    for name in results:
+        walker.problems.append(f'examples/reference.ts: {name} is not a method in PAGES.')
+
+
+def check_text(walker, rows_iter):
     zh = translations()
     for row in rows_iter:
         for desc in row['desc']:
@@ -975,16 +1106,15 @@ def check_text(walker, model, rows_iter):
             walker.problems.append(f'QUERY_NOTES[{key!r}]: not used.')
 
 
-def all_rows(model):
-    for _, _, _, items in model['sections']:
-        for item in items:
-            for _, rows, _ in item['tables']:
-                yield from rows
-            yield from item['output']
-    for rows in model['options'].values():
+def all_rows(built):
+    for item in built['methods'].values():
+        for _, rows in item['params']:
+            yield from rows
+        yield from item['output']
+    for rows in built['models'].values():
         yield from rows
-    yield from model['errors']
-    yield from model['session_file']
+    for rows in built['intro'].values():
+        yield from rows
 
 
 @lru_cache(maxsize=None)
@@ -993,12 +1123,12 @@ def model():
     walker = built['walker']
     check_methods(walker)
     check_routes(walker)
-    check_text(walker, built, all_rows(built))
-    for _, _, _, items in built['sections']:
-        for item in items:
-            for param, _ in item['params']:
-                if param.spec is None and param.desc is None:
-                    walker.problems.append(f'{item["method"].path}: parameter {param.name} has no description.')
+    check_examples(walker)
+    check_text(walker, all_rows(built))
+    for method in all_methods():
+        for param in method.params:
+            if param.spec is None and param.desc is None and param.type not in ('StoreCommandOptions', 'CommandOptions'):
+                walker.problems.append(f'{method.path}: parameter {param.name} has no description.')
     return built
 
 
@@ -1014,152 +1144,284 @@ def validate():
 
 def stats():
     built = model()
-    methods = sum(len(items) for _, _, _, items in built['sections'])
-    fields = sum(1 for _ in all_rows(built))
-    return methods, len(built['agent']), fields
+    return len(built['methods']), len(built['agent']), sum(1 for _ in all_rows(built))
 
 
 # ── Rendering ────────────────────────────────────────────────────────────
 
-def render_rows(rows, locale, direction):
+def resolve(html, page_key, locale):
+    """Point `@type:Name` and `@guide:page#anchor` links at their page in this language."""
+    def type_href(match):
+        name = match.group(1)
+        target = INTRO if name in INTRO_TYPES else MODEL_PAGE[name]
+        return 'href="' + ('' if target == page_key else filename(target, locale)) + '#' + name + '"'
+
+    def guide_href(match):
+        target, _, anchor = match.group(1).partition('#')
+        return 'href="' + filename(target, locale) + ('#' + anchor if anchor else '') + '"'
+    html = re.sub(r'href="@type:([A-Za-z]+)"', type_href, html)
+    return re.sub(r'href="@guide:([a-z0-9-]+(?:#[a-z0-9-]+)?)"', guide_href, html)
+
+
+def parent_path(path):
+    """The row a field belongs to: `data.facts[].claim` → `data.facts`, `cast.<role>.look` → `cast`."""
+    if '.' not in path or '(' in path:
+        return None
+    parent = path.rsplit('.', 1)[0]
+    if parent.endswith('[]'):
+        parent = parent[:-2]
+    keyed = re.match(r'(.*)\.<[^>]+>$', parent)
+    return keyed.group(1) if keyed else parent
+
+
+def tree(rows):
+    """Nest rows under the rows whose path they extend."""
+    nodes, roots = {}, []
+    for row in rows:
+        entry = {'row': row, 'children': []}
+        parent = nodes.get(parent_path(row['path']))
+        (parent['children'] if parent else roots).append(entry)
+        nodes[row['path']] = entry
+    return roots
+
+
+def field_name(path):
+    return path if parent_path(path) is None else path.rsplit('.', 1)[1]
+
+
+def meta_html(row, locale):
+    zh = locale == 'zh'
+    parts = []
+    default = row['default']
+    if isinstance(default, tuple):
+        parts.append(('默认 ' if zh else 'Default ') + escape(default[1] if zh else default[0]))
+    elif default is not None and default != [] and default != {}:
+        value = str(default) if row.get('raw_default') else json.dumps(default, ensure_ascii=False)
+        parts.append(('默认 ' if zh else 'Default ') + f'<code>{escape(value)}</code>')
+    limits_text = render_limits(row['limits'], locale)
+    if limits_text:
+        parts.append(limits_text)
+    return f'<p class="field-meta">{" · ".join(parts)}</p>' if parts else ''
+
+
+def fields_html(nodes, locale, depth=0):
+    """A field list: `name?: type`, its description, then its own fields (collapsed below the second level)."""
+    zh = locale == 'zh'
+    items = []
+    for entry in nodes:
+        row = entry['row']
+        name = field_name(row['path']) + ('' if row['required'] else '?')
+        description = ('' if zh else ' ').join(desc.html(locale) for desc in row['desc'])
+        body = (f'<p class="field-head"><code class="field-name">{escape(name)}</code><code class="field-type">{row["type"]}</code></p>'
+                f'<p class="field-description">{description}</p>' + meta_html(row, locale))
+        if entry['children']:
+            inner = fields_html(entry['children'], locale, depth + 1)
+            if depth >= 1:
+                count = len(entry['children'])
+                label = f'{count} 个字段' if zh else f'{count} field{"s" if count != 1 else ""}'
+                inner = f'<details><summary>{label}</summary>{inner}</details>'
+            body += inner
+        items.append(f'<li>{body}</li>')
+    return '<ul class="fields">' + ''.join(items) + '</ul>'
+
+
+def compact(name, rows, locale):
+    """`Product { id, version, data, 4 more }`, linking to the model."""
+    top = [field_name(row['path']) for row in rows if parent_path(row['path']) is None]
+    more = len(top) - 4
+    shown = ', '.join(top[:4]) + ((f' 等 {len(top)} 个字段' if locale == 'zh' else f', {more} more') if more > 0 else '')
+    return f'<code class="compact">{type_link(name)} {{ {escape(shown)} }}</code>'
+
+
+def http_html(route):
+    verb, path = route
+    return f'<p class="http"><span class="http-verb http-{verb.lower()}">{verb}</span> <code>{escape(path)}</code></p>'
+
+
+def signature_html(method):
+    client, name = method.path.split('.')
+    params = ', '.join(f'{escape(param.name)}{"?" if param.name in method.optional else ""}: {link_types(param.type)}' for param in method.params)
+    return f'<div class="signature"><code>client.{client}.<strong>{name}</strong>({params}): {link_types(method.returns)}</code></div>'
+
+
+def short_signature(method):
+    params = ', '.join(param.name + ('?' if param.name in method.optional else '') for param in method.params)
+    return f'client.{method.path}({params})'
+
+
+def display(value, path=()):
+    """The returned value as shown: the stored encoding of a Script or Storyboard (`data.text`) is cut short."""
+    if isinstance(value, dict):
+        return {key: display(item, path + (key,)) for key, item in value.items()}
+    if isinstance(value, list):
+        return [display(item, path) for item in value]
+    if path[-2:] == ('data', 'text') and isinstance(value, str) and len(value) > 48:
+        return value[:44] + '…'
+    return value
+
+
+def pretty(value, level=0, column=0):
+    """JSON with 2-space indents; an array or object that fits in 80 columns where it starts stays on one line."""
+    flat = json.dumps(value, ensure_ascii=False, separators=(', ', ': '))
+    if not isinstance(value, (dict, list)) or not value or (level > 0 and column + len(flat) <= 80):
+        return flat
+    pad = '  ' * (level + 1)
+    if isinstance(value, list):
+        inner = [pad + pretty(item, level + 1, len(pad)) for item in value]
+        return '[\n' + ',\n'.join(inner) + '\n' + '  ' * level + ']'
+    inner = []
+    for key, item in value.items():
+        name = json.dumps(key, ensure_ascii=False) + ': '
+        inner.append(pad + name + pretty(item, level + 1, len(pad) + len(name)))
+    return '{\n' + ',\n'.join(inner) + '\n' + '  ' * level + '}'
+
+
+def response_html(method, locale):
+    run = runs()[method.path]
+    if run['result'] is None:
+        return ''
+    label = '返回值' if locale == 'zh' else 'Response'
+    return code(pretty(display(run['result'])), 'json', locale, filename=label)
+
+
+def method_section(method, built, page_key, locale):
     zh = locale == 'zh'
     t = lambda en, zh_: zh_ if zh else en
-    headers = [t('Field', '字段'), t('Type', '类型'), t('Required', '必填') if direction == 'in' else t('Present', '返回'), t('Default', '默认值'), t('Limits', '限制'), t('Description', '说明')]
-    body = []
-    for row in rows:
-        if direction == 'in':
-            required = t('required', '必填') if row['required'] else t('optional', '可选')
+    item = built['methods'][method.path]
+    body = signature_html(method) + http_html(method.route) + f'<p>{method.purpose.html(locale)}</p>'
+    body += ''.join(f'<p>{note.html(locale)}</p>' for note in method.notes)
+    params = []
+    for param, rows in item['params']:
+        optional = '?' if param.name in method.optional else ''
+        head = f'<p class="field-head"><code class="field-name">{escape(param.name)}{optional}</code><code class="field-type">{link_types(param.type)}</code></p>'
+        if param.type in ('StoreCommandOptions', 'CommandOptions'):
+            text = t('<code>idempotencyKey</code> and <code>requestId</code>.' if param.type == 'StoreCommandOptions' else '<code>requestId</code>.',
+                     '<code>idempotencyKey</code> 和 <code>requestId</code>。' if param.type == 'StoreCommandOptions' else '<code>requestId</code>。')
+            params.append(f'<li>{head}<p class="field-description">{text}</p></li>')
+        elif rows:
+            params.append(f'<li>{head}' + (f'<p class="field-description">{param.desc.html(locale)}</p>' if param.desc else '') + fields_html(tree(rows), locale, 0) + '</li>')
         else:
-            required = t('always', '总是') if row['required'] else t('optional', '可能省略')
-        default = row['default']
-        if isinstance(default, tuple):
-            default = default[1] if zh else default[0]
-            default_html = escape(default)
-        elif default is None:
-            default_html = ''
-        elif row.get('raw_default'):
-            default_html = f'<code>{escape(str(default))}</code>'
+            params.append(f'<li>{head}<p class="field-description">{param.desc.html(locale)}</p></li>')
+    if params:
+        body += f'<h3>{t("Parameters", "参数")}</h3><ul class="fields params">' + ''.join(params) + '</ul>'
+    body += f'<h3>{t("Returns", "返回")}</h3>'
+    if item['output']:
+        body += f'<p><code>{link_types(method.returns)}</code></p>' + fields_html(tree(item['output']), locale)
+    else:
+        named = [name for name in re.findall(r'\b[A-Z][A-Za-z]+\b', method.returns) if name in MODELS]
+        if named:
+            name = named[-1]
+            body += f'<p>{compact(name, built["models"][name], locale)}</p>'
+            if 'BackendPage' in method.returns:
+                body += f'<p>{t("A page of them:", "按页返回：")} <code>{link_types("BackendPage")} {{ items, next_cursor, nextCursor }}</code></p>'
         else:
-            default_html = f'<code>{escape(json.dumps(default, ensure_ascii=False))}</code>'
-        description = ('' if zh else ' ').join(desc.html(locale) for desc in row['desc'])
-        attrs = f' id="{row["id"]}"' if row['id'] else ''
-        body.append(f'<tr{attrs}><td><code>{escape(row["path"])}</code></td><td><code>{row["type"]}</code></td><td>{required}</td>'
-                    f'<td>{default_html}</td><td>{render_limits(row["limits"], locale)}</td><td>{description}</td></tr>')
-    return ('<div class="table field-table"><table><thead><tr>' + ''.join(f'<th>{h}</th>' for h in headers)
-            + '</tr></thead><tbody>' + ''.join(body) + '</tbody></table></div>')
+            body += f'<p><code>{link_types(method.returns)}</code>{t(": nothing.", "：无返回内容。") if method.returns == "Promise<void>" else ""}</p>'
+    body += f'<h3>{t("Example", "示例")}</h3>' + code(region(method.path), 'ts', locale) + response_html(method, locale)
+    return (method.anchor, method.title.html(locale), resolve(body, page_key, locale))
 
 
-def reference_sections(locale='zh'):
+def model_html(name, rows, locale, note=None):
+    zh = locale == 'zh'
+    heading = f'<h3 id="{name}"><code>{escape(name)}</code></h3>'
+    text = f'<p>{T(*note).html(locale)}</p>' if note else ''
+    if name == 'Job':
+        text += f'<p><code>Job = {type_link("JobState")} &amp; {{ subscribe, result }}</code></p>'
+    return heading + text + fields_html(tree(rows), locale)
+
+
+def page_sections(key, locale='zh'):
+    """The sections of one resource page."""
+    built = model()
+    zh = locale == 'zh'
+    t = lambda en, zh_: zh_ if zh else en
+    page = next(page for page in PAGES if page.key == key)
+    overview = ''.join(f'<p>{summary.html(locale)}</p>' for summary in page.summary)
+    if page.methods:
+        overview += '<ul class="method-list">' + ''.join(
+            f'<li><a href="#{method.anchor}"><code>{escape(short_signature(method))}</code></a>'
+            f'<span class="http-inline"><span class="http-verb http-{method.route[0].lower()}">{method.route[0]}</span> <code>{escape(method.route[1])}</code></span></li>'
+            for method in page.methods) + '</ul>'
+    sections = [('overview', t('Overview', '概览'), resolve(overview, key, locale))]
+    if key == 'reference-sessions':
+        agent = ''.join(f'<li><p class="field-head"><code class="field-name">{escape(signature)}</code></p><p class="field-description">{desc.html(locale)}</p></li>' for signature, desc in built['agent'])
+        body = code(region('sessions'), 'ts', locale) + f'<ul class="fields">{agent}</ul>'
+        sections.append(('members', t('Members', '成员'), resolve(body, key, locale)))
+    for method in page.methods:
+        sections.append(method_section(method, built, key, locale))
+    models = ''.join(model_html(name, built['models'][name], locale, MODEL_NOTES.get(name)) for name in page.models)
+    sections.append(('models', t('Models', '数据模型'), resolve(models, key, locale)))
+    return sections
+
+
+def intro_sections(locale='zh'):
+    """The Introduction: the client, the API version, errors, idempotency, lists and versions."""
     built = model()
     zh = locale == 'zh'
     t = lambda en, zh_: zh_ if zh else en
     p = lambda en, zh_: '<p>' + t(en, zh_) + '</p>'
-    h3 = lambda key, en, zh_: f'<h3 id="{key}">{t(en, zh_)}</h3>'
-    c = lambda text: code(text, 'ts', locale)
-    link = lambda page, anchor='': filename(page, locale) + ('#' + anchor if anchor else '')
-    caption = lambda key, en, zh_: '<p class="table-caption"' + (f' id="{key}"' if key else '') + f'><strong>{t(en, zh_)}</strong></p>'
+    intro = built['intro']
+    rows = lambda name: fields_html(tree(intro[name]), locale)
+    heading = lambda name, suffix='': f'<h3 id="{name}"><code>{name}</code>{suffix}</h3>'
+    pages = ''.join(f'<li><a href="{filename(page.key, locale)}">{escape(page.title[1] if zh else page.title[0])}</a>: {page.blurb.html(locale)}</li>' for page in PAGES)
+    sections = [
+        ('overview', t('Overview', '概览'),
+         p(f'Every method of the TypeScript SDK, for API version <code>{API_VERSION}</code>, one page per resource. How the methods fit together is in the guides: <a href="@guide:store">Manage resources</a>, <a href="@guide:generation">Generate content</a>, <a href="@guide:agent">Agent conversations</a>.',
+           f'TypeScript SDK 的全部方法，适用于 API 版本 <code>{API_VERSION}</code>，每种资源一页。方法如何配合使用参见指南：<a href="@guide:store">管理资源</a>、<a href="@guide:generation">生成内容</a>、<a href="@guide:agent">Agent 对话</a>。')
+         + f'<ul class="page-list">{pages}</ul>'),
+        ('client', t('Create the client', '创建客户端'),
+         '<div class="signature"><code><strong>createNuva</strong>(options: ' + type_link('NuvaClientOptions') + '): NuvaClient</code></div>'
+         + p('Create one client per signed-in user, and call <code>close()</code> on logout or account change.', '为每个已登录用户创建一个客户端；退出登录或切换账号时调用 <code>close()</code>。')
+         + code(region('create-client'), 'ts', locale)
+         + heading('NuvaClientOptions') + rows('NuvaClientOptions')
+         + heading('AccessToken', t(': what <code>getAccessToken</code> returns', '：<code>getAccessToken</code> 的返回值')) + rows('AccessToken')),
+        ('api-version', t('API version', 'API 版本'),
+         p(f'The SDK sends <code>Nuva-Api-Version: {API_VERSION}</code> with every request, and this reference describes that version. You don\'t set it; a new SDK release that moves to a newer version says so in its upgrade guide.',
+           f'SDK 在每个请求中发送 <code>Nuva-Api-Version: {API_VERSION}</code>，本参考描述的就是该版本。无需自行设置；升级到新 API 版本的 SDK 版本会在升级指南中说明。')),
+        ('errors', t('Errors', '错误'),
+         p('Every failure is a <code>NuvaError</code>. Branch on <code>code</code>; show <code>message</code>; quote <code>requestId</code> when you report a problem.',
+           '所有失败都是 <code>NuvaError</code>。按 <code>code</code> 分支处理，展示 <code>message</code>，反馈问题时附上 <code>requestId</code>。')
+         + source_example('errors', locale, "import { NuvaError, type NuvaClient } from '@nuva/sdk';")
+         + heading('NuvaError') + rows('NuvaError')
+         + p('A write\'s error says whether the write happened. <code>acceptance: "not_accepted"</code>: nothing happened, so it is safe to retry. <code>acceptance: "unknown"</code>: it may have happened (a timeout, a lost response, a server error); retry only with the same <code>idempotencyKey</code>, or read the resource first. A read\'s error has no <code>acceptance</code>. The SDK replays a write by itself only after renewing the token, when the service reported <code>not_accepted</code>.',
+             '写入的错误会说明写入是否发生。<code>acceptance: "not_accepted"</code>：未执行任何操作，可安全重试。<code>acceptance: "unknown"</code>：可能已执行（超时、响应丢失、服务端错误）；只能使用相同的 <code>idempotencyKey</code> 重试，或先读取资源确认。读取的错误没有 <code>acceptance</code>。仅当服务返回 <code>not_accepted</code> 时，SDK 才会在刷新令牌后自行重放写入。')
+         + table([t('Code', '错误码'), t('Handling', '处理方式')], [
+             ['<code>UNAUTHENTICATED / FORBIDDEN</code>', t('Check login and resource access.', '检查登录状态和资源权限。')],
+             ['<code>NOT_FOUND</code>', t('The item does not exist or is not shared with the user.', '内容不存在，或未共享给该用户。')],
+             ['<code>REVISION_CONFLICT</code>', t('Someone saved a newer version: read it again and reapply the change.', '已有人保存了更新的版本：重新读取后再应用修改。')],
+             ['<code>IDEMPOTENCY_CONFLICT</code>', t('The key belongs to different input. Use the original input to recover, or a new key for new work.', '该 key 已绑定不同输入。恢复时使用原输入；新任务使用新 key。')],
+             ['<code>INVALID_INPUT</code>', t('The input is malformed or uses a removed form; nothing was done. The message says what to change.', '输入格式错误或使用了已移除的写法，未执行任何操作。错误信息说明需要修改的内容。')],
+             ['<code>REJECTED</code>', t('The service refused the input, for example a Storyboard that fails its checks. The message lists the problems.', '服务拒绝了输入，例如分镜未通过检查。错误信息列出具体问题。')],
+             ['<code>PARTIAL_CREATION</code>', t('Some clip Prompts were saved, not all: keep <code>saved.prompts</code> and retry with the same <code>idempotencyKey</code>.', '部分片段提示词已保存：保留 <code>saved.prompts</code>，再使用相同 <code>idempotencyKey</code> 重试。')],
+             ['<code>ASSET_EXISTS</code>', t('You added this file before with a different label or description. The message names the Asset; change its text with <code>assets.update</code>.', '你之前添加过该文件，但标签或描述不同。错误信息给出该 Asset；请用 <code>assets.update</code> 修改其文字。')],
+             ['<code>JOB_FINISHED</code>', t('The Job already ended; it cannot be cancelled.', '任务已结束，不能取消。')],
+             ['<code>CALL_ALREADY_RESOLVED / CALL_OBSOLETE</code>', t('Read the current interaction state.', '读取当前交互状态。')],
+         ])),
+        ('idempotency', t('Idempotency keys and request IDs', '幂等 key 与请求 ID'),
+         p('<code>idempotencyKey</code> makes a write safe to retry: the same key with the same input returns what the first call made, and the same key with other input fails with <code>IDEMPOTENCY_CONFLICT</code>. Keep one key for the retries of one write, and use a new one for a new write, even with the same input. <code>requestId</code> only correlates a request in traces and errors; it does not make a retry safe.',
+           '<code>idempotencyKey</code> 让写入可安全重试：相同 key 和相同输入返回第一次调用的结果；相同 key 但输入不同时返回 <code>IDEMPOTENCY_CONFLICT</code>。同一次写入的重试使用同一个 key；新的写入即使输入相同也使用新 key。<code>requestId</code> 只用于在诊断信息和错误中关联请求，不能让重试变得安全。')
+         + code(region('idempotency'), 'ts', locale)
+         + heading('StoreCommandOptions', t(': the options of a write that takes a key', '：支持幂等 key 的写入方法的选项')) + rows('StoreCommandOptions')
+         + heading('CommandOptions', t(': the options of a write that takes none', '：不支持幂等 key 的写入方法的选项')) + rows('CommandOptions')),
+        ('lists', t('Lists', '列表'),
+         p('A <code>list</code> method returns one page. Pass <code>nextCursor</code> as <code>cursor</code> to read the next, until it is null.',
+           '<code>list</code> 方法每次返回一页。将 <code>nextCursor</code> 作为 <code>cursor</code> 传入读取下一页，直到它为 null。')
+         + heading('BackendPage') + rows('BackendPage')),
+        ('versions', t('Versions', '版本'),
+         table([t('Value', '值'), t('Meaning', '含义')], [
+             ['<code>0.1.0-preview.5</code>', t('SDK package version.', 'SDK 包版本。')],
+             [f'<code>Nuva-Api-Version: {API_VERSION}</code>', t('The API version the SDK sends with every request.', 'SDK 在每个请求中发送的 API 版本。')],
+             ['<code>/v1/…</code>', t('Public HTTP API version.', '公开 HTTP API 版本。')],
+             ['<code>version: 1</code>', t('Agent message-envelope protocol revision; omission also means v1.', 'Agent 消息封装协议版本；省略时同样按 v1 处理。')],
+             ['<code>schema_version: 1</code>', t('Current backend Artifact schema.', '当前后端产物 schema。')],
+             ['<code>product.schema_version: 2</code>', t('Product data with <code>image_asset_ids</code> and <code>video_asset_ids</code>.', '包含 <code>image_asset_ids</code> 和 <code>video_asset_ids</code> 的产品数据。')],
+             ['<code>script.format: 3</code>', t('Script content in <code>script.content</code> (stored as nuva.script version 3).', '通过 <code>script.content</code> 返回的脚本内容（存储为 nuva.script 版本 3）。')],
+             ['<code>script.format: 2</code>', t('A read-only ScriptPackage saved before Storyboards, in <code>script.legacy</code>.', '分镜功能推出前保存的只读 ScriptPackage，位于 <code>script.legacy</code>。')],
+             ['<code>nuva.storyboard version 1</code>', t('Storyboard content in <code>storyboard.content</code>.', '通过 <code>storyboard.content</code> 返回的分镜内容。')],
+         ])),
+    ]
+    return [(key, name, resolve(body, INTRO, locale)) for key, name, body in sections]
 
-    def rows(rows_, direction):
-        return render_rows(rows_, locale, direction)
 
-    def description(desc):
-        return desc.html(locale)
-
-    sections = []
-
-    # Concepts
-    errors_table = rows(built['errors'], 'out')
-    concepts = (
-        p(f'Every public method of the Client SDK, with each field of what it takes and returns. Types, required fields, defaults, limits and descriptions come from the SDK\'s contract (API version <code>2026-11-07</code>). For how to use the methods together, read the task guides: <a href="{link("store")}">Manage resources</a>, <a href="{link("generation")}">Generate content</a> and <a href="{link("agent")}">Agent conversations</a>.',
-          f'本页列出 Client SDK 的每个公开方法，以及其输入和输出的每个字段。类型、必填、默认值、限制和说明均来自 SDK 的接口定义（API 版本 <code>2026-11-07</code>）。各方法如何配合使用，请阅读操作指南：<a href="{link("store")}">管理资源</a>、<a href="{link("generation")}">生成内容</a>和 <a href="{link("agent")}">Agent 对话</a>。')
-        + p('A field path joins nested fields with dots (<code>data.image_asset_ids</code>); <code>[]</code> marks the items of a list and <code>&lt;id&gt;</code> the values of a map keyed by id. An object type is shown in full the first time it appears and linked after that. Fields marked “Added by the SDK” are not part of the backend contract.',
-            '字段路径用点号连接嵌套字段（<code>data.image_asset_ids</code>）；<code>[]</code> 表示列表中的每一项，<code>&lt;id&gt;</code> 表示以 ID 为键的映射中的值。对象类型在第一次出现时完整展开，之后以链接指向该处。标注“由 SDK 添加”的字段不属于后端接口定义。')
-        + h3('ids-versions', 'IDs and versions', 'ID 与版本')
-        + p('Brands, Products and Characters change in place. An edit keeps the <code>id</code> and saves the next <code>version</code>: 1 for the first, then one more per edit. A reference to one is <code>{id, version?}</code>; without <code>version</code> it means the latest. <code>get(id)</code> reads the latest version and <code>get(id, {version})</code> an earlier one. <code>update</code> takes the version you read: if someone saved a newer one since, it fails with <code>REVISION_CONFLICT</code> and changes nothing. Assets, Jobs, Ads and Batches have an <code>id</code> and no versions.',
-            '品牌、产品和人物原地修改。编辑后 <code>id</code> 不变，并保存下一个 <code>version</code>：第一个版本为 1，此后每次编辑加 1。引用它们时使用 <code>{id, version?}</code>；省略 <code>version</code> 表示最新版本。<code>get(id)</code> 读取最新版本，<code>get(id, {version})</code> 读取较早的版本。<code>update</code> 需要传入读取到的版本：如果之后已有人保存了更新的版本，返回 <code>REVISION_CONFLICT</code>，不做任何修改。Asset、任务、广告和批次只有 <code>id</code>，没有版本。')
-        + h3('artifacts', 'Artifacts never change', '产物不会被修改')
-        + p('Scripts, Storyboards and Prompts are Artifacts: once saved, they never change. <code>generate</code> makes a new one; <code>generateFrom</code> has the writer make one from an existing one; <code>createFrom</code> saves your own changes as a new one. The one you started from stays as it was. Each version has its own <code>id</code>, <code>base_id</code> is the version it was made from and <code>lineage_id</code> is the first version\'s id, so versions form a tree: calling a <code>…From</code> method twice on the same base gives two alternatives side by side. Read one by <code>{kind, id}</code>, for example <code>{kind: "script", id}</code>. <code>relationships</code> say what it was made from (another Artifact, or a Product or Character version); the service sets them.',
-            '脚本、分镜和提示词是产物（Artifact）：保存后不会被修改。<code>generate</code> 生成新的产物；<code>generateFrom</code> 让编写服务从已有产物生成新的产物；<code>createFrom</code> 将你的修改保存为新的产物。作为起点的产物保持不变。每个版本有自己的 <code>id</code>，<code>base_id</code> 是它所基于的版本，<code>lineage_id</code> 是第一个版本的 ID，因此各版本构成一棵树：对同一个 base 调用两次 <code>…From</code> 方法会得到两个并列的备选。按 <code>{kind, id}</code> 读取，例如 <code>{kind: "script", id}</code>。<code>relationships</code> 说明它的来源（另一个产物，或产品、人物的某个版本），由服务设置。')
-        + h3('prompt-files', 'How a Prompt names its files', '提示词如何指代文件')
-        + p('A Prompt\'s text names each attached file by its position in its list: <code>&lt;Picture 1&gt;</code> is the first of <code>image_asset_ids</code>, <code>&lt;Video 1&gt;</code> the first of <code>video_asset_ids</code> and <code>&lt;Audio 1&gt;</code> the first of <code>audio_asset_ids</code>. The video model ignores a file the text does not name, so a new Prompt must name every attached file and no other; otherwise it is refused with <code>422 INVALID_PROMPT</code>, with a detail for each problem, and nothing is saved.',
-            '提示词文本按文件在列表中的位置指代每个附带文件：<code>&lt;Picture 1&gt;</code> 是 <code>image_asset_ids</code> 的第一个，<code>&lt;Video 1&gt;</code> 是 <code>video_asset_ids</code> 的第一个，<code>&lt;Audio 1&gt;</code> 是 <code>audio_asset_ids</code> 的第一个。视频模型会忽略文本中没有提到的文件，因此新的提示词必须提到每个附带文件，且不能提到其他文件；否则返回 <code>422 INVALID_PROMPT</code>，每个问题各有一条详情，不会保存任何内容。')
-        + p('Prompts compiled from a Storyboard also use <code>&lt;Subject N&gt;</code>: a line such as <code>&lt;Subject 1&gt; is the woman in &lt;Picture 1&gt;</code> defines a person or thing once, and the shots then refer to <code>&lt;Subject 1&gt;</code>. A Subject is a label inside the text, not a file; only Picture, Video and Audio numbers point at attached files. Removing or reordering a file renumbers the others, which is why you change the Storyboard and compile again rather than edit compiled text.',
-            '由分镜编译的提示词还使用 <code>&lt;Subject N&gt;</code>：例如 <code>&lt;Subject 1&gt; is the woman in &lt;Picture 1&gt;</code> 先定义一个人或物，之后的镜头用 <code>&lt;Subject 1&gt;</code> 指代。Subject 是文本中的标签，不是文件；只有 Picture、Video 和 Audio 编号对应附带的文件。删除或调整文件顺序会改变其他文件的编号，因此应修改分镜后重新编译，而不是编辑已编译的文本。')
-        + c("// A raw render: the text names both attached images.\nawait client.videos.generate({\n  input: {\n    schema_version: 1,\n    data: {\n      prompt: 'The woman in <Picture 1> holds the bottle in <Picture 2> up to the camera.',\n      image_asset_ids: [presenterImageId, productImageId],\n      seconds: 5,\n      ratio: '9:16',\n    },\n  },\n});")
-        + h3('storyboard-or-raw', 'Storyboard path or raw render', '分镜路径与原始渲染')
-        + p(f'There are two ways to render a clip. Through a Storyboard: <code>storyboards.generate</code> casts the roles and writes the shots, <code>prompts.generate</code> compiles each clip into a Prompt with its files attached and named, and <code>videos.generate({{prompt}})</code> renders it. Or raw: <code>videos.generate({{input}})</code> renders a Prompt you write yourself. Either way the video model sees only the prompt text, the files attached to it (<code>image_asset_ids</code>, <code>video_asset_ids</code>, <code>audio_asset_ids</code>), the length and the frame.',
-            f'渲染片段有两种方式。通过分镜：<code>storyboards.generate</code> 选角并编写镜头，<code>prompts.generate</code> 将每个片段编译为附带并指代好文件的提示词，再由 <code>videos.generate({{prompt}})</code> 渲染。或者原始渲染：<code>videos.generate({{input}})</code> 渲染你自己编写的提示词。无论哪种方式，视频模型只看到提示词文本、附带的文件（<code>image_asset_ids</code>、<code>video_asset_ids</code>、<code>audio_asset_ids</code>）、时长和画面比例。')
-        + p('So a Character or a Product reaches a clip only through a Storyboard, or, in a raw render, when you attach its pictures yourself and name them in the text. Nothing else carries it: earlier SDKs sent a <code>characters</code> list with raw input, which was only a record and never reached the video model; it is no longer part of the input, and a non-empty one is refused.',
-            '因此，人物或产品只能通过分镜进入片段；在原始渲染中，则需要你自己附加其图片并在文本中指代。其他方式都不会生效：早期 SDK 在原始输入中发送的 <code>characters</code> 列表只是一条记录，从未传给视频模型；它已不再属于输入，非空时会被拒绝。')
-        + h3('batches', 'Batches', '批次')
-        + p('A Batch groups the work of one attempt: its <code>intent</code> says what it tries, and it lists the Ads made in it and counts its Jobs by status. A Script can be made in a Batch (<code>batch_id</code>); its Storyboards keep the Script\'s Batch, their Prompts the Storyboard\'s, and a Job joins its Prompt\'s Batch unless you pass <code>batch_id</code>. The Agent creates Batches and Ads; the SDK reads them.',
-            '批次（Batch）汇集一次尝试中的工作：<code>intent</code> 说明它的目的，并列出其中做出的广告和各状态的任务数量。脚本可以在某个批次中生成（<code>batch_id</code>）；其分镜沿用脚本的批次，提示词沿用分镜的批次，任务沿用提示词的批次，除非你传入 <code>batch_id</code>。批次和广告由 Agent 创建，SDK 负责读取。')
-        + h3('skills-concept', 'Skills', 'Skill')
-        + p(f'A Skill is versioned writing guidance, a <code>SKILL.md</code> and its files, that the Agent and the writers load. Your backend registers Skills with the <a href="{link("backend-go", "skills")}">Go Admin SDK</a>, and <code>main_version</code> is the version new work uses. Nuva selects the Skills configured for your account; a generate request does not name one. Content made with a Skill version records it in <code>skills</code>, keyed by version id.',
-            f'Skill 是带版本的编写指导（一个 <code>SKILL.md</code> 及其文件），由 Agent 和编写服务加载。你的后端通过 <a href="{link("backend-go", "skills")}">Go Admin SDK</a> 注册 Skill，<code>main_version</code> 是新工作默认使用的版本。Nuva 使用为你的账户配置的 Skill，生成请求中不指定 Skill。用某个 Skill 版本做出的内容会在 <code>skills</code> 中记录该版本（以版本 ID 为键）。')
-        + h3('idempotency', 'Idempotency keys and request IDs', '幂等 key 与请求 ID')
-        + p('<code>idempotencyKey</code> makes a write safe to retry: the same key with the same input returns what the first call made instead of making it again, and the same key with different input fails with <code>IDEMPOTENCY_CONFLICT</code>. Keep one key for the retries of one write and use a new key for a new write, even with the same input. Methods whose options are <code>StoreCommandOptions</code> take one. <code>requestId</code> only correlates a request in traces and errors (it is sent as <code>X-Request-ID</code>); it does not make a write safe to retry.',
-            '<code>idempotencyKey</code> 让写入可安全重试：相同 key 和相同输入返回第一次调用的结果，不会再做一次；相同 key 但输入不同时返回 <code>IDEMPOTENCY_CONFLICT</code>。同一次写入的重试使用同一个 key；新的写入即使输入相同也使用新 key。选项类型为 <code>StoreCommandOptions</code> 的方法支持该参数。<code>requestId</code> 只用于在诊断信息和错误中关联请求（以 <code>X-Request-ID</code> 发送），不能让写入安全重试。')
-        + h3('errors', 'Errors and acceptance', '错误与 acceptance')
-        + p('Every failure is a <code>NuvaError</code> with the fields below; branch on <code>code</code>, not on <code>message</code>. A write\'s error says whether the write happened. <code>acceptance: "not_accepted"</code>: nothing happened, so it is safe to retry. <code>acceptance: "unknown"</code>: it may have happened (a timeout, a lost response, a server error); retry only with the same <code>idempotencyKey</code>, or read the resource first. A read\'s error has no <code>acceptance</code>. The SDK replays a write by itself only after renewing the token, when the service reported <code>not_accepted</code>.',
-            '所有失败都是带有下列字段的 <code>NuvaError</code>；请根据 <code>code</code> 而不是 <code>message</code> 判断。写入的错误会说明写入是否发生。<code>acceptance: "not_accepted"</code>：未执行任何操作，可安全重试。<code>acceptance: "unknown"</code>：可能已执行（超时、响应丢失、服务端错误）；只能使用相同的 <code>idempotencyKey</code> 重试，或先读取资源确认。读取的错误没有 <code>acceptance</code>。仅当服务返回 <code>not_accepted</code> 时，SDK 才会在刷新令牌后自行重放写入。')
-        + errors_table
-        + p(f'Error codes and how to handle them are in <a href="{link("reference", "errors")}">Methods and errors</a>.', f'错误码及处理方式参见<a href="{link("reference", "errors")}">方法与错误</a>。')
-    )
-    sections.append(('concepts', t('Concepts', '概念'), concepts))
-
-    # Client options
-    options = built['options']
-    body = (c('createNuva(options: NuvaClientOptions): NuvaClient')
-            + p('Creates a client for one signed-in user. Create it once, and call <code>close()</code> on logout or account change.', '为一个已登录用户创建客户端。只创建一次；退出登录或切换账号时调用 <code>close()</code>。')
-            + caption('in-NuvaClientOptions', 'NuvaClientOptions', 'NuvaClientOptions') + rows(options['NuvaClientOptions'], 'in')
-            + caption('in-AccessToken', 'AccessToken: what <code>getAccessToken</code> returns', 'AccessToken：<code>getAccessToken</code> 的返回值') + rows(options['AccessToken'], 'in')
-            + caption('in-StoreCommandOptions', 'StoreCommandOptions: the <code>options</code> of a write', 'StoreCommandOptions：写入方法的 <code>options</code>') + rows(options['StoreCommandOptions'], 'in')
-            + caption('in-CommandOptions', 'CommandOptions: the <code>options</code> of a write that takes no idempotency key', 'CommandOptions：不支持幂等 key 的写入方法的 <code>options</code>') + rows(options['CommandOptions'], 'in'))
-    sections.append(('client-options', t('Client options', '客户端选项'), body))
-
-    # Agent and Sessions
-    agent_rows = ''.join(f'<tr><td><code>{escape(signature)}</code></td><td>{description(desc)}</td></tr>' for signature, desc in built['agent'])
-    body = (p(f'Conversations with the Ads Agent. Their behaviour (states, sending while the Agent works, waiting for renders, Stop) is in <a href="{link("agent")}">Agent conversations</a>; message and state types are the ones the SDK exports.',
-              f'与 Ads Agent 的对话。其行为（状态、Agent 工作时发送消息、等待渲染、停止）参见 <a href="{link("agent")}">Agent 对话</a>；消息和状态类型以 SDK 导出的类型为准。')
-            + c("const session = await client.sessions.create({ title: 'Spring launch' });\nconst agent = client.agent({ sessionId: session.id });")
-            + '<div class="table"><table><thead><tr><th>' + t('Method', '方法') + '</th><th>' + t('Purpose', '用途') + '</th></tr></thead><tbody>' + agent_rows + '</tbody></table></div>'
-            + caption('out-SessionFile', 'SessionFile: what <code>agent.files.get(id)</code> returns', 'SessionFile：<code>agent.files.get(id)</code> 的返回值') + rows(built['session_file'], 'out'))
-    sections.append(('agent-sessions', t('Agent and Sessions', 'Agent 与 Session'), body))
-
-    for key, en, zh_title, items in built['sections']:
-        body = ''
-        for item in items:
-            method = item['method']
-            optional = getattr(method, 'optional', set())
-            signature = f'client.{method.path}(' + ', '.join(f'{param.name}{"?" if param.name in optional else ""}: {param.type}' for param in method.params) + f'): {method.returns}'
-            body += h3(method.path.replace('.', '-'), f'<code>{method.path}</code>', f'<code>{method.path}</code>') + c(signature) + '<p>' + description(method.purpose) + '</p>'
-            body += ''.join('<p>' + description(note) + '</p>' for note in method.notes)
-            param_rows = []
-            for param, anchor in item['params']:
-                type_html = f'<a href="#{anchor}">{escape(param.type)}</a>' if anchor else escape(param.type)
-                if param.desc is not None:
-                    text = description(param.desc)
-                elif anchor and anchor in [table_anchor for _, _, table_anchor in item['tables']]:
-                    text = t('Fields below.', '字段见下表。')
-                elif anchor:
-                    text = t('Fields at the link.', '字段见链接处。')
-                else:
-                    text = t('Fields below.', '字段见下表。')
-                required = t('optional', '可选') if param.name in optional else t('required', '必填')
-                param_rows.append(f'<tr><td><code>{escape(param.name)}</code></td><td><code>{type_html}</code></td><td>{required}</td><td>{text}</td></tr>')
-            if param_rows:
-                body += ('<div class="table"><table><thead><tr><th>' + t('Parameter', '参数') + '</th><th>' + t('Type', '类型') + '</th><th>'
-                         + t('Required', '必填') + '</th><th>' + t('Description', '说明') + '</th></tr></thead><tbody>' + ''.join(param_rows) + '</tbody></table></div>')
-            for name, table_rows, anchor in item['tables']:
-                body += caption(anchor, f'<code>{escape(name)}</code> fields', f'<code>{escape(name)}</code> 字段') + rows(table_rows, 'in')
-            if item['same']:
-                same = f'<a href="#{item["same"]}">{escape(item["same"].split("-", 1)[1])}</a>'
-                body += t(f'<p><strong>Returns</strong> <code>{escape(method.returns)}</code>: the same fields as {same}.</p>',
-                          f'<p><strong>返回</strong> <code>{escape(method.returns)}</code>：字段同 {same}。</p>')
-            elif item['output']:
-                body += caption(item['out_anchor'], f'Returns <code>{escape(method.returns)}</code>', f'返回 <code>{escape(method.returns)}</code>') + rows(item['output'], 'out')
-            else:
-                body += p(f'Returns <code>{escape(method.returns)}</code>.', f'返回 <code>{escape(method.returns)}</code>。')
-        sections.append((key, t(en, zh_title), body))
-    return sections
+def reference_pages(locale='zh'):
+    """Every reference page's sections, by page key."""
+    return {INTRO: intro_sections(locale), **{page.key: page_sections(page.key, locale) for page in PAGES}}

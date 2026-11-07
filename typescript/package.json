@@ -6,8 +6,7 @@
   "files": [
     "dist",
     "README.md",
-    "schema/backend.source.json",
-    "schema/backend-video.source.json"
+    "schema/backend.source.json"
   ],
   "exports": {
     ".": {
@@ -25,10 +24,6 @@
     "./internal": {
       "types": "./dist/internal.d.ts",
       "import": "./dist/internal.js"
-    },
-    "./internal-backend": {
-      "types": "./dist/internal-backend.d.ts",
-      "import": "./dist/internal-backend.js"
     }
   },
   "sideEffects": false,

@@ -51,7 +51,7 @@ export interface paths {
         put?: never;
         /**
          * Register an asset from an upload or a URL
-         * @description Returns 201 with a new asset, or 200 with your existing asset when you registered the same file, with the same MIME type, before.
+         * @description Returns 201 with a new asset, or 200 with your existing asset when you registered the same file, with the same MIME type, before. A different label or description for a file you already have is 409 ASSET_EXISTS: change them with PATCH /v1/assets/{asset_id}.
          */
         post: operations["create_asset_v1_assets_post"];
         delete?: never;
@@ -77,7 +77,11 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Edit an asset's label and description
+         * @description Changes the fields the body sends and keeps the rest; null removes a value. The file itself never changes. Only the user who uploaded it, or an admin above them, edits it.
+         */
+        patch: operations["update_asset_v1_assets__asset_id__patch"];
         trace?: never;
     };
     "/v1/brands": {
@@ -786,7 +790,20 @@ export interface components {
             label?: string | null;
             /**
              * Description
-             * @description A longer description of what the file shows. Registering the same file again with a label or description replaces it.
+             * @description A longer description of what the file shows.
+             */
+            description?: string | null;
+        };
+        /** AssetEdit */
+        AssetEdit: {
+            /**
+             * Label
+             * @description A short name for what the file shows; null removes it.
+             */
+            label?: string | null;
+            /**
+             * Description
+             * @description A longer description of what the file shows; null removes it.
              */
             description?: string | null;
         };
@@ -825,12 +842,12 @@ export interface components {
             };
             /**
              * Label
-             * @description A short name for what the file shows, given at upload.
+             * @description A short name for what the file shows, given at upload or edited since.
              */
             label?: string | null;
             /**
              * Description
-             * @description A longer description of what the file shows, given at upload.
+             * @description A longer description of what the file shows, given at upload or edited since.
              */
             description?: string | null;
             /**
@@ -2587,6 +2604,59 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_asset_v1_assets__asset_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                asset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetEdit"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

@@ -2,8 +2,8 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import openapiTS, { astToString } from 'openapi-typescript';
 
-// The public contract (published) and the internal one (the Agent's workspace entry point only).
-for (const prefix of ['backend', 'backend-internal']) {
+// The public contract. The internal one, the Agent's, is in WhatIf (agents/ads-agent/packages/internal-contract).
+for (const prefix of ['backend']) {
 	const input = new URL(`../schema/${prefix}.openapi.json`, import.meta.url);
 	const source = JSON.parse(await readFile(new URL(`../schema/${prefix}.source.json`, import.meta.url), 'utf8'));
 	const text = await readFile(input, 'utf8');
