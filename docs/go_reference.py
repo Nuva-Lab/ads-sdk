@@ -63,8 +63,8 @@ def go_sections(locale='zh'):
            '范围是一棵树：<code>customer</code>（整个组织）、其下的 org，以及 org 下的 group。<code>SetMemberships</code> 会替换用户的全部成员关系，对 API 立即生效；Agent 对 Session 的访问权限在一分钟内同步。<code>customer</code> 的管理员可管理所有人。在用户需要查看彼此的内容之前，请先指定管理员。')
          + p('A share reaches everyone at or below its scope: <code>AccessRead</code> to see and use the item, <code>AccessWrite</code> to also edit it. It never allows deleting the item or sharing it on. You can share Brands, Products, Characters, Assets and Artifacts; Batches, Jobs and Ads are never shared. Removing a share makes the item <code>NOT_FOUND</code> again for those it reached. The API key administers your whole organization: it lists, reads and shares everyone’s items, but writing items takes a user token. <code>ListShares</code> takes the right to share the item.',
            '共享对其范围内（含下级）的所有人生效：<code>AccessRead</code> 可查看和使用，<code>AccessWrite</code> 还可编辑。共享不允许删除该内容，也不允许再次共享。可以共享品牌、产品、角色、Asset 和产物；批次、任务和广告不能共享。取消共享后，原先能访问的人再读取会得到 <code>NOT_FOUND</code>。API key 可管理整个组织：可列出、读取和共享所有人的内容，但修改内容需要用户令牌。<code>ListShares</code> 需要共享该内容的权限。')
-         + p('Brands, Products and Characters saved before this permission model have no owner. They stay shared read-only with your whole organization; only admins of <code>customer</code> can change them.',
-           '在此权限模型之前保存的品牌、产品和角色没有所有者。它们继续以只读方式共享给整个组织，只有 <code>customer</code> 的管理员可以修改。')),
+         + p('Brands, Products and Characters saved before this permission model have no owner. They stay shared with your whole organization for editing, as before. Deleting them or sharing them takes an admin of <code>customer</code>.',
+           '在此权限模型之前保存的品牌、产品和角色没有所有者。它们继续以可编辑方式共享给整个组织，与之前一致。删除或共享它们需要 <code>customer</code> 的管理员。')),
         ('errors', t('Handle backend errors', '处理后端错误'),
          table([t('Field', '字段'), t('Use', '用途')], [
              ['<code>StatusCode / Code</code>', t('Identify the HTTP status and service error.', '识别 HTTP 状态和服务错误。')],
