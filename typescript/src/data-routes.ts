@@ -2,7 +2,7 @@ import { backendIdSchema } from './backend-id.js';
 import { NuvaError } from './errors.js';
 import type { ShareableKind } from './stores.js';
 
-export const SHAREABLE_KINDS: readonly ShareableKind[] = ['brand', 'product', 'character', 'asset', 'script', 'storyboard', 'directing_plan', 'prompt'];
+export const SHAREABLE_KINDS: readonly ShareableKind[] = ['brand', 'product', 'character', 'asset', 'script', 'storyboard', 'prompt'];
 /** Existing backend DTOs are passed unchanged. Generation writers use a separate service. */
 export function dataRequest(
 	method: string,

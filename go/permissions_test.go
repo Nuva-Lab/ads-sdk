@@ -129,6 +129,10 @@ func TestPermissionInputsAreCheckedBeforeSending(t *testing.T) {
 			return err
 		}(),
 		func() error {
+			_, err := admin.SetShare(ctx, ItemRef{Kind: "directing_plan", ID: productID}, "a1", AccessRead)
+			return err
+		}(),
+		func() error {
 			_, err := admin.SetShare(ctx, ItemRef{Kind: "product", ID: "p1"}, "a1", AccessRead)
 			return err
 		}(),

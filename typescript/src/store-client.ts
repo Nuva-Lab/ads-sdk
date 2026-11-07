@@ -168,7 +168,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 			};
 		},
 	} satisfies StoreClients['artifacts'];
-	/** A new version of a Script or Prompt, the only Artifact versions users write directly. */
+	/** A new version of a Prompt, the only Artifact versions users write directly (Script and Storyboard edits go through the Agent). */
 	const artifactVersion = (ref: ResourceRef, input: { data: unknown; batch_id?: string | null; relationships?: never }, o?: { requestId?: string; idempotencyKey?: string }) => {
 		assertClientRelationships(input);
 		const name = kinds[ref.kind as keyof typeof kinds];
@@ -293,7 +293,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 		return product.id;
 	};
 	// An Artifact's share carries its first version's ID, whichever version named it; any other item's names the item.
-	const artifactKinds = ['script', 'storyboard', 'directing_plan', 'prompt'];
+	const artifactKinds = ['script', 'storyboard', 'prompt'];
 	const shareFor = (item: ShareTarget) =>
 		z
 			.object({

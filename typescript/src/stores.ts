@@ -129,7 +129,7 @@ export type RawPromptInput = Omit<B['RawPromptInput'], 'relationships'> & { rela
 /** A saved Prompt ID or raw input. Without `batch_id` (or with `batch_id: null`, which means the same) a saved Prompt's Job joins the Prompt's Batch; raw input has none. */
 export type GenerateVideoInput = Omit<B['GenerateVideo'], 'prompt' | 'input'> & ({ prompt: string; input?: null } | { input: RawPromptInput; prompt?: null });
 /** The kinds of item a share can be given for. Batches, Jobs and Ads are never shared. */
-export type ShareableKind = 'brand' | 'product' | 'character' | 'asset' | 'script' | 'storyboard' | 'directing_plan' | 'prompt';
+export type ShareableKind = 'brand' | 'product' | 'character' | 'asset' | 'script' | 'storyboard' | 'prompt';
 /** An Artifact may be named by any of its versions' IDs; its shares cover every version and carry its first version's ID. */
 export interface ShareTarget {
 	readonly kind: ShareableKind;
