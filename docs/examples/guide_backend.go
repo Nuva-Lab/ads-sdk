@@ -91,3 +91,27 @@ func ReadSkillVersion(
 }
 
 // #endregion read-skill
+
+// #region permissions
+// SetUpAgency puts a lead and a maker into one agency, and shares a Product with the maker's team.
+func SetUpAgency(ctx context.Context, admin *nuva.AdminClient, productID string) error {
+	if _, err := admin.PutScope(ctx, "agency-a", nuva.ScopeInput{Kind: nuva.ScopeOrg}); err != nil {
+		return err
+	}
+	org := "agency-a"
+	if _, err := admin.PutScope(ctx, "team-1", nuva.ScopeInput{Kind: nuva.ScopeGroup, Parent: &org}); err != nil {
+		return err
+	}
+	// Replaces each user's memberships. The lead administers everyone in agency-a.
+	if _, err := admin.SetMemberships(ctx, "lead@example.com", []nuva.Membership{{Scope: "agency-a", Role: nuva.RoleAdmin}}); err != nil {
+		return err
+	}
+	if _, err := admin.SetMemberships(ctx, "maker@example.com", []nuva.Membership{{Scope: "team-1", Role: nuva.RoleMember}}); err != nil {
+		return err
+	}
+	// Everyone in team-1 may now read the Product and use it in their own content.
+	_, err := admin.SetShare(ctx, nuva.ItemRef{Kind: "product", ID: productID}, "team-1", nuva.AccessRead)
+	return err
+}
+
+// #endregion permissions

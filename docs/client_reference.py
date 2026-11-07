@@ -95,20 +95,20 @@ def guide_pages(locale='zh'):
             + table([t('State', '状态'), t('Display / behavior', '展示与行为')], [
                 ['<code>loading</code>', t('Wait for the initial Session state.', '等待首次加载 Session。')],
                 ['<code>idle</code>', t('Allow a new user message.', '允许发送新消息。')],
-                ['<code>running</code>', t('Render streamed updates. Keep a new draft until this loop finishes, or steer it with <code>mode: \'steer\'</code> (see below).', '展示流式更新；当前循环结束前保留新的草稿，或使用 <code>mode: \'steer\'</code> 发送（见下文）。')],
+                ['<code>running</code>', t('Render streamed updates. A new message can still be sent: it joins the Agent\'s work (see below).', '展示流式更新；仍可发送新消息，它会加入 Agent 当前的工作（见下文）。')],
                 ['<code>waiting_for_response</code>', t('Reserved for client tools. The Ads Agent declares none, so it does not enter this state.', '为客户端工具保留。Ads Agent 未声明客户端工具，因此不会进入此状态。')],
                 ['<code>error</code>', t('Show the synchronization error and retain the draft.', '展示同步错误并保留草稿。')],
             ])),
         section('send', 'Send a message', '发送消息',
-            p('Pass <code>busy={state.status !== "idle"}</code> after handling loading and error states. Clear only the submitted draft after <code>send()</code> succeeds.',
-                '处理加载和错误状态后，传入 <code>busy={state.status !== "idle"}</code>。仅在 <code>send()</code> 成功后清除对应的已提交草稿。')
+            p('Keep Send available while the Agent works; block it only while the Session is loading or has a synchronization error. Clear only the submitted draft after <code>send()</code> succeeds.',
+                'Agent 工作期间也应允许发送；仅在 Session 加载中或出现同步错误时禁用。仅在 <code>send()</code> 成功后清除对应的已提交草稿。')
             + ex('composer')
-            + p('<code>send()</code> confirms that the input was accepted. Agent replies and saved resources arrive through the subscription. A busy Session rejects another normal message with <code>AGENT_BUSY</code>.',
-                '<code>send()</code> 确认输入已被接受；Agent 回复和已保存的资源通过订阅返回。忙碌的 Session 会以 <code>AGENT_BUSY</code> 拒绝新的普通消息。')
-            + p('To let users keep writing while the Agent works, send with <code>agent.send(draft, { mode: \'steer\' })</code>. While the Agent works, the message is in <code>messages</code> at once, after the reply in progress, with <code>unread: true</code>; the receipt names it. At the Agent\'s next step, after its current tool results, it joins the conversation as its own user message, loses <code>unread</code>, and the reply continues in a new assistant message after it. When no loop is running before that (it finished, failed or was stopped), it starts the next one. While idle, a steered send is an ordinary send.',
-                '如需在 Agent 工作时让用户继续输入，请使用 <code>agent.send(draft, { mode: \'steer\' })</code> 发送。Agent 工作期间，消息会立即出现在 <code>messages</code> 中（位于正在生成的回复之后），并带有 <code>unread: true</code>；回执会标明该消息。在 Agent 的下一步（当前工具结果之后），它会作为单独的用户消息加入对话，<code>unread</code> 随之消失，回复在其后以新的 assistant 消息继续。若在此之前循环已结束（完成、失败或已停止），它会开始下一个循环。空闲时，steer 发送与普通发送相同。')
-            + p('Show the read state under user messages, for example one check while <code>unread</code> and two once read. A steered message that cannot be sent is marked <code>failed</code> with its error.',
-                '可在用户消息下方显示已读状态，例如 <code>unread</code> 时显示一个对勾，已读后显示两个。无法发送的 steer 消息会被标记为 <code>failed</code> 并附带错误。')),
+            + p('<code>send()</code> confirms that the input was accepted. Agent replies and saved resources arrive through the subscription. Sending again with the same <code>requestId</code> answers with the first receipt.',
+                '<code>send()</code> 确认输入已被接受；Agent 回复和已保存的资源通过订阅返回。使用相同的 <code>requestId</code> 再次发送时，返回第一次的回执。')
+            + p('Users can keep writing while the Agent works. A message sent then is in <code>messages</code> at once, after the reply in progress, with <code>unread: true</code>; the receipt names it. At the Agent\'s next step, after its current tool results, it joins the conversation as its own user message, loses <code>unread</code>, and the reply continues in a new assistant message after it. When no loop is running before that (it finished, failed or was stopped), it starts the next one. A message sent while the Agent recovers from an interruption joins that work too. <code>mode: \'steer\'</code> is still accepted and changes nothing.',
+                'Agent 工作期间，用户可以继续发送消息。此时发送的消息会立即出现在 <code>messages</code> 中（位于正在生成的回复之后），并带有 <code>unread: true</code>；回执会标明该消息。在 Agent 的下一步（当前工具结果之后），它会作为单独的用户消息加入对话，<code>unread</code> 随之消失，回复在其后以新的 assistant 消息继续。若在此之前循环已结束（完成、失败或已停止），它会开始下一个循环。Agent 从中断中恢复时发送的消息，同样会加入其工作。<code>mode: \'steer\'</code> 仍被接受，但不再有任何作用。')
+            + p('Show the read state under user messages, for example one check while <code>unread</code> and two once read. A message sent while the Agent works that cannot be sent on is marked <code>failed</code> with its error.',
+                '可在用户消息下方显示已读状态，例如 <code>unread</code> 时显示一个对勾，已读后显示两个。Agent 工作期间发送、但无法继续发送的消息会被标记为 <code>failed</code> 并附带错误。')),
         section('waiting', 'Waiting for renders', '等待渲染完成',
             p('When the Agent submits video Jobs, it watches them and continues on its own when they finish. While it waits, <code>state.waiting</code> is present (only then; it is absent otherwise, and older SDK versions ignore it). The Session is <code>idle</code> meanwhile, so the user can keep chatting.',
                 'Agent 提交视频任务后会持续关注，任务完成后自动继续。等待期间 <code>state.waiting</code> 存在（仅在等待时出现，其余时间不存在；旧版 SDK 会忽略该字段）。此时 Session 为 <code>idle</code>，用户可以继续对话。')
@@ -119,8 +119,8 @@ def guide_pages(locale='zh'):
             ])
             + p('Show a short note above the composer, for example “Waiting for 2 renders · usually about 4 min · The Agent continues when they finish”, with a chip per Job and a “Stop waiting” action that calls <code>agent.stop()</code>. Stop works while the Session is idle: the Jobs keep running and their results stay saved, but the Agent no longer continues on its own. When the Agent continues, its reply begins with a summary of the finished renders and their Job records.',
                 '可在输入框上方显示简短提示，例如“正在等待 2 个渲染 · 通常约 4 分钟 · 全部完成后 Agent 会自动继续”，为每个任务显示一个标签，并提供调用 <code>agent.stop()</code> 的“停止等待”操作。Session 空闲时也可以 Stop：任务继续运行、结果仍会保存，但 Agent 不再自动继续。Agent 继续时，回复开头会列出已完成的渲染及其任务记录。')
-            + p('While the Agent continues after the Jobs finish, the Session is <code>running</code> like any reply: steer a message as above, and it joins at the Agent\'s next step.',
-                '任务完成后 Agent 自动继续时，Session 与普通回复一样处于 <code>running</code>：可以如上所述以 steer 方式发送消息，它会在 Agent 的下一步加入。')),
+            + p('While the Agent continues after the Jobs finish, the Session is <code>running</code> like any reply: a message sent then joins at the Agent\'s next step, as above.',
+                '任务完成后 Agent 自动继续时，Session 与普通回复一样处于 <code>running</code>：此时发送的消息会如上所述在 Agent 的下一步加入。')),
         section('references', 'Attach Products and quote results', '附加产品与引用结果',
             p('Pass a resource returned by the SDK to <code>attach()</code> or <code>quote()</code>. The reference carries the resource kind and ID; a display name alone does not identify a Product or Script.',
                 '将 SDK 返回的资源传给 <code>attach()</code> 或 <code>quote()</code>。引用包含资源类型和 ID；仅有展示名称不能确定产品或脚本。')
@@ -322,6 +322,7 @@ def guide_pages(locale='zh'):
                 ['<code>createNuva({getAccessToken})</code>', t('Create a user-scoped client.', '创建以用户为范围的客户端。')],
                 ['<code>client.sessions.create({title})</code>', t('Create a Session.', '创建 Session。')],
                 ['<code>client.sessions.get(id) / list({limit, cursor})</code>', t('Read accessible Sessions.', '读取有权访问的 Session。')],
+                ['<code>client.sessions.list({owner})</code>', t('An admin lists the Sessions of a user below them (<code>owner</code> is <code>session.owner.userId</code>). For anyone else the page is empty.', '管理员列出其下级用户的 Session（<code>owner</code> 即 <code>session.owner.userId</code>）。其他人得到空列表。')],
                 ['<code>client.sessions.history(id, {limit, cursor})</code>', t('Read saved messages without opening a live handle.', '读取已保存消息，无需打开实时 handle。')],
                 ['<code>client.agent({sessionId})</code>', t('Bind chat operations to one Session.', '将对话操作绑定到一个 Session。')],
                 ['<code>client.close()</code>', t('Release local connections on logout or account change.', '退出或切换账号时释放本地连接。')],
@@ -350,6 +351,7 @@ def guide_pages(locale='zh'):
                 ['<code>jobs</code>', '<code>get / subscribe</code>'],
                 ['<code>ads / batches</code>', '<code>get / list</code>'],
                 ['<code>skills</code>', '<code>get / list / version</code>'],
+                ['<code>shares</code>', t('<code>list(item) / set(item, scope, access) / remove(item, scope)</code>: share a Brand, Product, Character, Asset or Artifact with everyone at or below a scope, for <code>read</code> or <code>write</code>. Only an admin of the scope or above shares into it; <code>list</code> takes the right to share the item.', '<code>list(item) / set(item, scope, access) / remove(item, scope)</code>：将品牌、产品、角色、Asset 或产物共享给某范围内（含下级）的所有人，权限为 <code>read</code> 或 <code>write</code>。只有该范围或上级范围的管理员可以共享；<code>list</code> 需要共享该内容的权限。')],
             ])
             + p('Use the input and output types shipped with each method. IDs identify resources; a resource\'s <code>label</code> is for display only. An Asset\'s <code>label</code> is what its uploader said it shows, or null. Profile updates use an existing <code>base</code>, while Artifact updates create a new resource version.',
                 '按各方法提供的输入输出类型调用。资源以 ID 标识，资源的 <code>label</code> 仅用于展示。Asset 的 <code>label</code> 是上传者对文件内容的说明，可能为 null。实体更新使用现有 <code>base</code>；产物更新会创建新版本。')),

@@ -24,17 +24,18 @@ export interface AgentOptions {
 	readonly sessionId: string;
 }
 
-/** `mode: 'steer'`: while the Agent works, the message joins its current work at the next step instead of being rejected with `AGENT_BUSY`. */
+/** `mode: 'steer'`: accepted and no longer needed; every send steers. Agents deployed before that need it to steer. */
 export interface SendOptions extends CommandOptions {
 	readonly mode?: 'steer';
 }
 export interface AgentHandle {
 	readonly sessionId: string;
 	/**
-	 * Send a message. While the Agent works, a send is rejected with `AGENT_BUSY` (keep the draft), unless it is sent
-	 * with `mode: 'steer'`: it then appears in `messages` at once, with `unread: true`, and the Agent reads it at its next
-	 * step (after its current tool results), each such message as its own user message. When no loop is running (it
-	 * finished, failed or was stopped) before the Agent read it, it starts the next one.
+	 * Send a message. While the Session is idle it starts the next loop. While the Agent works it is steered: it appears
+	 * in `messages` at once, with `unread: true`, and the Agent reads it at its next step (after its current tool
+	 * results), each such message as its own user message. When no loop is running (it finished, failed or was stopped)
+	 * before the Agent read it, it starts the next one. Sending again with the same `requestId` answers with the first
+	 * receipt.
 	 */
 	send(message: MessageDraft, options?: SendOptions): Promise<SendReceipt>;
 	/**
@@ -104,7 +105,11 @@ export type AgentResult = AgentHandle & AgentReadState;
 export interface SessionsClient {
 	create(input: { title: string }): Promise<Session>;
 	get(sessionId: string): Promise<Session>;
-	list(query?: PaginationQuery): Promise<Page<Session>>;
+	/**
+	 * Your own Sessions. With `owner` (a user's ID, as in `session.owner.userId`), an admin lists the Sessions of a user
+	 * below them instead. For anyone else the page is empty.
+	 */
+	list(query?: PaginationQuery & { owner?: string }): Promise<Page<Session>>;
 	getMessage(ref: MessageRef): Promise<MessageView>;
 	/** Read saved history without opening a live Agent handle. */
 	history(sessionId: string, query?: PaginationQuery): Promise<Page<MessageView>>;
