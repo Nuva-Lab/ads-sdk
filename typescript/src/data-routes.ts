@@ -33,11 +33,12 @@ export function dataRequest(
 		const invalid = (message: string) => new NuvaError({ code: 'INVALID_INPUT', message, retryable: false, acceptance: 'not_accepted' });
 		const item = p.item as { kind?: unknown; id?: unknown } | undefined;
 		if (!SHAREABLE_KINDS.includes(item?.kind as ShareableKind)) throw invalid(`A share is for one of: ${SHAREABLE_KINDS.join(', ')}.`);
-		const base = `/v1/shares/${item!.kind as string}/${resourceId(item!.id)}`;
+		const base = `/v1/shares/${item!.kind as string}/${resourceId(typeof item!.id === 'string' ? item!.id.toLowerCase() : item!.id)}`;
 		if (action === 'list') return { method: 'GET', path: base };
-		// `customer`, or an org's or group's external ID: 1–255 characters, no control characters or '/'.
+		// `customer`, or an org's or group's external ID: 1–255 characters, no control characters or '/', and not '.' or
+		// '..', which would change the request path.
 		const scope = p.scope;
-		if (typeof scope !== 'string' || !/^[^\x00-\x1f\x7f/]{1,255}$/.test(scope)) throw invalid('A scope is required: customer, or an org or group external ID.');
+		if (typeof scope !== 'string' || scope === '.' || scope === '..' || !/^[^\x00-\x1f\x7f/]{1,255}$/.test(scope)) throw invalid('A scope is required: customer, or an org or group external ID.');
 		if (action === 'set') {
 			if (p.access !== 'read' && p.access !== 'write') throw invalid('access must be read or write.');
 			return { method: 'PUT', path: `${base}/${encodeURIComponent(scope)}`, body: { access: p.access } };

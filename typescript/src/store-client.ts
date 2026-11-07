@@ -319,9 +319,19 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 		return { data: { text: checked({ parse: encodeScript }, content, true) }, ...(batch_id === undefined ? {} : { batch_id }) };
 	};
 	const prompts = artifacts.forSchema(PromptSchema);
+	// An Artifact's share carries its first version's ID, whichever version named it; any other item's names the item.
+	const artifactKinds = ['script', 'storyboard', 'directing_plan', 'prompt'];
 	const shareFor = (item: ShareTarget) =>
 		z
-			.object({ kind: z.literal(item.kind), id: z.literal(item.id), scope: z.string().min(1), access: z.enum(['read', 'write']), created_at: z.string() })
+			.object({
+				kind: z.literal(item.kind),
+				id: artifactKinds.includes(item.kind)
+					? backendIdSchema
+					: backendIdSchema.refine((id) => id.toLowerCase() === String(item.id).toLowerCase(), 'The share is for another item.'),
+				scope: z.string().min(1),
+				access: z.enum(['read', 'write']),
+				created_at: z.string(),
+			})
 			.loose();
 	const noContent = {
 		parse: (v: unknown) => {

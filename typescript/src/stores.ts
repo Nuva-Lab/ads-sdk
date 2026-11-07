@@ -134,6 +134,7 @@ export type RawPromptInput = Omit<B['RawPromptInput'], 'relationships'> & { rela
 export type GenerateVideoInput = Omit<B['GenerateVideo'], 'prompt' | 'input'> & ({ prompt: string; input?: null } | { input: RawPromptInput; prompt?: null });
 /** The kinds of item a share can be given for. Batches, Jobs and Ads are never shared. */
 export type ShareableKind = 'brand' | 'product' | 'character' | 'asset' | 'script' | 'storyboard' | 'directing_plan' | 'prompt';
+/** An Artifact may be named by any of its versions' IDs; its shares cover every version and carry its first version's ID. */
 export interface ShareTarget {
 	readonly kind: ShareableKind;
 	readonly id: string;
@@ -154,7 +155,7 @@ export interface Share {
  * item or sharing it on.
  */
 export interface SharesClient {
-	/** The item's shares. */
+	/** The item's shares, for whoever may share it: its owner or an admin above them. Others who can read the item get `FORBIDDEN`. */
 	list(item: ShareTarget): Promise<Share[]>;
 	/** Shares the item with everyone at or below `scope`. A repeat changes the access. */
 	set(item: ShareTarget, scope: string, access: ShareAccess, options?: CommandOptions): Promise<Share>;

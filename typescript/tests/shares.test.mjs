@@ -59,6 +59,8 @@ test('shares: inputs are checked before anything is sent', () => {
 		['shares.set', { item, scope: 'a/b', access: 'read' }],
 		['shares.set', { item, scope: '', access: 'read' }],
 		['shares.set', { item, scope: 'a1', access: 'delete' }],
+		['shares.set', { item, scope: '..', access: 'read' }],
+		['shares.remove', { item, scope: '.' }],
 	])
 		assert.throws(() => dataRequest(method, params), (error) => error.code === 'INVALID_INPUT', method);
 	assert.deepEqual(dataRequest('shares.remove', { item, scope: 'customer' }), { method: 'DELETE', path: `/v1/shares/product/${id}/customer` });
@@ -71,6 +73,19 @@ test('sessions.list passes owner, so an admin lists a member\'s Sessions', async
 			await nuva.sessions.list({ owner: id, limit: 10 });
 			assert.equal(new URL(requests[0].url).searchParams.get('owner'), id);
 			assert.equal(new URL(requests[0].url).pathname, '/v1/sessions');
+		},
+	);
+});
+
+test("shares: an Artifact named by a later version's ID, in any case, gets the share of its first version", async () => {
+	const first = '01a175e0-31b3-da69-176e-0842e6f66000';
+	await withFetch(
+		() => Response.json({ kind: 'script', id: first, scope: 'customer', access: 'write', created_at: '2026-11-07T00:00:00Z' }),
+		async (nuva, requests) => {
+			const share = await nuva.shares.set({ kind: 'script', id: id.toUpperCase() }, 'customer', 'write');
+			assert.equal(share.id, first);
+			assert.equal(requests[0].url, `https://store.invalid/v1/shares/script/${id}/customer`);
+			await assert.rejects(nuva.shares.set({ kind: 'product', id }, 'customer', 'read'), (error) => error.code === 'SERVICE_ERROR');
 		},
 	);
 });
