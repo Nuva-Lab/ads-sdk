@@ -1,4 +1,4 @@
-import type { GenerateScriptInput, GenerateStoryboardInput, GeneratePromptInput } from './schemas.js';
+import type { GeneratePromptInput, NewScriptInput, ReviseScriptInput, NewStoryboardInput, ReviseStoryboardInput } from './schemas.js';
 import type { ScriptContent, StoryboardContent } from './script-v3.js';
 import type { CommandOptions, JsonObject, JsonValue, ResourceRef, ResourceLink, NuvaErrorInfo, Unsubscribe } from './types.js';
 import type { BackendSchemas as B } from './backend-target.js';
@@ -16,7 +16,7 @@ export type Ad = B['AdOut'] & ResourceLink<'ad'>;
 export type Batch = B['BatchOut'] & ResourceLink<'batch'>;
 export type Skill = B['SkillDetail'] & ResourceLink<'skill'>;
 export type Composition = B['CompositionV1'];
-export type ArtifactKind = 'script' | 'storyboard' | 'directing_plan' | 'prompt';
+export type ArtifactKind = 'script' | 'storyboard' | 'prompt';
 export type Artifact<K extends string = string, D = JsonValue> = ResourceLink<K> & { data: D; readonly schemaVersion: number };
 export type BackendArtifact<K extends string = ArtifactKind, D = JsonValue> = Omit<B['Script'], 'kind' | 'data'> &
 	Artifact<K, D> & { kind: K };
@@ -26,29 +26,22 @@ export type Script = BackendArtifact<'script', B['ScriptDataV1']> &
 /** A Storyboard: how a Script is cast and shot. `prompts.generate({ storyboard })` turns its clips into the Prompts `videos.generate` renders. */
 export type Storyboard = BackendArtifact<'storyboard', B['StoryboardDataV1']> & { readonly content: StoryboardContent };
 export type Prompt = BackendArtifact<'prompt', B['PromptDataV1']> & Pick<B['Prompt'], 'relationships'>;
-export type DirectingPlan = BackendArtifact<'directing_plan', B['DirectingPlanDataV1']>;
-export interface ArtifactSchema<K extends string, D, W extends boolean = boolean> {
+/** How to read one Artifact kind: `artifacts.forSchema(schema).get(ref)` returns its data parsed by `schema`. */
+export interface ArtifactSchema<K extends string, D> {
 	readonly kind: K;
 	readonly schemaVersion: number;
-	readonly writable: W;
 	parse(data: unknown): D;
 }
 export interface TypedArtifactReader<K extends string, D> {
 	get(ref: ResourceRef<K>): Promise<Artifact<K, D>>;
 }
-export interface TypedArtifactWriter<K extends string, D> extends TypedArtifactReader<K, D> {
-	create(input: { data: D; batch_id?: string | null; relationships?: never }, options?: StoreCommandOptions): Promise<Artifact<K, D>>;
-	update(ref: ResourceRef<K>, input: { data: D; batch_id?: string | null; relationships?: never }, options?: StoreCommandOptions): Promise<Artifact<K, D>>;
-}
-export type TypedArtifacts<K extends string, D, W extends boolean> = W extends true ? TypedArtifactWriter<K, D> : TypedArtifactReader<K, D>;
+/**
+ * Reads Artifacts of any kind. Scripts, Storyboards and Prompts are written through their own clients, which run the
+ * Agent's checks: `scripts`, `storyboards`, `prompts` and raw `videos.generate({ input })`.
+ */
 export interface ArtifactsClient {
 	get(ref: ResourceRef): Promise<Artifact>;
-	create(
-		input: { kind: ArtifactKind; schema_version: number; data: JsonValue; batch_id?: string | null; relationships?: never },
-		options?: StoreCommandOptions,
-	): Promise<BackendArtifact>;
-	update(ref: ResourceRef, input: { data: JsonValue; batch_id?: string | null; relationships?: never }, options?: StoreCommandOptions): Promise<BackendArtifact>;
-	forSchema<K extends string, D, W extends boolean>(schema: ArtifactSchema<K, D, W>): TypedArtifacts<K, D, W>;
+	forSchema<K extends string, D>(schema: ArtifactSchema<K, D>): TypedArtifactReader<K, D>;
 }
 export interface ProfilesClient<T, C, U> {
 	get(id: string, query?: { version?: number }): Promise<T>;
@@ -91,31 +84,34 @@ export interface JobsClient {
 	get(id: string): Promise<JobState>;
 	subscribe(id: string, listener: (state: JobState) => void, onError?: (error: NuvaErrorInfo) => void): Unsubscribe;
 }
-export type ScriptInput = GenerateScriptInput;
-export type StoryboardInput = GenerateStoryboardInput;
+export type ScriptInput = NewScriptInput;
+export type StoryboardInput = NewStoryboardInput;
 export type PromptInput = GeneratePromptInput;
 export interface ScriptsClient {
 	get(ref: ResourceRef<'script'>): Promise<Script>;
-	create(
-		/** Optional source links use exact Product revision and Skill version IDs. */
-		input: { content: ScriptContent; batch_id?: string | null; relationships?: B['ScriptCreate']['relationships'] },
-		options?: StoreCommandOptions,
-	): Promise<Script>;
-	update(
-		ref: ResourceRef<'script'>,
-		input: { content: ScriptContent; batch_id?: string | null; relationships?: never },
-		options?: StoreCommandOptions,
-	): Promise<Script>;
+	/** Writes a new Script for a Product. To change a Script, use `revise` (the writer) or `update` (your edit). */
 	generate(input: ScriptInput, options?: StoreCommandOptions): Promise<Script>;
+	/** The writer changes the Script as instructed and saves a new Script. Without `acceptable_duration_ms` it keeps the Script's length. */
+	revise(ref: ResourceRef<'script'>, input: ReviseScriptInput, options?: StoreCommandOptions): Promise<Script>;
+	/** Checks your edited content as a written Script is checked and saves it as a new version, in the base's Batch. */
+	update(ref: ResourceRef<'script'>, input: { content: ScriptContent; relationships?: never }, options?: StoreCommandOptions): Promise<Script>;
 }
 export interface StoryboardsClient {
 	get(ref: ResourceRef<'storyboard'>): Promise<Storyboard>;
-	/** Writes a new Storyboard for a Script, revises one with an instruction, or saves edited content; see StoryboardInput. */
+	/** Writes a new Storyboard for a Script. To change one, use `revise` (the writer) or `update` (your edit). */
 	generate(input: StoryboardInput, options?: StoreCommandOptions): Promise<Storyboard>;
+	/** The writer changes the Storyboard as instructed and saves it as a new version. */
+	revise(ref: ResourceRef<'storyboard'>, input: ReviseStoryboardInput, options?: StoreCommandOptions): Promise<Storyboard>;
+	/** Checks your edited content as the writer's is checked and saves it as a new version of the Storyboard. */
+	update(ref: ResourceRef<'storyboard'>, input: { content: StoryboardContent }, options?: StoreCommandOptions): Promise<Storyboard>;
 }
-export interface PromptsClient extends TypedArtifactWriter<'prompt', B['PromptDataV1']> {
+/**
+ * Video Prompts. `generate` compiles a Storyboard's clips; to change what a clip renders, revise or update the
+ * Storyboard (or change the Product) and generate again. Raw `videos.generate({ input })` saves a Prompt of your own.
+ */
+export interface PromptsClient {
 	get(ref: ResourceRef<'prompt'>): Promise<Prompt>;
-	create(input: { data: B['PromptDataV1']; batch_id?: string | null; relationships?: never }, options?: StoreCommandOptions): Promise<Prompt>;
+	/** Saves a new version of the Prompt. Its text must name every file it attaches (`<Picture N>`, `<Video N>`, `<Audio N>`). */
 	update(
 		ref: ResourceRef<'prompt'>,
 		input: { data: B['PromptDataV1']; batch_id?: string | null; relationships?: never },
@@ -133,7 +129,7 @@ export type RawPromptInput = Omit<B['RawPromptInput'], 'relationships'> & { rela
 /** A saved Prompt ID or raw input. Without `batch_id` (or with `batch_id: null`, which means the same) a saved Prompt's Job joins the Prompt's Batch; raw input has none. */
 export type GenerateVideoInput = Omit<B['GenerateVideo'], 'prompt' | 'input'> & ({ prompt: string; input?: null } | { input: RawPromptInput; prompt?: null });
 /** The kinds of item a share can be given for. Batches, Jobs and Ads are never shared. */
-export type ShareableKind = 'brand' | 'product' | 'character' | 'asset' | 'script' | 'storyboard' | 'directing_plan' | 'prompt';
+export type ShareableKind = 'brand' | 'product' | 'character' | 'asset' | 'script' | 'storyboard' | 'prompt';
 /** An Artifact may be named by any of its versions' IDs; its shares cover every version and carry its first version's ID. */
 export interface ShareTarget {
 	readonly kind: ShareableKind;

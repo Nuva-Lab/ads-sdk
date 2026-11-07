@@ -59,10 +59,7 @@ export async function createProductVideo(
 	progress.scriptIds.push(script.id);
 	await saveProgress(structuredClone(progress));
 	if (revisionInstruction !== undefined) {
-		script = await nuva.scripts.generate({
-			product: uploaded.productId, base: script.id,
-			acceptable_duration_ms: { min: 8000, max: 15000 }, instruction: revisionInstruction,
-		});
+		script = await nuva.scripts.revise(script.ref, { instruction: revisionInstruction });
 		progress.scriptIds.push(script.id);
 		await saveProgress(structuredClone(progress));
 	}

@@ -55,6 +55,7 @@ test('shares: a share for another item, or a body on remove, is a service error'
 test('shares: inputs are checked before anything is sent', () => {
 	for (const [method, params] of [
 		['shares.list', { item: { kind: 'batch', id } }],
+		['shares.list', { item: { kind: 'directing_plan', id } }],
 		['shares.list', { item: { kind: 'product', id: 'p1' } }],
 		['shares.set', { item, scope: 'a/b', access: 'read' }],
 		['shares.set', { item, scope: '', access: 'read' }],

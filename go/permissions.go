@@ -64,8 +64,8 @@ type UserMemberships struct {
 	Memberships    []Membership `json:"memberships"`
 }
 
-// ItemRef names a shareable item: a brand, product, character, asset, script, storyboard,
-// directing_plan or prompt, by its ID. An Artifact may be named by any of its versions' IDs; its
+// ItemRef names a shareable item: a brand, product, character, asset, script, storyboard or
+// prompt, by its ID. An Artifact may be named by any of its versions' IDs; its
 // shares cover every version and carry the ID of its first version.
 type ItemRef struct {
 	Kind string
@@ -79,8 +79,8 @@ type Share struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-var shareableKinds = map[string]bool{"brand": true, "product": true, "character": true, "asset": true, "script": true, "storyboard": true, "directing_plan": true, "prompt": true}
-var artifactKinds = map[string]bool{"script": true, "storyboard": true, "directing_plan": true, "prompt": true}
+var shareableKinds = map[string]bool{"brand": true, "product": true, "character": true, "asset": true, "script": true, "storyboard": true, "prompt": true}
+var artifactKinds = map[string]bool{"script": true, "storyboard": true, "prompt": true}
 
 // A scope or user external ID: 1–255 characters without control characters or "/", and not "."
 // or "..", which would change the request path.

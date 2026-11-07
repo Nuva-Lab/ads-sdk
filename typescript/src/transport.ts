@@ -9,7 +9,6 @@ import { dataRequest } from './data-routes.js';
 import { backendSchema } from './backend-schema.js';
 
 const writes = new Set([
-	'artifacts.create',
 	'artifacts.update',
 	'assets.register',
 	'assets.uploadIntent',
@@ -291,7 +290,7 @@ export class Transport {
 		this.assertOpen();
 		if (
 			idempotencyKey !== undefined &&
-			(!['scripts.generate', 'storyboards.generate', 'prompts.generate', 'videos.generate', 'artifacts.create', 'artifacts.update'].includes(
+			(!['scripts.generate', 'storyboards.generate', 'prompts.generate', 'videos.generate', 'artifacts.update'].includes(
 				method,
 			) ||
 				!/^[\x21-\x7e]{1,200}$/.test(idempotencyKey))

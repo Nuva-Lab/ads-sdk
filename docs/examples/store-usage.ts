@@ -4,12 +4,12 @@ import {
 	type NuvaClient,
 	type AccessToken,
 	type Product,
-	type Artifact,
+	type Script,
 	type ResourceRef,
 	type JobState,
 	type NuvaErrorInfo,
 } from '@nuva/sdk';
-import { encodeScript, type BackendSchemas, type ScriptContent } from '@nuva/sdk/schemas';
+import type { BackendSchemas, ScriptContent } from '@nuva/sdk/schemas';
 
 export function initialize(getAccessToken: () => Promise<string | AccessToken>) {
 	// #region initialize
@@ -43,22 +43,12 @@ export async function readArtifact(nuva: NuvaClient, scriptRef: ResourceRef) {
 	// #endregion artifact-read
 	return script;
 }
-export async function createArtifact(nuva: NuvaClient, content: ScriptContent) {
-	// #region artifact-create
-	// scripts.create({ content }) does the same with typed results.
-	const script = await nuva.artifacts.create({
-		kind: 'script',
-		schema_version: 1,
-		data: { text: encodeScript(content) },
-	});
-	// #endregion artifact-create
-	return script;
-}
-export async function updateArtifact(nuva: NuvaClient, script: Artifact, editedData: BackendSchemas['ScriptDataV1']) {
-	// #region artifact-update
-	const revised = await nuva.artifacts.update(script.ref, { data: editedData });
+export async function editScript(nuva: NuvaClient, script: Script, content: ScriptContent) {
+	// #region script-update
+	// Scripts are written by the writer (scripts.generate) and changed with scripts.revise or scripts.update.
+	const revised = await nuva.scripts.update(script.ref, { content });
 	// The new version has a new ID; base_id points to its parent.
-	// #endregion artifact-update
+	// #endregion script-update
 	return revised;
 }
 export async function uploadAsset(nuva: NuvaClient, file: File, kind: BackendSchemas['AssetOut']['kind']) {
@@ -148,14 +138,12 @@ export async function attachProductImage(nuva: NuvaClient, product: Product, fil
 	// #endregion product-upload-image
 	return uploaded;
 }
-export async function reviseScript(nuva: NuvaClient, productId: string, scriptId: string) {
+export async function reviseScript(nuva: NuvaClient, scriptId: string) {
 	// #region script-revise
-	const revised = await nuva.scripts.generate({
-		product: productId,
-		base: scriptId,
-		acceptable_duration_ms: { min: 8000, max: 15000 },
-		instruction: 'Keep the approved facts and revise the opening.',
-	});
+	const revised = await nuva.scripts.revise(
+		{ kind: 'script', id: scriptId },
+		{ instruction: 'Keep the approved facts and revise the opening.', acceptable_duration_ms: { min: 8000, max: 15000 } },
+	);
 	// #endregion script-revise
 	return revised;
 }

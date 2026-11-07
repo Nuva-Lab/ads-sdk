@@ -42,9 +42,7 @@ const script = await nuva.scripts.generate({
   acceptable_duration_ms: {min: 5000, max: 15000},
   instruction: 'Use only the supplied facts.',
 });
-const revised = await nuva.scripts.generate({
-  product: product.id, base: script.id,
-  acceptable_duration_ms: {min: 5000, max: 15000},
+const revised = await nuva.scripts.revise(script.ref, {
   instruction: 'Shorten the opening while preserving the original meaning.',
 });
 const photo = await nuva.assets.upload(photoFile, {kind: 'image', label: 'Mia, front'});
@@ -66,21 +64,23 @@ Brand/Product/Character records retain continuing `id`, numeric `version`, exact
 
 Backend resource IDs are canonical GUID-shaped identifiers, including backend OrderedUUID values without RFC version/variant bits. `backendIdSchema` accepts that shape. Session/request identifiers retain their separate protocol rules.
 
-Scripts use `script@1`; `data.text` holds a version-3 Script (`{format: 'nuva.script', version: 3, content}`, `script-v3.ts`). A Script is the idea only: concept, `duration_ms`, beats, roles (`{id, name, description, speaks}`) and panels in order, each with `on_screen`, `action`, `fact_ids`, `lines` (`{id: 'L01', speaker: role or 'narrator', mode: 'on_camera' | 'dialogue' | 'voiceover', text}`) and free-text `notes`. It has no clips, shots, timing, voices or casting. Typed readers return `format: 3` with decoded `.content`. Scripts saved before Storyboards return `format: 2` with the old ScriptPackage in `.legacy`; they are read-only and cannot get a Storyboard. Both codec directions enforce the backend 65,536-character limit. `scripts.create({content, batch_id?, relationships?})` also supports manually authored Scripts: Batch and source links are optional. The SDK validates their schema; the backend validates relationship targets and permissions. Product and Skill links identify exact Product revision and Skill version IDs. `scripts.update(ref,{content,...})` creates an immutable revision and retains inherited relationships.
+Scripts use `script@1`; `data.text` holds a version-3 Script (`{format: 'nuva.script', version: 3, content}`, `script-v3.ts`). A Script is the idea only: concept, `duration_ms`, beats, roles (`{id, name, description, speaks}`) and panels in order, each with `on_screen`, `action`, `fact_ids`, `lines` (`{id: 'L01', speaker: role or 'narrator', mode: 'on_camera' | 'dialogue' | 'voiceover', text}`) and free-text `notes`. It has no clips, shots, timing, voices or casting. Typed readers return `format: 3` with decoded `.content`. Scripts saved before Storyboards return `format: 2` with the old ScriptPackage in `.legacy`; they are read-only and cannot get a Storyboard. Both codec directions enforce the backend 65,536-character limit. Scripts are written by the writer: `scripts.generate({product, acceptable_duration_ms, instruction?})` writes a new one, and `scripts.revise(ref, {instruction, acceptable_duration_ms?})` has the writer change one (without a range it keeps the Script's length). `scripts.update(ref, {content})` saves your own edit through the Agent, with the same checks and pins as a written Script, as an immutable new version in its base's Batch. There is no `scripts.create`.
 
-Use `scripts.generate` for a direct request or ask the Agent to write and revise within a conversation.
+Use these for direct requests, or ask the Agent to write and revise within a conversation.
 
 A Storyboard (`storyboard@1`, `{format: 'nuva.storyboard', version: 1, content}`) is how a Script is shot: `{script, cast: {role: {character?, look?, voice?}}, direction, clips: [{id: 'C01', duration_ms, shots: [text]}]}`. Clips are 5–15 s. Shots are text with tokens: `{{role}}`, `{{role:<image asset id>}}`, `{{product}}`, `{{product:<image asset id>}}` and `{{L01}}`. Each clip's references are worked out from its tokens by the service: the cast Character's default or named image, the Product's image, and the Character's voice file when `voice: 'character'`. A cast Character therefore keeps the same person in every clip. `storyboardIssues` runs the same checks the service runs.
 
-`storyboards.generate` takes one of three inputs:
+Storyboards are always written by the writer, or edited from one:
 
-- `{script, cast?, instruction?, batch_id?}` writes a new Storyboard. `cast` is `{role: characterId}`; the writer casts the other roles. Storyboards of one Script are shot differently from each other.
-- `{base, instruction, cast?}` asks the writer to revise a Storyboard.
-- `{content, base?}` saves a Storyboard you wrote or edited.
+- `storyboards.generate({script, cast?, instruction?, batch_id?})` writes a new Storyboard. `cast` is `{role: characterId}`; the writer casts the other roles. Storyboards of one Script are shot differently from each other.
+- `storyboards.revise(ref, {instruction, cast?})` asks the writer to change a Storyboard.
+- `storyboards.update(ref, {content})` saves your edited Storyboard as a new version, with the same checks as the writer's.
 
-Each call saves the Storyboard and returns it. `storyboards.get(ref)` returns decoded `.content`. A Storyboard pins the Product and Character revisions it was written with, and its clips are always compiled with them: a later Product or Character update does not change what an existing Storyboard renders. Revise or edit the Storyboard to use the newer ones.
+Each call saves the Storyboard and returns it. There is no `storyboards.create`. `storyboards.get(ref)` returns decoded `.content`. A Storyboard pins the Product and Character revisions it was written with, and its clips are always compiled with them: a later Product or Character update does not change what an existing Storyboard renders. Revise or edit the Storyboard to use the newer ones.
 
 The Storyboard is where variety comes from: it decides who is cast and how each clip is shot. A Prompt only has to carry one clip to the video model. `prompts.generate({storyboard, clip?, ratio?})` compiles the Storyboard's clips, or just `clip` (`'C01'`), into video Prompts and returns `{prompts}` in clip order, each a saved Prompt with its ID and `data.clip_id`. A clip compiled before from the same inputs (its shots, casting, lines, references and ratio) returns its saved Prompt instead of being compiled again; a clip of a revised Storyboard that did not change keeps its base Prompt's text. If some Prompts are saved and a later one fails, `PartialCreationError.saved` holds `{prompts}`; retry the same input with the same idempotency key to finish.
+
+**Change what gets rendered** in its source, then compile again: revise or update the Storyboard (or update the Product or Character and revise the Storyboard), then call `prompts.generate`. Never edit a compiled Prompt's text by hand: it names each attached file by position (`<Picture 1>` is the first of `image_asset_ids`), and a file the text doesn't name is ignored by the video model. `prompts.update(ref, {data})` saves a new version of a Prompt; there is no `prompts.create`, and raw `videos.generate({input})` is the way to render text of your own.
 
 Assets have optional `label` and `description` saying what the file shows. Set them at upload, `assets.upload(file, {kind, label, description})` or `assets.register({upload_token | url, label?, description?})`; registering the same file again replaces them. Writers read them to tell a Product's images apart. An Asset's `label` is null when none was given.
 
@@ -94,7 +94,7 @@ Request deadlines are separate from waiting for a video Job:
 | --- | --- |
 | `storyboards.generate` (it writes every clip's shots) and `prompts.generate` (it compiles every clip) | 300 seconds |
 | `scripts.generate`, `assets.register`, and uploading file bytes | 180 seconds |
-| Other requests, including Script create/update, upload-intent creation, video submission, control requests and reads | 8 seconds |
+| Other requests, including Script and Prompt updates, upload-intent creation, video submission, control requests and reads | 8 seconds |
 
 Set `requestTimeoutMs` to override these request deadlines. `job.result({timeoutMs})` controls how long the client waits for completion; it does not change the Job's lifetime. Save each accepted Job ID before waiting. A timed-out write may still complete on the server: keep its operation key and inspect that operation before deciding whether to retry.
 

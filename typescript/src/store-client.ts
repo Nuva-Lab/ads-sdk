@@ -5,8 +5,19 @@ import { NuvaError, PartialCreationError, ProductImageUploadError } from './erro
 import { frozen, stableJSON } from './protocol.js';
 import { backendSchema } from './backend-schema.js';
 import { decodeScriptPackage } from './script-content.js';
-import { PromptSchema, generateScriptSchema, generateStoryboardSchema, generatePromptSchema } from './schemas.js';
-import { ASSET, ASSET_ROLE_MESSAGE, decodeScript, decodeStoryboard, encodeScript, hasAssetRole, scriptVersion, type ScriptContent } from './script-v3.js';
+import {
+	PromptSchema,
+	generateScriptSchema,
+	generateStoryboardSchema,
+	generatePromptSchema,
+	newScriptSchema,
+	editScriptSchema,
+	reviseScriptSchema,
+	newStoryboardSchema,
+	reviseStoryboardSchema,
+	updateStoryboardSchema,
+} from './schemas.js';
+import { ASSET, ASSET_ROLE_MESSAGE, decodeScript, decodeStoryboard, hasAssetRole, scriptVersion, type ScriptContent } from './script-v3.js';
 import type { BackendSchemas as B } from './backend-target.js';
 import type { NuvaClientOptions, NuvaErrorInfo, ResourceRef, ResourceLink } from './types.js';
 import type {
@@ -14,7 +25,7 @@ import type {
 	Artifact,
 	BackendArtifact,
 	ArtifactSchema,
-	TypedArtifacts,
+	TypedArtifactReader,
 	JobState,
 	Asset,
 	Script,
@@ -23,7 +34,7 @@ import type {
 	ResultOptions,
 	ShareTarget,
 } from './stores.js';
-const kinds = { script: 'Script', storyboard: 'Storyboard', directing_plan: 'DirectingPlan', prompt: 'Prompt' } as const;
+const kinds = { script: 'Script', storyboard: 'Storyboard', prompt: 'Prompt' } as const;
 function checked<T>(schema: { parse(v: unknown): T }, value: unknown, input = false): T {
 	try {
 		return schema.parse(value);
@@ -53,15 +64,10 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 		schema: { parse(v: unknown): T },
 		requestId: string = crypto.randomUUID(),
 		idempotencyKey?: string,
-		allowScriptCreationRelationships = false,
 	): Promise<T> {
 		let received = false;
 		try {
-			if (method === 'artifacts.create' || method === 'artifacts.update') {
-				const scriptCreation = allowScriptCreationRelationships && method === 'artifacts.create' &&
-					params !== null && typeof params === 'object' && 'kind' in params && params.kind === 'script';
-				if (!scriptCreation) assertClientRelationships(params);
-			}
+			if (method === 'artifacts.update') assertClientRelationships(params);
 			const response = await transport.data(method, params, requestId, idempotencyKey);
 			received = true;
 			const result = checked(schema, response);
@@ -107,7 +113,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 	});
 	const resource = decorated;
 	function artifact(v: unknown, expected?: ResourceRef): BackendArtifact {
-		const kind = z.object({ kind: z.enum(['script', 'storyboard', 'directing_plan', 'prompt']) }).parse(v).kind;
+		const kind = z.object({ kind: z.enum(['script', 'storyboard', 'prompt']) }).parse(v).kind;
 		const version = z.object({ schema_version: z.number().int().positive() }).parse(v).schema_version;
 		const raw =
 			version === 1
@@ -131,7 +137,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 			throw new NuvaError({ code: 'SERVICE_ERROR', message: 'Artifact identity mismatch.', retryable: false });
 		return { ...raw, ref: { kind, id: raw.id }, label: raw.id, schemaVersion: raw.schema_version } as BackendArtifact;
 	}
-	const artifacts: StoreClients['artifacts'] = {
+	const artifacts = {
 		get: (ref) =>
 			request(
 				'artifacts.get',
@@ -151,79 +157,37 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 					},
 				},
 			),
-		create: (input, o) => {
-			assertClientRelationships(input);
-			const name = kinds[input.kind];
-			if (!name) throw new NuvaError({ code: 'UNSUPPORTED_SCHEMA', message: 'Unsupported Artifact kind.', retryable: false });
-			const { kind, ...body } = input;
-			checked(backendSchema(`${name}Create`), body, true);
-			return request(
-				'artifacts.create',
-				input,
-				{
-					parse: (v) => {
-						const a = artifact(v);
-						if (a.kind !== kind || a.schema_version !== input.schema_version) throw new TypeError('Artifact kind or schema mismatch.');
-						return a;
-					},
-				},
-				o?.requestId,
-				o?.idempotencyKey,
-			);
-		},
-		update: (ref, input, o) => {
-			assertClientRelationships(input);
-			const name = kinds[ref.kind as keyof typeof kinds];
-			if (!name) throw new NuvaError({ code: 'UNSUPPORTED_SCHEMA', message: 'Unsupported Artifact kind.', retryable: false });
-			checked(backendSchema(`${name}VersionCreate`), input, true);
-			return request(
-				'artifacts.update',
-				{ ref, ...input },
-				{
-					parse: (v) => {
-						const a = artifact(v);
-						if (a.kind !== ref.kind || a.base_id !== ref.id || a.id === ref.id) throw new TypeError('Invalid Artifact parent.');
-						return a;
-					},
-				},
-				o?.requestId,
-				o?.idempotencyKey,
-			);
-		},
-		forSchema<K extends string, D, W extends boolean>(schema: ArtifactSchema<K, D, W>): TypedArtifacts<K, D, W> {
-			const decode = (a: Artifact) => {
-				if (a.ref.kind !== schema.kind || a.schemaVersion !== schema.schemaVersion)
-					throw new NuvaError({ code: 'UNSUPPORTED_SCHEMA', message: 'Artifact kind or schema mismatch.', retryable: false });
-				return { ...a, data: checked(schema, a.data) } as Artifact<K, D>;
-			};
-			const reader = { get: async (ref: ResourceRef<K>) => decode(await artifacts.get(ref)) };
-			if (!schema.writable) return reader as TypedArtifacts<K, D, W>;
+		forSchema<K extends string, D>(schema: ArtifactSchema<K, D>): TypedArtifactReader<K, D> {
 			return {
-				...reader,
-				create: async (input: { data: D; batch_id?: string | null }, o?: { requestId?: string; idempotencyKey?: string }) =>
-					decode(
-						await artifacts.create(
-							{
-								kind: schema.kind as keyof typeof kinds,
-								schema_version: schema.schemaVersion,
-								...input,
-								data: checked(z.json(), checked(schema, input.data, true), true),
-							},
-							o,
-						),
-					),
-				update: async (
-					ref: ResourceRef<K>,
-					input: { data: D; batch_id?: string | null },
-					o?: { requestId?: string; idempotencyKey?: string },
-				) => {
-					assertClientRelationships(input);
-					await reader.get(ref);
-					return decode(await artifacts.update(ref, { ...input, data: checked(z.json(), checked(schema, input.data, true), true) }, o));
+				get: async (ref: ResourceRef<K>) => {
+					const a = await artifacts.get(ref);
+					if (a.ref.kind !== schema.kind || a.schemaVersion !== schema.schemaVersion)
+						throw new NuvaError({ code: 'UNSUPPORTED_SCHEMA', message: 'Artifact kind or schema mismatch.', retryable: false });
+					return { ...a, data: checked(schema, a.data) } as Artifact<K, D>;
 				},
-			} as TypedArtifacts<K, D, W>;
+			};
 		},
-	};
+	} satisfies StoreClients['artifacts'];
+	/** A new version of a Prompt, the only Artifact versions users write directly (Script and Storyboard edits go through the Agent). */
+	const artifactVersion = (ref: ResourceRef, input: { data: unknown; batch_id?: string | null; relationships?: never }, o?: { requestId?: string; idempotencyKey?: string }) => {
+		assertClientRelationships(input);
+		const name = kinds[ref.kind as keyof typeof kinds];
+		if (!name) throw new NuvaError({ code: 'UNSUPPORTED_SCHEMA', message: 'Unsupported Artifact kind.', retryable: false });
+		checked(backendSchema(`${name}VersionCreate`), input, true);
+		return request(
+			'artifacts.update',
+			{ ref, ...input },
+			{
+				parse: (v) => {
+					const a = artifact(v);
+					if (a.kind !== ref.kind || a.base_id !== ref.id || a.id === ref.id) throw new TypeError('Invalid Artifact parent.');
+					return a;
+				},
+			},
+			o?.requestId,
+			o?.idempotencyKey,
+		);
+		};
 	function profiles(name: 'Product' | 'Brand' | 'Character') {
 		const kind = name.toLowerCase(),
 			collection = kind + 's',
@@ -311,16 +275,25 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 		if (content?.roles?.some((role) => role.id === ASSET))
 			throw new NuvaError({ code: 'INVALID_INPUT', message: 'roles: narrator, product and asset are reserved.', retryable: false, acceptance: 'not_accepted' });
 	};
-	const writeScript = (input: { content: ScriptContent; relationships?: never; batch_id?: string | null }) => {
-		assertClientRelationships(input);
-		const { content, batch_id, ...unexpected } = input;
-		if (Object.keys(unexpected).length)
-			throw new NuvaError({ code: 'INVALID_INPUT', message: 'Script inputs accept content and an optional batch_id.', retryable: false });
-		return { data: { text: checked({ parse: encodeScript }, content, true) }, ...(batch_id === undefined ? {} : { batch_id }) };
-	};
 	const prompts = artifacts.forSchema(PromptSchema);
+	/** Every Storyboard write goes through the Agent's Storyboard endpoint and its checks. */
+	const storyboardRequest = (input: unknown, o?: { requestId?: string; idempotencyKey?: string }) =>
+		request('storyboards.generate', checked(generateStoryboardSchema, input, true), { parse: (v) => typedStoryboard(artifact(v)) }, o?.requestId, o?.idempotencyKey);
+	const storyboardId = (ref: ResourceRef<'storyboard'>) => {
+		if (ref?.kind !== 'storyboard') throw moved('Give the Storyboard as { kind: "storyboard", id }.');
+		return ref.id;
+	};
+	const moved = (message: string) => new NuvaError({ code: 'INVALID_INPUT', message, retryable: false, acceptance: 'not_accepted' });
+	/** The Product a Script was written for: the Product revision it is based on, by lineage. */
+	const scriptProduct = (script: Script) => {
+		const revision = script.relationships?.find((relationship) => relationship.type === 'based_on' && relationship.target.kind === 'product')?.target.id;
+		const product = revision === undefined ? undefined : script.entities?.[revision];
+		if (product?.kind !== 'product')
+			throw new NuvaError({ code: 'SERVICE_ERROR', message: 'The Script does not say which Product it was written for.', retryable: false });
+		return product.id;
+	};
 	// An Artifact's share carries its first version's ID, whichever version named it; any other item's names the item.
-	const artifactKinds = ['script', 'storyboard', 'directing_plan', 'prompt'];
+	const artifactKinds = ['script', 'storyboard', 'prompt'];
 	const shareFor = (item: ShareTarget) =>
 		z
 			.object({
@@ -432,35 +405,59 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 		},
 		scripts: {
 			get: async (ref) => typedScript(await artifacts.get(ref)),
-			create: async (input, o) => {
-				const { relationships, ...scriptInput } = input;
-				reservedRoles(scriptInput.content);
-				const body = checked(backendSchema('ScriptCreate'), {
-					schema_version: 1,
-					...writeScript(scriptInput),
-					...(relationships === undefined ? {} : { relationships }),
-				}, true);
-				return request('artifacts.create', { kind: 'script', ...body },
-					{ parse: value => typedScript(artifact(value)) }, o?.requestId, o?.idempotencyKey, true);
-			},
 			update: async (ref, input, o) => {
+				assertClientRelationships(input);
+				const { content, ...unexpected } = input;
+				if (Object.keys(unexpected).length)
+					throw new NuvaError({ code: 'INVALID_INPUT', message: 'scripts.update takes the edited content; the new version keeps its base\'s Batch.', retryable: false, acceptance: 'not_accepted' });
 				const current = await api.scripts.get(ref);
-				reservedRoles(input.content, current);
-				return typedScript(await artifacts.update(ref, writeScript(input), o));
-			},
-			generate: (input, o) =>
-				request(
+				reservedRoles(content, current);
+				// The edit goes through the Agent's Script endpoint, with the same checks and pins as a written Script.
+				return request(
 					'scripts.generate',
-					checked(generateScriptSchema, input, true),
+					checked(editScriptSchema, { base: current.id, content }, true),
 					{ parse: (v) => typedScript(artifact(v)) },
 					o?.requestId,
 					o?.idempotencyKey,
-				),
+				);
+			},
+			generate: (input, o) => {
+				if (input !== null && typeof input === 'object' && 'base' in input)
+					throw moved('scripts.generate writes a new Script; use scripts.revise(ref, { instruction }) to change one.');
+				return request(
+					'scripts.generate',
+					checked(newScriptSchema, input, true),
+					{ parse: (v) => typedScript(artifact(v)) },
+					o?.requestId,
+					o?.idempotencyKey,
+				);
+			},
+			revise: async (ref, input, o) => {
+				const { instruction, acceptable_duration_ms } = checked(reviseScriptSchema, input, true);
+				const base = await api.scripts.get(ref);
+				if (base.format !== 3) throw moved('This Script was saved before Storyboards and is read-only; generate a new Script instead.');
+				const length = base.content.duration_ms;
+				return request(
+					'scripts.generate',
+					checked(
+						generateScriptSchema,
+						{ product: scriptProduct(base), base: base.id, instruction, acceptable_duration_ms: acceptable_duration_ms ?? { min: length, max: length } },
+						true,
+					),
+					{ parse: (v) => typedScript(artifact(v)) },
+					o?.requestId,
+					o?.idempotencyKey,
+				);
+			},
 		},
 		prompts: {
 			get: async (ref) => (await prompts.get(ref)) as Prompt,
-			create: async (input, o) => (await prompts.create(input, o)) as Prompt,
-			update: async (ref, input, o) => (await prompts.update(ref, input, o)) as Prompt,
+			update: async (ref, input, o) => {
+				assertClientRelationships(input);
+				await prompts.get(ref);
+				const data = checked(z.json(), checked(PromptSchema, input.data, true), true);
+				return (await artifactVersion(ref, { ...input, data }, o)) as Prompt;
+			},
 			generate: (input, o) => {
 				const parsed = checked(generatePromptSchema, input, true);
 				return request(
@@ -499,14 +496,15 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 		},
 		storyboards: {
 			get: async (ref) => typedStoryboard(await artifacts.get(ref)),
-			generate: (input, o) =>
-				request(
-					'storyboards.generate',
-					checked(generateStoryboardSchema, input, true),
-					{ parse: (v) => typedStoryboard(artifact(v)) },
-					o?.requestId,
-					o?.idempotencyKey,
-				),
+			generate: (input, o) => {
+				if (input !== null && typeof input === 'object' && 'content' in input)
+					throw moved('storyboards.generate writes a new Storyboard; use storyboards.update(ref, { content }) to save an edit.');
+				if (input !== null && typeof input === 'object' && 'base' in input)
+					throw moved('storyboards.generate writes a new Storyboard; use storyboards.revise(ref, { instruction }) to change one.');
+				return storyboardRequest(checked(newStoryboardSchema, input, true), o);
+			},
+			revise: (ref, input, o) => storyboardRequest({ base: storyboardId(ref), ...checked(reviseStoryboardSchema, input, true) }, o),
+			update: (ref, input, o) => storyboardRequest({ base: storyboardId(ref), ...checked(updateStoryboardSchema, input, true) }, o),
 		},
 		jobs: { get: getJob, subscribe },
 		videos: {

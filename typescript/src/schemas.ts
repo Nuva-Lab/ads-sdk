@@ -12,23 +12,20 @@ export * from './generation-schemas.js';
 export const ScriptSchema = Object.freeze({
 	kind: 'script',
 	schemaVersion: 1,
-	writable: true,
 	parse: (data: unknown) => pinnedSchema('ScriptDataV1').parse(data),
 } as const);
 export const PromptSchema = Object.freeze({
 	kind: 'prompt',
 	schemaVersion: 1,
-	writable: true,
 	parse: (data: unknown) => pinnedSchema('PromptDataV1').parse(data),
 } as const);
-/** The snapshot payload schema is not frozen; this codec checks JSON shape and enforces read-only access. */
+/** The snapshot payload schema is not frozen; this codec checks its JSON shape. */
 export const PerformanceSnapshotSchema = Object.freeze({
 	kind: 'performance_snapshot',
 	schemaVersion: 1,
-	writable: false,
 	parse: (data: unknown) => jsonObjectSchema.parse(data),
 } as const);
-export function defineArtifactSchema<K extends string, D, W extends boolean>(schema: ArtifactSchema<K, D, W>): ArtifactSchema<K, D, W> {
+export function defineArtifactSchema<K extends string, D>(schema: ArtifactSchema<K, D>): ArtifactSchema<K, D> {
 	return Object.freeze({ ...schema });
 }
 

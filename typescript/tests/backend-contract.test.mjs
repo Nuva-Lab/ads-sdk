@@ -42,6 +42,7 @@ test('shared creation schemas accept exact service boundaries without tightening
 
 test('a Storyboard request is a new Storyboard for a Script, a revision of a base, or complete content', () => {
 	const content = { script: id, cast: { presenter: { look: '短发女性', voice: '中音' } }, direction: '', clips: [{ id: 'C01', duration_ms: 8000, shots: ['{{presenter}}说{{L01}}'] }] };
+	// Content without a base is the Session Agent's own form; the Agent's endpoint refuses it from direct requests.
 	for (const valid of [{ script: id, cast: { presenter: id }, instruction: 'Warm' }, { base: id, instruction: 'Shorter' }, { content }, { content, base: id }])
 		assert.equal(generateStoryboardSchema.safeParse(valid).success, true, JSON.stringify(valid));
 	for (const invalid of [{}, { script: id, base: id }, { base: id }, { content, script: id }, { content, instruction: 'Edit' }, { content: { ...content, clips: [] } }])

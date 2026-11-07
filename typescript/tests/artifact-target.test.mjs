@@ -8,8 +8,8 @@ const relationships = [{ type: 'based_on', target: { kind: 'product', id } }, { 
 const other = '01a175e0-3000-cccc-1111-abcdefabcdef';
 const record = (kind, data) => ({ kind, id, lineage_id: id, base_id: null, schema_version: 1, data, relationships, batch_id: null, created_at: '2026-10-26T12:00:00Z', assets: {}, entities: {}, skills: {} });
 
-test('Script, Storyboard and Plan content is text; source relationships are explicit and required on reads', () => {
-	for (const [name, kind] of [['Script', 'script'], ['Storyboard', 'storyboard'], ['DirectingPlan', 'directing_plan']]) {
+test('Script and Storyboard content is text; source relationships are explicit and required on reads', () => {
+	for (const [name, kind] of [['Script', 'script'], ['Storyboard', 'storyboard']]) {
 		const saved = record(kind, { text: 'Source text' });
 		assert.deepEqual(backendSchema(name).parse(saved), saved);
 		const { relationships: _, ...legacy } = saved;
@@ -51,32 +51,92 @@ test('PR error acceptance remains optional and nullable without inventing retry 
 	assert.equal(backendSchema('Error').safeParse({ ...base, acceptance: 'accepted' }).success, false);
 });
 
-test('customer Artifact writes omit relationship control while returned relationships remain readable', async () => {
+test('customers write Artifacts only through their own clients: no generic create or update, and no relationship control', async () => {
  const original = globalThis.fetch, calls = [];
  const content = JSON.parse(await readFile(new URL('./fixtures/script-v3.json', import.meta.url), 'utf8'));
+ const prompt = { prompt: '<Picture 1>', image_asset_ids: [id] };
  globalThis.fetch = async (url, options) => {
-  const body = JSON.parse(options.body); calls.push(body);
-  const revised = String(url).endsWith('/versions');
-  return Response.json({ ...record('script', body.data), ...(revised ? { id: '01a175e0-3000-cccc-1111-abcdefabcdef', base_id: id, relationships } : { relationships: [] }) }, { status: 201 });
+  calls.push([options.method ?? 'GET', String(url), options.body ? JSON.parse(options.body) : undefined]);
+  const kind = String(url).includes('/prompt/') ? 'prompt' : 'script';
+  const data = kind === 'prompt' ? prompt : { text: JSON.stringify({ format: 'nuva.script', version: 3, content }) };
+  if ((options.method ?? 'GET') === 'GET') return Response.json(record(kind, data));
+  const body = JSON.parse(options.body);
+  // A Script edit goes to the Agent's Script endpoint as { base, content }.
+  if (String(url).endsWith('/v1/generate/script')) return Response.json({ ...record('script', { text: JSON.stringify({ format: 'nuva.script', version: 3, content: body.content }) }), id: other, base_id: body.base }, { status: 201 });
+  return Response.json({ ...record(kind, body.data), id: other, base_id: id }, { status: 201 });
  };
  const client = createNuva({ baseUrl: 'http://127.0.0.1:9010/api', storeBaseUrl: 'http://127.0.0.1:9011', getAccessToken: async () => 'local-test-only' });
  try {
-  const created = await client.scripts.create({ content }); assert.equal(created.format, 3); assert.deepEqual(created.content, content);
-  assert.equal(Object.hasOwn(calls[0], 'relationships'), false);
-  const revised = await client.artifacts.update({kind:'script',id}, {data:{text:'Revised'}});
-  assert.deepEqual(revised.relationships, relationships); assert.equal(Object.hasOwn(calls[1], 'relationships'), false);
-  const typed = client.artifacts.forSchema({kind:'script',schemaVersion:1,writable:true,parse:value=>value});
+  assert.deepEqual(Object.keys(client.artifacts).sort(), ['forSchema', 'get']);
+  assert.equal(client.scripts.create, undefined);
+  assert.equal(client.prompts.create, undefined);
+  assert.equal(client.storyboards.create, undefined);
+  const typed = client.artifacts.forSchema({ kind: 'script', schemaVersion: 1, parse: (value) => value });
+  assert.deepEqual(Object.keys(typed), ['get']);
+  const revised = await client.scripts.update({ kind: 'script', id }, { content });
+  assert.equal(revised.base_id, id);
+  const version = await client.prompts.update({ kind: 'prompt', id }, { data: prompt });
+  assert.deepEqual([version.base_id, version.data.prompt, version.data.image_asset_ids], [id, prompt.prompt, prompt.image_asset_ids]);
+  assert.ok(calls.filter(([method]) => method === 'POST').every(([, , body]) => !Object.hasOwn(body, 'relationships')));
+  const before = calls.length;
   for (const refs of [undefined, [], relationships]) {
    for (const invoke of [
-    () => client.artifacts.create({kind:'script',schema_version:1,data:{text:'Draft'},relationships:refs}),
-    () => client.artifacts.update({kind:'script',id},{data:{text:'Draft'},relationships:refs}),
-    () => client.prompts.create({data:{prompt:'Clip',image_asset_ids:[id]},relationships:refs}),
-    () => typed.update({kind:'script',id},{data:{text:'Draft'},relationships:refs}),
-    () => client.videos.generate({input:{schema_version:1,data:{prompt:'Clip',image_asset_ids:[id]},relationships:refs}}),
-   ]) await assert.rejects(async () => invoke(), error => error.code==='UNSUPPORTED_OPERATION' && error.acceptance==='not_accepted');
+    () => client.scripts.update({ kind: 'script', id }, { content, relationships: refs }),
+    () => client.prompts.update({ kind: 'prompt', id }, { data: prompt, relationships: refs }),
+    () => client.videos.generate({ input: { schema_version: 1, data: prompt, relationships: refs } }),
+   ]) await assert.rejects(async () => invoke(), error => error.code === 'UNSUPPORTED_OPERATION' && error.acceptance === 'not_accepted');
   }
-  assert.equal(calls.length, 2, 'Relationship writes must fail before any HTTP request');
- } finally {client.close();globalThis.fetch=original;}
+  assert.equal(calls.length, before, 'Relationship writes must fail before any HTTP request');
+ } finally { client.close(); globalThis.fetch = original; }
+});
+
+test('storyboards.revise and update and scripts.revise go through the writer endpoints; the old generate forms name the new methods', async () => {
+ const original = globalThis.fetch, requests = [];
+ const board = { script: other, cast: { presenter: { look: '短发女性', voice: '中音' } }, direction: '明亮工位', clips: [{ id: 'C01', duration_ms: 8000, shots: ['{{presenter}}举起{{product}}说{{L01}}'] }] };
+ const scriptContent = JSON.parse(await readFile(new URL('./fixtures/script-v3.json', import.meta.url), 'utf8'));
+ const product = '01a175e0-20c1-3f18-da7c-5afa67a79363', productRevision = '01a175e0-20c1-3f18-da7c-5afa67a79364';
+ const script = { ...record('script', { text: JSON.stringify({ format: 'nuva.script', version: 3, content: scriptContent }) }), relationships: [{ type: 'based_on', target: { kind: 'product', id: productRevision } }], entities: { [productRevision]: { kind: 'product', id: product, version: 2 } } };
+ globalThis.fetch = async (url, options) => {
+  const body = options.body ? JSON.parse(options.body) : undefined;
+  requests.push([options.method ?? 'GET', String(url), body]);
+  if (String(url).includes('/artifacts/script/')) return Response.json(script);
+  if (String(url).endsWith('/generate/script')) return Response.json({ ...script, id: other, base_id: id }, { status: 201 });
+  return Response.json({ ...record('storyboard', { text: encodeStoryboard(board) }), id: other, base_id: id }, { status: 201 });
+ };
+ const client = createNuva({ baseUrl: 'http://127.0.0.1:9010/api', storeBaseUrl: 'http://127.0.0.1:9011', generationBaseUrl: 'http://127.0.0.1:9012', getAccessToken: async () => 'local-test-only' });
+ try {
+  const ref = { kind: 'storyboard', id };
+  assert.equal((await client.storyboards.revise(ref, { instruction: 'Shorter', cast: { presenter: other } })).base_id, id);
+  assert.equal((await client.storyboards.update(ref, { content: board })).base_id, id);
+  await client.scripts.revise({ kind: 'script', id }, { instruction: 'Warmer' });
+  await client.scripts.revise({ kind: 'script', id }, { instruction: 'Longer', acceptable_duration_ms: { min: 12000, max: 15000 } });
+  const length = scriptContent.duration_ms;
+  assert.deepEqual(requests, [
+   ['POST', 'http://127.0.0.1:9012/v1/generate/storyboard', { base: id, instruction: 'Shorter', cast: { presenter: other } }],
+   ['POST', 'http://127.0.0.1:9012/v1/generate/storyboard', { base: id, content: board }],
+   ['GET', `http://127.0.0.1:9011/v1/artifacts/script/${id}`, undefined],
+   ['POST', 'http://127.0.0.1:9012/v1/generate/script', { product, base: id, instruction: 'Warmer', acceptable_duration_ms: { min: length, max: length } }],
+   ['GET', `http://127.0.0.1:9011/v1/artifacts/script/${id}`, undefined],
+   ['POST', 'http://127.0.0.1:9012/v1/generate/script', { product, base: id, instruction: 'Longer', acceptable_duration_ms: { min: 12000, max: 15000 } }],
+  ]);
+  const sent = requests.length;
+  for (const [invoke, method] of [
+   [() => client.storyboards.generate({ base: id, instruction: 'Shorter' }), 'storyboards.revise'],
+   [() => client.storyboards.generate({ base: id, content: board }), 'storyboards.update'],
+   [() => client.storyboards.generate({ content: board }), 'storyboards.update'],
+   [() => client.scripts.generate({ product, base: id, acceptable_duration_ms: { min: 5000, max: 9000 } }), 'scripts.revise'],
+  ])
+   await assert.rejects(async () => invoke(), (error) => error.code === 'INVALID_INPUT' && error.acceptance === 'not_accepted' && error.message.includes(method), method);
+  for (const invalid of [
+   () => client.storyboards.revise(ref, {}),
+   () => client.storyboards.revise(ref, { instruction: '' }),
+   () => client.storyboards.update(ref, { content: board, instruction: 'Also this' }),
+   () => client.storyboards.update({ kind: 'script', id }, { content: board }),
+   () => client.scripts.revise({ kind: 'script', id }, { instruction: 'x', product }),
+  ])
+   await assert.rejects(async () => invalid(), (error) => error.code === 'INVALID_INPUT');
+  assert.equal(requests.length, sent, 'Invalid and old-form requests fail before any HTTP request');
+ } finally { client.close(); globalThis.fetch = original; }
 });
 
 test('storyboards.generate saves the Storyboard; prompts.generate compiles its clips and a partial failure carries its receipt', async () => {
@@ -95,7 +155,6 @@ test('storyboards.generate saves the Storyboard; prompts.generate compiles its c
   assert.equal(generated.kind, 'storyboard');
   assert.deepEqual(generated.content, content);
   assert.deepEqual((await client.storyboards.get({ kind: 'storyboard', id })).content, content);
-  await assert.rejects(async () => client.storyboards.generate({ base: id }), error => error.code === 'INVALID_INPUT', 'A revision needs an instruction.');
   await assert.rejects(async () => client.storyboards.generate({ script: other, ratio: '9:16' }), error => error.code === 'INVALID_INPUT', 'A Storyboard takes no ratio.');
 
   reply = () => Response.json({ prompts: [prompt('C01'), prompt('C02', other)] });

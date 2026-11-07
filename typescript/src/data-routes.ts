@@ -2,7 +2,7 @@ import { backendIdSchema } from './backend-id.js';
 import { NuvaError } from './errors.js';
 import type { ShareableKind } from './stores.js';
 
-export const SHAREABLE_KINDS: readonly ShareableKind[] = ['brand', 'product', 'character', 'asset', 'script', 'storyboard', 'directing_plan', 'prompt'];
+export const SHAREABLE_KINDS: readonly ShareableKind[] = ['brand', 'product', 'character', 'asset', 'script', 'storyboard', 'prompt'];
 /** Existing backend DTOs are passed unchanged. Generation writers use a separate service. */
 export function dataRequest(
 	method: string,
@@ -27,7 +27,7 @@ export function dataRequest(
 	// Known backend artifacts have OrderedUUID IDs. Explicit custom codecs retain their
 	// declared opaque identifier contract; an invalid known ID never falls back to it.
 	const artifactId = (kind: string, value: unknown) =>
-		['script', 'storyboard', 'prompt', 'directing_plan'].includes(kind) ? resourceId(value) : id(value);
+		['script', 'storyboard', 'prompt'].includes(kind) ? resourceId(value) : id(value);
 	const [collection, action] = method.split('.');
 	if (collection === 'shares') {
 		const invalid = (message: string) => new NuvaError({ code: 'INVALID_INPUT', message, retryable: false, acceptance: 'not_accepted' });
@@ -48,10 +48,6 @@ export function dataRequest(
 	if (collection === 'artifacts') {
 		const ref = p.ref as { kind: string; id: string } | undefined;
 		if (action === 'get') return { method: 'GET', path: `/v1/artifacts/${id(ref!.kind)}/${artifactId(ref!.kind, ref!.id)}` };
-		if (action === 'create') {
-			const { kind, ...body } = p;
-			return { method: 'POST', path: `/v1/artifacts/${id(kind)}`, body };
-		}
 		if (action === 'update') {
 			const { ref: _, ...body } = p;
 			return { method: 'POST', path: `/v1/artifacts/${id(ref!.kind)}/${artifactId(ref!.kind, ref!.id)}/versions`, body };

@@ -10,6 +10,8 @@
 - **Go Admin SDK：** 在后端签发用户令牌并管理 Skills。
 - **Playground：** 在本地用可视化工作区和 Agent 对话体验创作流程。
 
+**从旧版本升级？** 请参阅文档页面《升级到 preview.5》（`pnpm docs:build` 后的 `docs/customer/migration.html`）和 [CHANGELOG](CHANGELOG.md)：部分调用已移除，提示词文字必须提到每个附带的文件。
+
 ## 试用 Playground
 
 需要 Node.js 22.13 或更高版本、pnpm 11.7.0、Go 1.22+，以及客户的 Admin API key。
