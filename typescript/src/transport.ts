@@ -28,6 +28,8 @@ const writes = new Set([
 	'products.create',
 	'products.update',
 	'products.delete',
+	'shares.set',
+	'shares.remove',
 	'scripts.generate',
 	'scripts.update',
 	'agent.send',
