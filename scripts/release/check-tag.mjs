@@ -11,7 +11,7 @@ export async function checkTag(tag = process.env.RELEASE_TAG) {
   for (const ref of [tag, `go/${tag}`])
     assert.equal(run('git', ['rev-parse', `refs/tags/${ref}^{commit}`]).trim(), head, 'Release and Go tags must identify this commit.');
   assert.equal(GO_MODULE, 'github.com/Nuva-Lab/ads-sdk/go');
-  for (const file of ['typescript/schema/backend.source.json', 'typescript/schema/backend-video.source.json']) {
+  for (const file of ['typescript/schema/backend.source.json', 'typescript/schema/backend-internal.source.json']) {
     const source = await json(resolve(ROOT, file));
     assert.match(source.commit, /^[0-9a-f]{40}$/, `${file} must record the backend commit before release.`);
     if ('pullRequest' in source) assert.match(String(source.pullRequest), /^https:\/\/github\.com\//, `${file} must record its pull request before release.`);

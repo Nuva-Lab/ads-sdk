@@ -81,8 +81,8 @@ function imageURL(value: unknown): string | undefined {
   } catch {}
 }
 function cover(data: RecordValue, assets: RecordValue) {
-  // Products list `images`; Characters list `image_asset_ids`. The first is the default.
-  for (const id of list(data.images ?? data.image_asset_ids))
+  // Products and Characters list `image_asset_ids`. The first is the default.
+  for (const id of list(data.image_asset_ids))
     if (typeof id === "string") {
       const url = imageURL(object(assets[id]).download_url);
       if (url) return url;
@@ -102,7 +102,7 @@ export function resourcePresentation(
   };
   if (value === undefined) return base;
   if (["product", "brand", "character"].includes(kind)) {
-    const images = list(data.images ?? data.image_asset_ids);
+    const images = list(data.image_asset_ids);
     return {
       ...base,
       title: text(data.name) ?? base.title,

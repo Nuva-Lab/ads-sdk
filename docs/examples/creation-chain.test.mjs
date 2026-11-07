@@ -17,10 +17,10 @@ function fixture() {
 	let loseSubmission = false, failWait;
 	const nuva = {
 		brands: { create: async () => ({ id: `brand-${++counts.brands}` }) },
-		products: {
-			create: async () => ({ id: 'product' }),
-			uploadImage: async () => ({ productId: 'product', assetId: 'image' }),
-		},
+		products: { create: async input => {
+			assert.deepEqual(input.data.image_asset_ids, ['image']);
+			return { id: 'product' };
+		} },
 		scripts: { generate: async () => ({ id: 'script', batch_id: 'batch' }) },
 		storyboards: { generate: async (input, options) => {
 			assert.ok(snapshots.some(snapshot => snapshot.storyboardKey === options.idempotencyKey), 'Persist the Storyboard key before requesting it.');
@@ -45,7 +45,10 @@ function fixture() {
 			if (failWait === id) { failWait = undefined; return { id, status: 'running', asset: null, error: null }; }
 			return { id, status: 'completed', asset: { id: `asset-${id}` }, error: null };
 		} },
-		assets: { get: async id => { counts.reads.push(id); return { id }; } },
+		assets: {
+			upload: async () => ({ id: 'image' }),
+			get: async id => { counts.reads.push(id); return { id }; },
+		},
 	};
 	return { nuva, counts, accepted, snapshots, save: async value => snapshots.push(structuredClone(value)), loseNextSubmission: () => { loseSubmission = true; }, failNextWait: id => { failWait = id; } };
 }

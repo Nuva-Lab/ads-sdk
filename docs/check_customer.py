@@ -1,9 +1,12 @@
-"""Check generated guide navigation, bilingual parity, and visible code samples."""
+"""Check generated guide navigation, bilingual parity, visible code samples, and the field reference's coverage."""
 from html.parser import HTMLParser
+import json
 from pathlib import Path
+import re
 from urllib.parse import urlsplit, unquote
 from zipfile import ZipFile
 
+import api_reference
 from build_customer import CUSTOMER_FILES, DEST
 from customer_layout import DOCUMENTS, filename
 
@@ -55,6 +58,32 @@ class Document(HTMLParser):
             self.samples[-1] += value
 
 
+def check_field_reference(docs):
+    """The field reference documents the whole public surface, from the public contract only."""
+    found = api_reference.problems()
+    assert not found, 'The API reference has gaps:\n- ' + '\n- '.join(found)
+    store = api_reference.contract()['clients']['StoreClients']
+    methods = {f'{client}-{member["name"]}' for client, members in store.items() for member in members}
+    public = set(api_reference.components())
+    internal_file = api_reference.OPENAPI.with_name('backend-internal.openapi.json')
+    sdk_types = set(api_reference.contract()['clients'])  # SDK interfaces such as EntityRef, documented from stores.ts
+    internal = set(json.loads(internal_file.read_text())['components']['schemas']) - public - sdk_types if internal_file.exists() else set()
+    for locale in ('zh', 'en'):
+        name = filename(api_reference.PAGE, locale)
+        doc = docs[name]
+        missing = sorted(methods - doc.ids)
+        assert not missing, f'{name}: no section for {missing}'
+        text = (DEST / name).read_text()
+        # Every type named in a table is a public schema or an SDK type; none comes from the internal contract.
+        leaked = sorted(word for word in internal if re.search(rf'[>\s(]{re.escape(word)}[<\s\[|)]', text))
+        assert not leaked, f'{name}: internal schemas named: {leaked}'
+        anchors = {value for value in re.findall(r'id="((?:in|out)-[A-Za-z0-9]+)"', text)}
+        for schema in (anchor.split('-', 1)[1] for anchor in anchors):
+            assert schema in public or schema in sdk_types or schema in api_reference.contract()['zod'], f'{name}: unknown type {schema}'
+    methods_count, agent_count, fields = api_reference.stats()
+    return methods_count, agent_count, fields
+
+
 def main():
     docs = {name: Document((DEST / name).read_text()) for name in CUSTOMER_FILES if name.endswith('.html')}
     for name, doc in docs.items():
@@ -78,7 +107,9 @@ def main():
         assert set(archive.namelist()) == set(CUSTOMER_FILES)
         for name in CUSTOMER_FILES:
             assert archive.read(name) == (DEST / name).read_bytes(), f'Stale archived file: {name}'
+    methods, agent, fields = check_field_reference(docs)
     print(f'Checked {len(docs)} pages: links, language parity, expanded samples and exact archive contents.')
+    print(f'Field reference: {methods} Store methods and {agent} Agent members, {fields} fields, each described in both languages.')
 
 
 if __name__ == '__main__':

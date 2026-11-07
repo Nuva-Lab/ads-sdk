@@ -255,8 +255,14 @@ export function openNewStoryboard(
       script,
       characters,
       submit: async (input) => {
-        const saved = await keyed(host, "storyboard", input, (key) =>
-          host.sdk.storyboards.generate(input, { idempotencyKey: key }),
+        // A role is cast by the Character's id: its latest version.
+        const { cast, ...rest } = input;
+        const request = {
+          ...rest,
+          ...(cast === undefined ? {} : { cast: Object.fromEntries(Object.entries(cast).map(([role, id]) => [role, { id }])) }),
+        };
+        const saved = await keyed(host, "storyboard", request, (key) =>
+          host.sdk.storyboards.generate(request, { idempotencyKey: key }),
         );
         const record = storyboardRecord(saved.id);
         host.remember(record);
@@ -559,7 +565,7 @@ export async function renderStoryboard(
             save: async (content) => {
               const input = { base: storyboard.id, content };
               const saved = await keyed(host, "storyboard-edit", input, (key) =>
-                host.sdk.storyboards.update({ kind: "storyboard", id: storyboard.id }, { content }, { idempotencyKey: key }),
+                host.sdk.storyboards.createFrom({ kind: "storyboard", id: storyboard.id }, content, { idempotencyKey: key }),
               );
               const record = storyboardRecord(saved.id);
               host.remember(record);
@@ -598,7 +604,7 @@ export async function renderStoryboard(
           setButtonText(submit, msg("Revising…"));
           try {
             const saved = await keyed(host, "storyboard-revision", input, (key) =>
-              host.sdk.storyboards.revise({ kind: "storyboard", id: storyboard.id }, { instruction: text }, { idempotencyKey: key }),
+              host.sdk.storyboards.generateFrom({ kind: "storyboard", id: storyboard.id }, { instruction: text }, { idempotencyKey: key }),
             );
             const record = storyboardRecord(saved.id);
             host.remember(record);

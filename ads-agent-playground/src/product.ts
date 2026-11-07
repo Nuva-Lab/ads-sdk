@@ -5,7 +5,8 @@ import { icon } from "./icons.js";
 import type { NuvaClient, Product, ResourceLink } from "@nuva/sdk";
 import {
   productFields,
-  productData,
+  newProductData,
+  productChanges,
   productFormChanged,
   type ProductFields,
 } from "./workspace.js";
@@ -101,7 +102,7 @@ export async function renderProduct(
       card.dataset.resourceId = product.id;
       card.classList.toggle("selected", selectedId === product.id);
       const visual = node("div", "", "gallery-visual");
-      const imageId = product.data.images?.[0];
+      const imageId = product.data.image_asset_ids?.[0];
       const asset = imageId ? product.assets[imageId] : undefined;
       if (asset) {
         const image = media(asset.download_url, "image");
@@ -162,7 +163,7 @@ export async function renderProduct(
       setText(popup.heading, product.data.name);
       popup.body.replaceChildren();
       const images = node("div", "", "product-review-images");
-      for (const id of product.data.images ?? []) {
+      for (const id of product.data.image_asset_ids ?? []) {
         const asset = product.assets[id];
         if (asset) images.append(media(asset.download_url, "image"));
         else images.append(node("p", msg("Image access unavailable"), "muted"));
@@ -201,7 +202,6 @@ export async function renderProduct(
         details(msg("Product details"), {
           id: product.id,
           version: product.version,
-          revision: product.revision,
           brand_id: product.brand_id,
         }),
       );
@@ -345,10 +345,23 @@ export async function renderProduct(
             throw new UiError(msg("Select or create a Brand first."));
           save.disabled = true;
           try {
-            const data = productData(base, getValues());
-            current = base
-              ? await sdk.products.update({ base, data, brand_id: brand.value })
-              : await sdk.products.create({ data, brand_id: brand.value });
+            if (base) {
+              // Only what changed is sent; `base` is the version read, so a newer save is not overwritten.
+              const data = productChanges(base, getValues());
+              // The SDK's type requires `data`; a Brand-only change sends it empty.
+              const changes: Parameters<typeof sdk.products.update>[1] = { data };
+              if (brand.value !== base.brand_id) changes.brand_id = brand.value;
+              if (!Object.keys(data).length && changes.brand_id === undefined) {
+                popup.close();
+                notice(msg("Nothing changed."));
+                return;
+              }
+              current = await sdk.products.update(base, changes);
+            } else
+              current = await sdk.products.create({
+                data: newProductData(getValues()),
+                brand_id: brand.value,
+              });
             pick(current);
             upsert(current);
             popup.close();
@@ -361,7 +374,7 @@ export async function renderProduct(
       };
       if (!base) return;
       const gallery = node("div", "", "gallery");
-      for (const id of base.data.images ?? []) {
+      for (const id of base.data.image_asset_ids ?? []) {
         const asset = base.assets[id],
           tile = node("div");
         if (asset) tile.append(media(asset.download_url, "image"));
@@ -423,7 +436,7 @@ export async function renderProduct(
         });
       // Product videos: writers read their labels and descriptions; {{product:<video id>}} puts one in a clip.
       const videos = node("div", "", "gallery");
-      for (const id of base.data.videos ?? []) {
+      for (const id of base.data.video_asset_ids ?? []) {
         const asset = base.assets[id],
           tile = node("div");
         if (asset) tile.append(media(asset.download_url, "video"));
@@ -499,24 +512,22 @@ export async function renderProduct(
 
 /** The most videos a Product holds. */
 const MAX_PRODUCT_VIDEOS = 5;
-/** Uploads a video (with the label and description, if any) and attaches it to the Product's videos. */
+/** The most images a Product holds. */
+const MAX_PRODUCT_IMAGES = 20;
+/** Uploads a video (with the label and description, if any) and adds it to the Product's videos. */
 export async function uploadProductVideo(
   sdk: Pick<NuvaClient, "products" | "assets">,
   base: Product,
   file: File,
   text: { label: string; description: string },
 ): Promise<Product> {
-  const videos = base.data.videos ?? [];
+  const videos = base.data.video_asset_ids ?? [];
   if (videos.length >= MAX_PRODUCT_VIDEOS)
     throw new UiError(msg("This Product already has {p0} videos; remove one first.", { p0: MAX_PRODUCT_VIDEOS }));
-  const asset = await sdk.assets.upload(file, {
-    kind: "video",
-    ...(text.label ? { label: text.label } : {}),
-    ...(text.description ? { description: text.description } : {}),
-  });
+  const asset = await sdk.assets.upload(file, { kind: "video", ...assetOptions(text) });
   if (videos.includes(asset.id)) return base;
   try {
-    return await sdk.products.update({ base, data: { ...base.data, videos: [...videos, asset.id] }, brand_id: base.brand_id });
+    return await sdk.products.update(base, { data: { video_asset_ids: [...videos, asset.id] } });
   } catch (error) {
     throw new UiError(
       msg("The video was uploaded ({p0}) but could not be attached: {p1}", { p0: asset.id, p1: (error as Error).message }),
@@ -525,44 +536,25 @@ export async function uploadProductVideo(
 }
 /** Removes a video from the Product (the Asset itself stays). */
 export async function removeProductVideo(sdk: Pick<NuvaClient, "products">, base: Product, id: string): Promise<Product> {
-  return sdk.products.update({
-    base,
-    data: { ...base.data, videos: (base.data.videos ?? []).filter((video) => video !== id) },
-    brand_id: base.brand_id,
+  return sdk.products.update(base, {
+    data: { video_asset_ids: (base.data.video_asset_ids ?? []).filter((video) => video !== id) },
   });
 }
-/**
- * Uploads an image and attaches it to the Product. With a label or description, the image is uploaded with them
- * and attached the way `products.uploadImage` attaches it (that call cannot pass them).
- */
+/** Uploads an image (with the label and description, if any) and adds it to the Product's images. */
 export async function uploadProductImage(
   sdk: Pick<NuvaClient, "products" | "assets">,
   base: Product,
   file: File,
   text: { label: string; description: string },
 ): Promise<Product> {
-  if (!text.label && !text.description)
-    return (await sdk.products.uploadImage({ base, file })).product;
-  const asset = await sdk.assets.upload(file, {
-    kind: "image",
-    ...(text.label ? { label: text.label } : {}),
-    ...(text.description ? { description: text.description } : {}),
-  });
-  const images = base.data.images ?? [];
-  const attached = images.includes(asset.id);
-  if (!attached && images.length >= 20)
-    throw new UiError(
-      msg(
-        "This Product already has 20 images. The uploaded image {p0} is kept but not attached.",
-        { p0: asset.id },
-      ),
-    );
+  const images = base.data.image_asset_ids ?? [];
+  if (images.length >= MAX_PRODUCT_IMAGES)
+    throw new UiError(msg("This Product already has {p0} images, the most it can hold.", { p0: MAX_PRODUCT_IMAGES }));
+  const asset = await sdk.assets.upload(file, { kind: "image", ...assetOptions(text) });
+  // The same file added again is the same Asset, already attached.
+  if (images.includes(asset.id)) return base;
   try {
-    return await sdk.products.update({
-      base,
-      data: { ...base.data, images: attached ? images : [...images, asset.id] },
-      brand_id: base.brand_id,
-    });
+    return await sdk.products.update(base, { data: { image_asset_ids: [...images, asset.id] } });
   } catch (error) {
     throw new UiError(
       msg("The image was uploaded ({p0}) but could not be attached: {p1}", {
@@ -571,4 +563,10 @@ export async function uploadProductImage(
       }),
     );
   }
+}
+function assetOptions(text: { label: string; description: string }) {
+  return {
+    ...(text.label ? { label: text.label } : {}),
+    ...(text.description ? { description: text.description } : {}),
+  };
 }

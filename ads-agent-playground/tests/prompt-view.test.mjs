@@ -88,20 +88,23 @@ test("tokenization preserves the exact source and leaves unknown markup as text"
     "Freeform prompt: untouched",
   );
 });
-test("generation settings show saved zero seeds and do not invent model metadata", () => {
+test("generation settings show saved zero seeds, and a failed Job's error code", () => {
   assert.deepEqual(
     jobSettings({
-      checkpoint: null,
       seed: 0,
       resolution: null,
       status: "queued",
+      error_code: null,
     }),
     [
-      ["Model", "Not recorded"],
       ["Resolution", "Default"],
       ["Seed", "0"],
       ["Status", "queued"],
     ],
+  );
+  assert.deepEqual(
+    jobSettings({ seed: 7, resolution: "768P", status: "failed", error_code: "GENERATION_FAILED" }).at(-1),
+    ["Error", "GENERATION_FAILED"],
   );
 });
 test("global refresh uses the active detail handler, not a hidden prior view", async () => {

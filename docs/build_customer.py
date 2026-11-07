@@ -7,6 +7,7 @@ from customer_layout import DOCUMENTS, filename, page
 from go_reference import go_sections
 from client_reference import guide_pages, message_example
 from migration_guide import migration_sections
+from api_reference import reference_sections, validate as validate_reference
 
 DEST = ROOT / 'customer'
 EXAMPLES = ('guide.tsx', 'guide_backend.go', 'creation-chain.ts', 'backend_client.go', 'react-usage.tsx', 'store-usage.ts')
@@ -19,6 +20,8 @@ CUSTOMER_FILES = (
 
 
 def build_customer():
+    # The field reference is generated from the contract; any undocumented public field or method stops the build.
+    validate_reference()
     (DEST / 'examples').mkdir(parents=True, exist_ok=True)
     shutil.copyfile(ROOT / 'customer-theme.css', DEST / 'style.css')
     shutil.copyfile(ROOT / 'customer-docs.js', DEST / 'docs.js')
@@ -29,6 +32,7 @@ def build_customer():
         guides = guide_pages(locale)
         guides['backend-go'] = go_sections(locale)
         guides['migration'] = migration_sections(locale)
+        guides['reference-fields'] = reference_sections(locale)
         for key, _, _ in DOCUMENTS:
             (DEST / filename(key, locale)).write_text(page(key, guides[key], locale))
     shutil.copyfile(DEST / 'frontend.html', DEST / 'index.html')
@@ -36,8 +40,8 @@ def build_customer():
         'Ads SDK 0.1.0-preview.5\n\n'
         'Open index.html or frontend.html to start. Use the header language selector for English.\n'
         '从 index.html 或 frontend.html 开始，使用页首语言选项切换中文和英文。\n\n'
-        'Getting started; Agent conversations; resources; generation; backend setup; methods and errors; upgrading to preview.5.\n'
-        '开始使用；Agent 对话；资源；内容生成；后端接入；方法与错误；升级到 preview.5。\n'
+        'Getting started; Agent conversations; resources; generation; backend setup; methods and errors; field reference; upgrading to preview.5.\n'
+        '开始使用；Agent 对话；资源；内容生成；后端接入；方法与错误；接口字段参考；升级到 preview.5。\n'
         'examples/ contains the complete source used in the guides.\n'
     )
     with zipfile.ZipFile(ROOT / 'customer-sdk-docs.zip', 'w', zipfile.ZIP_DEFLATED) as archive:

@@ -48,11 +48,12 @@ export function dataRequest(
 	if (collection === 'artifacts') {
 		const ref = p.ref as { kind: string; id: string } | undefined;
 		if (action === 'get') return { method: 'GET', path: `/v1/artifacts/${id(ref!.kind)}/${artifactId(ref!.kind, ref!.id)}` };
-		if (action === 'update') {
-			const { ref: _, ...body } = p;
-			return { method: 'POST', path: `/v1/artifacts/${id(ref!.kind)}/${artifactId(ref!.kind, ref!.id)}/versions`, body };
-		}
 	}
+	if (method === 'prompts.createFrom') {
+		const { ref, ...body } = p as { ref: { id: string } };
+		return { method: 'POST', path: `/v1/artifacts/prompt/${resourceId(ref.id)}/versions`, body };
+	}
+	if (method === 'jobs.cancel') return { method: 'POST', path: `/v1/jobs/${resourceId(p.id)}/cancel` };
 	if (['scripts', 'storyboards', 'prompts', 'videos'].includes(collection!) && action === 'generate')
 		return { method: 'POST', path: '/v1/generate/' + collection!.slice(0, -1), body: p, generation: collection !== 'videos' };
 	if (method === 'assets.uploadIntent') return { method: 'POST', path: '/v1/assets/uploads', body: p };
@@ -73,7 +74,7 @@ export function dataRequest(
 		if (action === 'create') return { method: 'POST', path: base, body: p, ...(collection === 'sessions' ? { agent: true } : {}) };
 		if (action === 'update' && ['products', 'brands', 'characters'].includes(collection!)) {
 			const { id: rid, ...body } = p;
-			return { method: 'PUT', path: base + '/' + resourceId(rid), body };
+			return { method: 'PATCH', path: base + '/' + resourceId(rid), body };
 		}
 		if (action === 'delete' && collection === 'products') return { method: 'DELETE', path: base + '/' + resourceId(p.id) };
 	}

@@ -169,7 +169,7 @@ export async function renderCharacters(
         audio.src = voice.download_url;
         body.append(audio);
       } else body.append(node("p", voiceId ? msg("Voice access unavailable") : msg("No voice file. Storyboards describe this Character's voice instead."), "muted"));
-      body.append(details(msg("Character details"), { id: character.id, version: character.version, revision: character.revision }));
+      body.append(details(msg("Character details"), { id: character.id, version: character.version }));
     } catch (error) {
       close();
       throw error;
@@ -373,7 +373,13 @@ export function characterForm(
           image_asset_ids: ids,
           voice_asset_id: voiceId,
         };
-        const saved = base ? await sdk.characters.update({ base, data }) : await sdk.characters.create({ data });
+        let saved: Character;
+        if (!base) saved = await sdk.characters.create({ data });
+        else {
+          // An edit sends only what changed, from the version read; nothing changed saves nothing.
+          const changes = characterChanges(base, data);
+          saved = Object.keys(changes).length ? await sdk.characters.update(base, { data: changes }) : base;
+        }
         await options.saved(saved);
       } catch (error) {
         showError(failure, error);
@@ -385,4 +391,15 @@ export function characterForm(
     });
   };
   return form;
+}
+
+type CharacterData = Character["data"];
+/** Only the fields that differ from `base`; `update` keeps the rest as saved. The image list is sent whole. */
+export function characterChanges(base: Character, data: CharacterData): Partial<CharacterData> {
+  const changes: Partial<CharacterData> = {};
+  if (data.name !== base.data.name) changes.name = data.name;
+  if ((data.description ?? null) !== (base.data.description ?? null)) changes.description = data.description ?? null;
+  if (data.image_asset_ids.join("\n") !== base.data.image_asset_ids.join("\n")) changes.image_asset_ids = data.image_asset_ids;
+  if ((data.voice_asset_id ?? null) !== (base.data.voice_asset_id ?? null)) changes.voice_asset_id = data.voice_asset_id ?? null;
+  return changes;
 }

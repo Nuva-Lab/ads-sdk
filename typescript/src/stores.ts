@@ -1,9 +1,9 @@
-import type { GeneratePromptInput, NewScriptInput, ReviseScriptInput, NewStoryboardInput, ReviseStoryboardInput } from './schemas.js';
+import type { GeneratePromptInput, NewScriptInput, ReviseScriptInput, NewStoryboardInput, ReviseStoryboardInput } from './generation-schemas.js';
 import type { ScriptContent, StoryboardContent } from './script-v3.js';
 import type { CommandOptions, JsonObject, JsonValue, ResourceRef, ResourceLink, NuvaErrorInfo, Unsubscribe } from './types.js';
 import type { BackendSchemas as B } from './backend-target.js';
 import type { ScriptPackage } from './service-schemas.js';
-export type { ScriptPackage, ScriptRequest, ClipResponse, VideoRequest } from './service-schemas.js';
+export type { ScriptPackage } from './service-schemas.js';
 export type BackendPage<T> = { readonly items: readonly T[]; readonly next_cursor: string | null; readonly nextCursor: string | null };
 export type StoreQuery = { limit?: number; cursor?: string | null; brand_id?: string; batch_id?: string };
 export type Product = B['Product'] & ResourceLink<'product'>;
@@ -15,48 +15,39 @@ export type Asset = B['AssetOut'] & Omit<ResourceLink<'asset'>, 'label'>;
 export type Ad = B['AdOut'] & ResourceLink<'ad'>;
 export type Batch = B['BatchOut'] & ResourceLink<'batch'>;
 export type Skill = B['SkillDetail'] & ResourceLink<'skill'>;
-export type Composition = B['CompositionV1'];
+export type Composition = B['CompositionReadV1'];
 export type ArtifactKind = 'script' | 'storyboard' | 'prompt';
 export type Artifact<K extends string = string, D = JsonValue> = ResourceLink<K> & { data: D; readonly schemaVersion: number };
 export type BackendArtifact<K extends string = ArtifactKind, D = JsonValue> = Omit<B['Script'], 'kind' | 'data'> &
 	Artifact<K, D> & { kind: K };
+/** What an Artifact was made from: another Artifact's id, or for a Product or Character its id and `version`. */
+export type Relationship = B['ArtifactRelationshipOut'];
 /** A Script: the v3 idea (`content`), or a read-only v2 ScriptPackage saved before Storyboards (`legacy`). */
 export type Script = BackendArtifact<'script', B['ScriptDataV1']> &
 	({ readonly format: 3; readonly content: ScriptContent; readonly legacy?: undefined } | { readonly format: 2; readonly legacy: ScriptPackage; readonly content?: undefined });
 /** A Storyboard: how a Script is cast and shot. `prompts.generate({ storyboard })` turns its clips into the Prompts `videos.generate` renders. */
 export type Storyboard = BackendArtifact<'storyboard', B['StoryboardDataV1']> & { readonly content: StoryboardContent };
-export type Prompt = BackendArtifact<'prompt', B['PromptDataV1']> & Pick<B['Prompt'], 'relationships'>;
-/** How to read one Artifact kind: `artifacts.forSchema(schema).get(ref)` returns its data parsed by `schema`. */
-export interface ArtifactSchema<K extends string, D> {
-	readonly kind: K;
-	readonly schemaVersion: number;
-	parse(data: unknown): D;
-}
-export interface TypedArtifactReader<K extends string, D> {
-	get(ref: ResourceRef<K>): Promise<Artifact<K, D>>;
-}
-/**
- * Reads Artifacts of any kind. Scripts, Storyboards and Prompts are written through their own clients, which run the
- * Agent's checks: `scripts`, `storyboards`, `prompts` and raw `videos.generate({ input })`.
- */
-export interface ArtifactsClient {
-	get(ref: ResourceRef): Promise<Artifact>;
-	forSchema<K extends string, D>(schema: ArtifactSchema<K, D>): TypedArtifactReader<K, D>;
-}
-export interface ProfilesClient<T, C, U> {
+export type Prompt = BackendArtifact<'prompt', B['PromptReadV1']> & { readonly relationships: readonly Relationship[] };
+/** The version of a Brand, Product or Character you read: `update` needs it, so edits made since aren't overwritten. */
+export type EntityRef = { readonly id: string; readonly version: number };
+/** Brands, Products and Characters: you change them in place, and each change saves the next `version`. */
+export interface ProfilesClient<T, C, E extends { data?: unknown }> {
+	/** The latest version, or `version`. */
 	get(id: string, query?: { version?: number }): Promise<T>;
 	list(query?: StoreQuery): Promise<BackendPage<T>>;
-	create(input: C, options?: CommandOptions): Promise<T>;
-	update(input: Omit<U, 'version'> & { base: T }, options?: CommandOptions): Promise<T>;
+	create(input: C, options?: StoreCommandOptions): Promise<T>;
+	/**
+	 * Changes the fields `data` sends and keeps the rest; a list is replaced as a whole, `[]` empties it and `null`
+	 * clears an optional value. `ref` is what you read (a record, or `{ id, version }`): if someone saved a newer
+	 * version since, this fails with `REVISION_CONFLICT` and nothing changes; read it again and reapply your change.
+	 */
+	update(ref: EntityRef, changes: Omit<E, 'version'>, options?: StoreCommandOptions): Promise<T>;
 }
-export interface ProductImageUploadResult {
-	readonly productId: string;
-	readonly assetId: string;
-	readonly product: Product;
-	readonly asset: Asset;
-}
-export interface ProductsClient extends ProfilesClient<Product, B['ProductCreate'], B['ProductUpdate']> {
-	uploadImage(input: { base: Product; file: File }, options?: CommandOptions): Promise<ProductImageUploadResult>;
+/** What `update` changes: only the `data` fields you send, and for a Product its Brand. */
+export type ProductChanges = Omit<B['ProductEdit'], 'version'>;
+export type BrandChanges = Omit<B['BrandEdit'], 'version'>;
+export type CharacterChanges = Omit<B['CharacterEdit'], 'version'>;
+export interface ProductsClient extends ProfilesClient<Product, B['ProductCreate'], B['ProductEdit']> {
 	/**
 	 * Deletes the Product for everyone in the organization: it is no longer listed, `get` of any version is `NOT_FOUND`,
 	 * and it can't be edited or used for new Scripts. What was made from it stays readable but can't be revised.
@@ -66,10 +57,14 @@ export interface ProductsClient extends ProfilesClient<Product, B['ProductCreate
 }
 export interface AssetsClient {
 	get(id: string): Promise<Asset>;
-	register(input: B['AssetCreate'], options?: CommandOptions): Promise<Asset>;
-	/** Uploads a file. `label` and `description` say what it shows (for example which part of a product package); writers read them. */
-	upload(file: File, options?: CommandOptions & { kind?: B['AssetOut']['kind']; label?: string; description?: string }): Promise<Asset>;
-	uploadIntent(input: B['UploadRequest'], options?: CommandOptions): Promise<B['UploadOut']>;
+	/**
+	 * Adds a file, uploaded or fetched from a public HTTPS URL. `label` and `description` say what it shows (for example
+	 * which side of a package); the writers read them. The same file added again returns the same Asset.
+	 */
+	upload(
+		source: File | { readonly url: string },
+		options?: StoreCommandOptions & { kind?: B['AssetOut']['kind']; label?: string; description?: string },
+	): Promise<Asset>;
 }
 export type JobState<T = unknown> = B['JobOut'];
 export interface ResultOptions {
@@ -83,49 +78,64 @@ export type Job<T = Asset> = B['JobOut'] & {
 export interface JobsClient {
 	get(id: string): Promise<JobState>;
 	subscribe(id: string, listener: (state: JobState) => void, onError?: (error: NuvaErrorInfo) => void): Unsubscribe;
+	/** Stops a queued or running Job; it ends `cancelled`. A finished Job can't be cancelled (`JOB_FINISHED`). */
+	cancel(id: string, options?: CommandOptions): Promise<JobState>;
 }
 export type ScriptInput = NewScriptInput;
 export type StoryboardInput = NewStoryboardInput;
 export type PromptInput = GeneratePromptInput;
+/**
+ * Scripts, Storyboards and Prompts never change: each method returns a new one, and the one you started from stays as
+ * it was. `generate` has the writer make one from scratch; `generateFrom` has the writer make one from an existing one,
+ * as instructed; `createFrom` saves your own changes to an existing one, after the same checks as the writer's. Calling
+ * a `…From` method twice on the same base gives two alternatives side by side.
+ */
+/** `base` for a `…From` method: a reference, or the record you hold (then it isn't read again). */
+export type Base<K extends string, T> = ResourceRef<K> | T;
 export interface ScriptsClient {
 	get(ref: ResourceRef<'script'>): Promise<Script>;
-	/** Writes a new Script for a Product. To change a Script, use `revise` (the writer) or `update` (your edit). */
+	/** The writer writes a new Script for a Product. */
 	generate(input: ScriptInput, options?: StoreCommandOptions): Promise<Script>;
-	/** The writer changes the Script as instructed and saves a new Script. Without `acceptable_duration_ms` it keeps the Script's length. */
-	revise(ref: ResourceRef<'script'>, input: ReviseScriptInput, options?: StoreCommandOptions): Promise<Script>;
-	/** Checks your edited content as a written Script is checked and saves it as a new version, in the base's Batch. */
-	update(ref: ResourceRef<'script'>, input: { content: ScriptContent; relationships?: never }, options?: StoreCommandOptions): Promise<Script>;
+	/** The writer writes a new Script from `base`, as instructed. Without `acceptable_duration_ms` it keeps `base`'s length. */
+	generateFrom(base: ResourceRef<'script'>, input: ReviseScriptInput, options?: StoreCommandOptions): Promise<Script>;
+	/** Saves `base` with the top-level content fields you change (`concept`, `roles`, `panels`, …); the rest is copied from `base`. */
+	createFrom(base: Base<'script', Script>, changes: Partial<ScriptContent>, options?: StoreCommandOptions): Promise<Script>;
 }
 export interface StoryboardsClient {
 	get(ref: ResourceRef<'storyboard'>): Promise<Storyboard>;
-	/** Writes a new Storyboard for a Script. To change one, use `revise` (the writer) or `update` (your edit). */
+	/** The writer writes a new Storyboard for a Script. */
 	generate(input: StoryboardInput, options?: StoreCommandOptions): Promise<Storyboard>;
-	/** The writer changes the Storyboard as instructed and saves it as a new version. */
-	revise(ref: ResourceRef<'storyboard'>, input: ReviseStoryboardInput, options?: StoreCommandOptions): Promise<Storyboard>;
-	/** Checks your edited content as the writer's is checked and saves it as a new version of the Storyboard. */
-	update(ref: ResourceRef<'storyboard'>, input: { content: StoryboardContent }, options?: StoreCommandOptions): Promise<Storyboard>;
+	/** The writer writes a new Storyboard from `base`, as instructed, with the latest Product and Characters (a `cast` entry's `version` pins one). */
+	generateFrom(base: ResourceRef<'storyboard'>, input: ReviseStoryboardInput, options?: StoreCommandOptions): Promise<Storyboard>;
+	/**
+	 * Saves `base` with the top-level content fields you change (`cast`, `direction`, `clips`); the rest is copied from
+	 * `base`, which keeps its Product and Character versions: an edit changes only what you edit.
+	 */
+	createFrom(base: Base<'storyboard', Storyboard>, changes: Partial<Omit<StoryboardContent, 'script'>>, options?: StoreCommandOptions): Promise<Storyboard>;
 }
+/** The render fields of a Prompt: the only ones `prompts.createFrom` changes. */
+export type PromptChanges = Partial<Pick<B['PromptReadV1'], 'prompt' | 'image_asset_ids' | 'video_asset_ids' | 'audio_asset_ids' | 'seconds' | 'ratio'>>;
 /**
- * Video Prompts. `generate` compiles a Storyboard's clips; to change what a clip renders, revise or update the
- * Storyboard (or change the Product) and generate again. Raw `videos.generate({ input })` saves a Prompt of your own.
+ * Video Prompts: what a clip is rendered from. `generate` compiles a Storyboard's clips. To change what a clip shows,
+ * change its Storyboard (`storyboards.createFrom` or `generateFrom`) and compile again; `createFrom` saves a Prompt of
+ * your own from one, and raw `videos.generate({ input })` renders one written from scratch.
  */
 export interface PromptsClient {
 	get(ref: ResourceRef<'prompt'>): Promise<Prompt>;
-	/** Saves a new version of the Prompt. Its text must name every file it attaches (`<Picture N>`, `<Video N>`, `<Audio N>`). */
-	update(
-		ref: ResourceRef<'prompt'>,
-		input: { data: B['PromptDataV1']; batch_id?: string | null; relationships?: never },
-		options?: StoreCommandOptions,
-	): Promise<Prompt>;
-	/** Compiles a Storyboard's clips, or one clip, into video Prompts in clip order. A clip compiled before from the same inputs returns its saved Prompt. */
+	/** Compiles a Storyboard's clips, or one clip, into Prompts in clip order. A clip compiled before from the same inputs returns its saved Prompt. */
 	generate(input: PromptInput, options?: StoreCommandOptions): Promise<{ prompts: (Prompt & { data: { clip_id: string } })[] }>;
+	/** Saves `base` with the render fields you change; the rest is copied from `base`. Its text must name every attached file. */
+	createFrom(base: Base<'prompt', Prompt>, changes: PromptChanges, options?: StoreCommandOptions): Promise<Prompt>;
 }
-/** Proposed backend operation-key overlay; omitted for fresh unkeyed submissions. */
+/**
+ * `idempotencyKey` makes a write safe to retry: the same key with the same input returns what the first call made,
+ * instead of making it again. Keep it for retries of one write, and use a new one for a new write.
+ */
 export interface StoreCommandOptions extends CommandOptions {
 	readonly idempotencyKey?: string;
 }
 export type VideoCommandOptions = StoreCommandOptions;
-export type RawPromptInput = Omit<B['RawPromptInput'], 'relationships'> & { relationships?: never };
+export type RawPromptInput = B['RawPromptInput'];
 /** A saved Prompt ID or raw input. Without `batch_id` (or with `batch_id: null`, which means the same) a saved Prompt's Job joins the Prompt's Batch; raw input has none. */
 export type GenerateVideoInput = Omit<B['GenerateVideo'], 'prompt' | 'input'> & ({ prompt: string; input?: null } | { input: RawPromptInput; prompt?: null });
 /** The kinds of item a share can be given for. Batches, Jobs and Ads are never shared. */
@@ -159,11 +169,10 @@ export interface SharesClient {
 	remove(item: ShareTarget, scope: string, options?: CommandOptions): Promise<void>;
 }
 export interface StoreClients {
-	readonly artifacts: ArtifactsClient;
 	readonly assets: AssetsClient;
 	readonly products: ProductsClient;
-	readonly brands: ProfilesClient<Brand, B['BrandCreate'], B['BrandUpdate']>;
-	readonly characters: ProfilesClient<Character, B['CharacterCreate'], B['CharacterUpdate']>;
+	readonly brands: ProfilesClient<Brand, B['BrandCreate'], B['BrandEdit']>;
+	readonly characters: ProfilesClient<Character, B['CharacterCreate'], B['CharacterEdit']>;
 	readonly scripts: ScriptsClient;
 	readonly storyboards: StoryboardsClient;
 	/** The per-clip video Prompts: `generate` compiles a Storyboard's clips; raw video input saves one. */

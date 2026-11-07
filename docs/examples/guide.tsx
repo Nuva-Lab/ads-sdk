@@ -9,7 +9,6 @@ import {
   createNuva,
   Message,
   NuvaError,
-  ProductImageUploadError,
   type AccessToken,
   type NuvaClient,
   type AgentHandle,
@@ -299,16 +298,16 @@ function Conversation({
 // #region create-product
 export async function createProduct(client: NuvaClient, file: File) {
   const brand = await client.brands.create({ data: { name: "Morrow" } });
-  const product = await client.products.create({
+  const image = await client.assets.upload(file, { kind: "image", label: "Cup, front" });
+  return client.products.create({
     brand_id: brand.id,
     data: {
       name: "Travel cup",
       facts: ["350 ml capacity"],
       attributes: { color: "blue" },
+      image_asset_ids: [image.id],
     },
   });
-  const uploaded = await client.products.uploadImage({ base: product, file });
-  return uploaded.product;
 }
 // #endregion create-product
 
@@ -342,30 +341,10 @@ export async function renameProduct(
   base: Product,
   name: string,
 ) {
-  return client.products.update({
-    base,
-    brand_id: base.brand_id,
-    data: { ...base.data, name },
-  });
+  // Send only what changes; the other fields keep their values.
+  return client.products.update(base, { data: { name } });
 }
 // #endregion update-product
-
-// #region upload-error
-export async function addProductImage(
-  client: NuvaClient,
-  base: Product,
-  file: File,
-) {
-  try {
-    return await client.products.uploadImage({ base, file });
-  } catch (error) {
-    if (error instanceof ProductImageUploadError) {
-      return { product: null, uploadedAsset: error.asset, error };
-    }
-    throw error;
-  }
-}
-// #endregion upload-error
 
 // #region read-script
 export async function readScript(client: NuvaClient, scriptId: string) {
@@ -391,9 +370,8 @@ export async function editLine(
     ...panel,
     lines: panel.lines.map((line) => (line.id === lineId ? { ...line, text } : line)),
   }));
-  return client.scripts.update(script.ref, {
-    content: { ...script.content, panels },
-  });
+  // The other content fields are copied from script.
+  return client.scripts.createFrom(script.ref, { panels });
 }
 // #endregion save-script
 
@@ -422,10 +400,9 @@ export async function addLabeledImage(client: NuvaClient, base: Product, file: F
     label: "Box, back",
     description: "The back of the gift box, with the ingredient list.",
   });
-  return client.products.update({
-    base,
-    brand_id: base.brand_id,
-    data: { ...base.data, images: [...(base.data.images ?? []), asset.id] },
+  // A list is replaced as a whole: send the images to keep, with the new one.
+  return client.products.update(base, {
+    data: { image_asset_ids: [...(base.data.image_asset_ids ?? []), asset.id] },
   });
 }
 // #endregion label-image
@@ -433,7 +410,7 @@ export async function addLabeledImage(client: NuvaClient, base: Product, file: F
 // #region write-script
 export async function writeScript(client: NuvaClient, productId: string) {
   return client.scripts.generate({
-    product: productId,
+    product: { id: productId },
     acceptable_duration_ms: { min: 8000, max: 15000 },
     instruction: "Use the product facts. Open with a morning commute.",
   });
@@ -442,8 +419,8 @@ export async function writeScript(client: NuvaClient, productId: string) {
 
 // #region revise-script
 export async function reviseScript(client: NuvaClient, base: Script) {
-  // Without acceptable_duration_ms the revision keeps the Script's length.
-  return client.scripts.revise(base.ref, {
+  // Without acceptable_duration_ms the new Script keeps base's length.
+  return client.scripts.generateFrom(base.ref, {
     instruction: "Keep the product facts and shorten the opening.",
   });
 }
@@ -460,7 +437,7 @@ export async function writeStoryboard(
   return client.storyboards.generate(
     {
       script: script.id,
-      cast: { host: characterId },
+      cast: { host: { id: characterId } },
       instruction: "Shoot it as a phone selfie in a bright kitchen.",
     },
     { idempotencyKey: requestKey },
@@ -478,7 +455,7 @@ export async function readStoryboard(client: NuvaClient, storyboardId: string) {
 
 // #region revise-storyboard
 export async function reviseStoryboard(client: NuvaClient, base: Storyboard) {
-  return client.storyboards.revise(base.ref, {
+  return client.storyboards.generateFrom(base.ref, {
     instruction: "Open on a close-up of the product before the host speaks.",
   });
 }
@@ -497,7 +474,7 @@ export async function editShot(
       ? { ...clip, shots: clip.shots.map((value, i) => (i === shot ? text : value)) }
       : clip,
   );
-  return client.storyboards.update(base.ref, { content: { ...base.content, clips } });
+  return client.storyboards.createFrom(base.ref, { clips });
 }
 // #endregion edit-storyboard
 

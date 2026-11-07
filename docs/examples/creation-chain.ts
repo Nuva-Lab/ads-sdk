@@ -42,24 +42,29 @@ export async function createProductVideo(
 	const brand = await nuva.brands.create({ data: { name: 'Example Brand' } });
 	progress.brandId = brand.id;
 	await saveProgress(structuredClone(progress));
+	const image = await nuva.assets.upload(file, { kind: 'image', label: 'Cup, front' });
+	progress.imageAssetId = image.id;
+	await saveProgress(structuredClone(progress));
 	const product = await nuva.products.create({
 		brand_id: brand.id,
-		data: { name: 'Travel cup', facts: ['350 ml capacity'], attributes: { catalog: { color: 'ocean blue', capacityMl: 350 } } },
+		data: {
+			name: 'Travel cup',
+			facts: ['350 ml capacity'],
+			attributes: { catalog: { color: 'ocean blue', capacityMl: 350 } },
+			image_asset_ids: [image.id],
+		},
 	});
 	progress.productId = product.id;
 	await saveProgress(structuredClone(progress));
-	const uploaded = await nuva.products.uploadImage({ base: product, file });
-	progress.imageAssetId = uploaded.assetId;
-	await saveProgress(structuredClone(progress));
 	let script = await nuva.scripts.generate({
-		product: uploaded.productId,
+		product: { id: product.id },
 		acceptable_duration_ms: { min: 8000, max: 15000 },
 		instruction: 'Use supplied product facts.',
 	});
 	progress.scriptIds.push(script.id);
 	await saveProgress(structuredClone(progress));
 	if (revisionInstruction !== undefined) {
-		script = await nuva.scripts.revise(script.ref, { instruction: revisionInstruction });
+		script = await nuva.scripts.generateFrom(script.ref, { instruction: revisionInstruction });
 		progress.scriptIds.push(script.id);
 		await saveProgress(structuredClone(progress));
 	}

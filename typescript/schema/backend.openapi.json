@@ -11,6 +11,7 @@
           "admin"
         ],
         "summary": "Issue a user token",
+        "description": "For your backend, with your API key: a token that acts as the user with `external_user_id`, valid for an hour. The first token for an id creates the user.",
         "operationId": "issue_user_token_v1_admin_tokens_post",
         "requestBody": {
           "content": {
@@ -67,6 +68,7 @@
           "assets"
         ],
         "summary": "Start an upload",
+        "description": "Returns a URL to PUT the file to and a token to register it with POST /v1/assets once the PUT succeeds. Both expire after an hour.",
         "operationId": "start_upload_v1_assets_uploads_post",
         "requestBody": {
           "content": {
@@ -125,15 +127,43 @@
         "summary": "Register an asset from an upload or a URL",
         "description": "Returns 201 with a new asset, or 200 with your existing asset when you registered the same file, with the same MIME type, before.",
         "operationId": "create_asset_v1_assets_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "pattern": "^[!-~]+$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional stable write key scoped to customer/user/method/path. Reuse only with the same effective input.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Optional stable write key scoped to customer/user/method/path. Reuse only with the same effective input."
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/AssetCreate"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -147,71 +177,66 @@
             }
           },
           "200": {
-            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AssetOut"
                 }
               }
-            }
+            },
+            "description": "OK"
           },
           "401": {
-            "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
-            }
+            },
+            "description": "Unauthorized"
           },
           "409": {
-            "description": "Conflict",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
-            }
+            },
+            "description": "Conflict"
           },
           "413": {
-            "description": "Request Entity Too Large",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
-            }
+            },
+            "description": "Request Entity Too Large"
           },
           "415": {
-            "description": "Unsupported Media Type",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
-            }
+            },
+            "description": "Unsupported Media Type"
           },
           "422": {
-            "description": "Unprocessable Entity",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
-            }
+            },
+            "description": "Unprocessable Entity"
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/v1/assets/{asset_id}": {
@@ -219,8 +244,8 @@
         "tags": [
           "assets"
         ],
-        "summary": "Read an asset you uploaded or generated",
-        "description": "Returns 404 for assets of other users, as for missing ones. Other users get an asset's download URL with the object that references it.",
+        "summary": "Read an asset you uploaded or generated, or one a shared Product or Character uses",
+        "description": "Returns 404 for other users' assets that no Brand, Product or Character refers to, as for missing ones.",
         "operationId": "get_asset_v1_assets__asset_id__get",
         "security": [
           {
@@ -289,10 +314,34 @@
           "brands"
         ],
         "summary": "Create a brand",
+        "description": "Saves a new brand as version 1.",
         "operationId": "create_brand_v1_brands_post",
         "security": [
           {
             "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "pattern": "^[!-~]+$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional stable write key scoped to customer/user/method/path. Reuse only with the same effective input.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Optional stable write key scoped to customer/user/method/path. Reuse only with the same effective input."
           }
         ],
         "requestBody": {
@@ -325,6 +374,16 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "422": {
             "content": {
@@ -380,6 +439,25 @@
               "title": "Cursor"
             },
             "description": "From `next_cursor`."
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only those this user owns (an admin's view).",
+              "title": "User Id"
+            },
+            "description": "Only those this user owns (an admin's view)."
           }
         ],
         "responses": {
@@ -501,13 +579,13 @@
           }
         }
       },
-      "put": {
+      "patch": {
         "tags": [
           "brands"
         ],
-        "summary": "Save a new version of a brand",
-        "description": "`version` must be the current version; otherwise 409 REVISION_CONFLICT. Returns the current version unchanged when the edit changes nothing.",
-        "operationId": "update_brand_v1_brands__brand_id__put",
+        "summary": "Edit a brand",
+        "description": "Changes the fields `data` sends and keeps the rest, saving the next version. `version` must be the current one; otherwise 409 REVISION_CONFLICT. An edit that changes nothing returns the current version without adding one. A repeated Idempotency-Key with the same input returns the version it saved, even after later edits (but 404 once it is deleted).",
+        "operationId": "update_brand_v1_brands__brand_id__patch",
         "security": [
           {
             "HTTPBearer": []
@@ -523,6 +601,27 @@
               "format": "uuid",
               "title": "Brand Id"
             }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "pattern": "^[!-~]+$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional stable write key scoped to customer/user/method/path. Reuse only with the same effective input.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Optional stable write key scoped to customer/user/method/path. Reuse only with the same effective input."
           }
         ],
         "requestBody": {
@@ -530,7 +629,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/BrandUpdate"
+                "$ref": "#/components/schemas/BrandEdit"
               }
             }
           }
@@ -595,10 +694,34 @@
           "products"
         ],
         "summary": "Create a product",
+        "description": "Saves a new product as version 1.",
         "operationId": "create_product_v1_products_post",
         "security": [
           {
             "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "pattern": "^[!-~]+$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional stable write key scoped to customer/user/method/path. Reuse only with the same effective input.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Optional stable write key scoped to customer/user/method/path. Reuse only with the same effective input."
           }
         ],
         "requestBody": {
@@ -631,6 +754,16 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "422": {
             "content": {
@@ -703,6 +836,25 @@
               ],
               "title": "Brand Id"
             }
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only those this user owns (an admin's view).",
+              "title": "User Id"
+            },
+            "description": "Only those this user owns (an admin's view)."
           }
         ],
         "responses": {
@@ -824,13 +976,13 @@
           }
         }
       },
-      "put": {
+      "patch": {
         "tags": [
           "products"
         ],
-        "summary": "Save a new version of a product",
-        "description": "`version` must be the current version; otherwise 409 REVISION_CONFLICT. Returns the current version unchanged when the edit changes nothing.",
-        "operationId": "update_product_v1_products__product_id__put",
+        "summary": "Edit a product",
+        "description": "Changes the fields `data` sends and keeps the rest, saving the next version. `version` must be the current one; otherwise 409 REVISION_CONFLICT. An edit that changes nothing returns the current version without adding one. A repeated Idempotency-Key with the same input returns the version it saved, even after later edits (but 404 once it is deleted).",
+        "operationId": "update_product_v1_products__product_id__patch",
         "security": [
           {
             "HTTPBearer": []
@@ -846,6 +998,27 @@
               "format": "uuid",
               "title": "Product Id"
             }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "pattern": "^[!-~]+$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional stable write key scoped to customer/user/method/path. Reuse only with the same effective input.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Optional stable write key scoped to customer/user/method/path. Reuse only with the same effective input."
           }
         ],
         "requestBody": {
@@ -853,7 +1026,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ProductUpdate"
+                "$ref": "#/components/schemas/ProductEdit"
               }
             }
           }
@@ -910,6 +1083,66 @@
             "description": "Unprocessable Entity"
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "products"
+        ],
+        "summary": "Delete a product",
+        "description": "Deletes the product for every user of the customer: it is no longer listed, no version of it can be read, edited or used in new content, and its assets are no longer shared through it. What was already made from it is kept but can't be revised; saved Prompts still start Jobs. Deleting it again also returns 204.",
+        "operationId": "delete_product_v1_products__product_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Product Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
       }
     },
     "/v1/characters": {
@@ -918,10 +1151,34 @@
           "characters"
         ],
         "summary": "Create a character",
+        "description": "Saves a new character as version 1.",
         "operationId": "create_character_v1_characters_post",
         "security": [
           {
             "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "pattern": "^[!-~]+$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional stable write key scoped to customer/user/method/path. Reuse only with the same effective input.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Optional stable write key scoped to customer/user/method/path. Reuse only with the same effective input."
           }
         ],
         "requestBody": {
@@ -954,6 +1211,16 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "422": {
             "content": {
@@ -1009,6 +1276,25 @@
               "title": "Cursor"
             },
             "description": "From `next_cursor`."
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only those this user owns (an admin's view).",
+              "title": "User Id"
+            },
+            "description": "Only those this user owns (an admin's view)."
           }
         ],
         "responses": {
@@ -1130,13 +1416,13 @@
           }
         }
       },
-      "put": {
+      "patch": {
         "tags": [
           "characters"
         ],
-        "summary": "Save a new version of a character",
-        "description": "`version` must be the current version; otherwise 409 REVISION_CONFLICT. Returns the current version unchanged when the edit changes nothing.",
-        "operationId": "update_character_v1_characters__character_id__put",
+        "summary": "Edit a character",
+        "description": "Changes the fields `data` sends and keeps the rest, saving the next version. `version` must be the current one; otherwise 409 REVISION_CONFLICT. An edit that changes nothing returns the current version without adding one. A repeated Idempotency-Key with the same input returns the version it saved, even after later edits (but 404 once it is deleted).",
+        "operationId": "update_character_v1_characters__character_id__patch",
         "security": [
           {
             "HTTPBearer": []
@@ -1152,6 +1438,27 @@
               "format": "uuid",
               "title": "Character Id"
             }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "pattern": "^[!-~]+$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional stable write key scoped to customer/user/method/path. Reuse only with the same effective input.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Optional stable write key scoped to customer/user/method/path. Reuse only with the same effective input."
           }
         ],
         "requestBody": {
@@ -1159,7 +1466,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CharacterUpdate"
+                "$ref": "#/components/schemas/CharacterEdit"
               }
             }
           }
@@ -1219,60 +1526,6 @@
       }
     },
     "/v1/batches": {
-      "post": {
-        "tags": [
-          "batches"
-        ],
-        "summary": "Create a batch",
-        "operationId": "create_batch_v1_batches_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BatchCreate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BatchOut"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          }
-        }
-      },
       "get": {
         "tags": [
           "batches"
@@ -1356,7 +1609,8 @@
         "tags": [
           "batches"
         ],
-        "summary": "Read a batch and its log",
+        "summary": "Read a batch, its Ads and Job counts",
+        "description": "The Batch, its Ads oldest first, and how many of its Jobs are in each status.",
         "operationId": "get_batch_v1_batches__batch_id__get",
         "security": [
           {
@@ -1419,157 +1673,13 @@
         }
       }
     },
-    "/v1/batches/{batch_id}/log": {
-      "post": {
-        "tags": [
-          "batches"
-        ],
-        "summary": "Append to a batch's log",
-        "description": "A batch holds at most 500 log entries (409 BATCH_FULL).",
-        "operationId": "append_log_v1_batches__batch_id__log_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "batch_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Batch Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LogEntryCreate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LogEntry"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          }
-        }
-      }
-    },
-    "/v1/artifacts/script": {
-      "post": {
-        "tags": [
-          "artifacts"
-        ],
-        "summary": "Create a script",
-        "operationId": "create_script_v1_artifacts_script_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ScriptCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Script"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Unprocessable Entity",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
     "/v1/artifacts/script/{artifact_id}": {
       "get": {
         "tags": [
           "artifacts"
         ],
         "summary": "Read a script",
+        "description": "This version, by its id. A version never changes.",
         "operationId": "get_script_v1_artifacts_script__artifact_id__get",
         "security": [
           {
@@ -1632,14 +1742,14 @@
         }
       }
     },
-    "/v1/artifacts/script/{artifact_id}/versions": {
-      "post": {
+    "/v1/artifacts/storyboard/{artifact_id}": {
+      "get": {
         "tags": [
           "artifacts"
         ],
-        "summary": "Save a new version of a script",
-        "description": "Based on the given version, which need not be the latest: versions form a tree. `batch_id` defaults to the base's batch.",
-        "operationId": "create_script_version_v1_artifacts_script__artifact_id__versions_post",
+        "summary": "Read a storyboard",
+        "description": "This version, by its id. A version never changes.",
+        "operationId": "get_storyboard_v1_artifacts_storyboard__artifact_id__get",
         "security": [
           {
             "HTTPBearer": []
@@ -1657,23 +1767,13 @@
             }
           }
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ScriptVersionCreate"
-              }
-            }
-          }
-        },
         "responses": {
-          "201": {
+          "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Script"
+                  "$ref": "#/components/schemas/Storyboard"
                 }
               }
             }
@@ -1711,68 +1811,13 @@
         }
       }
     },
-    "/v1/artifacts/directing_plan": {
-      "post": {
-        "tags": [
-          "artifacts"
-        ],
-        "summary": "Create a directing_plan",
-        "operationId": "create_directing_plan_v1_artifacts_directing_plan_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DirectingPlanCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DirectingPlan"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Unprocessable Entity",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
     "/v1/artifacts/directing_plan/{artifact_id}": {
       "get": {
         "tags": [
           "artifacts"
         ],
         "summary": "Read a directing_plan",
+        "description": "This version, by its id. A version never changes.",
         "operationId": "get_directing_plan_v1_artifacts_directing_plan__artifact_id__get",
         "security": [
           {
@@ -1835,147 +1880,13 @@
         }
       }
     },
-    "/v1/artifacts/directing_plan/{artifact_id}/versions": {
-      "post": {
-        "tags": [
-          "artifacts"
-        ],
-        "summary": "Save a new version of a directing_plan",
-        "description": "Based on the given version, which need not be the latest: versions form a tree. `batch_id` defaults to the base's batch.",
-        "operationId": "create_directing_plan_version_v1_artifacts_directing_plan__artifact_id__versions_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "artifact_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Artifact Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DirectingPlanVersionCreate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DirectingPlan"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          }
-        }
-      }
-    },
-    "/v1/artifacts/prompt": {
-      "post": {
-        "tags": [
-          "artifacts"
-        ],
-        "summary": "Create a prompt",
-        "operationId": "create_prompt_v1_artifacts_prompt_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PromptCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Prompt"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Unprocessable Entity",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
     "/v1/artifacts/prompt/{artifact_id}": {
       "get": {
         "tags": [
           "artifacts"
         ],
         "summary": "Read a prompt",
+        "description": "This version, by its id. A version never changes.",
         "operationId": "get_prompt_v1_artifacts_prompt__artifact_id__get",
         "security": [
           {
@@ -2044,7 +1955,7 @@
           "artifacts"
         ],
         "summary": "Save a new version of a prompt",
-        "description": "Based on the given version, which need not be the latest: versions form a tree. `batch_id` defaults to the base's batch.",
+        "description": "Based on the given version, which need not be the latest: versions form a tree. Omitted `batch_id` and `relationships` inherit the base; explicit [] clears relationships. Script, Storyboard and directing plan versions are the Agent's (a user token gets 403); a user may version a Prompt.",
         "operationId": "create_prompt_version_v1_artifacts_prompt__artifact_id__versions_post",
         "security": [
           {
@@ -2061,6 +1972,27 @@
               "format": "uuid",
               "title": "Artifact Id"
             }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "pattern": "^[!-~]+$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional stable write key scoped to customer/user/method/path. Reuse only with the same effective input.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Optional stable write key scoped to customer/user/method/path. Reuse only with the same effective input."
           }
         ],
         "requestBody": {
@@ -2093,6 +2025,16 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -2360,6 +2302,7 @@
           "skills"
         ],
         "summary": "Read a Skill and its main version",
+        "description": "A Skill of the customer's or one of Nuva's platform Skills, with its main version's files.",
         "operationId": "get_skill_v1_skills__skill_id__get",
         "security": [
           {
@@ -2428,6 +2371,7 @@
           "skills"
         ],
         "summary": "Read a Skill version",
+        "description": "Versions never change, so a file may be cached by its SHA-256.",
         "operationId": "get_skill_version_v1_skills__skill_id__versions__version__get",
         "security": [
           {
@@ -2505,18 +2449,46 @@
         "tags": [
           "jobs"
         ],
-        "summary": "Generate a clip from a prompt",
-        "description": "Starts a job for a prompt artifact of yours; read it with GET /v1/jobs/{id}, or receive its final status at `callback_url`.",
+        "summary": "Generate a clip from a saved Prompt or raw Prompt input",
+        "description": "Starts a job for a prompt artifact of yours; read it with GET /v1/jobs/{id}, or receive its final status at `callback_url`. Alternatively supply `input` to save a Prompt and enqueue its Job in one transaction; Job.prompt is the saved Prompt ID.",
         "operationId": "generate_video_v1_generate_video_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "pattern": "^[!-~]+$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional stable write key scoped to customer/user/method/path. Reuse only with the same effective input.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Optional stable write key scoped to customer/user/method/path. Reuse only with the same effective input."
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/GenerateVideo"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "202": {
@@ -2530,31 +2502,36 @@
             }
           },
           "401": {
-            "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
-            }
+            },
+            "description": "Unauthorized"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "422": {
-            "description": "Unprocessable Entity",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
-            }
+            },
+            "description": "Unprocessable Entity"
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/v1/jobs/{job_id}": {
@@ -2563,6 +2540,7 @@
           "jobs"
         ],
         "summary": "Read a job",
+        "description": "Its status and, once it has completed, the generated clip as `asset`.",
         "operationId": "get_job_v1_jobs__job_id__get",
         "security": [
           {
@@ -2705,71 +2683,6 @@
       }
     },
     "/v1/ads": {
-      "post": {
-        "tags": [
-          "ads"
-        ],
-        "summary": "Create an ad from an exported video",
-        "description": "The ad never changes; a new cut is a new ad. A batch holds at most 500 ads (409 BATCH_FULL).",
-        "operationId": "create_ad_v1_ads_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AdCreate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AdOut"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          }
-        }
-      },
       "get": {
         "tags": [
           "ads"
@@ -2871,6 +2784,7 @@
           "ads"
         ],
         "summary": "Read an ad",
+        "description": "The Ad with its final video and the clips and audio its composition uses.",
         "operationId": "get_ad_v1_ads__ad_id__get",
         "security": [
           {
@@ -2932,62 +2846,715 @@
           }
         }
       }
+    },
+    "/v1/admin/scopes/{external_id}": {
+      "put": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Create or change an org or group",
+        "description": "Idempotent. An org hangs from the customer; a group from one of its orgs, and changing `parent` moves the group. A scope's kind never changes. Putting an archived scope restores it.",
+        "operationId": "put_scope_v1_admin_scopes__external_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "external_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+              "title": "External Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScopeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScopeOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Archive an org or group",
+        "description": "Its memberships and the shares with it stop counting. An org with groups left is refused (409). Archiving it again also returns 204.",
+        "operationId": "archive_scope_v1_admin_scopes__external_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "external_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+              "title": "External Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/admin/scopes": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List the customer's orgs and groups",
+        "description": "Those that aren't archived, newest first.",
+        "operationId": "list_scopes_v1_admin_scopes_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "From `next_cursor`.",
+              "title": "Cursor"
+            },
+            "description": "From `next_cursor`."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScopePage"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/admin/users/{external_user_id}/memberships": {
+      "put": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Set a user's memberships",
+        "description": "Replaces the user's scopes and roles; `customer` with `admin` makes a customer admin, with `viewer` a reader of the whole customer. Every user is a member of the customer without a row. Takes effect at once. The first call for an id creates the user, like a first token.",
+        "operationId": "put_memberships_v1_admin_users__external_user_id__memberships_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "external_user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+              "title": "External User Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MembershipsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MembershipsOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Read a user's memberships",
+        "description": "The user's scopes and roles; 404 when no user has this external id.",
+        "operationId": "get_memberships_v1_admin_users__external_user_id__memberships_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "external_user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+              "title": "External User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MembershipsOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/shares/{kind}/{item_id}": {
+      "get": {
+        "tags": [
+          "shares"
+        ],
+        "summary": "List an item's shares",
+        "description": "The scopes the item is shared with, and how. Those who see the item but may not share it get 403.",
+        "operationId": "list_shares_v1_shares__kind___item_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharesOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/shares/{kind}/{item_id}/{scope}": {
+      "put": {
+        "tags": [
+          "shares"
+        ],
+        "summary": "Share an item with a scope",
+        "description": "Everyone below the scope can read the item (`read`) or also edit it (`write`). Allowed for an admin of the scope or one above it who administers the item's owner (or owns it), and for the customer's API key. Idempotent; a repeat changes `access`.",
+        "operationId": "put_share_v1_shares__kind___item_id___scope__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "title": "Scope"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShareRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShareOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "shares"
+        ],
+        "summary": "Stop sharing an item with a scope",
+        "description": "Those who saw the item only through this share no longer find it (404). Removing a share that does not exist also returns 204.",
+        "operationId": "delete_share_v1_shares__kind___item_id___scope__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "title": "Scope"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
-      "AdCreate": {
-        "properties": {
-          "batch_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Batch Id",
-            "description": "One of the caller's batches."
-          },
-          "schema_version": {
-            "type": "integer",
-            "title": "Schema Version",
-            "description": "Only 1 is accepted."
-          },
-          "composition": {
-            "$ref": "#/components/schemas/CompositionV1",
-            "description": "At most 100 clips and 20 audio assets; `editor` is at most 65536 bytes as JSON."
-          },
-          "asset_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Asset Id",
-            "description": "The final video: a video asset."
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "batch_id",
-          "schema_version",
-          "composition",
-          "asset_id"
-        ],
-        "title": "AdCreate"
-      },
       "AdOut": {
         "properties": {
           "id": {
             "type": "string",
             "format": "uuid",
-            "title": "Id"
+            "title": "Id",
+            "description": "The Ad's id."
           },
           "batch_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Batch Id"
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Batch Id",
+            "description": "The Batch it belongs to; null when none."
           },
           "schema_version": {
             "type": "integer",
-            "title": "Schema Version"
+            "title": "Schema Version",
+            "description": "The version of `composition`'s format."
           },
           "composition": {
-            "$ref": "#/components/schemas/CompositionV1"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompositionReadV1"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How the final video was put together: its clips in order and the audio under them; null when not known."
           },
           "asset": {
             "$ref": "#/components/schemas/AssetOut",
@@ -3007,7 +3574,8 @@
           "created_at": {
             "type": "string",
             "format": "date-time",
-            "title": "Created At"
+            "title": "Created At",
+            "description": "When the Ad was created."
           }
         },
         "type": "object",
@@ -3029,7 +3597,8 @@
               "$ref": "#/components/schemas/AdOut"
             },
             "type": "array",
-            "title": "Items"
+            "title": "Items",
+            "description": "The Ads on this page, newest first."
           },
           "next_cursor": {
             "anyOf": [
@@ -3050,6 +3619,58 @@
           "next_cursor"
         ],
         "title": "AdPage"
+      },
+      "ArtifactRelationshipOut": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "`based_on`: the Artifact was made from the target."
+          },
+          "target": {
+            "$ref": "#/components/schemas/ArtifactTargetOut",
+            "description": "What it relates to."
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "target"
+        ],
+        "title": "ArtifactRelationshipOut"
+      },
+      "ArtifactTargetOut": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "description": "An asset's media kind, an entity, artifact or Skill kind."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "An asset id, an Artifact version id, a Skill version id, or an entity's id."
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "For an entity: the version it was made from."
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "id"
+        ],
+        "title": "ArtifactTargetOut"
       },
       "AssetCreate": {
         "properties": {
@@ -3094,6 +3715,34 @@
             ],
             "title": "Kind",
             "description": "Required with `url`."
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "A short name for what the file shows, e.g. which part of a product package."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "A longer description of what the file shows. Registering the same file again with a label or description replaces it."
           }
         },
         "additionalProperties": false,
@@ -3105,7 +3754,8 @@
           "id": {
             "type": "string",
             "format": "uuid",
-            "title": "Id"
+            "title": "Id",
+            "description": "The asset's id."
           },
           "kind": {
             "type": "string",
@@ -3114,18 +3764,22 @@
               "video",
               "audio"
             ],
-            "title": "Kind"
+            "title": "Kind",
+            "description": "`image`, `video` or `audio`."
           },
           "mime": {
             "type": "string",
-            "title": "Mime"
+            "title": "Mime",
+            "description": "The file's MIME type, as detected from its content."
           },
           "source": {
-            "$ref": "#/components/schemas/AssetSource"
+            "$ref": "#/components/schemas/AssetSource",
+            "description": "`uploaded` (an upload or a URL you registered) or `generated` (a Job's clip)."
           },
           "size_bytes": {
             "type": "integer",
-            "title": "Size Bytes"
+            "title": "Size Bytes",
+            "description": "The file's size in bytes."
           },
           "metadata": {
             "additionalProperties": true,
@@ -3133,19 +3787,46 @@
             "title": "Metadata",
             "description": "width and height for images; duration_ms otherwise."
           },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "A short name for what the file shows, given at upload."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "A longer description of what the file shows, given at upload."
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
-            "title": "Created At"
+            "title": "Created At",
+            "description": "When the asset was registered."
           },
           "download_url": {
             "type": "string",
-            "title": "Download Url"
+            "title": "Download Url",
+            "description": "A temporary URL to download the file, until `download_url_expires_at`."
           },
           "download_url_expires_at": {
             "type": "string",
             "format": "date-time",
-            "title": "Download Url Expires At"
+            "title": "Download Url Expires At",
+            "description": "When `download_url` stops working: an hour after this response."
           }
         },
         "type": "object",
@@ -3175,7 +3856,8 @@
           "id": {
             "type": "string",
             "format": "uuid",
-            "title": "Id"
+            "title": "Id",
+            "description": "The Ad's id."
           },
           "asset_id": {
             "type": "string",
@@ -3186,7 +3868,8 @@
           "created_at": {
             "type": "string",
             "format": "date-time",
-            "title": "Created At"
+            "title": "Created At",
+            "description": "When the Ad was created."
           }
         },
         "type": "object",
@@ -3197,46 +3880,24 @@
         ],
         "title": "BatchAd"
       },
-      "BatchCreate": {
-        "properties": {
-          "intent": {
-            "type": "string",
-            "maxLength": 2000,
-            "minLength": 1,
-            "title": "Intent",
-            "description": "Its title and purpose: what it tries."
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "intent"
-        ],
-        "title": "BatchCreate"
-      },
       "BatchOut": {
         "properties": {
           "id": {
             "type": "string",
             "format": "uuid",
-            "title": "Id"
+            "title": "Id",
+            "description": "The Batch's id."
           },
           "intent": {
             "type": "string",
-            "title": "Intent"
+            "title": "Intent",
+            "description": "Its title and purpose: what it tries."
           },
           "created_at": {
             "type": "string",
             "format": "date-time",
-            "title": "Created At"
-          },
-          "log": {
-            "items": {
-              "$ref": "#/components/schemas/LogEntry"
-            },
-            "type": "array",
-            "title": "Log",
-            "description": "Oldest first."
+            "title": "Created At",
+            "description": "When the Batch was created."
           },
           "ads": {
             "items": {
@@ -3260,7 +3921,6 @@
           "id",
           "intent",
           "created_at",
-          "log",
           "ads",
           "jobs"
         ],
@@ -3273,7 +3933,8 @@
               "$ref": "#/components/schemas/BatchSummary"
             },
             "type": "array",
-            "title": "Items"
+            "title": "Items",
+            "description": "The Batches on this page, newest first."
           },
           "next_cursor": {
             "anyOf": [
@@ -3300,16 +3961,19 @@
           "id": {
             "type": "string",
             "format": "uuid",
-            "title": "Id"
+            "title": "Id",
+            "description": "The Batch's id."
           },
           "intent": {
             "type": "string",
-            "title": "Intent"
+            "title": "Intent",
+            "description": "Its title and purpose: what it tries."
           },
           "created_at": {
             "type": "string",
             "format": "date-time",
-            "title": "Created At"
+            "title": "Created At",
+            "description": "When the Batch was created."
           }
         },
         "type": "object",
@@ -3326,24 +3990,21 @@
             "type": "string",
             "format": "uuid",
             "title": "Id",
-            "description": "Stays the same across versions."
+            "description": "Its id: the same for every version. A reference to it is `{id, version?}`; without `version` it means the latest."
           },
           "version": {
             "type": "integer",
-            "title": "Version"
-          },
-          "revision": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Revision",
-            "description": "This version's id; content made from it records this id."
+            "title": "Version",
+            "description": "1 for the first version, then one more per edit."
           },
           "schema_version": {
             "type": "integer",
-            "title": "Schema Version"
+            "title": "Schema Version",
+            "description": "The version of `data`'s format."
           },
           "data": {
-            "$ref": "#/components/schemas/BrandDataV1"
+            "$ref": "#/components/schemas/BrandDataV1",
+            "description": "The brand's details."
           },
           "created_at": {
             "type": "string",
@@ -3367,7 +4028,6 @@
         "required": [
           "id",
           "version",
-          "revision",
           "schema_version",
           "data",
           "created_at",
@@ -3378,7 +4038,8 @@
       "BrandCreate": {
         "properties": {
           "data": {
-            "$ref": "#/components/schemas/BrandDataV1"
+            "$ref": "#/components/schemas/BrandDataV1",
+            "description": "The brand's details."
           }
         },
         "additionalProperties": false,
@@ -3394,7 +4055,8 @@
             "type": "string",
             "maxLength": 200,
             "minLength": 1,
-            "title": "Name"
+            "title": "Name",
+            "description": "The brand's name."
           }
         },
         "additionalProperties": false,
@@ -3404,6 +4066,40 @@
         ],
         "title": "BrandDataV1"
       },
+      "BrandEdit": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version",
+            "description": "The version you read. If someone saved a newer one since, the edit is refused with 409 REVISION_CONFLICT: read the brand again."
+          },
+          "data": {
+            "$ref": "#/components/schemas/BrandEditData",
+            "description": "Only the fields to change; the rest keep their values. A list is replaced as a whole: `[]` empties it, and `null` clears an optional value."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "title": "BrandEdit"
+      },
+      "BrandEditData": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "description": "The brand's name."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "BrandEditData"
+      },
       "BrandPage": {
         "properties": {
           "items": {
@@ -3411,7 +4107,8 @@
               "$ref": "#/components/schemas/Brand"
             },
             "type": "array",
-            "title": "Items"
+            "title": "Items",
+            "description": "The brands on this page, each at its current version, newest first."
           },
           "next_cursor": {
             "anyOf": [
@@ -3433,31 +4130,12 @@
         ],
         "title": "BrandPage"
       },
-      "BrandUpdate": {
-        "properties": {
-          "version": {
-            "type": "integer",
-            "minimum": 1.0,
-            "title": "Version",
-            "description": "The version this edit is based on."
-          },
-          "data": {
-            "$ref": "#/components/schemas/BrandDataV1"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "version",
-          "data"
-        ],
-        "title": "BrandUpdate"
-      },
       "CallbackOut": {
         "properties": {
           "url": {
             "type": "string",
-            "title": "Url"
+            "title": "Url",
+            "description": "The `callback_url` the Job was started with."
           },
           "status": {
             "anyOf": [
@@ -3467,7 +4145,8 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "Null until the Job ends; then `pending` while the final status is being sent (failures are retried), `sent` once your URL answered 2xx, or `failed` after the last attempt."
           }
         },
         "type": "object",
@@ -3492,24 +4171,21 @@
             "type": "string",
             "format": "uuid",
             "title": "Id",
-            "description": "Stays the same across versions."
+            "description": "Its id: the same for every version. A reference to it is `{id, version?}`; without `version` it means the latest."
           },
           "version": {
             "type": "integer",
-            "title": "Version"
-          },
-          "revision": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Revision",
-            "description": "This version's id; content made from it records this id."
+            "title": "Version",
+            "description": "1 for the first version, then one more per edit."
           },
           "schema_version": {
             "type": "integer",
-            "title": "Schema Version"
+            "title": "Schema Version",
+            "description": "The version of `data`'s format."
           },
           "data": {
-            "$ref": "#/components/schemas/CharacterDataV1"
+            "$ref": "#/components/schemas/CharacterDataV1",
+            "description": "The character's details."
           },
           "created_at": {
             "type": "string",
@@ -3533,7 +4209,6 @@
         "required": [
           "id",
           "version",
-          "revision",
           "schema_version",
           "data",
           "created_at",
@@ -3544,7 +4219,8 @@
       "CharacterCreate": {
         "properties": {
           "data": {
-            "$ref": "#/components/schemas/CharacterDataV1"
+            "$ref": "#/components/schemas/CharacterDataV1",
+            "description": "The character's details."
           }
         },
         "additionalProperties": false,
@@ -3560,7 +4236,8 @@
             "type": "string",
             "maxLength": 200,
             "minLength": 1,
-            "title": "Name"
+            "title": "Name",
+            "description": "The character's name."
           },
           "description": {
             "anyOf": [
@@ -3608,6 +4285,77 @@
         ],
         "title": "CharacterDataV1"
       },
+      "CharacterEdit": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version",
+            "description": "The version you read. If someone saved a newer one since, the edit is refused with 409 REVISION_CONFLICT: read the character again."
+          },
+          "data": {
+            "$ref": "#/components/schemas/CharacterEditData",
+            "description": "Only the fields to change; the rest keep their values. A list is replaced as a whole: `[]` empties it, and `null` clears an optional value."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "title": "CharacterEdit"
+      },
+      "CharacterEditData": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "description": "The character's name."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 5000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Looks, persona, speaking style and language."
+          },
+          "image_asset_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Image Asset Ids",
+            "description": "Image asset ids; the first is the default."
+          },
+          "voice_asset_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Asset Id",
+            "description": "An audio asset id."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CharacterEditData"
+      },
       "CharacterPage": {
         "properties": {
           "items": {
@@ -3615,7 +4363,8 @@
               "$ref": "#/components/schemas/Character"
             },
             "type": "array",
-            "title": "Items"
+            "title": "Items",
+            "description": "The characters on this page, each at its current version, newest first."
           },
           "next_cursor": {
             "anyOf": [
@@ -3636,26 +4385,6 @@
           "next_cursor"
         ],
         "title": "CharacterPage"
-      },
-      "CharacterUpdate": {
-        "properties": {
-          "version": {
-            "type": "integer",
-            "minimum": 1.0,
-            "title": "Version",
-            "description": "The version this edit is based on."
-          },
-          "data": {
-            "$ref": "#/components/schemas/CharacterDataV1"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "version",
-          "data"
-        ],
-        "title": "CharacterUpdate"
       },
       "Clip": {
         "properties": {
@@ -3699,7 +4428,7 @@
         ],
         "title": "Clip"
       },
-      "CompositionV1": {
+      "CompositionReadV1": {
         "properties": {
           "clips": {
             "items": {
@@ -3719,13 +4448,6 @@
             "title": "Audio Asset Ids",
             "description": "Music, voice-over...",
             "default": []
-          },
-          "editor": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Editor",
-            "description": "The editor's own project data, stored and returned as given.",
-            "default": {}
           }
         },
         "additionalProperties": false,
@@ -3733,14 +4455,16 @@
         "required": [
           "clips"
         ],
-        "title": "CompositionV1"
+        "title": "CompositionReadV1",
+        "description": "A composition as it is read; the editor's project data is the Agent's."
       },
       "DirectingPlan": {
         "properties": {
           "kind": {
             "type": "string",
             "const": "directing_plan",
-            "title": "Kind"
+            "title": "Kind",
+            "description": "Always `directing_plan`."
           },
           "id": {
             "type": "string",
@@ -3769,10 +4493,12 @@
           },
           "schema_version": {
             "type": "integer",
-            "title": "Schema Version"
+            "title": "Schema Version",
+            "description": "The version of `data`'s format."
           },
           "data": {
-            "$ref": "#/components/schemas/DirectingPlanDataV1"
+            "$ref": "#/components/schemas/DirectingPlanDataV1",
+            "description": "The directing plan's content."
           },
           "batch_id": {
             "anyOf": [
@@ -3784,12 +4510,22 @@
                 "type": "null"
               }
             ],
-            "title": "Batch Id"
+            "title": "Batch Id",
+            "description": "The Batch it was made in; null when none."
           },
           "created_at": {
             "type": "string",
             "format": "date-time",
-            "title": "Created At"
+            "title": "Created At",
+            "description": "When this version was saved."
+          },
+          "relationships": {
+            "items": {
+              "$ref": "#/components/schemas/ArtifactRelationshipOut"
+            },
+            "type": "array",
+            "title": "Relationships",
+            "description": "Where it comes from, by type and then target id."
           },
           "assets": {
             "additionalProperties": {
@@ -3800,18 +4536,7 @@
             },
             "type": "object",
             "title": "Assets",
-            "description": "The assets `data` refers to, with download URLs."
-          },
-          "entities": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/EntityRef"
-            },
-            "propertyNames": {
-              "format": "uuid"
-            },
-            "type": "object",
-            "title": "Entities",
-            "description": "The entity versions `data` refers to, by `revision`."
+            "description": "The assets `data` or `relationships` refer to, with download URLs."
           },
           "skills": {
             "additionalProperties": {
@@ -3822,7 +4547,7 @@
             },
             "type": "object",
             "title": "Skills",
-            "description": "The Skill versions `data` refers to, by version id."
+            "description": "Skill versions in `data` or `relationships`, keyed by version id."
           }
         },
         "type": "object",
@@ -3835,155 +4560,45 @@
           "data",
           "batch_id",
           "created_at",
+          "relationships",
           "assets",
-          "entities",
           "skills"
         ],
         "title": "DirectingPlan"
       },
-      "DirectingPlanCreate": {
-        "properties": {
-          "schema_version": {
-            "type": "integer",
-            "title": "Schema Version",
-            "description": "Only 1 is accepted."
-          },
-          "data": {
-            "$ref": "#/components/schemas/DirectingPlanDataV1"
-          },
-          "batch_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Batch Id",
-            "description": "The batch it is made in; one of the caller's."
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "schema_version",
-          "data"
-        ],
-        "title": "DirectingPlanCreate"
-      },
       "DirectingPlanDataV1": {
         "properties": {
-          "script": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Script",
-            "description": "The script it plans."
-          },
-          "specs": {
-            "items": {
-              "$ref": "#/components/schemas/Spec"
-            },
-            "type": "array",
-            "maxItems": 30,
-            "minItems": 1,
-            "title": "Specs",
-            "description": "One per clip."
-          },
-          "skill": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Skill",
-            "description": "The Skill version planned with."
+          "text": {
+            "type": "string",
+            "maxLength": 65536,
+            "minLength": 1,
+            "title": "Text",
+            "description": "The plan, in markdown: how the ad is shot and cut. It need not be one section per clip."
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "specs"
+          "text"
         ],
-        "title": "DirectingPlanDataV1",
-        "x-based-on": "script"
-      },
-      "DirectingPlanVersionCreate": {
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/DirectingPlanDataV1"
-          },
-          "batch_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Batch Id",
-            "description": "The batch it is made in; one of the caller's."
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "data"
-        ],
-        "title": "DirectingPlanVersionCreate"
-      },
-      "EntityRef": {
-        "properties": {
-          "kind": {
-            "type": "string",
-            "title": "Kind"
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "version": {
-            "type": "integer",
-            "title": "Version"
-          }
-        },
-        "type": "object",
-        "required": [
-          "kind",
-          "id",
-          "version"
-        ],
-        "title": "EntityRef",
-        "description": "An entity version a row refers to, to read it with GET /v1/{kind}s/{id}?version=."
+        "title": "DirectingPlanDataV1"
       },
       "Error": {
         "properties": {
           "code": {
             "type": "string",
-            "title": "Code"
+            "title": "Code",
+            "description": "A stable, machine-readable code, e.g. `NOT_FOUND` or `REVISION_CONFLICT`."
           },
           "message": {
             "type": "string",
-            "title": "Message"
+            "title": "Message",
+            "description": "An explanation for people to read; branch on `code`."
           },
           "retryable": {
             "type": "boolean",
-            "title": "Retryable"
+            "title": "Retryable",
+            "description": "Whether the same request may succeed if sent again later."
           },
           "details": {
             "anyOf": [
@@ -3997,7 +4612,24 @@
                 "type": "null"
               }
             ],
-            "title": "Details"
+            "title": "Details",
+            "description": "The problems with the request's fields, when the error is about them; left out otherwise."
+          },
+          "acceptance": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "not_accepted",
+                  "unknown"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acceptance",
+            "description": "`not_accepted`: the request was refused before anything was saved. `unknown`: it may have been saved. Left out when the error doesn't say."
           }
         },
         "type": "object",
@@ -4012,11 +4644,13 @@
         "properties": {
           "path": {
             "type": "string",
-            "title": "Path"
+            "title": "Path",
+            "description": "The request field the problem is in, as a dotted path, e.g. `data.prompt`."
           },
           "message": {
             "type": "string",
-            "title": "Message"
+            "title": "Message",
+            "description": "What is wrong with it."
           }
         },
         "type": "object",
@@ -4029,11 +4663,13 @@
       "ErrorResponse": {
         "properties": {
           "error": {
-            "$ref": "#/components/schemas/Error"
+            "$ref": "#/components/schemas/Error",
+            "description": "What went wrong."
           },
           "request_id": {
             "type": "string",
-            "title": "Request Id"
+            "title": "Request Id",
+            "description": "This request's id, also sent as the `X-Request-ID` header; quote it when reporting a problem."
           }
         },
         "type": "object",
@@ -4044,19 +4680,63 @@
         "title": "ErrorResponse"
       },
       "GenerateVideo": {
+        "oneOf": [
+          {
+            "properties": {
+              "prompt": {
+                "type": "string"
+              },
+              "input": {
+                "type": "null"
+              }
+            },
+            "type": "object",
+            "required": [
+              "prompt"
+            ]
+          },
+          {
+            "properties": {
+              "input": {
+                "type": "object"
+              },
+              "prompt": {
+                "type": "null"
+              }
+            },
+            "type": "object",
+            "required": [
+              "input"
+            ]
+          }
+        ],
         "properties": {
           "prompt": {
-            "type": "string",
-            "format": "uuid",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Prompt",
-            "description": "The prompt artifact to run."
+            "description": "An existing saved Prompt ID."
           },
           "seed": {
-            "type": "integer",
-            "maximum": 9007199254740991.0,
-            "minimum": 0.0,
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 9007199254740991.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Seed",
-            "default": 0
+            "description": "The render's randomness. Omitted: a random seed, returned as `seed`; pass it again with the same Prompt to repeat the draw."
           },
           "resolution": {
             "anyOf": [
@@ -4072,7 +4752,18 @@
               }
             ],
             "title": "Resolution",
-            "description": "Omitted: the model's default."
+            "description": "Omitted: 768P."
+          },
+          "input": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RawPromptInput"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A Prompt of your own, saved with this Job: the prompt text and the files it names. Characters and Products reach a clip only through a Storyboard; here, attach their pictures yourself."
           },
           "callback_url": {
             "anyOf": [
@@ -4098,14 +4789,11 @@
               }
             ],
             "title": "Batch Id",
-            "description": "One of the caller's batches."
+            "description": "One of the caller's batches; when omitted, a saved Prompt's Job joins the Prompt's Batch."
           }
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "prompt"
-        ],
         "title": "GenerateVideo"
       },
       "JobOut": {
@@ -4113,19 +4801,23 @@
           "id": {
             "type": "string",
             "format": "uuid",
-            "title": "Id"
+            "title": "Id",
+            "description": "The Job's id."
           },
           "status": {
-            "$ref": "#/components/schemas/JobStatus"
+            "$ref": "#/components/schemas/JobStatus",
+            "description": "`queued` (waiting, also after a failed attempt that is retried), `running`, then `completed`, `failed` or `cancelled`, which are final."
           },
           "prompt": {
             "type": "string",
             "format": "uuid",
-            "title": "Prompt"
+            "title": "Prompt",
+            "description": "The Prompt it renders; with raw `input`, the Prompt saved for it."
           },
           "seed": {
             "type": "integer",
-            "title": "Seed"
+            "title": "Seed",
+            "description": "The seed it renders with; pass it again with the same Prompt to repeat the draw."
           },
           "resolution": {
             "anyOf": [
@@ -4136,7 +4828,8 @@
                 "type": "null"
               }
             ],
-            "title": "Resolution"
+            "title": "Resolution",
+            "description": "`480P` or `768P`; null when not chosen: 768P."
           },
           "batch_id": {
             "anyOf": [
@@ -4148,7 +4841,8 @@
                 "type": "null"
               }
             ],
-            "title": "Batch Id"
+            "title": "Batch Id",
+            "description": "The Batch it belongs to; null when none."
           },
           "asset": {
             "anyOf": [
@@ -4161,18 +4855,6 @@
             ],
             "description": "The generated clip, once completed."
           },
-          "checkpoint": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Checkpoint",
-            "description": "The model weights that made the clip."
-          },
           "error": {
             "anyOf": [
               {
@@ -4182,7 +4864,20 @@
                 "type": "null"
               }
             ],
-            "title": "Error"
+            "title": "Error",
+            "description": "Why the Job failed, once it has; null otherwise. Read `error_code`."
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code",
+            "description": "`GENERATION_FAILED` when the Job failed; null otherwise."
           },
           "callback": {
             "anyOf": [
@@ -4192,12 +4887,14 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "Delivery of the final status to `callback_url`; null when none was given."
           },
           "created_at": {
             "type": "string",
             "format": "date-time",
-            "title": "Created At"
+            "title": "Created At",
+            "description": "When the Job was started."
           }
         },
         "type": "object",
@@ -4209,7 +4906,6 @@
           "resolution",
           "batch_id",
           "asset",
-          "checkpoint",
           "error",
           "callback",
           "created_at"
@@ -4227,54 +4923,14 @@
         ],
         "title": "JobStatus"
       },
-      "LogEntry": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "text": {
-            "type": "string",
-            "title": "Text"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "text",
-          "created_at"
-        ],
-        "title": "LogEntry"
-      },
-      "LogEntryCreate": {
-        "properties": {
-          "text": {
-            "type": "string",
-            "maxLength": 10000,
-            "minLength": 1,
-            "title": "Text",
-            "description": "What was changed in the batch, and why."
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "text"
-        ],
-        "title": "LogEntryCreate"
-      },
+      "JsonValue": {},
       "MainRequest": {
         "properties": {
           "version": {
             "type": "integer",
             "minimum": 1.0,
-            "title": "Version"
+            "title": "Version",
+            "description": "The version to make main."
           }
         },
         "additionalProperties": false,
@@ -4284,30 +4940,126 @@
         ],
         "title": "MainRequest"
       },
+      "MembershipIn": {
+        "properties": {
+          "scope": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Scope",
+            "description": "`customer` or an external id."
+          },
+          "role": {
+            "$ref": "#/components/schemas/MembershipRole",
+            "description": "`member`; `admin` (reads, writes, deletes and shares what users below the scope own); or `viewer` (reads what they own, and changes nothing of theirs)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "scope",
+          "role"
+        ],
+        "title": "MembershipIn"
+      },
+      "MembershipOut": {
+        "properties": {
+          "scope": {
+            "type": "string",
+            "title": "Scope",
+            "description": "`customer` or the scope's external id."
+          },
+          "role": {
+            "$ref": "#/components/schemas/MembershipRole",
+            "description": "`member`, `admin` or `viewer`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "scope",
+          "role"
+        ],
+        "title": "MembershipOut"
+      },
+      "MembershipRole": {
+        "type": "string",
+        "enum": [
+          "member",
+          "admin",
+          "viewer"
+        ],
+        "title": "MembershipRole"
+      },
+      "MembershipsOut": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id",
+            "description": "Nuva's id for the user, as in its user tokens."
+          },
+          "external_user_id": {
+            "type": "string",
+            "title": "External User Id",
+            "description": "The user's id in your system."
+          },
+          "memberships": {
+            "items": {
+              "$ref": "#/components/schemas/MembershipOut"
+            },
+            "type": "array",
+            "title": "Memberships",
+            "description": "The user's roles in scopes that aren't archived, oldest scope first."
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "external_user_id",
+          "memberships"
+        ],
+        "title": "MembershipsOut"
+      },
+      "MembershipsRequest": {
+        "properties": {
+          "memberships": {
+            "items": {
+              "$ref": "#/components/schemas/MembershipIn"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Memberships",
+            "description": "The user's whole set of scopes and roles, each scope once; it replaces the current set, and `[]` removes them all."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "memberships"
+        ],
+        "title": "MembershipsRequest"
+      },
       "Product": {
         "properties": {
           "id": {
             "type": "string",
             "format": "uuid",
             "title": "Id",
-            "description": "Stays the same across versions."
+            "description": "Its id: the same for every version. A reference to it is `{id, version?}`; without `version` it means the latest."
           },
           "version": {
             "type": "integer",
-            "title": "Version"
-          },
-          "revision": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Revision",
-            "description": "This version's id; content made from it records this id."
+            "title": "Version",
+            "description": "1 for the first version, then one more per edit."
           },
           "schema_version": {
             "type": "integer",
-            "title": "Schema Version"
+            "title": "Schema Version",
+            "description": "The version of `data`'s format."
           },
           "data": {
-            "$ref": "#/components/schemas/ProductDataV1"
+            "$ref": "#/components/schemas/ProductDataV2",
+            "description": "The product's details."
           },
           "brand_id": {
             "type": "string",
@@ -4337,7 +5089,6 @@
         "required": [
           "id",
           "version",
-          "revision",
           "schema_version",
           "data",
           "brand_id",
@@ -4349,7 +5100,8 @@
       "ProductCreate": {
         "properties": {
           "data": {
-            "$ref": "#/components/schemas/ProductDataV1"
+            "$ref": "#/components/schemas/ProductDataV2",
+            "description": "The product's details."
           },
           "brand_id": {
             "type": "string",
@@ -4366,23 +5118,43 @@
         ],
         "title": "ProductCreate"
       },
-      "ProductDataV1": {
+      "ProductDataV2": {
         "properties": {
           "name": {
             "type": "string",
             "maxLength": 200,
             "minLength": 1,
-            "title": "Name"
+            "title": "Name",
+            "description": "The product's name."
           },
-          "images": {
+          "attributes": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Attributes",
+            "description": "More about the product as JSON, given to the Script writer as context. IDs here are not references: they grant no access to what they name."
+          },
+          "image_asset_ids": {
             "items": {
               "type": "string",
               "format": "uuid"
             },
             "type": "array",
             "maxItems": 20,
-            "title": "Images",
-            "description": "Image asset ids.",
+            "title": "Image Asset Ids",
+            "description": "Pictures of the product. The first is the default a Storyboard shows for `{{product}}`; `{{product:<asset id>}}` picks another.",
+            "default": []
+          },
+          "video_asset_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "Video Asset Ids",
+            "description": "Videos of the product, which a Storyboard shot can name as `{{product:<asset id>}}`.",
             "default": []
           },
           "selling_points": {
@@ -4394,6 +5166,7 @@
             "type": "array",
             "maxItems": 20,
             "title": "Selling Points",
+            "description": "What to say about the product; Scripts cite them as facts.",
             "default": []
           },
           "target_audience": {
@@ -4406,7 +5179,8 @@
                 "type": "null"
               }
             ],
-            "title": "Target Audience"
+            "title": "Target Audience",
+            "description": "Who the ads are for."
           },
           "facts": {
             "items": {
@@ -4417,7 +5191,7 @@
             "type": "array",
             "maxItems": 20,
             "title": "Facts",
-            "description": "Other facts about the product.",
+            "description": "Other facts the Script writer may use.",
             "default": []
           },
           "constraints": {
@@ -4429,7 +5203,7 @@
             "type": "array",
             "maxItems": 20,
             "title": "Constraints",
-            "description": "Brand constraints on what ads may say.",
+            "description": "What ads may not say or show, as the brand requires.",
             "default": []
           }
         },
@@ -4438,7 +5212,129 @@
         "required": [
           "name"
         ],
-        "title": "ProductDataV1"
+        "title": "ProductDataV2",
+        "description": "A Product as writers read it. Its media fields are named like every other list of files\n(`image_asset_ids`, `video_asset_ids`); version 1 called them `images` and `videos`."
+      },
+      "ProductEdit": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version",
+            "description": "The version you read. If someone saved a newer one since, the edit is refused with 409 REVISION_CONFLICT: read the product again."
+          },
+          "data": {
+            "$ref": "#/components/schemas/ProductEditData",
+            "description": "Only the fields to change; the rest keep their values. A list is replaced as a whole: `[]` empties it, and `null` clears an optional value."
+          },
+          "brand_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand Id",
+            "description": "The Brand it belongs to (the Brand's id)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "title": "ProductEdit"
+      },
+      "ProductEditData": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "description": "The product's name."
+          },
+          "attributes": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Attributes",
+            "description": "More about the product as JSON, given to the Script writer as context. IDs here are not references: they grant no access to what they name."
+          },
+          "image_asset_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Image Asset Ids",
+            "description": "Pictures of the product. The first is the default a Storyboard shows for `{{product}}`; `{{product:<asset id>}}` picks another."
+          },
+          "video_asset_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "Video Asset Ids",
+            "description": "Videos of the product, which a Storyboard shot can name as `{{product:<asset id>}}`."
+          },
+          "selling_points": {
+            "items": {
+              "type": "string",
+              "maxLength": 500,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Selling Points",
+            "description": "What to say about the product; Scripts cite them as facts."
+          },
+          "target_audience": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Audience",
+            "description": "Who the ads are for."
+          },
+          "facts": {
+            "items": {
+              "type": "string",
+              "maxLength": 500,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Facts",
+            "description": "Other facts the Script writer may use."
+          },
+          "constraints": {
+            "items": {
+              "type": "string",
+              "maxLength": 500,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Constraints",
+            "description": "What ads may not say or show, as the brand requires."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ProductEditData"
       },
       "ProductPage": {
         "properties": {
@@ -4447,7 +5343,8 @@
               "$ref": "#/components/schemas/Product"
             },
             "type": "array",
-            "title": "Items"
+            "title": "Items",
+            "description": "The products on this page, each at its current version, newest first."
           },
           "next_cursor": {
             "anyOf": [
@@ -4469,39 +5366,13 @@
         ],
         "title": "ProductPage"
       },
-      "ProductUpdate": {
-        "properties": {
-          "version": {
-            "type": "integer",
-            "minimum": 1.0,
-            "title": "Version",
-            "description": "The version this edit is based on."
-          },
-          "data": {
-            "$ref": "#/components/schemas/ProductDataV1"
-          },
-          "brand_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Brand Id",
-            "description": "The Brand it belongs to (the Brand's id)."
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "version",
-          "data",
-          "brand_id"
-        ],
-        "title": "ProductUpdate"
-      },
       "Prompt": {
         "properties": {
           "kind": {
             "type": "string",
             "const": "prompt",
-            "title": "Kind"
+            "title": "Kind",
+            "description": "Always `prompt`."
           },
           "id": {
             "type": "string",
@@ -4530,87 +5401,12 @@
           },
           "schema_version": {
             "type": "integer",
-            "title": "Schema Version"
-          },
-          "data": {
-            "$ref": "#/components/schemas/PromptDataV1"
-          },
-          "batch_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Batch Id"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "assets": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/AssetOut"
-            },
-            "propertyNames": {
-              "format": "uuid"
-            },
-            "type": "object",
-            "title": "Assets",
-            "description": "The assets `data` refers to, with download URLs."
-          },
-          "entities": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/EntityRef"
-            },
-            "propertyNames": {
-              "format": "uuid"
-            },
-            "type": "object",
-            "title": "Entities",
-            "description": "The entity versions `data` refers to, by `revision`."
-          },
-          "skills": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/SkillRef"
-            },
-            "propertyNames": {
-              "format": "uuid"
-            },
-            "type": "object",
-            "title": "Skills",
-            "description": "The Skill versions `data` refers to, by version id."
-          }
-        },
-        "type": "object",
-        "required": [
-          "kind",
-          "id",
-          "lineage_id",
-          "base_id",
-          "schema_version",
-          "data",
-          "batch_id",
-          "created_at",
-          "assets",
-          "entities",
-          "skills"
-        ],
-        "title": "Prompt"
-      },
-      "PromptCreate": {
-        "properties": {
-          "schema_version": {
-            "type": "integer",
             "title": "Schema Version",
-            "description": "Only 1 is accepted."
+            "description": "The version of `data`'s format."
           },
           "data": {
-            "$ref": "#/components/schemas/PromptDataV1"
+            "$ref": "#/components/schemas/PromptReadV1",
+            "description": "The prompt's content."
           },
           "batch_id": {
             "anyOf": [
@@ -4623,16 +5419,60 @@
               }
             ],
             "title": "Batch Id",
-            "description": "The batch it is made in; one of the caller's."
+            "description": "The Batch it was made in; null when none."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "When this version was saved."
+          },
+          "relationships": {
+            "items": {
+              "$ref": "#/components/schemas/ArtifactRelationshipOut"
+            },
+            "type": "array",
+            "title": "Relationships",
+            "description": "Where it comes from, by type and then target id."
+          },
+          "assets": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/AssetOut"
+            },
+            "propertyNames": {
+              "format": "uuid"
+            },
+            "type": "object",
+            "title": "Assets",
+            "description": "The assets `data` or `relationships` refer to, with download URLs."
+          },
+          "skills": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SkillRef"
+            },
+            "propertyNames": {
+              "format": "uuid"
+            },
+            "type": "object",
+            "title": "Skills",
+            "description": "Skill versions in `data` or `relationships`, keyed by version id."
           }
         },
-        "additionalProperties": false,
         "type": "object",
         "required": [
+          "kind",
+          "id",
+          "lineage_id",
+          "base_id",
           "schema_version",
-          "data"
+          "data",
+          "batch_id",
+          "created_at",
+          "relationships",
+          "assets",
+          "skills"
         ],
-        "title": "PromptCreate"
+        "title": "Prompt"
       },
       "PromptDataV1": {
         "properties": {
@@ -4640,7 +5480,8 @@
             "type": "string",
             "maxLength": 10000,
             "minLength": 1,
-            "title": "Prompt"
+            "title": "Prompt",
+            "description": "What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other."
           },
           "image_asset_ids": {
             "items": {
@@ -4650,6 +5491,7 @@
             "type": "array",
             "maxItems": 9,
             "title": "Image Asset Ids",
+            "description": "Images the clip uses, as <Picture 1>, <Picture 2>, … in this order. A person or product looks like their picture only when it is attached here and named.",
             "default": []
           },
           "video_asset_ids": {
@@ -4660,6 +5502,7 @@
             "type": "array",
             "maxItems": 3,
             "title": "Video Asset Ids",
+            "description": "Videos the clip uses, as <Video 1>, … in order.",
             "default": []
           },
           "audio_asset_ids": {
@@ -4670,6 +5513,7 @@
             "type": "array",
             "maxItems": 3,
             "title": "Audio Asset Ids",
+            "description": "Audio the clip uses (a voice, music, sound), as <Audio 1>, … in order.",
             "default": []
           },
           "seconds": {
@@ -4683,7 +5527,8 @@
                 "type": "null"
               }
             ],
-            "title": "Seconds"
+            "title": "Seconds",
+            "description": "The clip's length. Omitted: 5 seconds."
           },
           "ratio": {
             "anyOf": [
@@ -4703,33 +5548,8 @@
                 "type": "null"
               }
             ],
-            "title": "Ratio"
-          },
-          "plan": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Plan",
-            "description": "The directing plan it comes from."
-          },
-          "clip_key": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^[A-Za-z0-9_-]{1,64}$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Clip Key",
-            "description": "Its spec in `plan`."
+            "title": "Ratio",
+            "description": "The frame. Omitted: 16:9. `adaptive` follows the first image or video."
           }
         },
         "additionalProperties": false,
@@ -4738,13 +5558,112 @@
           "prompt"
         ],
         "title": "PromptDataV1",
-        "description": "What POST /v1/videos takes to describe a clip; seed, resolution and callback belong to the\nJob. Each list's order numbers its references in the prompt: <Picture 1>, <Video 1>, ...\nThe total number of references a model takes is checked when the prompt is used.",
-        "x-based-on": "plan"
+        "description": "A saved Prompt: what the clip is rendered from, and which Characters and Storyboard clip\nit came from, which the Agent records. Seed, resolution and callback belong to the Job. The\ntotal number of references the model takes (12) is checked when the prompt is used."
+      },
+      "PromptReadV1": {
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Prompt",
+            "description": "What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other."
+          },
+          "image_asset_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 9,
+            "title": "Image Asset Ids",
+            "description": "Images the clip uses, as <Picture 1>, <Picture 2>, … in this order. A person or product looks like their picture only when it is attached here and named.",
+            "default": []
+          },
+          "video_asset_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "title": "Video Asset Ids",
+            "description": "Videos the clip uses, as <Video 1>, … in order.",
+            "default": []
+          },
+          "audio_asset_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "title": "Audio Asset Ids",
+            "description": "Audio the clip uses (a voice, music, sound), as <Audio 1>, … in order.",
+            "default": []
+          },
+          "seconds": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 15.0,
+                "minimum": 5.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seconds",
+            "description": "The clip's length. Omitted: 5 seconds."
+          },
+          "ratio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "adaptive",
+                  "21:9",
+                  "16:9",
+                  "4:3",
+                  "1:1",
+                  "3:4",
+                  "9:16"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ratio",
+            "description": "The frame. Omitted: 16:9. `adaptive` follows the first image or video."
+          },
+          "clip_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^C\\d{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clip Id",
+            "description": "For a Prompt compiled from a Storyboard: the clip it renders (`C01`, …)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "prompt"
+        ],
+        "title": "PromptReadV1",
+        "description": "A saved Prompt as it is read. Which Character versions it shows is the Agent's record."
       },
       "PromptVersionCreate": {
         "properties": {
           "data": {
-            "$ref": "#/components/schemas/PromptDataV1"
+            "$ref": "#/components/schemas/PromptDataV1",
+            "description": "The prompt's content."
           },
           "batch_id": {
             "anyOf": [
@@ -4767,13 +5686,122 @@
         ],
         "title": "PromptVersionCreate"
       },
+      "RawPromptDataV1": {
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Prompt",
+            "description": "What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other."
+          },
+          "image_asset_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 9,
+            "title": "Image Asset Ids",
+            "description": "Images the clip uses, as <Picture 1>, <Picture 2>, … in this order. A person or product looks like their picture only when it is attached here and named.",
+            "default": []
+          },
+          "video_asset_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "title": "Video Asset Ids",
+            "description": "Videos the clip uses, as <Video 1>, … in order.",
+            "default": []
+          },
+          "audio_asset_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "title": "Audio Asset Ids",
+            "description": "Audio the clip uses (a voice, music, sound), as <Audio 1>, … in order.",
+            "default": []
+          },
+          "seconds": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 15.0,
+                "minimum": 5.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seconds",
+            "description": "The clip's length. Omitted: 5 seconds."
+          },
+          "ratio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "adaptive",
+                  "21:9",
+                  "16:9",
+                  "4:3",
+                  "1:1",
+                  "3:4",
+                  "9:16"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ratio",
+            "description": "The frame. Omitted: 16:9. `adaptive` follows the first image or video."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "prompt"
+        ],
+        "title": "RawPromptDataV1",
+        "description": "What a raw render takes: the prompt text and the files it names, the length and the frame,\nwhich is all the video model sees."
+      },
+      "RawPromptInput": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "description": "The version of `data`'s format: 1."
+          },
+          "data": {
+            "$ref": "#/components/schemas/RawPromptDataV1",
+            "description": "What the clip is rendered from: the prompt text, the files it names, the length and the frame."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "schema_version",
+          "data"
+        ],
+        "title": "RawPromptInput"
+      },
       "RegisteredSkill": {
         "properties": {
           "skill": {
-            "$ref": "#/components/schemas/SkillOut"
+            "$ref": "#/components/schemas/SkillOut",
+            "description": "The Skill."
           },
           "version": {
-            "$ref": "#/components/schemas/SkillVersionOut"
+            "$ref": "#/components/schemas/SkillVersionOut",
+            "description": "The new version, or the latest one when its content was the same."
           }
         },
         "type": "object",
@@ -4783,12 +5811,145 @@
         ],
         "title": "RegisteredSkill"
       },
+      "ScopeOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "Nuva's id for the scope."
+          },
+          "external_id": {
+            "type": "string",
+            "title": "External Id",
+            "description": "Your id for the org or group, as in its path."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "org",
+              "group"
+            ],
+            "title": "Kind",
+            "description": "`org` or `group`."
+          },
+          "parent": {
+            "type": "string",
+            "title": "Parent",
+            "description": "The parent's external id, or `customer` for the root."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "Its display name; null when none was given."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "When the scope was first put."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "external_id",
+          "kind",
+          "parent",
+          "name",
+          "created_at"
+        ],
+        "title": "ScopeOut"
+      },
+      "ScopePage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ScopeOut"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "The orgs and groups on this page that aren't archived, newest first."
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "description": "Pass as `cursor` for the next page; null on the last page."
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "ScopePage"
+      },
+      "ScopeRequest": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "org",
+              "group"
+            ],
+            "title": "Kind",
+            "description": "`org` (under the customer) or `group` (under an org)."
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "A group's org, by its external id."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "A display name. Every PUT sets it, so leaving it out clears it."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "title": "ScopeRequest"
+      },
       "Script": {
         "properties": {
           "kind": {
             "type": "string",
             "const": "script",
-            "title": "Kind"
+            "title": "Kind",
+            "description": "Always `script`."
           },
           "id": {
             "type": "string",
@@ -4817,10 +5978,12 @@
           },
           "schema_version": {
             "type": "integer",
-            "title": "Schema Version"
+            "title": "Schema Version",
+            "description": "The version of `data`'s format."
           },
           "data": {
-            "$ref": "#/components/schemas/ScriptDataV1"
+            "$ref": "#/components/schemas/ScriptDataV1",
+            "description": "The script's content."
           },
           "batch_id": {
             "anyOf": [
@@ -4832,12 +5995,22 @@
                 "type": "null"
               }
             ],
-            "title": "Batch Id"
+            "title": "Batch Id",
+            "description": "The Batch it was made in; null when none."
           },
           "created_at": {
             "type": "string",
             "format": "date-time",
-            "title": "Created At"
+            "title": "Created At",
+            "description": "When this version was saved."
+          },
+          "relationships": {
+            "items": {
+              "$ref": "#/components/schemas/ArtifactRelationshipOut"
+            },
+            "type": "array",
+            "title": "Relationships",
+            "description": "Where it comes from, by type and then target id."
           },
           "assets": {
             "additionalProperties": {
@@ -4848,18 +6021,7 @@
             },
             "type": "object",
             "title": "Assets",
-            "description": "The assets `data` refers to, with download URLs."
-          },
-          "entities": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/EntityRef"
-            },
-            "propertyNames": {
-              "format": "uuid"
-            },
-            "type": "object",
-            "title": "Entities",
-            "description": "The entity versions `data` refers to, by `revision`."
+            "description": "The assets `data` or `relationships` refer to, with download URLs."
           },
           "skills": {
             "additionalProperties": {
@@ -4870,7 +6032,7 @@
             },
             "type": "object",
             "title": "Skills",
-            "description": "The Skill versions `data` refers to, by version id."
+            "description": "Skill versions in `data` or `relationships`, keyed by version id."
           }
         },
         "type": "object",
@@ -4883,78 +6045,20 @@
           "data",
           "batch_id",
           "created_at",
+          "relationships",
           "assets",
-          "entities",
           "skills"
         ],
         "title": "Script"
       },
-      "ScriptCreate": {
-        "properties": {
-          "schema_version": {
-            "type": "integer",
-            "title": "Schema Version",
-            "description": "Only 1 is accepted."
-          },
-          "data": {
-            "$ref": "#/components/schemas/ScriptDataV1"
-          },
-          "batch_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Batch Id",
-            "description": "The batch it is made in; one of the caller's."
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "schema_version",
-          "data"
-        ],
-        "title": "ScriptCreate"
-      },
       "ScriptDataV1": {
         "properties": {
-          "product": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Product",
-            "description": "The Product version written for: its `revision`."
-          },
           "text": {
             "type": "string",
             "maxLength": 65536,
             "minLength": 1,
             "title": "Text",
-            "description": "The script, in markdown."
-          },
-          "skill": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Skill",
-            "description": "The Skill version written with."
+            "description": "The Script, encoded by the SDK (`nuva.script`); read it as the SDK's `content`."
           }
         },
         "additionalProperties": false,
@@ -4964,42 +6068,96 @@
         ],
         "title": "ScriptDataV1"
       },
-      "ScriptVersionCreate": {
+      "ShareAccess": {
+        "type": "string",
+        "enum": [
+          "read",
+          "write"
+        ],
+        "title": "ShareAccess"
+      },
+      "ShareOut": {
         "properties": {
-          "data": {
-            "$ref": "#/components/schemas/ScriptDataV1"
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "description": "The item's kind, as in the path."
           },
-          "batch_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Batch Id",
-            "description": "The batch it is made in; one of the caller's."
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "The shared item: an asset's id, an entity's id, or an Artifact's first version's id. A share covers every version."
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope",
+            "description": "The scope it is shared with: `customer` or an external id."
+          },
+          "access": {
+            "$ref": "#/components/schemas/ShareAccess",
+            "description": "`read` (see and use) or `write` (also edit)."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "When the item was first shared with this scope."
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "id",
+          "scope",
+          "access",
+          "created_at"
+        ],
+        "title": "ShareOut"
+      },
+      "ShareRequest": {
+        "properties": {
+          "access": {
+            "$ref": "#/components/schemas/ShareAccess",
+            "description": "`read` (see and use) or `write` (also edit)."
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "data"
+          "access"
         ],
-        "title": "ScriptVersionCreate"
+        "title": "ShareRequest"
+      },
+      "SharesOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ShareOut"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "The item's shares with scopes that aren't archived, oldest first."
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "SharesOut"
       },
       "SkillDetail": {
         "properties": {
           "id": {
             "type": "string",
             "format": "uuid",
-            "title": "Id"
+            "title": "Id",
+            "description": "The Skill's id."
           },
           "name": {
             "type": "string",
-            "title": "Name"
+            "title": "Name",
+            "description": "Its name, as in PUT /v1/admin/skills/{name}."
           },
           "platform": {
             "type": "boolean",
@@ -5021,7 +6179,8 @@
           "created_at": {
             "type": "string",
             "format": "date-time",
-            "title": "Created At"
+            "title": "Created At",
+            "description": "When its first version was registered."
           },
           "main": {
             "anyOf": [
@@ -5031,7 +6190,8 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "The main version; null when none is set."
           }
         },
         "type": "object",
@@ -5049,19 +6209,23 @@
         "properties": {
           "path": {
             "type": "string",
-            "title": "Path"
+            "title": "Path",
+            "description": "The file's path in the Skill, e.g. `SKILL.md`."
           },
           "bytes": {
             "type": "integer",
-            "title": "Bytes"
+            "title": "Bytes",
+            "description": "Its size in bytes."
           },
           "sha256": {
             "type": "string",
-            "title": "Sha256"
+            "title": "Sha256",
+            "description": "The SHA-256 of its content, in hex."
           },
           "download_url": {
             "type": "string",
-            "title": "Download Url"
+            "title": "Download Url",
+            "description": "A temporary URL for its content, until `download_url_expires_at`."
           }
         },
         "type": "object",
@@ -5078,11 +6242,13 @@
           "id": {
             "type": "string",
             "format": "uuid",
-            "title": "Id"
+            "title": "Id",
+            "description": "The Skill's id."
           },
           "name": {
             "type": "string",
-            "title": "Name"
+            "title": "Name",
+            "description": "Its name, as in PUT /v1/admin/skills/{name}."
           },
           "platform": {
             "type": "boolean",
@@ -5104,7 +6270,8 @@
           "created_at": {
             "type": "string",
             "format": "date-time",
-            "title": "Created At"
+            "title": "Created At",
+            "description": "When its first version was registered."
           }
         },
         "type": "object",
@@ -5124,7 +6291,8 @@
               "$ref": "#/components/schemas/SkillOut"
             },
             "type": "array",
-            "title": "Items"
+            "title": "Items",
+            "description": "The Skills on this page, newest first."
           },
           "next_cursor": {
             "anyOf": [
@@ -5151,15 +6319,18 @@
           "skill_id": {
             "type": "string",
             "format": "uuid",
-            "title": "Skill Id"
+            "title": "Skill Id",
+            "description": "The Skill's id."
           },
           "name": {
             "type": "string",
-            "title": "Name"
+            "title": "Name",
+            "description": "The Skill's name."
           },
           "version": {
             "type": "integer",
-            "title": "Version"
+            "title": "Version",
+            "description": "The version's number."
           }
         },
         "type": "object",
@@ -5198,7 +6369,8 @@
                 "type": "null"
               }
             ],
-            "title": "Description"
+            "title": "Description",
+            "description": "What the Skill is for, kept with this version."
           },
           "note": {
             "anyOf": [
@@ -5244,7 +6416,8 @@
           "commit": {
             "type": "string",
             "pattern": "^[0-9a-f]{7,64}$",
-            "title": "Commit"
+            "title": "Commit",
+            "description": "The commit, in hex."
           },
           "path": {
             "anyOf": [
@@ -5279,11 +6452,13 @@
           "skill_id": {
             "type": "string",
             "format": "uuid",
-            "title": "Skill Id"
+            "title": "Skill Id",
+            "description": "The Skill it is a version of."
           },
           "version": {
             "type": "integer",
-            "title": "Version"
+            "title": "Version",
+            "description": "1 for the first version, then one more per new version."
           },
           "description": {
             "anyOf": [
@@ -5294,7 +6469,8 @@
                 "type": "null"
               }
             ],
-            "title": "Description"
+            "title": "Description",
+            "description": "The description registered with it."
           },
           "note": {
             "anyOf": [
@@ -5305,39 +6481,34 @@
                 "type": "null"
               }
             ],
-            "title": "Note"
-          },
-          "source": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/SkillSource"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "title": "Note",
+            "description": "What this version changes, as registered."
           },
           "attributes": {
             "additionalProperties": true,
             "type": "object",
-            "title": "Attributes"
+            "title": "Attributes",
+            "description": "The fields for the Agent's loader registered with it, as given."
           },
           "files": {
             "items": {
               "$ref": "#/components/schemas/SkillFile"
             },
             "type": "array",
-            "title": "Files"
+            "title": "Files",
+            "description": "Its files, by path, each with a download URL."
           },
           "download_url_expires_at": {
             "type": "string",
             "format": "date-time",
-            "title": "Download Url Expires At"
+            "title": "Download Url Expires At",
+            "description": "When the files' download URLs stop working: an hour after this response."
           },
           "created_at": {
             "type": "string",
             "format": "date-time",
-            "title": "Created At"
+            "title": "Created At",
+            "description": "When this version was registered."
           }
         },
         "type": "object",
@@ -5347,7 +6518,6 @@
           "version",
           "description",
           "note",
-          "source",
           "attributes",
           "files",
           "download_url_expires_at",
@@ -5355,40 +6525,130 @@
         ],
         "title": "SkillVersionOut"
       },
-      "Spec": {
+      "Storyboard": {
         "properties": {
-          "clip_key": {
+          "kind": {
             "type": "string",
-            "pattern": "^[A-Za-z0-9_-]{1,64}$",
-            "title": "Clip Key",
-            "description": "Lines the clip's prompt up with this spec."
+            "const": "storyboard",
+            "title": "Kind",
+            "description": "Always `storyboard`."
           },
-          "text": {
+          "id": {
             "type": "string",
-            "maxLength": 16000,
-            "minLength": 1,
-            "title": "Text",
-            "description": "Picture, shots and lines, in markdown."
+            "format": "uuid",
+            "title": "Id",
+            "description": "This version's id."
           },
-          "characters": {
+          "lineage_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Lineage Id",
+            "description": "The first version's id."
+          },
+          "base_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Id",
+            "description": "The version this one was edited from."
+          },
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version",
+            "description": "The version of `data`'s format."
+          },
+          "data": {
+            "$ref": "#/components/schemas/StoryboardDataV1",
+            "description": "The storyboard's content."
+          },
+          "batch_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Batch Id",
+            "description": "The Batch it was made in; null when none."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "When this version was saved."
+          },
+          "relationships": {
             "items": {
-              "type": "string",
-              "format": "uuid"
+              "$ref": "#/components/schemas/ArtifactRelationshipOut"
             },
             "type": "array",
-            "maxItems": 10,
-            "title": "Characters",
-            "description": "Character versions that appear: `revision`s.",
-            "default": []
+            "title": "Relationships",
+            "description": "Where it comes from, by type and then target id."
+          },
+          "assets": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/AssetOut"
+            },
+            "propertyNames": {
+              "format": "uuid"
+            },
+            "type": "object",
+            "title": "Assets",
+            "description": "The assets `data` or `relationships` refer to, with download URLs."
+          },
+          "skills": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SkillRef"
+            },
+            "propertyNames": {
+              "format": "uuid"
+            },
+            "type": "object",
+            "title": "Skills",
+            "description": "Skill versions in `data` or `relationships`, keyed by version id."
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "id",
+          "lineage_id",
+          "base_id",
+          "schema_version",
+          "data",
+          "batch_id",
+          "created_at",
+          "relationships",
+          "assets",
+          "skills"
+        ],
+        "title": "Storyboard"
+      },
+      "StoryboardDataV1": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 65536,
+            "minLength": 1,
+            "title": "Text",
+            "description": "How a Script is shot: casting, locations, timed shots and each clip's references, encoded by the SDK (`nuva.storyboard`). It is `based_on` its Script and the Characters it casts."
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "clip_key",
           "text"
         ],
-        "title": "Spec"
+        "title": "StoryboardDataV1"
       },
       "TokenRequest": {
         "properties": {
@@ -5418,6 +6678,7 @@
           "token_type": {
             "type": "string",
             "title": "Token Type",
+            "description": "Always `Bearer`.",
             "default": "Bearer"
           },
           "expires_at": {
@@ -5427,7 +6688,8 @@
             "description": "Request a new token before this time."
           },
           "user": {
-            "$ref": "#/components/schemas/TokenUser"
+            "$ref": "#/components/schemas/TokenUser",
+            "description": "The user the token is for."
           }
         },
         "type": "object",
@@ -5448,7 +6710,8 @@
           },
           "external_user_id": {
             "type": "string",
-            "title": "External User Id"
+            "title": "External User Id",
+            "description": "The user's id in your system, as you sent it."
           }
         },
         "type": "object",
@@ -5473,11 +6736,13 @@
           "expires_at": {
             "type": "string",
             "format": "date-time",
-            "title": "Expires At"
+            "title": "Expires At",
+            "description": "When `upload_url` and `upload_token` stop working: an hour after the request."
           },
           "max_bytes": {
             "type": "integer",
-            "title": "Max Bytes"
+            "title": "Max Bytes",
+            "description": "The largest file of this kind, in bytes; a larger one is refused when registered (413 ASSET_TOO_LARGE)."
           }
         },
         "type": "object",
@@ -5498,7 +6763,8 @@
               "video",
               "audio"
             ],
-            "title": "Kind"
+            "title": "Kind",
+            "description": "What you will upload: `image` (JPEG, PNG or WebP), `video` (MP4) or `audio` (MP3, WAV or MP4)."
           }
         },
         "additionalProperties": false,

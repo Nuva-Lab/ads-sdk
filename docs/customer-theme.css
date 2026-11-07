@@ -107,6 +107,13 @@ td code { font-size: 12px; }
 #session th:nth-child(3), #session td:nth-child(3) { width: 50%; }
 #session td:first-child code { white-space: nowrap; overflow-wrap: normal; word-break: normal; }
 #session td:nth-child(2) code { overflow-wrap: normal; word-break: normal; }
+/* Field reference: paths and types wrap only at their spaces, descriptions get the room. */
+.field-table table { min-width: 900px; }
+.field-table td:nth-child(1) code, .field-table td:nth-child(2) code { overflow-wrap: normal; word-break: normal; }
+.field-table td:nth-child(1) { max-width: 15rem; }
+.field-table th:nth-child(6), .field-table td:nth-child(6) { width: 36%; }
+.field-table td:nth-child(3), .field-table td:nth-child(4), .field-table td:nth-child(5) { font-size: 12px; }
+.table-caption { margin: 24px 0 -8px; }
 ul, ol { padding-left: 24px; }
 li { margin: 6px 0; }
 .page-toc { font-size: 12px; padding-top: 4px; }

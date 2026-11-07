@@ -133,13 +133,13 @@ export function subjectReferences(text: string, references: PromptReference[]) {
   return result;
 }
 export function jobSettings(
-  job: Pick<JobState, "checkpoint" | "seed" | "resolution" | "status">,
+  job: Pick<JobState, "seed" | "resolution" | "status" | "error_code">,
 ) {
   return [
-    ["Model", job.checkpoint ?? "Not recorded"],
     ["Resolution", job.resolution ?? "Default"],
     ["Seed", String(job.seed)],
     ["Status", job.status],
+    ...(job.error_code ? [["Error", job.error_code] as const] : []),
   ] as const;
 }
 function referenceLabel(label: string): UiLabel {
@@ -287,7 +287,7 @@ export function renderPromptViewer(container: HTMLElement, prompt: Prompt) {
     );
   }
   const generation = node("div", "", "generation-settings");
-  generation.append(setting("Model", msg("Not recorded")));
+  generation.append(node("span", msg("Not rendered yet"), "muted"));
   configuration.append(
     node("h4", msg("Generation settings"), "prompt-config-heading"),
     generation,
@@ -360,7 +360,7 @@ export function renderPromptViewer(container: HTMLElement, prompt: Prompt) {
       if (!viewer.isConnected) return;
       generation.replaceChildren();
       if (!jobs.length)
-        generation.append(setting("Model", msg("Not recorded")));
+        generation.append(node("span", msg("Not rendered yet"), "muted"));
       for (const [index, job] of jobs.entries()) {
         const row = node("div", "", "generation-config");
         if (jobs.length > 1)
@@ -376,7 +376,6 @@ export function renderPromptViewer(container: HTMLElement, prompt: Prompt) {
             setting(
               label,
               label === "Status" ||
-                (label === "Model" && job.checkpoint === null) ||
                 (label === "Resolution" && job.resolution === null)
                 ? msg(value)
                 : value,

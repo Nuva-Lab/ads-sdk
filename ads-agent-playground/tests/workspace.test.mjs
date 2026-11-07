@@ -17,32 +17,52 @@ for (const name of ["workspace", "resources"])
   });
 const {
   productFields,
-  productData,
+  productChanges,
+  newProductData,
   mergeResources,
   resourcesForSession,
   resourcesForTab,
 } = await import(pathToFileURL(join(directory, "workspace.mjs")));
 const { keyed } = await import(pathToFileURL(join(directory, "resources.mjs")));
-test("editing a product preserves its captured optional data and version base", () => {
+test("editing a product sends only the fields the form changed", () => {
   const product = {
     id: "p",
     version: 7,
-    revision: "revision-7",
     data: {
       name: "Original",
-      images: ["image"],
-      target_audience: null,
+      image_asset_ids: ["image"],
+      target_audience: "Commuters",
+      facts: ["350 ml"],
       attributes: { nested: { quantity: 0 } },
     },
   };
   const fields = productFields(product);
-  fields.name = "Edited";
-  assert.deepEqual(productData(product, fields), {
-    ...product.data,
+  assert.deepEqual(productChanges(product, fields), {}, "An untouched form changes nothing.");
+  fields.name = "  Edited ";
+  fields.target_audience = " ";
+  fields.facts = "350 ml\nDishwasher safe";
+  assert.deepEqual(productChanges(product, fields), {
     name: "Edited",
+    target_audience: null,
+    facts: ["350 ml", "Dishwasher safe"],
   });
   assert.equal(product.data.name, "Original");
-  assert.equal(Object.hasOwn(productData(product, fields), "facts"), false);
+  fields.name = " ";
+  assert.throws(() => productChanges(product, fields), /name is required/);
+});
+test("a new product sends every field, with no images yet", () => {
+  const fields = productFields();
+  fields.name = "Cup";
+  fields.selling_points = "Warm all day";
+  assert.deepEqual(newProductData(fields), {
+    name: "Cup",
+    image_asset_ids: [],
+    facts: [],
+    selling_points: ["Warm all day"],
+    constraints: [],
+    target_audience: null,
+    attributes: {},
+  });
 });
 test("resource navigation preserves other conversations and exact reference identities", () => {
   const record = {

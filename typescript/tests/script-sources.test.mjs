@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createNuva } from '../dist/index.js';
-import { encodeScriptPackage, decodeScript } from '../dist/schemas.js';
+import { encodeScriptPackage, decodeScript } from '../dist/internal.js';
 
 const content = JSON.parse(await readFile(new URL('./fixtures/script-v3.json', import.meta.url), 'utf8'));
 const legacy = JSON.parse(await readFile(new URL('./fixtures/script-response.json', import.meta.url), 'utf8'));
@@ -23,8 +23,8 @@ test('there is no scripts.create: a Script is written by the writer, and a versi
   const sdk = createNuva({ getAccessToken: async () => 'fixture', storeBaseUrl: 'https://backend.invalid' });
   try {
     assert.equal(sdk.scripts.create, undefined);
-    await assert.rejects(sdk.scripts.update({ kind: 'script', id }, { content: { schema_version: 2, clips: [] } }), e => e.code === 'INVALID_INPUT');
-    await assert.rejects(sdk.scripts.update({ kind: 'script', id }, { content: legacy }), e => e.code === 'INVALID_INPUT', 'v2 ScriptPackages are read-only.');
+    await assert.rejects(sdk.scripts.createFrom({ kind: 'script', id }, { schema_version: 2, clips: [] }), e => e.code === 'INVALID_INPUT');
+    await assert.rejects(sdk.scripts.createFrom({ kind: 'script', id }, legacy), e => e.code === 'INVALID_INPUT', 'v2 ScriptPackages are read-only.');
     assert.ok(requests.every(([method]) => method === 'GET'), 'Schema-invalid versions fail before any write');
   } finally { sdk.close(); globalThis.fetch = original; }
 });
@@ -42,12 +42,12 @@ test('a backend rejection of a new version is returned without a second write', 
   };
   const sdk = createNuva({ getAccessToken: async () => 'fixture', storeBaseUrl: 'https://backend.invalid' });
   try {
-    await assert.rejects(sdk.scripts.update({ kind: 'script', id }, { content }), e => e.code === 'FORBIDDEN');
+    await assert.rejects(sdk.scripts.createFrom({ kind: 'script', id }, content), e => e.code === 'FORBIDDEN');
     assert.equal(writes.length, 1);
   } finally { sdk.close(); globalThis.fetch = original; }
 });
 
-test('a v2 ScriptPackage Script reads as read-only legacy; the Agent refuses an update of it', async () => {
+test('a v2 ScriptPackage Script reads as read-only legacy; createFrom refuses it', async () => {
   const original = globalThis.fetch, requests = [];
   const saved = (data, extra = {}) => ({ kind: 'script', id, lineage_id: id, base_id: null, schema_version: 1, data, batch_id: null, relationships,
     assets: {}, entities: {}, skills: {}, created_at: '2026-10-26T12:00:00Z', ...extra });
@@ -63,13 +63,13 @@ test('a v2 ScriptPackage Script reads as read-only legacy; the Agent refuses an 
     assert.equal(read.format, 2);
     assert.deepEqual(read.legacy, legacy);
     assert.equal(read.content, undefined);
-    await assert.rejects(sdk.scripts.update({ kind: 'script', id }, { content }), (e) => e.code === 'REJECTED' && e.acceptance === 'not_accepted' && e.message.includes('read-only'));
-    assert.equal(requests[2][0], 'POST');
-    assert.ok(requests[2][1].endsWith('/v1/generate/script'), 'The edit goes through the Agent, which refuses a v2 base.');
+    // A v2 Script is read-only: createFrom refuses it before anything is sent.
+    await assert.rejects(sdk.scripts.createFrom({ kind: 'script', id }, content), (e) => e.code === 'INVALID_INPUT' && e.acceptance === 'not_accepted' && e.message.includes('read-only'));
+    assert.ok(requests.every(([method]) => method === 'GET'));
   } finally { sdk.close(); globalThis.fetch = original; }
 });
 
-test('asset is reserved: update refuses it, and a stored Script with that role cannot get a new version', async () => {
+test('asset is reserved: createFrom refuses it, and a stored Script with that role cannot get a new version', async () => {
   const original = globalThis.fetch, requests = [];
   const withAsset = structuredClone(content);
   const role = withAsset.roles[0].id;
@@ -88,10 +88,10 @@ test('asset is reserved: update refuses it, and a stored Script with that role c
   };
   const sdk = createNuva({ getAccessToken: async () => 'fixture', storeBaseUrl: 'https://backend.invalid' });
   try {
-    await assert.rejects(sdk.scripts.update({ kind: 'script', id }, { content: withAsset }), (e) => e.code === 'INVALID_INPUT' && e.acceptance === 'not_accepted' && e.message.includes('asset are reserved'));
+    await assert.rejects(sdk.scripts.createFrom({ kind: 'script', id }, withAsset), (e) => e.code === 'INVALID_INPUT' && e.acceptance === 'not_accepted' && e.message.includes('asset are reserved'));
     assert.deepEqual(requests, ['GET']);
     stored = withAsset;
-    await assert.rejects(sdk.scripts.update({ kind: 'script', id }, { content }), (e) => e.code === 'INVALID_INPUT' && e.message.includes('generate a new Script'));
+    await assert.rejects(sdk.scripts.createFrom({ kind: 'script', id }, content), (e) => e.code === 'INVALID_INPUT' && e.message.includes('generate a new Script'));
     const read = await sdk.scripts.get({ kind: 'script', id });
     assert.equal(read.content.roles[0].id, 'asset');
     assert.ok(!requests.includes('POST'));

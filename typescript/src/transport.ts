@@ -8,8 +8,26 @@ import type { NuvaClientOptions, NuvaErrorInfo } from './types.js';
 import { dataRequest } from './data-routes.js';
 import { backendSchema } from './backend-schema.js';
 
+/** The API version this SDK is written for; every HTTP call sends it (Nuva-Api-Version). */
+export const API_VERSION = '2026-11-07';
+/** Writes the backend can make safe to retry with an Idempotency-Key. */
+const keyed = new Set([
+	'scripts.generate',
+	'storyboards.generate',
+	'prompts.generate',
+	'prompts.createFrom',
+	'videos.generate',
+	'assets.register',
+	'products.create',
+	'products.update',
+	'brands.create',
+	'brands.update',
+	'characters.create',
+	'characters.update',
+]);
 const writes = new Set([
-	'artifacts.update',
+	'prompts.createFrom',
+	'jobs.cancel',
 	'assets.register',
 	'assets.uploadIntent',
 	'ads.create',
@@ -288,16 +306,12 @@ export class Transport {
 		authRetried = false,
 	): Promise<T> {
 		this.assertOpen();
-		if (
-			idempotencyKey !== undefined &&
-			(!['scripts.generate', 'storyboards.generate', 'prompts.generate', 'videos.generate', 'artifacts.update'].includes(
-				method,
-			) ||
-				!/^[\x21-\x7e]{1,200}$/.test(idempotencyKey))
-		)
+		if (idempotencyKey !== undefined && (!keyed.has(method) || !/^[\x21-\x7e]{1,200}$/.test(idempotencyKey)))
 			throw new NuvaError({
 				code: 'INVALID_INPUT',
-				message: 'An operation key must contain 1–200 visible ASCII characters.',
+				message: keyed.has(method)
+					? 'An idempotency key is 1–200 visible ASCII characters.'
+					: `${method} takes no idempotency key.`,
 				retryable: false,
 				acceptance: 'not_accepted',
 			});
@@ -356,6 +370,7 @@ export class Transport {
 					Authorization: 'Bearer ' + token,
 					'Content-Type': 'application/json',
 					'X-Request-ID': id,
+					'Nuva-Api-Version': API_VERSION,
 					...(idempotencyKey === undefined ? {} : { 'Idempotency-Key': idempotencyKey }),
 				},
 				...(body === undefined ? {} : { body }),

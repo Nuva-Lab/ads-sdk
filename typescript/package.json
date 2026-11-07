@@ -25,6 +25,10 @@
     "./internal": {
       "types": "./dist/internal.d.ts",
       "import": "./dist/internal.js"
+    },
+    "./internal-backend": {
+      "types": "./dist/internal-backend.d.ts",
+      "import": "./dist/internal-backend.js"
     }
   },
   "sideEffects": false,
