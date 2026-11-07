@@ -33,7 +33,7 @@ def build_customer():
             (DEST / filename(key, locale)).write_text(page(key, guides[key], locale))
     shutil.copyfile(DEST / 'frontend.html', DEST / 'index.html')
     (DEST / 'README.txt').write_text(
-        'Ads SDK 0.1.0-preview.4\n\n'
+        'Ads SDK 0.1.0-preview.5\n\n'
         'Open index.html or frontend.html to start. Use the header language selector for English.\n'
         '从 index.html 或 frontend.html 开始，使用页首语言选项切换中文和英文。\n\n'
         'Getting started; Agent conversations; resources; generation; backend setup; methods and errors; upgrading to preview.5.\n'
