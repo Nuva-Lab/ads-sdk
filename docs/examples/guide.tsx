@@ -289,7 +289,7 @@ function Conversation({
         ))}
       <MessageInput
         agent={agent}
-        busy={state.status !== "idle" || Boolean(error) || refreshing}
+        busy={state.status === "loading" || state.status === "error" || Boolean(error) || refreshing}
       />
     </>
   );
