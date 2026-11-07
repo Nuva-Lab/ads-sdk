@@ -170,6 +170,10 @@ func (c *connection) request(ctx context.Context, method, path string, query url
 		}
 		return &APIError{Code: c.scrub(wire.Error.Code), Message: c.scrub(wire.Error.Message), Retryable: *wire.Error.Retryable, RequestID: c.scrub(wire.RequestID), Details: details, StatusCode: response.StatusCode, Acceptance: acceptance}
 	}
+	if output == nil {
+		// A route that answers with no content (204), such as a delete.
+		return nil
+	}
 	var fields map[string]json.RawMessage
 	if json.Unmarshal(raw, &fields) != nil {
 		return malformed(acceptance)

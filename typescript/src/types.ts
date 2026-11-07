@@ -104,7 +104,11 @@ export type AgentResult = AgentHandle & AgentReadState;
 export interface SessionsClient {
 	create(input: { title: string }): Promise<Session>;
 	get(sessionId: string): Promise<Session>;
-	list(query?: PaginationQuery): Promise<Page<Session>>;
+	/**
+	 * Your own Sessions. With `owner` (a user's ID, as in `session.owner.userId`), an admin lists the Sessions of a user
+	 * below them instead. For anyone else the page is empty.
+	 */
+	list(query?: PaginationQuery & { owner?: string }): Promise<Page<Session>>;
 	getMessage(ref: MessageRef): Promise<MessageView>;
 	/** Read saved history without opening a live Agent handle. */
 	history(sessionId: string, query?: PaginationQuery): Promise<Page<MessageView>>;

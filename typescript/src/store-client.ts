@@ -21,6 +21,7 @@ import type {
 	Storyboard,
 	Prompt,
 	ResultOptions,
+	ShareTarget,
 } from './stores.js';
 const kinds = { script: 'Script', storyboard: 'Storyboard', directing_plan: 'DirectingPlan', prompt: 'Prompt' } as const;
 function checked<T>(schema: { parse(v: unknown): T }, value: unknown, input = false): T {
@@ -318,8 +319,25 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 		return { data: { text: checked({ parse: encodeScript }, content, true) }, ...(batch_id === undefined ? {} : { batch_id }) };
 	};
 	const prompts = artifacts.forSchema(PromptSchema);
+	const shareFor = (item: ShareTarget) =>
+		z
+			.object({ kind: z.literal(item.kind), id: z.literal(item.id), scope: z.string().min(1), access: z.enum(['read', 'write']), created_at: z.string() })
+			.loose();
+	const noContent = {
+		parse: (v: unknown) => {
+			if (v !== undefined) throw new TypeError('A delete returns no content.');
+			return undefined;
+		},
+	};
 	const api: StoreClients = {
 		artifacts,
+		shares: {
+			list: async (item) => [...(await request('shares.list', { item }, z.object({ items: z.array(shareFor(item)) }).loose())).items],
+			set: (item, scope, access, options) => request('shares.set', { item, scope, access }, shareFor(item), options?.requestId),
+			remove: async (item, scope, options) => {
+				await request('shares.remove', { item, scope }, noContent, options?.requestId);
+			},
+		},
 		products: {
 			...(profiles('Product') as Omit<StoreClients['products'], 'uploadImage' | 'delete'>),
 			delete: async (id, options) => {

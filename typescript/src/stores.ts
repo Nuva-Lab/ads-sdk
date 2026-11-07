@@ -132,6 +132,35 @@ export type VideoCommandOptions = StoreCommandOptions;
 export type RawPromptInput = Omit<B['RawPromptInput'], 'relationships'> & { relationships?: never };
 /** A saved Prompt ID or raw input. Without `batch_id` (or with `batch_id: null`, which means the same) a saved Prompt's Job joins the Prompt's Batch; raw input has none. */
 export type GenerateVideoInput = Omit<B['GenerateVideo'], 'prompt' | 'input'> & ({ prompt: string; input?: null } | { input: RawPromptInput; prompt?: null });
+/** The kinds of item a share can be given for. Batches, Jobs and Ads are never shared. */
+export type ShareableKind = 'brand' | 'product' | 'character' | 'asset' | 'script' | 'storyboard' | 'directing_plan' | 'prompt';
+export interface ShareTarget {
+	readonly kind: ShareableKind;
+	readonly id: string;
+}
+/** `read` lets everyone at or below the scope see the item and use it; `write` also lets them edit it. */
+export type ShareAccess = 'read' | 'write';
+export interface Share {
+	readonly kind: ShareableKind;
+	readonly id: string;
+	/** `customer` (everyone in the organization) or the external ID of an org or group. */
+	readonly scope: string;
+	readonly access: ShareAccess;
+	readonly created_at: string;
+}
+/**
+ * An item is private to the user who made it, and to the admins above them, until it is shared with a scope. Only an
+ * admin of the scope (or above it) shares into it, for items they own or administer. A share never allows deleting the
+ * item or sharing it on.
+ */
+export interface SharesClient {
+	/** The item's shares. */
+	list(item: ShareTarget): Promise<Share[]>;
+	/** Shares the item with everyone at or below `scope`. A repeat changes the access. */
+	set(item: ShareTarget, scope: string, access: ShareAccess, options?: CommandOptions): Promise<Share>;
+	/** Removes the item's share with `scope`; it succeeds when there was none. Those it reached get `NOT_FOUND` again. */
+	remove(item: ShareTarget, scope: string, options?: CommandOptions): Promise<void>;
+}
 export interface StoreClients {
 	readonly artifacts: ArtifactsClient;
 	readonly assets: AssetsClient;
@@ -154,6 +183,7 @@ export interface StoreClients {
 		get(id: string): Promise<Batch>;
 		list(query?: StoreQuery): Promise<BackendPage<B['BatchSummary']>>;
 	};
+	readonly shares: SharesClient;
 	readonly skills: {
 		get(id: string): Promise<Skill>;
 		list(query?: StoreQuery): Promise<BackendPage<B['SkillOut']>>;

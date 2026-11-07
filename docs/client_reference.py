@@ -312,6 +312,7 @@ def guide_pages(locale='zh'):
                 ['<code>createNuva({getAccessToken})</code>', t('Create a user-scoped client.', '创建以用户为范围的客户端。')],
                 ['<code>client.sessions.create({title})</code>', t('Create a Session.', '创建 Session。')],
                 ['<code>client.sessions.get(id) / list({limit, cursor})</code>', t('Read accessible Sessions.', '读取有权访问的 Session。')],
+                ['<code>client.sessions.list({owner})</code>', t('An admin lists the Sessions of a user below them (<code>owner</code> is <code>session.owner.userId</code>). For anyone else the page is empty.', '管理员列出其下级用户的 Session（<code>owner</code> 即 <code>session.owner.userId</code>）。其他人得到空列表。')],
                 ['<code>client.sessions.history(id, {limit, cursor})</code>', t('Read saved messages without opening a live handle.', '读取已保存消息，无需打开实时 handle。')],
                 ['<code>client.agent({sessionId})</code>', t('Bind chat operations to one Session.', '将对话操作绑定到一个 Session。')],
                 ['<code>client.close()</code>', t('Release local connections on logout or account change.', '退出或切换账号时释放本地连接。')],
@@ -340,6 +341,7 @@ def guide_pages(locale='zh'):
                 ['<code>jobs</code>', '<code>get / subscribe</code>'],
                 ['<code>ads / batches</code>', '<code>get / list</code>'],
                 ['<code>skills</code>', '<code>get / list / version</code>'],
+                ['<code>shares</code>', t('<code>list(item) / set(item, scope, access) / remove(item, scope)</code>: share a Brand, Product, Character, Asset or Artifact with everyone at or below a scope, for <code>read</code> or <code>write</code>. Only an admin of the scope or above shares into it.', '<code>list(item) / set(item, scope, access) / remove(item, scope)</code>：将品牌、产品、角色、Asset 或产物共享给某范围内（含下级）的所有人，权限为 <code>read</code> 或 <code>write</code>。只有该范围或上级范围的管理员可以共享。')],
             ])
             + p('Use the input and output types shipped with each method. IDs identify resources; a resource\'s <code>label</code> is for display only. An Asset\'s <code>label</code> is what its uploader said it shows, or null. Profile updates use an existing <code>base</code>, while Artifact updates create a new resource version.',
                 '按各方法提供的输入输出类型调用。资源以 ID 标识，资源的 <code>label</code> 仅用于展示。Asset 的 <code>label</code> 是上传者对文件内容的说明，可能为 null。实体更新使用现有 <code>base</code>；产物更新会创建新版本。')),
