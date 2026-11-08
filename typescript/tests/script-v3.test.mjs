@@ -54,7 +54,7 @@ function script() {
 function storyboard() {
 	return {
 		script: uuid(900),
-		cast: { presenter: { character: presenter.id, voice: 'character' } },
+		cast: { presenter: { character: presenter.id, own_voice: true } },
 		direction: '浅灰墙面的护肤展示台，柔和顶光。',
 		clips: [1, 2, 3].map((n) => ({
 			id: `C0${n}`,
@@ -283,7 +283,7 @@ test('a stored Script with a role called asset still reads, and its Storyboard k
 	const content = decodeScript(encodeScript(scriptSchema.parse(stored)));
 	assert.equal(content.roles[0].id, 'asset');
 	const board = storyboard();
-	board.cast = { asset: { character: presenter.id, voice: 'character' } };
+	board.cast = { asset: { character: presenter.id, own_voice: true } };
 	board.clips = board.clips.map((clip, i) => ({ ...clip, shots: [`中景。{{asset}}拿着{{product}}说{{L0${i + 1}}}。`] }));
 	board.clips[1].shots = [`特写。{{asset:${presenter.media[1]}}}拿着{{product}}说{{L02}}。`];
 	const roleContext = { ...context(content), assets: {} };
@@ -318,15 +318,18 @@ test('per clip: at most 9 images, 3 videos, 3 audio files and 12 references in a
 	assert.ok(storyboardIssues(value, limited).some((message) => message.startsWith('C01') && message.includes('at least one image or video')));
 });
 
-test('casting: every role once, a Character or a look, a voice for speakers, and "character" only with a voice file', () => {
+test('casting: every role once, a Character or a look, a voice for speakers, and own_voice only with a voice file', () => {
 	const both = storyboard();
-	both.cast.presenter = { character: presenter.id, look: '短发', voice: 'character' };
+	both.cast.presenter = { character: presenter.id, look: '短发', own_voice: true };
 	assert.ok(storyboardIssues(both, context()).some((message) => message.includes('either a Character or a look')));
 	const silentVoice = storyboard();
-	silentVoice.cast.presenter = { look: '约30岁女性，齐肩黑发', voice: 'character' };
-	assert.ok(storyboardIssues(silentVoice, context()).some((message) => message.includes('"character" voice needs a cast Character')));
+	silentVoice.cast.presenter = { look: '约30岁女性，齐肩黑发', own_voice: true };
+	assert.ok(storyboardIssues(silentVoice, context()).some((message) => message.includes('own_voice needs a cast Character')));
 	const noVoiceFile = { ...context(), characters: { [presenter.id]: { ...presenter, voice: null } } };
 	assert.ok(storyboardIssues(storyboard(), noVoiceFile).some((message) => message.includes('has no voice file')));
+	const twice = storyboard();
+	twice.cast.presenter = { character: presenter.id, voice: '温和的女声', own_voice: true };
+	assert.ok(storyboardIssues(twice, context()).some((message) => message.includes('not both')));
 	const narrated = script();
 	narrated.panels[2].lines[0] = { id: 'L03', speaker: 'narrator', mode: 'voiceover', text: '双11官旗入手。' };
 	const issues = storyboardIssues(storyboard(), context(narrated));
@@ -395,7 +398,7 @@ test('eval case 1 (three people, a product, a voiceover) fits: Characters with a
 	const board = {
 		script: uuid(901),
 		cast: {
-			presenter: { character: presenter.id, voice: 'character' },
+			presenter: { character: presenter.id, own_voice: true },
 			host: { character: host.id, voice: '年轻女声，音色偏高亢响亮，普通话' },
 			cohost: { look: '二十多岁男性，短黑发，白色T恤', voice: '年轻男声，音色清朗，普通话' },
 		},
@@ -430,4 +433,9 @@ test('Scripts and Storyboards round-trip through their stored text; v2 packages 
 	assert.throws(() => decodeScript(JSON.stringify({ format: 'nuva.storyboard', version: 1, content: stored })), /invalid Script/);
 	assert.equal(scriptVersion('{"format":"nuva.script-package","version":2,"content":{}}'), 2);
 	assert.equal(typeof encodeScriptPackage, 'function', 'The v2 reader and writer stay for legacy Scripts.');
+});
+
+test('a Storyboard saved before own_voice reads its voice: "character" as own_voice', () => {
+	const stored = JSON.stringify({ format: 'nuva.storyboard', version: 1, content: { ...storyboard(), cast: { presenter: { character: presenter.id, voice: 'character' } } } });
+	assert.deepEqual(decodeStoryboard(stored).cast.presenter, { character: presenter.id, own_voice: true });
 });

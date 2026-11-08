@@ -3,7 +3,6 @@
  * edits the editor makes. No DOM here; the views live in storyboard.ts.
  */
 import {
-  CHARACTER_VOICE,
   LINE_ID,
   MAX_CLIPS,
   MAX_CLIP_MS,
@@ -301,8 +300,8 @@ export function castChoice(entry: CastEntry | undefined): CastChoice {
   return {
     ...(entry?.character === undefined ? {} : { character: entry.character }),
     look: entry?.look ?? "",
-    characterVoice: entry?.voice === CHARACTER_VOICE,
-    voice: entry?.voice === undefined || entry.voice === CHARACTER_VOICE ? "" : entry.voice,
+    characterVoice: entry?.own_voice === true,
+    voice: entry?.voice ?? "",
   };
 }
 /**
@@ -318,7 +317,7 @@ export function castEntry(
   else if (!role.narrator && choice.look.trim()) entry.look = choice.look.trim();
   if (role.speaks) {
     if (choice.characterVoice && choice.character !== undefined && role.characterHasVoice)
-      entry.voice = CHARACTER_VOICE;
+      entry.own_voice = true;
     else if (choice.voice.trim()) entry.voice = choice.voice.trim();
   }
   return entry;

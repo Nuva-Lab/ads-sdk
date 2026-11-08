@@ -27,6 +27,11 @@ export const ids = {
 	batch: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b16',
 	skill: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b17',
 	skillVersion: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b18',
+	character2: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b19',
+	character2Image: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b1a',
+	productVideo: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b1b',
+	prompt2: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b1c',
+	compiler: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b1d',
 } as const;
 
 const at = (time: string) => `2026-11-07T${time}Z`;
@@ -63,6 +68,25 @@ const voice: B['AssetOut'] = {
 	label: '林夏的声音',
 	description: null,
 	download_url: media(ids.voice, 'mp3'),
+};
+const character2Image: B['AssetOut'] = {
+	...productImage,
+	id: ids.character2Image,
+	size_bytes: 175002,
+	label: '周然半身照',
+	description: null,
+	download_url: media(ids.character2Image, 'jpg'),
+};
+const productVideo: B['AssetOut'] = {
+	...productImage,
+	id: ids.productVideo,
+	kind: 'video',
+	mime: 'video/mp4',
+	size_bytes: 4820113,
+	metadata: { duration_ms: 6000, width: 1080, height: 1920 },
+	label: '开盖冒热气',
+	description: '单手按开杯盖，热气上升的慢镜头',
+	download_url: media(ids.productVideo, 'mp4'),
 };
 const clip = (id: string, duration_ms: number): B['AssetOut'] => ({
 	...productImage,
@@ -101,8 +125,14 @@ const product: B['Product'] = {
 const productV2: B['Product'] = {
 	...product,
 	version: 2,
-	data: { ...product.data, selling_points: ['12 小时保温', '单手开盖', '放得进车载杯架', '杯盖可拆洗'] },
+	data: {
+		...product.data,
+		description: '450ml 不锈钢保温杯，单手开盖，适合通勤路上喝热咖啡。',
+		video_asset_ids: [ids.productVideo],
+		selling_points: ['12 小时保温', '单手开盖', '放得进车载杯架', '杯盖可拆洗'],
+	},
 	created_at: at('02:20:12'),
+	assets: { [ids.productImage]: productImage, [ids.productVideo]: productVideo },
 };
 const character: B['Character'] = {
 	id: ids.character,
@@ -111,6 +141,15 @@ const character: B['Character'] = {
 	data: { name: '林夏', description: '28 岁，坐地铁通勤的设计师', image_asset_ids: [ids.characterImage], voice_asset_id: ids.voice },
 	created_at: at('02:18:44'),
 	assets: { [ids.characterImage]: characterImage, [ids.voice]: voice },
+};
+// A Character with no voice recording: a Storyboard describes its voice instead.
+const character2: B['Character'] = {
+	id: ids.character2,
+	version: 1,
+	schema_version: 1,
+	data: { name: '周然', description: '30 岁左右的同事，爱开玩笑', image_asset_ids: [ids.character2Image], voice_asset_id: null },
+	created_at: at('02:19:20'),
+	assets: { [ids.character2Image]: character2Image },
 };
 
 const scriptContent: ScriptContent = {
@@ -127,15 +166,20 @@ const scriptContent: ScriptContent = {
 	duration_ms: 15000,
 	beats: [
 		{ id: 'B01', purpose: '出门前装满一杯热咖啡', fact_ids: ['fact_product_name'] },
-		{ id: 'B02', purpose: '到工位打开还冒热气，记住 12 小时保温', fact_ids: ['fact_product_selling_points'] },
+		{ id: 'B02', purpose: '同事不信还热，她当场打开，记住 12 小时保温', fact_ids: ['fact_product_selling_points'] },
+		{ id: 'B03', purpose: '旁白收尾，报出产品名', fact_ids: ['fact_product_name'] },
 	],
-	roles: [{ id: 'commuter', name: '通勤者', description: '二十多岁的上班族，独自坐地铁通勤', speaks: true }],
+	roles: [
+		{ id: 'commuter', name: '通勤者', description: '二十多岁的上班族，独自坐地铁通勤', speaks: true },
+		{ id: 'colleague', name: '同事', description: '爱开玩笑的同事，不信咖啡还热', speaks: true },
+		{ id: 'barista', name: '店员', description: '楼下咖啡店的店员，只出镜不说话', speaks: false },
+	],
 	panels: [
 		{
 			id: 'P01',
 			beat_id: 'B01',
-			on_screen: ['commuter', 'product'],
-			action: '她在门口把热咖啡倒进杯子，拧紧杯盖，边说边出门。',
+			on_screen: ['barista', 'commuter', 'product'],
+			action: '店员把一杯热咖啡递给她，她倒进杯子，拧紧杯盖，边说边出门。',
 			fact_ids: ['fact_product_name'],
 			lines: [{ id: 'L01', speaker: 'commuter', mode: 'on_camera', text: '七点出门，先灌满一杯。' }],
 			notes: '',
@@ -143,11 +187,23 @@ const scriptContent: ScriptContent = {
 		{
 			id: 'P02',
 			beat_id: 'B02',
-			on_screen: ['commuter', 'product'],
-			action: '到工位后她单手打开杯盖，热气冒出来，她对镜头举杯。',
+			on_screen: ['commuter', 'colleague', 'product'],
+			action: '同事凑过来问，她单手打开杯盖，热气冒出来。',
 			fact_ids: ['fact_product_selling_points'],
-			lines: [{ id: 'L02', speaker: 'commuter', mode: 'on_camera', text: '到公司还是烫的，12 小时保温。' }],
+			lines: [
+				{ id: 'L02', speaker: 'colleague', mode: 'dialogue', text: '都十点了，还能是热的？' },
+				{ id: 'L03', speaker: 'commuter', mode: 'dialogue', text: '你摸摸，12 小时保温。' },
+			],
 			notes: '屏幕文字：12 小时保温',
+		},
+		{
+			id: 'P03',
+			beat_id: 'B03',
+			on_screen: ['product'],
+			action: '杯子放在工位上，杯盖打开，热气慢慢上升。',
+			fact_ids: ['fact_product_name'],
+			lines: [{ id: 'L04', speaker: 'narrator', mode: 'voiceover', text: '暖山随行保温杯，到公司还是烫的。' }],
+			notes: '',
 		},
 	],
 	facts: [
@@ -158,6 +214,7 @@ const scriptContent: ScriptContent = {
 	instruction: '口语化，突出 12 小时保温。',
 };
 const skill: B['MadeWithSkill'] = { id: ids.skill, name: 'ad-script-writing', version: 3 };
+const compiler: B['MadeWithSkill'] = { id: ids.compiler, name: 'video-prompts', version: 2 };
 const script: B['Script'] = {
 	kind: 'script',
 	id: ids.script,
@@ -173,26 +230,44 @@ const script: B['Script'] = {
 };
 const revisedContent: ScriptContent = {
 	...scriptContent,
-	panels: [
-		{ ...scriptContent.panels[0]!, lines: [{ id: 'L01', speaker: 'commuter', mode: 'on_camera', text: '12 小时保温，我七点就灌满了。' }] },
-		scriptContent.panels[1]!,
-	],
+	panels: scriptContent.panels.map((panel) =>
+		panel.id === 'P01' ? { ...panel, lines: [{ id: 'L01', speaker: 'commuter', mode: 'on_camera', text: '12 小时保温，我七点就灌满了。' }] } : panel,
+	),
 	instruction: '开场第一句就说保温时长。',
 };
 const scriptRevised: B['Script'] = { ...script, id: ids.scriptRevised, base_id: ids.script, data: { text: encodeScript(revisedContent) }, created_at: at('02:31:47') };
 const editedContent: ScriptContent = {
 	...scriptContent,
-	panels: [{ ...scriptContent.panels[0]!, notes: '屏幕文字：7:00 出门' }, scriptContent.panels[1]!],
+	panels: scriptContent.panels.map((panel) => (panel.id === 'P01' ? { ...panel, notes: '屏幕文字：7:00 出门' } : panel)),
 };
 const scriptEdited: B['Script'] = { ...script, id: ids.scriptEdited, base_id: ids.script, data: { text: encodeScript(editedContent) }, created_at: at('02:33:10') };
 
 const storyboardContent: StoryboardContent = {
 	script: ids.script,
-	cast: { commuter: { character: ids.character, voice: 'character' } },
+	cast: {
+		// A Character speaking with its own recording.
+		commuter: { character: ids.character, own_voice: true },
+		// A Character without a recording: its voice is described.
+		colleague: { character: ids.character2, voice: '三十岁左右的男声，语速快，带点调侃' },
+		// No Character: the writer describes the person, who looks the same in every clip.
+		barista: { look: '戴黑色围裙的年轻店员，短发，笑容温和' },
+		narrator: { voice: '温和的女声旁白，语速平稳' },
+	},
 	direction: '手机自拍感，清晨自然光，保留环境声，不加音乐。',
 	clips: [
-		{ id: 'C01', duration_ms: 8000, shots: ['中景：{{commuter}} 在门口把咖啡倒进 {{product}}，拧紧杯盖，说 {{L01}}'] },
-		{ id: 'C02', duration_ms: 7000, shots: ['近景：{{commuter}} 在工位单手打开 {{product}}，热气冒出，她举杯说 {{L02}}'] },
+		{
+			id: 'C01',
+			duration_ms: 8000,
+			shots: ['特写：{{barista}} 把一杯热咖啡递给 {{commuter}}', '中景：{{commuter}} 把咖啡倒进 {{product}}，拧紧杯盖，说 {{L01}}'],
+		},
+		{
+			id: 'C02',
+			duration_ms: 7000,
+			shots: [
+				'中景：工位旁 {{colleague}} 看着 {{product}} 问 {{L02}}，{{commuter}} 举杯回答 {{L03}}',
+				`特写：{{product:${ids.productVideo}}} 杯盖打开冒出热气，旁白 {{L04}}`,
+			],
+		},
 	],
 };
 const storyboard: B['Storyboard'] = {
@@ -206,9 +281,18 @@ const storyboard: B['Storyboard'] = {
 	created_at: at('02:40:22'),
 	script: { id: ids.script },
 	product: { id: ids.product, version: 2 },
-	characters: [{ id: ids.character, version: 1 }],
+	characters: [
+		{ id: ids.character, version: 1 },
+		{ id: ids.character2, version: 1 },
+	],
 	skill,
-	assets: { [ids.productImage]: productImage, [ids.characterImage]: characterImage, [ids.voice]: voice },
+	assets: {
+		[ids.productImage]: productImage,
+		[ids.productVideo]: productVideo,
+		[ids.characterImage]: characterImage,
+		[ids.character2Image]: character2Image,
+		[ids.voice]: voice,
+	},
 };
 const storyboardRevised: B['Storyboard'] = {
 	...storyboard,
@@ -243,8 +327,31 @@ const prompt: B['Prompt'] = {
 	batch_id: ids.batch,
 	created_at: at('02:52:18'),
 	storyboard: { id: ids.storyboard },
-	skill: null,
+	skill: compiler,
 	assets: { [ids.characterImage]: characterImage, [ids.productImage]: productImage, [ids.voice]: voice },
+};
+// Clip C02: an image per person and the Product, the Product's video, and the commuter's own voice.
+const prompt2: B['Prompt'] = {
+	...prompt,
+	id: ids.prompt2,
+	lineage_id: ids.prompt2,
+	data: {
+		prompt: '<Subject 1> 是 <Picture 1> 中的女性，声音参考 <Audio 1>；<Subject 2> 是 <Picture 2> 中的男性。[镜头 1] 0–4 秒，中景：<Subject 2> 看着 <Picture 3> 中的保温杯问：“都十点了，还能是热的？”<Subject 1> 举杯回答：“你摸摸，12 小时保温。”[镜头 2] 4–7 秒，特写：<Video 1> 杯盖打开冒出热气，女声旁白：“暖山随行保温杯，到公司还是烫的。”',
+		image_asset_ids: [ids.characterImage, ids.character2Image, ids.productImage],
+		video_asset_ids: [ids.productVideo],
+		audio_asset_ids: [ids.voice],
+		seconds: 7,
+		ratio: '9:16',
+		clip_id: 'C02',
+	},
+	created_at: at('02:52:19'),
+	assets: {
+		[ids.characterImage]: characterImage,
+		[ids.character2Image]: character2Image,
+		[ids.productImage]: productImage,
+		[ids.productVideo]: productVideo,
+		[ids.voice]: voice,
+	},
 };
 const promptEdited: B['Prompt'] = { ...prompt, id: ids.promptEdited, base_id: ids.prompt, data: { ...prompt.data, seconds: 6 }, created_at: at('02:58:40') };
 
@@ -261,7 +368,15 @@ const job: B['JobOut'] = {
 	callback: null,
 	created_at: at('03:00:02'),
 };
-const running: B['JobOut'] = { ...job, status: 'running' };
+const running: B['JobOut'] = { ...job, status: 'running', resolution: '768P' };
+// A failed Job: error_code says why, with a fixed message.
+const failed: B['JobOut'] = {
+	...job,
+	status: 'failed',
+	resolution: '768P',
+	error: 'The video could not be generated. Try again, or change the prompt or its files.',
+	error_code: 'GENERATION_FAILED',
+};
 const completed: B['JobOut'] = { ...job, status: 'completed', asset: clip(ids.clip, 8000) };
 
 const ad: B['AdOut'] = {
@@ -313,7 +428,7 @@ export const responses: Record<string, readonly unknown[]> = {
 	'brands.create': [brand],
 	'brands.get': [brand],
 	'brands.list': [{ items: [brand], next_cursor: null } satisfies B['BrandPage']],
-	'brands.update': [{ ...brand, version: 2, data: { name: '暖山 Warmhill' }, created_at: at('02:12:30') } satisfies B['Brand']],
+	'brands.update': [{ ...brand, version: 2, data: { name: '暖山 Warmhill', description: '做通勤和户外用的保温杯', attributes: { founded: 2019, tone: '克制、实在' } }, created_at: at('02:12:30') } satisfies B['Brand']],
 	'products.create': [product],
 	'products.get': [product],
 	'products.list': [{ items: [productV2], next_cursor: 'eyJpZCI6IjAxYTFjN2UyIn0' } satisfies B['ProductPage']],
@@ -321,7 +436,7 @@ export const responses: Record<string, readonly unknown[]> = {
 	'products.delete': [],
 	'characters.create': [character],
 	'characters.get': [character],
-	'characters.list': [{ items: [character], next_cursor: null } satisfies B['CharacterPage']],
+	'characters.list': [{ items: [character2, character], next_cursor: null } satisfies B['CharacterPage']],
 	'characters.update': [{ ...character, version: 2, data: { ...character.data, description: '28 岁，骑车通勤的设计师' }, created_at: at('02:22:05') } satisfies B['Character']],
 	'scripts.generate': [script],
 	'scripts.get': [script],
@@ -331,11 +446,11 @@ export const responses: Record<string, readonly unknown[]> = {
 	'storyboards.get': [storyboard],
 	'storyboards.generateFrom': [storyboardRevised],
 	'storyboards.createFrom': [storyboard, storyboardEdited],
-	'prompts.generate': [{ prompts: [prompt] }],
+	'prompts.generate': [{ prompts: [prompt, prompt2] }],
 	'prompts.get': [prompt],
 	'prompts.createFrom': [prompt, promptEdited],
 	'videos.generate': [job],
-	'jobs.get': [running],
+	'jobs.get': [failed],
 	'jobs.subscribe': [running, completed],
 	'jobs.cancel': [{ ...running, status: 'cancelled' } satisfies B['JobOut']],
 	'ads.get': [ad],

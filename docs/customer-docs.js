@@ -43,6 +43,16 @@
   document.querySelectorAll('[data-copy-code]').forEach(button => {
     button.addEventListener('click', () => copy(button, button.closest('.code-block').querySelector('code').textContent, 'Code'));
   });
+  // A long JSON response shows its first lines; the button below it shows or hides the rest.
+  document.querySelectorAll('[data-expand-code]').forEach(button => {
+    button.addEventListener('click', () => {
+      const block = button.closest('.code-block');
+      const expanded = block.classList.toggle('expanded');
+      button.setAttribute('aria-expanded', String(expanded));
+      button.textContent = expanded ? button.dataset.less : button.dataset.more;
+      if (!expanded && block.getBoundingClientRect().top < 0) block.scrollIntoView({ block: 'start' });
+    });
+  });
   function inlineMarkdown(node) {
     if (node.nodeType === Node.TEXT_NODE) return node.textContent;
     if (node.classList.contains('heading-link')) return '';

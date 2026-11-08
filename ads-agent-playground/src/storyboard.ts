@@ -414,7 +414,7 @@ function castSummary(content: StoryboardContent, material: StoryboardMaterial) {
     else plays.append(node("p", key === NARRATOR ? "—" : msg("Not cast"), key === NARRATOR ? "muted" : "cast-missing"));
     const voice = node("div", "", "cast-voice");
     voice.append(node("span", msg("Voice"), "config-label"));
-    if (entry?.voice === "character") {
+    if (entry?.own_voice === true) {
       const chip = node("span", "", "reference-chip");
       chip.dataset.color = "2";
       const visual = node("span", "", "reference-thumb");

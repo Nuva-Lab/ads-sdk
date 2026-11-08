@@ -28,6 +28,10 @@ def highlight(source):
     return "".join(rendered)
 
 
+# How many lines a long JSON block shows before it is expanded.
+COLLAPSED_LINES = 16
+
+
 def code(text, language="ts", locale="en", filename=None):
     label = {"ts": "TypeScript", "tsx": "TypeScript", "go": "Go", "json": "JSON", "http": "HTTP", "sh": "Shell"}.get(language, language)
     # Highlight complete tokens first, including multiline comments and strings.
@@ -36,13 +40,20 @@ def code(text, language="ts", locale="en", filename=None):
     copy_label = "复制" if locale == "zh" else "Copy"
     copy_aria = "复制代码" if locale == "zh" else "Copy code"
     decorated = highlight(source)
-    lines = "\n".join(f'<span aria-hidden="true">{n}</span>' for n in range(1, source.count("\n") + 2))
+    count = source.count("\n") + 1
+    lines = "\n".join(f'<span aria-hidden="true">{n}</span>' for n in range(1, count + 1))
+    # A long JSON response shows its first lines until the reader expands it.
+    collapsible = language == "json" and count > COLLAPSED_LINES
+    more = (f"展开全部 {count} 行" if locale == "zh" else f"Show all {count} lines")
+    less = "收起" if locale == "zh" else "Show less"
+    expand = (f'<button type="button" class="code-expand" data-expand-code aria-expanded="false" '
+              f'data-more="{escape(more)}" data-less="{escape(less)}">{escape(more)}</button>') if collapsible else ''
     return (
-        '<div class="code-block">'
+        f'<div class="code-block{" collapsible" if collapsible else ""}">'
         f'<div class="code-toolbar"><span>{escape(label)}</span>'
         f'<button type="button" class="copy-button" data-copy-code aria-label="{copy_aria}">{COPY_ICON}<span>{copy_label}</span></button></div>'
         f'<div class="code-body"><div class="line-numbers" aria-hidden="true">{lines}</div>'
-        f'<pre tabindex="0"><code class="language-{escape(language)}">{decorated}</code></pre></div></div>'
+        f'<pre tabindex="0"><code class="language-{escape(language)}">{decorated}</code></pre></div>{expand}</div>'
     )
 
 

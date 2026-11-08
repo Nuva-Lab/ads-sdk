@@ -53,7 +53,6 @@
   "One entry per Script role, and narrator when the Script has narrator lines.": "每个脚本角色一项；脚本有旁白台词时还需 narrator 一项。",
   "The Character who plays the role; its images and voice keep the person the same in every clip.": "出演该角色的人物；其图片和声音让此人在每个片段中保持一致。",
   "For a role with no Character: one fixed appearance, used in every clip.": "用于没有人物的角色：一个固定的外貌描述，每个片段都使用。",
-  "\"character\" uses the cast Character's voice file; any other text describes the voice (age, gender, pitch, timbre, accent).": "`\"character\"` 表示使用所选人物的声音文件；其他文本为对声音的描述（年龄、性别、音高、音色、口音）。",
   "What holds for the whole video: look, setting, sound, music, on-screen text and other packaging.": "整条视频统一的要求：画面风格、场景、声音、音乐、屏幕文字和其他包装。",
   "One text per shot, in order: framing, camera, setting, action and acting, with tokens for people, the Product, other files and lines.": "每个镜头一段文字，按顺序：景别、运镜、场景、动作和表演，并用标记指代人物、产品、其他文件和台词。",
   "Always `prompt`.": "固定为 `prompt`。",
@@ -165,5 +164,7 @@
   "The version's id.": "该版本的 ID。",
   "What this version changes.": "此版本的变化。",
   "When the files' download URLs stop working: in an hour.": "文件下载地址的失效时间：一小时后。",
-  "What the product is, given to the Script writer as context.": "产品是什么，作为背景信息提供给脚本编写服务。"
+  "What the product is, given to the Script writer as context.": "产品是什么，作为背景信息提供给脚本编写服务。",
+  "A description of the voice: age, gender, pitch, timbre, accent.": "对声音的描述：年龄、性别、音高、音色、口音。",
+  "Speak with the cast Character's own voice file instead of a described voice; needs a `character` that has one.": "使用所选人物自己的声音文件，而不是描述的声音；需要一个有声音文件的 `character`。"
 }

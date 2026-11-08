@@ -88,7 +88,7 @@ export const examples: Record<string, (client: NuvaClient) => Promise<unknown>> 
 		// #region brands.update
 		const brand = await client.brands.update(
 			{ id: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b01', version: 1 },
-			{ data: { name: '暖山 Warmhill' } },
+			{ data: { name: '暖山 Warmhill', description: '做通勤和户外用的保温杯', attributes: { founded: 2019, tone: '克制、实在' } } },
 		);
 		// #endregion brands.update
 		return brand;
@@ -240,9 +240,9 @@ export const examples: Record<string, (client: NuvaClient) => Promise<unknown>> 
 	},
 	'prompts.generate': async (client) => {
 		// #region prompts.generate
+		// Every clip, in clip order; pass clip: 'C01' for one.
 		const { prompts } = await client.prompts.generate({
 			storyboard: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b0a',
-			clip: 'C01',
 			ratio: '9:16',
 		});
 		// #endregion prompts.generate

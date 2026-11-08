@@ -242,7 +242,7 @@ const storyboard = {
   content: {
     script: scriptId,
     cast: {
-      host: { character: miaId, voice: "character" },
+      host: { character: miaId, own_voice: true },
       colleague: { look: "A tall man in his thirties, navy shirt, sleeves rolled up" },
       narrator: { voice: "A warm, low female voice, unhurried" },
     },

@@ -81,6 +81,10 @@ code { font: 13px/1.65 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, mon
 .copy-button { display: flex; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--muted); font-size: 11px; border-radius: 5px; padding: 4px 7px; min-height: 28px; }
 .copy-button svg { width: 14px; height: 14px; }
 .code-body { display: flex; align-items: stretch; }
+.code-block.collapsible:not(.expanded) .code-body { position: relative; max-height: calc(16 * 22px + 16px); overflow: hidden; }
+.code-block.collapsible:not(.expanded) .code-body::after { content: ""; position: absolute; inset: auto 0 0 0; height: 66px; background: linear-gradient(to bottom, transparent, var(--code)); pointer-events: none; }
+.code-expand { display: block; width: 100%; min-height: 34px; border: 0; border-top: 1px solid var(--line); background: var(--code-top); color: var(--muted); font-size: 12px; cursor: pointer; }
+.code-expand:hover { color: var(--text); background: var(--hover); }
 .line-numbers { flex: 0 0 42px; padding: 16px 9px 16px 0; text-align: right; color: var(--comment); user-select: none; font: 12px/22px "SFMono-Regular", Consolas, monospace; opacity: .65; }
 .line-numbers span { display: block; }
 pre { margin: 0; min-width: 0; padding: 16px 18px 16px 6px; overflow: auto; flex: 1; tab-size: 2; font: 13px/22px "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; }
@@ -173,6 +177,8 @@ li { margin: 6px 0; }
   .docs-layout { display: block; padding: 0; max-width: none; }
   body { color: #000; background: #fff; }
   .code-block { break-inside: avoid; }
+  .code-block.collapsible .code-body { max-height: none !important; overflow: visible !important; }
+  .code-block.collapsible .code-body::after, .code-expand { display: none !important; }
   pre { white-space: pre-wrap; }
   pre code { white-space: pre-wrap; }
 }

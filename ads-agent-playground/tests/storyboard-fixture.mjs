@@ -160,7 +160,7 @@ export const leo = character(ids.leo, "Leo", [[ids.leoFront, null]]);
 export const storyboardContent = {
   script: ids.script,
   cast: {
-    host: { character: ids.mia, voice: "character" },
+    host: { character: ids.mia, own_voice: true },
     friend: { look: "A tall man in a grey coat" },
     narrator: { voice: "A warm, low female voice" },
   },
