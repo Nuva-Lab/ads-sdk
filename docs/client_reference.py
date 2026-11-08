@@ -49,7 +49,7 @@ def guide_pages(locale='zh'):
     start = [
         section('install', '1. Install', '1. 安装',
             p('Install the SDK archive supplied with your integration.', '安装随接入资料提供的 SDK 压缩包。')
-            + c('pnpm add /path/to/nuva-sdk-0.1.0-preview.4.tgz', 'sh')),
+            + c('pnpm add /path/to/nuva-sdk-0.1.0-preview.5.tgz', 'sh')),
         section('authentication', '2. Provide a user token', '2. 提供用户令牌',
             p('Expose <code>POST /api/ads/token</code> in your application backend. Authenticate the application user and return their Ads user token and expiry. Keep the customer Admin API key on your backend.',
               '在应用后端提供 <code>POST /api/ads/token</code>。验证应用用户身份后，返回该用户的 Ads 用户令牌和过期时间。客户 Admin API key 仅保存在后端。')

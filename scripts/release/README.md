@@ -7,7 +7,7 @@ pnpm verify
 node --test scripts/release/release.test.mjs
 ```
 
-Outputs are written to `scripts/release/dist/0.1.0-preview.4/`. The client tarball bundles its
+Outputs are written to `scripts/release/dist/0.1.0-preview.5/`. The client tarball bundles its
 matching protocol dependency. The Go module archive includes the complete module tree so its
 checksum matches a download from the repository tag.
 
@@ -21,8 +21,8 @@ pnpm release:bundle
 ```
 
 Package versions must match in the root, TypeScript and protocol manifests, the Go `Version`
-constant, and the release scripts. The repository tags `v0.1.0-preview.4` and
-`go/v0.1.0-preview.4` identify the same source commit. The latter is needed for the Go submodule.
+constant, and the release scripts. The repository tags `v0.1.0-preview.5` and
+`go/v0.1.0-preview.5` identify the same source commit. The latter is needed for the Go submodule.
 
 Write the release notes in `CHANGELOG.md` under `## <version>`, describing the change from the previous released version. `check-tag.mjs` requires the entry, and `create-draft.mjs` puts it in the draft release notes.
 

@@ -1,4 +1,4 @@
-// Generated from ads_backend/openapi.json at pending. Do not edit.
+// Generated from ads_backend/openapi.json at e0010bbf73f523d646f86adeb0da308652476eb0. Do not edit.
 import type { z } from "zod";
 export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.fromJSONSchema>[0], boolean>> = {
   "AdOut": {

@@ -1,4 +1,4 @@
-// Generated from ads_backend/openapi.json at pending. Do not edit.
+// Generated from ads_backend/openapi.json at e0010bbf73f523d646f86adeb0da308652476eb0. Do not edit.
 export interface paths {
     "/v1/admin/tokens": {
         parameters: {

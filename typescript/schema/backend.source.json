@@ -1,7 +1,9 @@
 {
   "repository": "Nuva-Lab/WhatIf",
-  "commit": "pending",
+  "commit": "e0010bbf73f523d646f86adeb0da308652476eb0",
   "path": "ads_backend/openapi.json",
   "sha256": "1badf5692d8e72915779debaeb95171946650d5f9e0bd516bfcf50cbf1fa0120",
-  "note": "The API version 2026-11-07 contract (SDK 0.1.0-preview.5)."
+  "note": "The API version 2026-11-07 contract (SDK 0.1.0-preview.5).",
+  "pullRequest": "https://github.com/Nuva-Lab/WhatIf/pull/2514",
+  "verifiedAt": "2026-11-07"
 }

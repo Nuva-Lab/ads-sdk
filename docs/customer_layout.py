@@ -145,7 +145,7 @@ def page(page_id, sections, locale='zh'):
 <header class="site-header"><div class="header-inner">
   <button type="button" class="icon-button menu-toggle" aria-label="{tr('Open navigation', '打开导航')}" aria-controls="docs-sidebar" aria-expanded="false">{MENU_ICON}</button>
   <a class="brand" href="{filename('frontend', locale)}">Ads SDK</a>
-  <span class="header-version">0.1.0-preview.4</span>
+  <span class="header-version">0.1.0-preview.5</span>
   <div class="header-actions">
     <button type="button" class="search-trigger" data-search-open aria-label="{tr('Search this page', '搜索当前页')}">{SEARCH_ICON}<span>{tr('Search', '搜索')}</span><kbd>⌘ K</kbd></button>
     <select class="language-toggle" aria-label="{tr('Language', '语言')}" data-language>{language_options}</select>
