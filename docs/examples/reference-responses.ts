@@ -157,7 +157,7 @@ const scriptContent: ScriptContent = {
 	images: [{ asset_id: ids.productImage, role: 'product_appearance', mime_type: 'image/jpeg', url: media(ids.productImage, 'jpg') }],
 	instruction: '口语化，突出 12 小时保温。',
 };
-const skills: B['Script']['skills'] = { [ids.skillVersion]: { skill_id: ids.skill, name: 'ad-script-writing', version: 3 } };
+const skill: B['MadeWithSkill'] = { id: ids.skill, name: 'ad-script-writing', version: 3 };
 const script: B['Script'] = {
 	kind: 'script',
 	id: ids.script,
@@ -167,9 +167,9 @@ const script: B['Script'] = {
 	data: { text: encodeScript(scriptContent) },
 	batch_id: ids.batch,
 	created_at: at('02:25:03'),
-	relationships: [{ type: 'based_on', target: { kind: 'product', id: ids.product, version: 2 } }],
+	product: { id: ids.product, version: 2 },
+	skill,
 	assets: { [ids.productImage]: productImage },
-	skills,
 };
 const revisedContent: ScriptContent = {
 	...scriptContent,
@@ -204,13 +204,11 @@ const storyboard: B['Storyboard'] = {
 	data: { text: encodeStoryboard(storyboardContent) },
 	batch_id: ids.batch,
 	created_at: at('02:40:22'),
-	relationships: [
-		{ type: 'based_on', target: { kind: 'script', id: ids.script } },
-		{ type: 'based_on', target: { kind: 'product', id: ids.product, version: 2 } },
-		{ type: 'based_on', target: { kind: 'character', id: ids.character, version: 1 } },
-	],
+	script: { id: ids.script },
+	product: { id: ids.product, version: 2 },
+	characters: [{ id: ids.character, version: 1 }],
+	skill,
 	assets: { [ids.productImage]: productImage, [ids.characterImage]: characterImage, [ids.voice]: voice },
-	skills: { [ids.skillVersion]: { skill_id: ids.skill, name: 'ad-script-writing', version: 3 } },
 };
 const storyboardRevised: B['Storyboard'] = {
 	...storyboard,
@@ -244,11 +242,11 @@ const prompt: B['Prompt'] = {
 	},
 	batch_id: ids.batch,
 	created_at: at('02:52:18'),
-	relationships: [{ type: 'based_on', target: { kind: 'storyboard', id: ids.storyboard } }],
+	storyboard: { id: ids.storyboard },
+	skill: null,
 	assets: { [ids.characterImage]: characterImage, [ids.productImage]: productImage, [ids.voice]: voice },
-	skills: {},
 };
-const promptEdited: B['Prompt'] = { ...prompt, id: ids.promptEdited, base_id: ids.prompt, data: { ...prompt.data, seconds: 6, clip_id: null }, relationships: [], created_at: at('02:58:40') };
+const promptEdited: B['Prompt'] = { ...prompt, id: ids.promptEdited, base_id: ids.prompt, data: { ...prompt.data, seconds: 6 }, created_at: at('02:58:40') };
 
 const job: B['JobOut'] = {
 	id: ids.job,
@@ -282,9 +280,12 @@ const batch: B['BatchOut'] = {
 	ads: [{ id: ids.ad, asset_id: ids.finalVideo, created_at: at('03:20:16') }],
 	jobs: { completed: 2 },
 };
-const skillVersion: B['SkillVersionOut'] = {
-	id: ids.skillVersion,
-	skill_id: ids.skill,
+const skillRead: B['SkillRead'] = {
+	id: ids.skill,
+	name: 'ad-script-writing',
+	platform: false,
+	main_version: 3,
+	created_at: at('00:30:00'),
 	version: 3,
 	description: '短视频广告脚本的写法',
 	note: '开场三秒内给出卖点',
@@ -298,9 +299,7 @@ const skillVersion: B['SkillVersionOut'] = {
 		},
 	],
 	download_url_expires_at: at('04:05:00'),
-	created_at: at('01:00:00'),
 };
-const skillOut: B['SkillOut'] = { id: ids.skill, name: 'ad-script-writing', platform: false, main_version: 3, created_at: at('00:30:00') };
 const share: B['ShareOut'] = { kind: 'product', id: ids.product, scope: 'customer', access: 'read', created_at: at('03:30:00') };
 
 /** Each example's answers, in request order. A DELETE answers 204 and the upload to `upload_url` 200, without a body. */
@@ -342,10 +341,9 @@ export const responses: Record<string, readonly unknown[]> = {
 	'ads.get': [ad],
 	'ads.list': [{ items: [ad], next_cursor: null } satisfies B['AdPage']],
 	'batches.get': [batch],
-	'batches.list': [{ items: [{ id: batch.id, intent: batch.intent, created_at: batch.created_at }], next_cursor: null } satisfies B['BatchPage']],
-	'skills.get': [{ ...skillOut, main: skillVersion } satisfies B['SkillDetail']],
-	'skills.list': [{ items: [skillOut], next_cursor: null } satisfies B['SkillPage']],
-	'skills.version': [skillVersion],
+	'batches.list': [{ items: [batch], next_cursor: null } satisfies B['BatchPage']],
+	'skills.get': [skillRead],
+	'skills.list': [{ items: [skillRead], next_cursor: null } satisfies B['SkillPage']],
 	'shares.set': [share],
 	'shares.list': [{ items: [share] } satisfies B['SharesOut']],
 	'shares.remove': [],

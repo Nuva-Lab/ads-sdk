@@ -127,7 +127,7 @@ export const script = {
   schema_version: 1,
   created_at: "2026-11-01T09:00:00Z",
   data: { text: "{}" },
-  relationships: [{ type: "based_on", target: { kind: "product", id: ids.product, version: 2 } }],
+  product: { id: ids.product, version: 2 },
   assets: {},
   skills: {},
 };

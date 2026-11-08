@@ -431,7 +431,7 @@ export async function writeStoryboard(
   client: NuvaClient,
   script: Script,
   characterId: string,
-  requestKey: string, // Save it to retry this request.
+  idempotencyKey: string, // Save it to retry this request.
 ) {
   // "host" is a role ID from script.content.roles.
   return client.storyboards.generate(
@@ -440,7 +440,7 @@ export async function writeStoryboard(
       cast: { host: { id: characterId } },
       instruction: "Shoot it as a phone selfie in a bright kitchen.",
     },
-    { idempotencyKey: requestKey },
+    { idempotencyKey },
   );
 }
 // #endregion write-storyboard
@@ -482,12 +482,12 @@ export async function editShot(
 export async function compileClips(
   client: NuvaClient,
   storyboard: Storyboard,
-  requestKey: string, // Save it to retry this request.
+  idempotencyKey: string, // Save it to retry this request.
 ) {
   // One saved Prompt per clip, in clip order; pass clip: "C01" for one clip only.
   const { prompts } = await client.prompts.generate(
     { storyboard: storyboard.id, ratio: "9:16" },
-    { idempotencyKey: requestKey },
+    { idempotencyKey },
   );
   return prompts.map((prompt) => ({ clip: prompt.data.clip_id, prompt: prompt.id }));
 }
@@ -504,7 +504,7 @@ export async function generateClip(client: NuvaClient, promptId: string) {
 export async function generateClipFromText(
   client: NuvaClient,
   imageAssetId: string,
-  requestKey: string,
+  idempotencyKey: string,
 ) {
   return client.videos.generate({
     input: {
@@ -516,7 +516,7 @@ export async function generateClipFromText(
         ratio: "9:16",
       },
     },
-  }, { idempotencyKey: requestKey });
+  }, { idempotencyKey });
 }
 // #endregion generate-video-raw
 

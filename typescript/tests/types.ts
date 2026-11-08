@@ -90,12 +90,15 @@ void client.videos.generate({ prompt: 'saved-id', input: null });
 void rawVideoJob.then(async (job) => {
 	const promptId: string = job.prompt;
 	const saved: Prompt = await client.prompts.get({ kind: 'prompt', id: promptId });
-	const sourceKind: string | undefined = saved.relationships[0]?.target.kind;
-	const sourceVersion: number | null | undefined = saved.relationships[0]?.target.version;
+	// What it was made from reads as named fields.
+	const fromStoryboard: string | undefined = saved.storyboard?.id;
+	const writtenWith: string | undefined = saved.skill?.name;
+	// @ts-expect-error The raw relationships are the Agent's.
+	void saved.relationships;
 	const clip: string | null | undefined = saved.data.clip_id;
 	// @ts-expect-error Which Character versions a Prompt shows is the Agent's record.
 	void saved.data.characters;
-	void [sourceKind, sourceVersion, clip];
+	void [fromStoryboard, writtenWith, clip];
 });
 // @ts-expect-error Exactly one non-null source is required.
 void client.videos.generate({});

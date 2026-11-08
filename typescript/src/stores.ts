@@ -13,20 +13,28 @@ export type MutableResource = Product | Brand | Character;
 export type Asset = B['AssetOut'] & Omit<ResourceLink<'asset'>, 'label'>;
 export type Ad = B['AdOut'] & ResourceLink<'ad'>;
 export type Batch = B['BatchOut'] & ResourceLink<'batch'>;
-export type Skill = B['SkillDetail'] & ResourceLink<'skill'>;
+/** A Skill at one version: the latest, or the one you asked for. `main_version` is the version new work uses. */
+export type Skill = Pick<B['SkillRead'], 'id' | 'name' | 'platform' | 'main_version' | 'created_at'> & {
+	readonly version: number;
+	readonly description: string | null;
+	readonly note: string | null;
+	readonly attributes: JsonObject;
+	readonly files: readonly B['SkillFile'][];
+	readonly download_url_expires_at: string;
+} & ResourceLink<'skill'>;
 export type Composition = B['CompositionReadV1'];
 export type ArtifactKind = 'script' | 'storyboard' | 'prompt';
-export type Artifact<K extends string = string, D = JsonValue> = ResourceLink<K> & { data: D; readonly schemaVersion: number };
-export type BackendArtifact<K extends string = ArtifactKind, D = JsonValue> = Omit<B['Script'], 'kind' | 'data'> &
+export type Artifact<K extends string = string, D = JsonValue> = ResourceLink<K> & { data: D };
+/** Each kind's record as the service keeps it: what it was made from differs by kind. */
+type ArtifactRecords = { script: B['Script']; storyboard: B['Storyboard']; prompt: B['Prompt'] };
+export type BackendArtifact<K extends ArtifactKind = ArtifactKind, D = JsonValue> = Omit<ArtifactRecords[K], 'kind' | 'data'> &
 	Artifact<K, D> & { kind: K };
-/** What an Artifact was made from: another Artifact's id, or for a Product or Character its id and `version`. */
-export type Relationship = B['ArtifactRelationshipOut'];
 /** A Script: the v3 idea (`content`), or a read-only v2 ScriptPackage saved before Storyboards (`legacy`). */
 export type Script = BackendArtifact<'script', B['ScriptDataV1']> &
 	({ readonly format: 3; readonly content: ScriptContent; readonly legacy?: undefined } | { readonly format: 2; readonly legacy: ScriptPackage; readonly content?: undefined });
 /** A Storyboard: how a Script is cast and shot. `prompts.generate({ storyboard })` turns its clips into the Prompts `videos.generate` renders. */
 export type Storyboard = BackendArtifact<'storyboard', B['StoryboardDataV1']> & { readonly content: StoryboardContent };
-export type Prompt = BackendArtifact<'prompt', B['PromptReadV1']> & { readonly relationships: readonly Relationship[] };
+export type Prompt = BackendArtifact<'prompt', B['PromptReadV1']>;
 /** The version of a Brand, Product or Character you read: `update` needs it, so edits made since aren't overwritten. */
 export type EntityRef = { readonly id: string; readonly version: number };
 /** Brands, Products and Characters: you change them in place, and each change saves the next `version`. */
@@ -194,12 +202,13 @@ export interface StoreClients {
 	};
 	readonly batches: {
 		get(id: string): Promise<Batch>;
-		list(query?: StoreQuery): Promise<Page<B['BatchSummary']>>;
+		list(query?: StoreQuery): Promise<Page<Batch>>;
 	};
 	readonly shares: SharesClient;
 	readonly skills: {
-		get(id: string): Promise<Skill>;
-		list(query?: StoreQuery): Promise<Page<B['SkillOut']>>;
-		version(id: string, version: number): Promise<B['SkillVersionOut']>;
+		/** The latest version, or `version`. */
+		get(id: string, options?: { version?: number }): Promise<Skill>;
+		/** Each Skill at its latest version. */
+		list(query?: StoreQuery): Promise<Page<Skill>>;
 	};
 }

@@ -27,8 +27,8 @@ const queued = {
 const savedPrompt = {
 	kind: 'prompt', id: promptId, lineage_id: promptId, base_id: null, schema_version: 1,
 	// A raw render's Prompt is based on nothing saved.
-	data, relationships: [], batch_id: id, created_at: queued.created_at,
-	assets: {}, skills: {},
+	data, storyboard: null, skill: null, batch_id: id, created_at: queued.created_at,
+	assets: {},
 };
 
 async function withClient(fetcher, run) {
@@ -129,7 +129,7 @@ test('raw generation forwards ordered Asset IDs and stable keys, then reads its 
 		assert.equal(typeof first.subscribe, 'function');
 		const saved = await client.prompts.get({ kind: 'prompt', id: first.prompt });
 		assert.deepEqual(saved.data, data);
-		assert.deepEqual(saved.relationships, []);
+		assert.equal(saved.storyboard ?? null, null, 'Raw input is compiled from no Storyboard.');
 		assert.equal(saved.id, first.prompt);
 		assert.deepEqual(saved.ref, { kind: 'prompt', id: promptId });
 	});

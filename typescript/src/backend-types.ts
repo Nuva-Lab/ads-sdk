@@ -440,30 +440,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Read a Skill and its main version
-         * @description A Skill of the customer's or one of Nuva's platform Skills, with its main version's files.
+         * Read a Skill
+         * @description A Skill of the customer's or one of Nuva's platform Skills, at its latest version or the `version` asked for, with its files. `main_version` is the one new work uses.
          */
         get: operations["get_skill_v1_skills__skill_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/skills/{skill_id}/versions/{version}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read a Skill version
-         * @description Versions never change, so a file may be cached by its SHA-256.
-         */
-        get: operations["get_skill_version_v1_skills__skill_id__versions__version__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -737,35 +717,6 @@ export interface components {
              */
             next_cursor: string | null;
         };
-        /** ArtifactRelationshipOut */
-        ArtifactRelationshipOut: {
-            /**
-             * Type
-             * @description `based_on`: the Artifact was made from the target.
-             */
-            type: string;
-            /** @description What it relates to. */
-            target: components["schemas"]["ArtifactTargetOut"];
-        };
-        /** ArtifactTargetOut */
-        ArtifactTargetOut: {
-            /**
-             * Kind
-             * @description An asset's media kind, an entity, artifact or Skill kind.
-             */
-            kind: string;
-            /**
-             * Id
-             * Format: uuid
-             * @description An asset id, an Artifact version id, a Skill version id, or an entity's id.
-             */
-            id: string;
-            /**
-             * Version
-             * @description For an entity: the version it was made from.
-             */
-            version?: number | null;
-        };
         /** AssetCreate */
         AssetCreate: {
             /**
@@ -894,6 +845,42 @@ export interface components {
              */
             created_at: string;
         };
+        /**
+         * BatchListed
+         * @description A Batch in a list: as GET /v1/batches/{id} reads it. SDKs before the version header read
+         *     it without its Ads and Job counts (BatchSummary).
+         */
+        BatchListed: {
+            /**
+             * Id
+             * Format: uuid
+             * @description The Batch's id.
+             */
+            id: string;
+            /**
+             * Intent
+             * @description Its title and purpose: what it tries.
+             */
+            intent: string;
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the Batch was created.
+             */
+            created_at: string;
+            /**
+             * Ads
+             * @description Oldest first; read each with GET /v1/ads/{id}.
+             */
+            ads: components["schemas"]["BatchAd"][] | null;
+            /**
+             * Jobs
+             * @description How many of the batch's jobs are in each status.
+             */
+            jobs: {
+                [key: string]: number;
+            } | null;
+        };
         /** BatchOut */
         BatchOut: {
             /**
@@ -932,32 +919,12 @@ export interface components {
              * Items
              * @description The Batches on this page, newest first.
              */
-            items: components["schemas"]["BatchSummary"][];
+            items: components["schemas"]["BatchListed"][];
             /**
              * Next Cursor
              * @description Pass as `cursor` for the next page.
              */
             next_cursor: string | null;
-        };
-        /** BatchSummary */
-        BatchSummary: {
-            /**
-             * Id
-             * Format: uuid
-             * @description The Batch's id.
-             */
-            id: string;
-            /**
-             * Intent
-             * @description Its title and purpose: what it tries.
-             */
-            intent: string;
-            /**
-             * Created At
-             * Format: date-time
-             * @description When the Batch was created.
-             */
-            created_at: string;
         };
         /** Brand */
         Brand: {
@@ -1264,23 +1231,11 @@ export interface components {
              */
             created_at: string;
             /**
-             * Relationships
-             * @description Where it comes from, by type and then target id.
-             */
-            relationships: components["schemas"]["ArtifactRelationshipOut"][];
-            /**
              * Assets
              * @description The assets `data` or `relationships` refer to, with download URLs.
              */
             assets: {
                 [key: string]: components["schemas"]["AssetOut"];
-            };
-            /**
-             * Skills
-             * @description Skill versions in `data` or `relationships`, keyed by version id.
-             */
-            skills: {
-                [key: string]: components["schemas"]["SkillRef"];
             };
         };
         /** DirectingPlanDataV1 */
@@ -1415,7 +1370,7 @@ export interface components {
              * Error Code
              * @description `GENERATION_FAILED` when the Job failed; null otherwise.
              */
-            error_code?: string | null;
+            error_code: string | null;
             /** @description Delivery of the final status to `callback_url`; null when none was given. */
             callback: components["schemas"]["CallbackOut"] | null;
             /**
@@ -1431,6 +1386,48 @@ export interface components {
          */
         JobStatus: "queued" | "running" | "completed" | "failed" | "cancelled";
         JsonValue: unknown;
+        /** MadeFromArtifact */
+        MadeFromArtifact: {
+            /**
+             * Id
+             * Format: uuid
+             * @description The version's id.
+             */
+            id: string;
+        };
+        /** MadeFromEntity */
+        MadeFromEntity: {
+            /**
+             * Id
+             * Format: uuid
+             * @description The entity's id.
+             */
+            id: string;
+            /**
+             * Version
+             * @description The version it was made from.
+             */
+            version: number;
+        };
+        /** MadeWithSkill */
+        MadeWithSkill: {
+            /**
+             * Id
+             * Format: uuid
+             * @description The Skill's id.
+             */
+            id: string;
+            /**
+             * Name
+             * @description Its name.
+             */
+            name: string;
+            /**
+             * Version
+             * @description The version that wrote it.
+             */
+            version: number;
+        };
         /** MainRequest */
         MainRequest: {
             /**
@@ -1554,6 +1551,11 @@ export interface components {
              */
             name: string;
             /**
+             * Description
+             * @description What the product is, given to the Script writer as context.
+             */
+            description?: string | null;
+            /**
              * Attributes
              * @description More about the product as JSON, given to the Script writer as context. IDs here are not references: they grant no access to what they name.
              */
@@ -1618,6 +1620,11 @@ export interface components {
              * @description The product's name.
              */
             name?: string;
+            /**
+             * Description
+             * @description What the product is, given to the Script writer as context.
+             */
+            description?: string | null;
             /**
              * Attributes
              * @description More about the product as JSON, given to the Script writer as context. IDs here are not references: they grant no access to what they name.
@@ -1713,24 +1720,16 @@ export interface components {
              */
             created_at: string;
             /**
-             * Relationships
-             * @description Where it comes from, by type and then target id.
-             */
-            relationships: components["schemas"]["ArtifactRelationshipOut"][];
-            /**
              * Assets
              * @description The assets `data` or `relationships` refer to, with download URLs.
              */
             assets: {
                 [key: string]: components["schemas"]["AssetOut"];
             };
-            /**
-             * Skills
-             * @description Skill versions in `data` or `relationships`, keyed by version id.
-             */
-            skills: {
-                [key: string]: components["schemas"]["SkillRef"];
-            };
+            /** @description The Storyboard it was compiled from (its clip is `data.clip_id`); null for raw input. */
+            storyboard: components["schemas"]["MadeFromArtifact"] | null;
+            /** @description The Skill version that wrote it; null when none. */
+            skill: components["schemas"]["MadeWithSkill"] | null;
         };
         /**
          * PromptDataV1
@@ -1997,24 +1996,16 @@ export interface components {
              */
             created_at: string;
             /**
-             * Relationships
-             * @description Where it comes from, by type and then target id.
-             */
-            relationships: components["schemas"]["ArtifactRelationshipOut"][];
-            /**
              * Assets
              * @description The assets `data` or `relationships` refer to, with download URLs.
              */
             assets: {
                 [key: string]: components["schemas"]["AssetOut"];
             };
-            /**
-             * Skills
-             * @description Skill versions in `data` or `relationships`, keyed by version id.
-             */
-            skills: {
-                [key: string]: components["schemas"]["SkillRef"];
-            };
+            /** @description The Product version it was written for. */
+            product: components["schemas"]["MadeFromEntity"] | null;
+            /** @description The Skill version that wrote it; null when none. */
+            skill: components["schemas"]["MadeWithSkill"] | null;
         };
         /** ScriptDataV1 */
         ScriptDataV1: {
@@ -2069,38 +2060,6 @@ export interface components {
              */
             items: components["schemas"]["ShareOut"][];
         };
-        /** SkillDetail */
-        SkillDetail: {
-            /**
-             * Id
-             * Format: uuid
-             * @description The Skill's id.
-             */
-            id: string;
-            /**
-             * Name
-             * @description Its name, as in PUT /v1/admin/skills/{name}.
-             */
-            name: string;
-            /**
-             * Platform
-             * @description Provided by Nuva to every customer.
-             */
-            platform: boolean;
-            /**
-             * Main Version
-             * @description The version new work uses by default.
-             */
-            main_version: number | null;
-            /**
-             * Created At
-             * Format: date-time
-             * @description When its first version was registered.
-             */
-            created_at: string;
-            /** @description The main version; null when none is set. */
-            main: components["schemas"]["SkillVersionOut"] | null;
-        };
         /** SkillFile */
         SkillFile: {
             /**
@@ -2123,6 +2082,72 @@ export interface components {
              * @description A temporary URL for its content, until `download_url_expires_at`.
              */
             download_url: string;
+        };
+        /**
+         * SkillListed
+         * @description A Skill in a list, at its latest version; SDKs before the version header read it without
+         *     one (SkillOut).
+         */
+        SkillListed: {
+            /**
+             * Id
+             * Format: uuid
+             * @description The Skill's id.
+             */
+            id: string;
+            /**
+             * Name
+             * @description Its name, as registered.
+             */
+            name: string;
+            /**
+             * Platform
+             * @description Provided by Nuva to every customer.
+             */
+            platform: boolean;
+            /**
+             * Main Version
+             * @description The version new work uses by default.
+             */
+            main_version: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             * @description When its first version was registered.
+             */
+            created_at: string;
+            /**
+             * Version
+             * @description The version shown here: the latest.
+             */
+            version: number | null;
+            /**
+             * Description
+             * @description Its description, as registered.
+             */
+            description: string | null;
+            /**
+             * Note
+             * @description What this version changes.
+             */
+            note: string | null;
+            /**
+             * Attributes
+             * @description The fields for the Agent's loader, as registered.
+             */
+            attributes: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Files
+             * @description Its files, by path, each with a download URL.
+             */
+            files: components["schemas"]["SkillFile"][] | null;
+            /**
+             * Download Url Expires At
+             * @description When the files' download URLs stop working: in an hour.
+             */
+            download_url_expires_at: string | null;
         };
         /** SkillOut */
         SkillOut: {
@@ -2158,9 +2183,9 @@ export interface components {
         SkillPage: {
             /**
              * Items
-             * @description The Skills on this page, newest first.
+             * @description The Skills on this page, newest first, each at its latest version.
              */
-            items: components["schemas"]["SkillOut"][];
+            items: components["schemas"]["SkillListed"][];
             /**
              * Next Cursor
              * @description Pass as `cursor` for the next page.
@@ -2168,26 +2193,70 @@ export interface components {
             next_cursor: string | null;
         };
         /**
-         * SkillRef
-         * @description A Skill version a row refers to, to read it with GET /v1/skills/{id}/versions/{version}.
+         * SkillRead
+         * @description A Skill at one version: the latest, or the one asked for. SDKs before the version header
+         *     read the Skill with its `main` version (SkillDetail).
          */
-        SkillRef: {
+        SkillRead: {
             /**
-             * Skill Id
+             * Id
              * Format: uuid
              * @description The Skill's id.
              */
-            skill_id: string;
+            id: string;
             /**
              * Name
-             * @description The Skill's name.
+             * @description Its name, as registered.
              */
             name: string;
             /**
-             * Version
-             * @description The version's number.
+             * Platform
+             * @description Provided by Nuva to every customer.
              */
-            version: number;
+            platform: boolean;
+            /**
+             * Main Version
+             * @description The version new work uses by default.
+             */
+            main_version: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             * @description When its first version was registered.
+             */
+            created_at: string;
+            /**
+             * Version
+             * @description The version shown here.
+             */
+            version: number | null;
+            /**
+             * Description
+             * @description Its description, as registered.
+             */
+            description: string | null;
+            /**
+             * Note
+             * @description What this version changes.
+             */
+            note: string | null;
+            /**
+             * Attributes
+             * @description The fields for the Agent's loader, as registered.
+             */
+            attributes: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Files
+             * @description Its files, by path, each with a download URL.
+             */
+            files: components["schemas"]["SkillFile"][] | null;
+            /**
+             * Download Url Expires At
+             * @description When the files' download URLs stop working: in an hour.
+             */
+            download_url_expires_at: string | null;
         };
         /** SkillRegistration */
         SkillRegistration: {
@@ -2335,24 +2404,24 @@ export interface components {
              */
             created_at: string;
             /**
-             * Relationships
-             * @description Where it comes from, by type and then target id.
-             */
-            relationships: components["schemas"]["ArtifactRelationshipOut"][];
-            /**
              * Assets
              * @description The assets `data` or `relationships` refer to, with download URLs.
              */
             assets: {
                 [key: string]: components["schemas"]["AssetOut"];
             };
+            /** @description The Script it shoots. */
+            script: components["schemas"]["MadeFromArtifact"] | null;
+            /** @description The Product version it shows. */
+            product: components["schemas"]["MadeFromEntity"] | null;
             /**
-             * Skills
-             * @description Skill versions in `data` or `relationships`, keyed by version id.
+             * Characters
+             * @description The Character versions it casts.
+             * @default []
              */
-            skills: {
-                [key: string]: components["schemas"]["SkillRef"];
-            };
+            characters: components["schemas"]["MadeFromEntity"][];
+            /** @description The Skill version that wrote it; null when none. */
+            skill: components["schemas"]["MadeWithSkill"] | null;
         };
         /** StoryboardDataV1 */
         StoryboardDataV1: {
@@ -3907,7 +3976,10 @@ export interface operations {
     };
     get_skill_v1_skills__skill_id__get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The version to read; the latest when left out. */
+                version?: number | null;
+            };
             header?: never;
             path: {
                 skill_id: string;
@@ -3922,57 +3994,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SkillDetail"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    get_skill_version_v1_skills__skill_id__versions__version__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                skill_id: string;
-                version: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SkillVersionOut"];
+                    "application/json": components["schemas"]["SkillRead"];
                 };
             };
             /** @description Unauthorized */

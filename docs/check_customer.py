@@ -83,7 +83,32 @@ def check_field_reference(docs):
                 # No type named on a page comes from the internal contract.
                 leaked = sorted(word for word in internal if re.search(rf'(?<![A-Za-z_]){re.escape(word)}(?![A-Za-z_])', text))
                 assert not leaked, f'{name}: internal schemas named: {leaked}'
+    check_type_names()
     return api_reference.stats()
+
+
+# A public type is named for what it is, not for the service that answers or its shape of the moment.
+BACKEND_NAMES = re.compile(r'(Out|Summary|Detail)$|^Backend')
+
+
+def check_type_names():
+    """No public SDK type is named `*Out`, `*Summary`, `*Detail` or `Backend*`; a collection's `list` returns a page of
+    the type its `get` returns, and that type has the SDK's `ref` and `label`."""
+    models = {name for page in api_reference.PAGES for name in page.models} | set(api_reference.INTRO_TYPES)
+    named = sorted(name for name in models if BACKEND_NAMES.search(name))
+    assert not named, f'Public types named after the backend: {named}'
+    for method in api_reference.all_methods():
+        written = re.findall(r'[A-Za-z]+', method.returns)
+        assert not any(BACKEND_NAMES.search(word) for word in written), f'{method.path} returns {method.returns}'
+    methods = {method.path: method for method in api_reference.all_methods()}
+    for path, method in methods.items():
+        collection, action = path.rsplit('.', 1)
+        if action != 'list' or f'{collection}.get' not in methods:
+            continue
+        one = re.fullmatch(r'Promise<(\w+)>', methods[f'{collection}.get'].returns)
+        assert one and method.returns == f'Promise<Page<{one.group(1)}>>', f'{path} returns {method.returns}, {collection}.get {methods[f"{collection}.get"].returns}'
+        rows = {row['path'] for row in api_reference.model()['models'][one.group(1)]}
+        assert {'ref', 'label'} <= rows, f'{one.group(1)} has no ref and label'
 
 
 MARKDOWN_LINK = re.compile(r'\]\(([^)\s]+)\)')

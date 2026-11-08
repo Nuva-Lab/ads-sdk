@@ -49,8 +49,8 @@ def code(text, language="ts", locale="en", filename=None):
 DOCUMENTS = (
     ('frontend', 'Get started', '开始使用'),
     ('agent', 'Agent conversations', 'Agent 对话'),
-    ('store', 'Manage resources', '管理资源'),
-    ('generation', 'Generate content', '生成内容'),
+    ('store', 'Products and media', '产品与媒体'),
+    ('generation', 'Content generation', '内容生成'),
     ('backend-go', 'Backend setup', '后端接入'),
     ('reference', 'API reference', '接口参考'),
     ('reference-assets', 'Assets', '素材（Asset）'),
@@ -98,8 +98,11 @@ def page(page_id, sections, locale='zh'):
             # The current resource's methods and models, as OpenAI's reference lists them.
             reference_nav += ''.join(f'<a class="nav-section" href="#{escape(anchor)}">{escape(name)}</a>' for anchor, name, _ in sections if anchor != 'overview')
     markdown = md_filename(page_id, locale) if page_id in REFERENCE else None
+    # A section without a key is the page's opening, shown before the first heading.
+    lead = ''.join(content for key, _, content in sections if not key)
+    sections = [section for section in sections if section[0]]
     toc = ''.join(f'<a href="#{escape(key)}">{escape(name)}</a>' for key, name, _ in sections)
-    body = ''.join(
+    body = lead + ''.join(
         f'<section id="{escape(key)}"><h2>{escape(name)}'
         f'<a class="heading-link" href="#{escape(key)}" aria-label="{tr("Link to", "链接到")} {escape(name)}">{LINK_ICON}</a></h2>{content}</section>'
         for key, name, content in sections

@@ -7,14 +7,21 @@ import { acceptanceOf } from '../dist/internal.js';
 const id = '01a175e0-31b3-da69-176e-0842e6f6602e';
 const relationships = [{ type: 'based_on', target: { kind: 'product', id } }, { type: 'based_on', target: { kind: 'skill', id: '01a175e0-2000-0000-ffff-abcdefabcdef' } }];
 const other = '01a175e0-3000-cccc-1111-abcdefabcdef';
-const record = (kind, data) => ({ kind, id, lineage_id: id, base_id: null, schema_version: 1, data, relationships, batch_id: null, created_at: '2026-10-26T12:00:00Z', assets: {}, entities: {}, skills: {} });
+// As a customer reads it: what it was made from as named fields, by kind.
+const skillMade = { id: '01a175e0-2000-0000-ffff-abcdefabcdef', name: 'writer', version: 1 };
+const madeFrom = {
+	script: { product: { id, version: 1 }, skill: skillMade },
+	storyboard: { script: { id: other }, product: { id, version: 1 }, characters: [], skill: skillMade },
+	prompt: { storyboard: { id }, skill: skillMade },
+};
+const record = (kind, data) => ({ kind, id, lineage_id: id, base_id: null, schema_version: 1, data, ...madeFrom[kind], batch_id: null, created_at: '2026-10-26T12:00:00Z', assets: {} });
 
-test('Script and Storyboard content is text; source relationships are explicit and required on reads', () => {
+test('Script and Storyboard content is text; what they were made from is named fields, not relationships', async () => {
+	const contract = JSON.parse(await readFile(new URL('../schema/backend.openapi.json', import.meta.url), 'utf8')).components.schemas;
 	for (const [name, kind] of [['Script', 'script'], ['Storyboard', 'storyboard']]) {
 		const saved = record(kind, { text: 'Source text' });
 		assert.deepEqual(backendSchema(name).parse(saved), saved);
-		const { relationships: _, ...legacy } = saved;
-		assert.equal(backendSchema(name).safeParse(legacy).success, false);
+		for (const raw of ['relationships', 'entities', 'skills']) assert.equal(contract[name].properties[raw], undefined, raw);
 		for (const old of [{ product: id }, { skill: id }, { script: id }, { specs: [] }])
 			assert.equal(backendSchema(name).safeParse({ ...saved, data: { ...saved.data, ...old } }).success, false);
 		// Only the Agent writes Scripts and Storyboards: their write bodies are in the internal contract alone.
@@ -77,7 +84,7 @@ test('generateFrom and createFrom go through the writer endpoints; the old gener
  const scriptContent = JSON.parse(await readFile(new URL('./fixtures/script-v3.json', import.meta.url), 'utf8'));
  const product = '01a175e0-20c1-3f18-da7c-5afa67a79363';
  // As a customer reads it: the Product it was written for is the Product's id and version.
- const script = { ...record('script', { text: JSON.stringify({ format: 'nuva.script', version: 3, content: scriptContent }) }), relationships: [{ type: 'based_on', target: { kind: 'product', id: product, version: 2 } }] };
+ const script = { ...record('script', { text: JSON.stringify({ format: 'nuva.script', version: 3, content: scriptContent }) }), product: { id: product, version: 2 } };
  delete script.entities;
  const storyboard = { ...record('storyboard', { text: encodeStoryboard(board) }) };
  globalThis.fetch = async (url, options) => {
@@ -128,7 +135,7 @@ test('storyboards.generate saves the Storyboard; prompts.generate compiles its c
  const original = globalThis.fetch, requests = [];
  const content = { script: other, cast: { presenter: { look: '短发女性', voice: '中音' } }, direction: '明亮工位', clips: [{ id: 'C01', duration_ms: 8000, shots: ['{{presenter}}举起{{product}}说{{L01}}'] }] };
  const storyboard = record('storyboard', { text: encodeStoryboard(content) });
- const prompt = (clip, promptId = id) => ({ ...record('prompt', { prompt: 'Clip', image_asset_ids: [id], clip_id: clip }), id: promptId, relationships: [{ type: 'based_on', target: { kind: 'storyboard', id } }] });
+ const prompt = (clip, promptId = id) => ({ ...record('prompt', { prompt: 'Clip', image_asset_ids: [id], clip_id: clip }), id: promptId, storyboard: { id } });
  let reply = () => Response.json(storyboard, { status: 201 });
  globalThis.fetch = async (url, options) => {
   requests.push([options.method ?? 'GET', String(url), options.body ? JSON.parse(options.body) : undefined]);
@@ -155,7 +162,7 @@ test('storyboards.generate saves the Storyboard; prompts.generate compiles its c
   reply = () => Response.json({ error: { code: 'NOT_FOUND', message: 'Storyboard has no clip C09.', retryable: false, acceptance: 'not_accepted' }, request_id: 'unknown-clip' }, { status: 404 });
   await assert.rejects(client.prompts.generate({ storyboard: id, clip: 'C09' }), error => error.code === 'NOT_FOUND' && acceptanceOf(error) === 'not_accepted' && error.method === 'prompts.generate');
   requests.splice(checked);
-  reply = () => Response.json({ prompts: [{ ...prompt('C01'), relationships }] });
+  reply = () => Response.json({ prompts: [{ ...prompt('C01'), storyboard: { id: other } }] });
   await assert.rejects(client.prompts.generate({ storyboard: id }), error => error.code === 'SERVICE_ERROR', 'Prompts are based on the requested Storyboard.');
   for (const bad of [{ script: other }, { storyboard: id, clip: '1' }, { storyboard: id, instruction: 'Brighter' }])
    await assert.rejects(async () => client.prompts.generate(bad), error => error.code === 'INVALID_INPUT', JSON.stringify(bad));

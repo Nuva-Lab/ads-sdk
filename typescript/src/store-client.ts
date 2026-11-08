@@ -29,6 +29,8 @@ import type {
 	Prompt,
 	ResultOptions,
 	ShareTarget,
+	Batch,
+	Skill,
 } from './stores.js';
 const kinds = { script: 'Script', storyboard: 'Storyboard', prompt: 'Prompt' } as const;
 function checked<T>(schema: { parse(v: unknown): T }, value: unknown, input = false): T {
@@ -119,7 +121,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 		const raw = backendSchema(kinds[kind]).parse(v);
 		if (expected && (raw.id !== expected.id || raw.kind !== expected.kind))
 			throw new AdsError({ code: 'SERVICE_ERROR', message: 'Artifact identity mismatch.', retryable: false });
-		return { ...raw, ref: { kind, id: raw.id }, label: raw.id, schemaVersion: raw.schema_version } as BackendArtifact;
+		return { ...raw, ref: { kind, id: raw.id }, label: raw.id } as BackendArtifact;
 	}
 	/** Whether `ref` is the full record (read before) rather than a reference. */
 	const held = (ref: unknown, kind: string) =>
@@ -202,21 +204,21 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 		return stop;
 	}
 	const typedScript = (a: Artifact): Script => {
-		if (a.ref.kind !== 'script' || a.schemaVersion !== 1)
+		if (a.ref.kind !== 'script' || (a as BackendArtifact).schema_version !== 1)
 			throw new AdsError({ code: 'UNSUPPORTED_SCHEMA', message: 'Expected script@1.', retryable: false });
 		const data = checked(backendSchema('ScriptDataV1'), a.data);
-		const base = { ...(a as BackendArtifact), kind: 'script' as const, ref: { kind: 'script' as const, id: a.ref.id }, data };
+		const base = { ...(a as BackendArtifact<'script'>), kind: 'script' as const, ref: { kind: 'script' as const, id: a.ref.id }, data };
 		// Scripts saved before Storyboards are read-only v2 ScriptPackages.
 		return scriptVersion(data.text) === 2
 			? { ...base, format: 2, legacy: checked({ parse: decodeScriptPackage }, data.text) }
 			: { ...base, format: 3, content: checked({ parse: decodeScript }, data.text) };
 	};
 	const typedStoryboard = (a: Artifact): Storyboard => {
-		if (a.ref.kind !== 'storyboard' || a.schemaVersion !== 1)
+		if (a.ref.kind !== 'storyboard' || (a as BackendArtifact).schema_version !== 1)
 			throw new AdsError({ code: 'UNSUPPORTED_SCHEMA', message: 'Expected storyboard@1.', retryable: false });
 		const data = checked(backendSchema('StoryboardDataV1'), a.data);
 		return {
-			...(a as BackendArtifact),
+			...(a as BackendArtifact<'storyboard'>),
 			kind: 'storyboard',
 			ref: { kind: 'storyboard', id: a.ref.id },
 			data,
@@ -240,8 +242,8 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 	const moved = (message: string) => new AdsError({ code: 'INVALID_INPUT', message, retryable: false, acceptance: 'not_accepted' });
 	/** The Product a Script was written for: the Product it is based on. */
 	const scriptProduct = (script: Script) => {
-		const product = script.relationships?.find((relationship) => relationship.type === 'based_on' && relationship.target.kind === 'product')?.target;
-		if (product === undefined)
+		const product = script.product;
+		if (product == null)
 			throw new AdsError({ code: 'SERVICE_ERROR', message: 'The Script does not say which Product it was written for.', retryable: false });
 		return product.id;
 	};
@@ -380,7 +382,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 								new Set(clips).size !== clips.length ||
 								(parsed.clip !== undefined && (raw.prompts.length !== 1 || clips[0] !== parsed.clip)) ||
 								raw.prompts.some(
-									(prompt) => !prompt.relationships.some((relationship) => relationship.target.kind === 'storyboard' && relationship.target.id === parsed.storyboard),
+									(prompt) => prompt.storyboard?.id !== parsed.storyboard,
 								)
 							)
 								throw new AdsError({
@@ -494,16 +496,15 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 			get: (id) => request('batches.get', { id }, resource('BatchOut', 'batch')),
 			list: async (query = {}) => {
 				const raw = await dto('batches.list', query, 'BatchPage');
-				return { items: raw.items, nextCursor: raw.next_cursor };
+				return { items: raw.items.map((v) => link(v, 'batch', v.intent) as Batch), nextCursor: raw.next_cursor };
 			},
 		},
 		skills: {
-			get: (id) => request('skills.get', { id }, resource('SkillDetail', 'skill')),
+			get: (id, o) => request('skills.get', { id, ...(o?.version === undefined ? {} : { version: o.version }) }, resource('SkillRead', 'skill')) as Promise<Skill>,
 			list: async (query = {}) => {
 				const raw = await dto('skills.list', query, 'SkillPage');
-				return { items: raw.items, nextCursor: raw.next_cursor };
+				return { items: raw.items.map((v) => link(v, 'skill', v.name) as unknown as Skill), nextCursor: raw.next_cursor };
 			},
-			version: (id, version) => dto('skills.version', { id, version }, 'SkillVersionOut'),
 		},
 	};
 	return {

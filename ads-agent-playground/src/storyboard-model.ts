@@ -81,18 +81,11 @@ function addMedia(
     };
   }
 }
-/** The Product a Script was written from: its `based_on` Product, at the version it was written from. */
+/** The Product a Script was written from, at the version it was written from. */
 export function scriptProduct(
-  script: Pick<Script, "relationships">,
+  script: Pick<Script, "product">,
 ): { id: string; version: number } | undefined {
-  const target = script.relationships.find(
-    (relationship) =>
-      relationship.type === "based_on" &&
-      relationship.target.kind === "product",
-  )?.target;
-  return typeof target?.version === "number"
-    ? { id: target.id, version: target.version }
-    : undefined;
+  return script.product ?? undefined;
 }
 /** The Characters a Storyboard's cast names. */
 export function castCharacters(content: Pick<StoryboardContent, "cast">) {

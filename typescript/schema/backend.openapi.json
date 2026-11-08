@@ -2378,78 +2378,9 @@
         "tags": [
           "skills"
         ],
-        "summary": "Read a Skill and its main version",
-        "description": "A Skill of the customer's or one of Nuva's platform Skills, with its main version's files.",
+        "summary": "Read a Skill",
+        "description": "A Skill of the customer's or one of Nuva's platform Skills, at its latest version or the `version` asked for, with its files. `main_version` is the one new work uses.",
         "operationId": "get_skill_v1_skills__skill_id__get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "skill_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Skill Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SkillDetail"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          }
-        }
-      }
-    },
-    "/v1/skills/{skill_id}/versions/{version}": {
-      "get": {
-        "tags": [
-          "skills"
-        ],
-        "summary": "Read a Skill version",
-        "description": "Versions never change, so a file may be cached by its SHA-256.",
-        "operationId": "get_skill_version_v1_skills__skill_id__versions__version__get",
         "security": [
           {
             "HTTPBearer": []
@@ -2468,13 +2399,22 @@
           },
           {
             "name": "version",
-            "in": "path",
-            "required": true,
+            "in": "query",
+            "required": false,
             "schema": {
-              "type": "integer",
-              "minimum": 1,
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The version to read; the latest when left out.",
               "title": "Version"
-            }
+            },
+            "description": "The version to read; the latest when left out."
           }
         ],
         "responses": {
@@ -2483,7 +2423,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SkillVersionOut"
+                  "$ref": "#/components/schemas/SkillRead"
                 }
               }
             }
@@ -3697,58 +3637,6 @@
         ],
         "title": "AdPage"
       },
-      "ArtifactRelationshipOut": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "title": "Type",
-            "description": "`based_on`: the Artifact was made from the target."
-          },
-          "target": {
-            "$ref": "#/components/schemas/ArtifactTargetOut",
-            "description": "What it relates to."
-          }
-        },
-        "type": "object",
-        "required": [
-          "type",
-          "target"
-        ],
-        "title": "ArtifactRelationshipOut"
-      },
-      "ArtifactTargetOut": {
-        "properties": {
-          "kind": {
-            "type": "string",
-            "title": "Kind",
-            "description": "An asset's media kind, an entity, artifact or Skill kind."
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id",
-            "description": "An asset id, an Artifact version id, a Skill version id, or an entity's id."
-          },
-          "version": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Version",
-            "description": "For an entity: the version it was made from."
-          }
-        },
-        "type": "object",
-        "required": [
-          "kind",
-          "id"
-        ],
-        "title": "ArtifactTargetOut"
-      },
       "AssetCreate": {
         "properties": {
           "upload_token": {
@@ -3992,6 +3880,67 @@
         ],
         "title": "BatchAd"
       },
+      "BatchListed": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "The Batch's id."
+          },
+          "intent": {
+            "type": "string",
+            "title": "Intent",
+            "description": "Its title and purpose: what it tries."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "When the Batch was created."
+          },
+          "ads": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/BatchAd"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ads",
+            "description": "Oldest first; read each with GET /v1/ads/{id}."
+          },
+          "jobs": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jobs",
+            "description": "How many of the batch's jobs are in each status."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "intent",
+          "created_at",
+          "ads",
+          "jobs"
+        ],
+        "title": "BatchListed",
+        "description": "A Batch in a list: as GET /v1/batches/{id} reads it. SDKs before the version header read\nit without its Ads and Job counts (BatchSummary)."
+      },
       "BatchOut": {
         "properties": {
           "id": {
@@ -4042,7 +3991,7 @@
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/BatchSummary"
+              "$ref": "#/components/schemas/BatchListed"
             },
             "type": "array",
             "title": "Items",
@@ -4067,34 +4016,6 @@
           "next_cursor"
         ],
         "title": "BatchPage"
-      },
-      "BatchSummary": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id",
-            "description": "The Batch's id."
-          },
-          "intent": {
-            "type": "string",
-            "title": "Intent",
-            "description": "Its title and purpose: what it tries."
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At",
-            "description": "When the Batch was created."
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "intent",
-          "created_at"
-        ],
-        "title": "BatchSummary"
       },
       "Brand": {
         "properties": {
@@ -4673,14 +4594,6 @@
             "title": "Created At",
             "description": "When this version was saved."
           },
-          "relationships": {
-            "items": {
-              "$ref": "#/components/schemas/ArtifactRelationshipOut"
-            },
-            "type": "array",
-            "title": "Relationships",
-            "description": "Where it comes from, by type and then target id."
-          },
           "assets": {
             "additionalProperties": {
               "$ref": "#/components/schemas/AssetOut"
@@ -4691,17 +4604,6 @@
             "type": "object",
             "title": "Assets",
             "description": "The assets `data` or `relationships` refer to, with download URLs."
-          },
-          "skills": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/SkillRef"
-            },
-            "propertyNames": {
-              "format": "uuid"
-            },
-            "type": "object",
-            "title": "Skills",
-            "description": "Skill versions in `data` or `relationships`, keyed by version id."
           }
         },
         "type": "object",
@@ -4714,9 +4616,7 @@
           "data",
           "batch_id",
           "created_at",
-          "relationships",
-          "assets",
-          "skills"
+          "assets"
         ],
         "title": "DirectingPlan"
       },
@@ -5046,7 +4946,8 @@
           "asset",
           "error",
           "callback",
-          "created_at"
+          "created_at",
+          "error_code"
         ],
         "title": "JobOut"
       },
@@ -5062,6 +4963,69 @@
         "title": "JobStatus"
       },
       "JsonValue": {},
+      "MadeFromArtifact": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "The version's id."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "MadeFromArtifact"
+      },
+      "MadeFromEntity": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "The entity's id."
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version",
+            "description": "The version it was made from."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "version"
+        ],
+        "title": "MadeFromEntity"
+      },
+      "MadeWithSkill": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "The Skill's id."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Its name."
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version",
+            "description": "The version that wrote it."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "version"
+        ],
+        "title": "MadeWithSkill"
+      },
       "MainRequest": {
         "properties": {
           "version": {
@@ -5265,6 +5229,19 @@
             "title": "Name",
             "description": "The product's name."
           },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 5000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "What the product is, given to the Script writer as context."
+          },
           "attributes": {
             "additionalProperties": {
               "$ref": "#/components/schemas/JsonValue"
@@ -5394,6 +5371,19 @@
             "minLength": 1,
             "title": "Name",
             "description": "The product's name."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 5000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "What the product is, given to the Script writer as context."
           },
           "attributes": {
             "additionalProperties": {
@@ -5565,14 +5555,6 @@
             "title": "Created At",
             "description": "When this version was saved."
           },
-          "relationships": {
-            "items": {
-              "$ref": "#/components/schemas/ArtifactRelationshipOut"
-            },
-            "type": "array",
-            "title": "Relationships",
-            "description": "Where it comes from, by type and then target id."
-          },
           "assets": {
             "additionalProperties": {
               "$ref": "#/components/schemas/AssetOut"
@@ -5584,16 +5566,27 @@
             "title": "Assets",
             "description": "The assets `data` or `relationships` refer to, with download URLs."
           },
-          "skills": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/SkillRef"
-            },
-            "propertyNames": {
-              "format": "uuid"
-            },
-            "type": "object",
-            "title": "Skills",
-            "description": "Skill versions in `data` or `relationships`, keyed by version id."
+          "storyboard": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MadeFromArtifact"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The Storyboard it was compiled from (its clip is `data.clip_id`); null for raw input."
+          },
+          "skill": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MadeWithSkill"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The Skill version that wrote it; null when none."
           }
         },
         "type": "object",
@@ -5606,9 +5599,9 @@
           "data",
           "batch_id",
           "created_at",
-          "relationships",
           "assets",
-          "skills"
+          "storyboard",
+          "skill"
         ],
         "title": "Prompt"
       },
@@ -6142,14 +6135,6 @@
             "title": "Created At",
             "description": "When this version was saved."
           },
-          "relationships": {
-            "items": {
-              "$ref": "#/components/schemas/ArtifactRelationshipOut"
-            },
-            "type": "array",
-            "title": "Relationships",
-            "description": "Where it comes from, by type and then target id."
-          },
           "assets": {
             "additionalProperties": {
               "$ref": "#/components/schemas/AssetOut"
@@ -6161,16 +6146,27 @@
             "title": "Assets",
             "description": "The assets `data` or `relationships` refer to, with download URLs."
           },
-          "skills": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/SkillRef"
-            },
-            "propertyNames": {
-              "format": "uuid"
-            },
-            "type": "object",
-            "title": "Skills",
-            "description": "Skill versions in `data` or `relationships`, keyed by version id."
+          "product": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MadeFromEntity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The Product version it was written for."
+          },
+          "skill": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MadeWithSkill"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The Skill version that wrote it; null when none."
           }
         },
         "type": "object",
@@ -6183,9 +6179,9 @@
           "data",
           "batch_id",
           "created_at",
-          "relationships",
           "assets",
-          "skills"
+          "product",
+          "skill"
         ],
         "title": "Script"
       },
@@ -6284,65 +6280,6 @@
         ],
         "title": "SharesOut"
       },
-      "SkillDetail": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id",
-            "description": "The Skill's id."
-          },
-          "name": {
-            "type": "string",
-            "title": "Name",
-            "description": "Its name, as in PUT /v1/admin/skills/{name}."
-          },
-          "platform": {
-            "type": "boolean",
-            "title": "Platform",
-            "description": "Provided by Nuva to every customer."
-          },
-          "main_version": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Main Version",
-            "description": "The version new work uses by default."
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At",
-            "description": "When its first version was registered."
-          },
-          "main": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/SkillVersionOut"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "The main version; null when none is set."
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "name",
-          "platform",
-          "main_version",
-          "created_at",
-          "main"
-        ],
-        "title": "SkillDetail"
-      },
       "SkillFile": {
         "properties": {
           "path": {
@@ -6374,6 +6311,137 @@
           "download_url"
         ],
         "title": "SkillFile"
+      },
+      "SkillListed": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "The Skill's id."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Its name, as registered."
+          },
+          "platform": {
+            "type": "boolean",
+            "title": "Platform",
+            "description": "Provided by Nuva to every customer."
+          },
+          "main_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Main Version",
+            "description": "The version new work uses by default."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "When its first version was registered."
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "The version shown here: the latest."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Its description, as registered."
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note",
+            "description": "What this version changes."
+          },
+          "attributes": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attributes",
+            "description": "The fields for the Agent's loader, as registered."
+          },
+          "files": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SkillFile"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Files",
+            "description": "Its files, by path, each with a download URL."
+          },
+          "download_url_expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Download Url Expires At",
+            "description": "When the files' download URLs stop working: in an hour."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "platform",
+          "main_version",
+          "created_at",
+          "version",
+          "description",
+          "note",
+          "attributes",
+          "files",
+          "download_url_expires_at"
+        ],
+        "title": "SkillListed",
+        "description": "A Skill in a list, at its latest version; SDKs before the version header read it without\none (SkillOut)."
       },
       "SkillOut": {
         "properties": {
@@ -6426,11 +6494,11 @@
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/SkillOut"
+              "$ref": "#/components/schemas/SkillListed"
             },
             "type": "array",
             "title": "Items",
-            "description": "The Skills on this page, newest first."
+            "description": "The Skills on this page, newest first, each at its latest version."
           },
           "next_cursor": {
             "anyOf": [
@@ -6452,33 +6520,136 @@
         ],
         "title": "SkillPage"
       },
-      "SkillRef": {
+      "SkillRead": {
         "properties": {
-          "skill_id": {
+          "id": {
             "type": "string",
             "format": "uuid",
-            "title": "Skill Id",
+            "title": "Id",
             "description": "The Skill's id."
           },
           "name": {
             "type": "string",
             "title": "Name",
-            "description": "The Skill's name."
+            "description": "Its name, as registered."
+          },
+          "platform": {
+            "type": "boolean",
+            "title": "Platform",
+            "description": "Provided by Nuva to every customer."
+          },
+          "main_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Main Version",
+            "description": "The version new work uses by default."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "When its first version was registered."
           },
           "version": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Version",
-            "description": "The version's number."
+            "description": "The version shown here."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Its description, as registered."
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note",
+            "description": "What this version changes."
+          },
+          "attributes": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attributes",
+            "description": "The fields for the Agent's loader, as registered."
+          },
+          "files": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SkillFile"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Files",
+            "description": "Its files, by path, each with a download URL."
+          },
+          "download_url_expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Download Url Expires At",
+            "description": "When the files' download URLs stop working: in an hour."
           }
         },
         "type": "object",
         "required": [
-          "skill_id",
+          "id",
           "name",
-          "version"
+          "platform",
+          "main_version",
+          "created_at",
+          "version",
+          "description",
+          "note",
+          "attributes",
+          "files",
+          "download_url_expires_at"
         ],
-        "title": "SkillRef",
-        "description": "A Skill version a row refers to, to read it with GET /v1/skills/{id}/versions/{version}."
+        "title": "SkillRead",
+        "description": "A Skill at one version: the latest, or the one asked for. SDKs before the version header\nread the Skill with its `main` version (SkillDetail)."
       },
       "SkillRegistration": {
         "properties": {
@@ -6724,14 +6895,6 @@
             "title": "Created At",
             "description": "When this version was saved."
           },
-          "relationships": {
-            "items": {
-              "$ref": "#/components/schemas/ArtifactRelationshipOut"
-            },
-            "type": "array",
-            "title": "Relationships",
-            "description": "Where it comes from, by type and then target id."
-          },
           "assets": {
             "additionalProperties": {
               "$ref": "#/components/schemas/AssetOut"
@@ -6743,16 +6906,47 @@
             "title": "Assets",
             "description": "The assets `data` or `relationships` refer to, with download URLs."
           },
-          "skills": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/SkillRef"
+          "script": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MadeFromArtifact"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The Script it shoots."
+          },
+          "product": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MadeFromEntity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The Product version it shows."
+          },
+          "characters": {
+            "items": {
+              "$ref": "#/components/schemas/MadeFromEntity"
             },
-            "propertyNames": {
-              "format": "uuid"
-            },
-            "type": "object",
-            "title": "Skills",
-            "description": "Skill versions in `data` or `relationships`, keyed by version id."
+            "type": "array",
+            "title": "Characters",
+            "description": "The Character versions it casts.",
+            "default": []
+          },
+          "skill": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MadeWithSkill"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The Skill version that wrote it; null when none."
           }
         },
         "type": "object",
@@ -6765,9 +6959,11 @@
           "data",
           "batch_id",
           "created_at",
-          "relationships",
           "assets",
-          "skills"
+          "script",
+          "product",
+          "characters",
+          "skill"
         ],
         "title": "Storyboard"
       },

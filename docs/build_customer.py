@@ -24,10 +24,10 @@ TITLES = {key: {'en': en, 'zh': zh} for key, en, zh in DOCUMENTS}
 # One line per guide in llms.txt.
 GUIDES = {
     'frontend': 'Install the SDK, provide user tokens and create the client.',
-    'agent': 'Open a Session with the Ads Agent, send messages and show its replies.',
-    'store': 'Create Brands, Products and Characters, upload media, read Scripts, Ads and Batches.',
-    'generation': 'Generate a Script, shoot it as a Storyboard, compile Prompts and render clips.',
-    'backend-go': 'Issue user tokens and register Skills from your backend with the Go Admin SDK.',
+    'agent': 'Open a Session with the Ads Agent, send messages, show its replies and have it assemble an Ad.',
+    'store': 'Create Brands, Products and Characters, add their images and videos, read Ads and Batches.',
+    'generation': 'Write a Script, shoot it as a Storyboard, compile Prompts and render clips, step by step; edit content yourself.',
+    'backend-go': 'Issue user tokens, organize users and share, and register Skills from your backend with the Go Admin SDK.',
     'migration': 'What changes when you upgrade to preview.5.',
 }
 
@@ -75,8 +75,8 @@ def build_customer():
         'Ads SDK 0.1.0-preview.5\n\n'
         'Open index.html or frontend.html to start. Use the header language selector for English.\n'
         '从 index.html 或 frontend.html 开始，使用页首语言选项切换中文和英文。\n\n'
-        'Getting started; Agent conversations; resources; generation; backend setup; API reference, one page per resource; upgrading to preview.5.\n'
-        '开始使用；Agent 对话；资源；内容生成；后端接入；接口参考（每种资源一页）；升级到 preview.5。\n'
+        'Getting started; Agent conversations; products and media; content generation; backend setup; API reference, one page per resource; upgrading to preview.5.\n'
+        '开始使用；Agent 对话；产品与媒体；内容生成；后端接入；接口参考（每种资源一页）；升级到 preview.5。\n'
         'Each API reference page has a Markdown twin (.md, .en.md); llms.txt lists them.\n'
         '每个接口参考页面都有 Markdown 版本（.md、.en.md），llms.txt 列出全部页面。\n'
         'examples/ contains the complete source used in the guides.\n'

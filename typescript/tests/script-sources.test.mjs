@@ -8,18 +8,16 @@ import { acceptanceOf } from '../dist/internal.js';
 const content = JSON.parse(await readFile(new URL('./fixtures/script-v3.json', import.meta.url), 'utf8'));
 const legacy = JSON.parse(await readFile(new URL('./fixtures/script-response.json', import.meta.url), 'utf8'));
 const id = '01a175e0-31b3-da69-176e-0842e6f6602e';
-const relationships = [
-  { type: 'based_on', target: { kind: 'product', id } },
-  { type: 'based_on', target: { kind: 'skill', id: '01a175e0-2000-0000-ffff-abcdefabcdef' } },
-];
+// What a Script was made from, as a customer reads it.
+const madeFrom = { product: { id, version: 1 }, skill: { id: '01a175e0-2000-0000-ffff-abcdefabcdef', name: 'writer', version: 1 } };
 
 test('there is no scripts.create: a Script is written by the writer, and a version is checked before it is sent', async () => {
   const original = globalThis.fetch, requests = [];
   globalThis.fetch = async (url, init) => {
     requests.push([init.method ?? 'GET', String(url)]);
     return Response.json({ kind: 'script', id, lineage_id: id, base_id: null, schema_version: 1,
-      data: { text: JSON.stringify({ format: 'nuva.script', version: 3, content }) }, batch_id: null, relationships,
-      assets: {}, entities: {}, skills: {}, created_at: '2026-10-26T12:00:00Z' });
+      data: { text: JSON.stringify({ format: 'nuva.script', version: 3, content }) }, batch_id: null, ...madeFrom,
+      assets: {}, created_at: '2026-10-26T12:00:00Z' });
   };
   const sdk = createNuva({ getAccessToken: async () => 'fixture', storeBaseUrl: 'https://backend.invalid' });
   try {
@@ -36,8 +34,8 @@ test('a backend rejection of a new version is returned without a second write', 
   globalThis.fetch = async (url, init) => {
     if ((init.method ?? 'GET') === 'GET')
       return Response.json({ kind: 'script', id, lineage_id: id, base_id: null, schema_version: 1,
-        data: { text: JSON.stringify({ format: 'nuva.script', version: 3, content }) }, batch_id: null, relationships,
-        assets: {}, entities: {}, skills: {}, created_at: '2026-10-26T12:00:00Z' });
+        data: { text: JSON.stringify({ format: 'nuva.script', version: 3, content }) }, batch_id: null, ...madeFrom,
+        assets: {}, created_at: '2026-10-26T12:00:00Z' });
     writes.push(String(url));
     return Response.json({ error: { code: 'FORBIDDEN', message: 'Not your Script.', retryable: false, acceptance: 'not_accepted' }, request_id: 'fixture-rejection' }, { status: 403 });
   };
@@ -50,8 +48,8 @@ test('a backend rejection of a new version is returned without a second write', 
 
 test('a v2 ScriptPackage Script reads as read-only legacy; createFrom refuses it', async () => {
   const original = globalThis.fetch, requests = [];
-  const saved = (data, extra = {}) => ({ kind: 'script', id, lineage_id: id, base_id: null, schema_version: 1, data, batch_id: null, relationships,
-    assets: {}, entities: {}, skills: {}, created_at: '2026-10-26T12:00:00Z', ...extra });
+  const saved = (data, extra = {}) => ({ kind: 'script', id, lineage_id: id, base_id: null, schema_version: 1, data, batch_id: null, ...madeFrom,
+    assets: {}, created_at: '2026-10-26T12:00:00Z', ...extra });
   globalThis.fetch = async (url, init) => {
     requests.push([init.method ?? 'GET', String(url)]);
     // As the Agent answers an edit of a v2 Script.
@@ -80,8 +78,8 @@ test('asset is reserved: createFrom refuses it, and a stored Script with that ro
     for (const line of panel.lines) if (line.speaker === role) line.speaker = 'asset';
   }
   let stored = content;
-  const saved = (data, extra = {}) => ({ kind: 'script', id, lineage_id: id, base_id: null, schema_version: 1, data, batch_id: null, relationships,
-    assets: {}, entities: {}, skills: {}, created_at: '2026-10-26T12:00:00Z', ...extra });
+  const saved = (data, extra = {}) => ({ kind: 'script', id, lineage_id: id, base_id: null, schema_version: 1, data, batch_id: null, ...madeFrom,
+    assets: {}, created_at: '2026-10-26T12:00:00Z', ...extra });
   globalThis.fetch = async (url, init) => {
     requests.push(init.method ?? 'GET');
     if (init.method === 'POST') return Response.json(saved(JSON.parse(init.body).data, { id: '01a175e0-3000-cccc-1111-abcdefabcdef', base_id: id }), { status: 201 });

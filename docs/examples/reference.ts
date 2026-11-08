@@ -310,7 +310,8 @@ export const examples: Record<string, (client: NuvaClient) => Promise<unknown>> 
 	},
 	'skills.get': async (client) => {
 		// #region skills.get
-		const skill = await client.skills.get('01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b17');
+		// The version a Script was written with; leave `version` out for the latest.
+		const skill = await client.skills.get('01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b17', { version: 3 });
 		// #endregion skills.get
 		return skill;
 	},
@@ -319,12 +320,6 @@ export const examples: Record<string, (client: NuvaClient) => Promise<unknown>> 
 		const page = await client.skills.list();
 		// #endregion skills.list
 		return page;
-	},
-	'skills.version': async (client) => {
-		// #region skills.version
-		const version = await client.skills.version('01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b17', 3);
-		// #endregion skills.version
-		return version;
 	},
 	'shares.set': async (client) => {
 		// #region shares.set

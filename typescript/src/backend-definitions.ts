@@ -102,58 +102,6 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     ],
     "title": "AdPage"
   },
-  "ArtifactRelationshipOut": {
-    "properties": {
-      "type": {
-        "type": "string",
-        "title": "Type",
-        "description": "`based_on`: the Artifact was made from the target."
-      },
-      "target": {
-        "$ref": "#/$defs/ArtifactTargetOut",
-        "description": "What it relates to."
-      }
-    },
-    "type": "object",
-    "required": [
-      "type",
-      "target"
-    ],
-    "title": "ArtifactRelationshipOut"
-  },
-  "ArtifactTargetOut": {
-    "properties": {
-      "kind": {
-        "type": "string",
-        "title": "Kind",
-        "description": "An asset's media kind, an entity, artifact or Skill kind."
-      },
-      "id": {
-        "type": "string",
-        "format": "uuid",
-        "title": "Id",
-        "description": "An asset id, an Artifact version id, a Skill version id, or an entity's id."
-      },
-      "version": {
-        "anyOf": [
-          {
-            "type": "integer"
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "title": "Version",
-        "description": "For an entity: the version it was made from."
-      }
-    },
-    "type": "object",
-    "required": [
-      "kind",
-      "id"
-    ],
-    "title": "ArtifactTargetOut"
-  },
   "AssetCreate": {
     "properties": {
       "upload_token": {
@@ -397,6 +345,67 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     ],
     "title": "BatchAd"
   },
+  "BatchListed": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "format": "uuid",
+        "title": "Id",
+        "description": "The Batch's id."
+      },
+      "intent": {
+        "type": "string",
+        "title": "Intent",
+        "description": "Its title and purpose: what it tries."
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At",
+        "description": "When the Batch was created."
+      },
+      "ads": {
+        "anyOf": [
+          {
+            "items": {
+              "$ref": "#/$defs/BatchAd"
+            },
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Ads",
+        "description": "Oldest first; read each with GET /v1/ads/{id}."
+      },
+      "jobs": {
+        "anyOf": [
+          {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Jobs",
+        "description": "How many of the batch's jobs are in each status."
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "intent",
+      "created_at",
+      "ads",
+      "jobs"
+    ],
+    "title": "BatchListed",
+    "description": "A Batch in a list: as GET /v1/batches/{id} reads it. SDKs before the version header read\nit without its Ads and Job counts (BatchSummary)."
+  },
   "BatchOut": {
     "properties": {
       "id": {
@@ -447,7 +456,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     "properties": {
       "items": {
         "items": {
-          "$ref": "#/$defs/BatchSummary"
+          "$ref": "#/$defs/BatchListed"
         },
         "type": "array",
         "title": "Items",
@@ -472,34 +481,6 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "next_cursor"
     ],
     "title": "BatchPage"
-  },
-  "BatchSummary": {
-    "properties": {
-      "id": {
-        "type": "string",
-        "format": "uuid",
-        "title": "Id",
-        "description": "The Batch's id."
-      },
-      "intent": {
-        "type": "string",
-        "title": "Intent",
-        "description": "Its title and purpose: what it tries."
-      },
-      "created_at": {
-        "type": "string",
-        "format": "date-time",
-        "title": "Created At",
-        "description": "When the Batch was created."
-      }
-    },
-    "type": "object",
-    "required": [
-      "id",
-      "intent",
-      "created_at"
-    ],
-    "title": "BatchSummary"
   },
   "Brand": {
     "properties": {
@@ -1078,14 +1059,6 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "title": "Created At",
         "description": "When this version was saved."
       },
-      "relationships": {
-        "items": {
-          "$ref": "#/$defs/ArtifactRelationshipOut"
-        },
-        "type": "array",
-        "title": "Relationships",
-        "description": "Where it comes from, by type and then target id."
-      },
       "assets": {
         "additionalProperties": {
           "$ref": "#/$defs/AssetOut"
@@ -1096,17 +1069,6 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "type": "object",
         "title": "Assets",
         "description": "The assets `data` or `relationships` refer to, with download URLs."
-      },
-      "skills": {
-        "additionalProperties": {
-          "$ref": "#/$defs/SkillRef"
-        },
-        "propertyNames": {
-          "format": "uuid"
-        },
-        "type": "object",
-        "title": "Skills",
-        "description": "Skill versions in `data` or `relationships`, keyed by version id."
       }
     },
     "type": "object",
@@ -1119,9 +1081,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "data",
       "batch_id",
       "created_at",
-      "relationships",
-      "assets",
-      "skills"
+      "assets"
     ],
     "title": "DirectingPlan"
   },
@@ -1451,7 +1411,8 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "asset",
       "error",
       "callback",
-      "created_at"
+      "created_at",
+      "error_code"
     ],
     "title": "JobOut"
   },
@@ -1467,6 +1428,69 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     "title": "JobStatus"
   },
   "JsonValue": {},
+  "MadeFromArtifact": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "format": "uuid",
+        "title": "Id",
+        "description": "The version's id."
+      }
+    },
+    "type": "object",
+    "required": [
+      "id"
+    ],
+    "title": "MadeFromArtifact"
+  },
+  "MadeFromEntity": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "format": "uuid",
+        "title": "Id",
+        "description": "The entity's id."
+      },
+      "version": {
+        "type": "integer",
+        "title": "Version",
+        "description": "The version it was made from."
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "version"
+    ],
+    "title": "MadeFromEntity"
+  },
+  "MadeWithSkill": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "format": "uuid",
+        "title": "Id",
+        "description": "The Skill's id."
+      },
+      "name": {
+        "type": "string",
+        "title": "Name",
+        "description": "Its name."
+      },
+      "version": {
+        "type": "integer",
+        "title": "Version",
+        "description": "The version that wrote it."
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "name",
+      "version"
+    ],
+    "title": "MadeWithSkill"
+  },
   "MainRequest": {
     "properties": {
       "version": {
@@ -1670,6 +1694,19 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "title": "Name",
         "description": "The product's name."
       },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 5000
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description",
+        "description": "What the product is, given to the Script writer as context."
+      },
       "attributes": {
         "additionalProperties": {
           "$ref": "#/$defs/JsonValue"
@@ -1799,6 +1836,19 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "minLength": 1,
         "title": "Name",
         "description": "The product's name."
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 5000
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description",
+        "description": "What the product is, given to the Script writer as context."
       },
       "attributes": {
         "additionalProperties": {
@@ -1970,14 +2020,6 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "title": "Created At",
         "description": "When this version was saved."
       },
-      "relationships": {
-        "items": {
-          "$ref": "#/$defs/ArtifactRelationshipOut"
-        },
-        "type": "array",
-        "title": "Relationships",
-        "description": "Where it comes from, by type and then target id."
-      },
       "assets": {
         "additionalProperties": {
           "$ref": "#/$defs/AssetOut"
@@ -1989,16 +2031,27 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "title": "Assets",
         "description": "The assets `data` or `relationships` refer to, with download URLs."
       },
-      "skills": {
-        "additionalProperties": {
-          "$ref": "#/$defs/SkillRef"
-        },
-        "propertyNames": {
-          "format": "uuid"
-        },
-        "type": "object",
-        "title": "Skills",
-        "description": "Skill versions in `data` or `relationships`, keyed by version id."
+      "storyboard": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/MadeFromArtifact"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The Storyboard it was compiled from (its clip is `data.clip_id`); null for raw input."
+      },
+      "skill": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/MadeWithSkill"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The Skill version that wrote it; null when none."
       }
     },
     "type": "object",
@@ -2011,9 +2064,9 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "data",
       "batch_id",
       "created_at",
-      "relationships",
       "assets",
-      "skills"
+      "storyboard",
+      "skill"
     ],
     "title": "Prompt"
   },
@@ -2547,14 +2600,6 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "title": "Created At",
         "description": "When this version was saved."
       },
-      "relationships": {
-        "items": {
-          "$ref": "#/$defs/ArtifactRelationshipOut"
-        },
-        "type": "array",
-        "title": "Relationships",
-        "description": "Where it comes from, by type and then target id."
-      },
       "assets": {
         "additionalProperties": {
           "$ref": "#/$defs/AssetOut"
@@ -2566,16 +2611,27 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "title": "Assets",
         "description": "The assets `data` or `relationships` refer to, with download URLs."
       },
-      "skills": {
-        "additionalProperties": {
-          "$ref": "#/$defs/SkillRef"
-        },
-        "propertyNames": {
-          "format": "uuid"
-        },
-        "type": "object",
-        "title": "Skills",
-        "description": "Skill versions in `data` or `relationships`, keyed by version id."
+      "product": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/MadeFromEntity"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The Product version it was written for."
+      },
+      "skill": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/MadeWithSkill"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The Skill version that wrote it; null when none."
       }
     },
     "type": "object",
@@ -2588,9 +2644,9 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "data",
       "batch_id",
       "created_at",
-      "relationships",
       "assets",
-      "skills"
+      "product",
+      "skill"
     ],
     "title": "Script"
   },
@@ -2689,65 +2745,6 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     ],
     "title": "SharesOut"
   },
-  "SkillDetail": {
-    "properties": {
-      "id": {
-        "type": "string",
-        "format": "uuid",
-        "title": "Id",
-        "description": "The Skill's id."
-      },
-      "name": {
-        "type": "string",
-        "title": "Name",
-        "description": "Its name, as in PUT /v1/admin/skills/{name}."
-      },
-      "platform": {
-        "type": "boolean",
-        "title": "Platform",
-        "description": "Provided by Nuva to every customer."
-      },
-      "main_version": {
-        "anyOf": [
-          {
-            "type": "integer"
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "title": "Main Version",
-        "description": "The version new work uses by default."
-      },
-      "created_at": {
-        "type": "string",
-        "format": "date-time",
-        "title": "Created At",
-        "description": "When its first version was registered."
-      },
-      "main": {
-        "anyOf": [
-          {
-            "$ref": "#/$defs/SkillVersionOut"
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "description": "The main version; null when none is set."
-      }
-    },
-    "type": "object",
-    "required": [
-      "id",
-      "name",
-      "platform",
-      "main_version",
-      "created_at",
-      "main"
-    ],
-    "title": "SkillDetail"
-  },
   "SkillFile": {
     "properties": {
       "path": {
@@ -2779,6 +2776,137 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "download_url"
     ],
     "title": "SkillFile"
+  },
+  "SkillListed": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "format": "uuid",
+        "title": "Id",
+        "description": "The Skill's id."
+      },
+      "name": {
+        "type": "string",
+        "title": "Name",
+        "description": "Its name, as registered."
+      },
+      "platform": {
+        "type": "boolean",
+        "title": "Platform",
+        "description": "Provided by Nuva to every customer."
+      },
+      "main_version": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Main Version",
+        "description": "The version new work uses by default."
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At",
+        "description": "When its first version was registered."
+      },
+      "version": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Version",
+        "description": "The version shown here: the latest."
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description",
+        "description": "Its description, as registered."
+      },
+      "note": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Note",
+        "description": "What this version changes."
+      },
+      "attributes": {
+        "anyOf": [
+          {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Attributes",
+        "description": "The fields for the Agent's loader, as registered."
+      },
+      "files": {
+        "anyOf": [
+          {
+            "items": {
+              "$ref": "#/$defs/SkillFile"
+            },
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Files",
+        "description": "Its files, by path, each with a download URL."
+      },
+      "download_url_expires_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Download Url Expires At",
+        "description": "When the files' download URLs stop working: in an hour."
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "name",
+      "platform",
+      "main_version",
+      "created_at",
+      "version",
+      "description",
+      "note",
+      "attributes",
+      "files",
+      "download_url_expires_at"
+    ],
+    "title": "SkillListed",
+    "description": "A Skill in a list, at its latest version; SDKs before the version header read it without\none (SkillOut)."
   },
   "SkillOut": {
     "properties": {
@@ -2831,11 +2959,11 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     "properties": {
       "items": {
         "items": {
-          "$ref": "#/$defs/SkillOut"
+          "$ref": "#/$defs/SkillListed"
         },
         "type": "array",
         "title": "Items",
-        "description": "The Skills on this page, newest first."
+        "description": "The Skills on this page, newest first, each at its latest version."
       },
       "next_cursor": {
         "anyOf": [
@@ -2857,33 +2985,136 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     ],
     "title": "SkillPage"
   },
-  "SkillRef": {
+  "SkillRead": {
     "properties": {
-      "skill_id": {
+      "id": {
         "type": "string",
         "format": "uuid",
-        "title": "Skill Id",
+        "title": "Id",
         "description": "The Skill's id."
       },
       "name": {
         "type": "string",
         "title": "Name",
-        "description": "The Skill's name."
+        "description": "Its name, as registered."
+      },
+      "platform": {
+        "type": "boolean",
+        "title": "Platform",
+        "description": "Provided by Nuva to every customer."
+      },
+      "main_version": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Main Version",
+        "description": "The version new work uses by default."
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At",
+        "description": "When its first version was registered."
       },
       "version": {
-        "type": "integer",
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
         "title": "Version",
-        "description": "The version's number."
+        "description": "The version shown here."
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description",
+        "description": "Its description, as registered."
+      },
+      "note": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Note",
+        "description": "What this version changes."
+      },
+      "attributes": {
+        "anyOf": [
+          {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Attributes",
+        "description": "The fields for the Agent's loader, as registered."
+      },
+      "files": {
+        "anyOf": [
+          {
+            "items": {
+              "$ref": "#/$defs/SkillFile"
+            },
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Files",
+        "description": "Its files, by path, each with a download URL."
+      },
+      "download_url_expires_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Download Url Expires At",
+        "description": "When the files' download URLs stop working: in an hour."
       }
     },
     "type": "object",
     "required": [
-      "skill_id",
+      "id",
       "name",
-      "version"
+      "platform",
+      "main_version",
+      "created_at",
+      "version",
+      "description",
+      "note",
+      "attributes",
+      "files",
+      "download_url_expires_at"
     ],
-    "title": "SkillRef",
-    "description": "A Skill version a row refers to, to read it with GET /v1/skills/{id}/versions/{version}."
+    "title": "SkillRead",
+    "description": "A Skill at one version: the latest, or the one asked for. SDKs before the version header\nread the Skill with its `main` version (SkillDetail)."
   },
   "SkillRegistration": {
     "properties": {
@@ -3129,14 +3360,6 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "title": "Created At",
         "description": "When this version was saved."
       },
-      "relationships": {
-        "items": {
-          "$ref": "#/$defs/ArtifactRelationshipOut"
-        },
-        "type": "array",
-        "title": "Relationships",
-        "description": "Where it comes from, by type and then target id."
-      },
       "assets": {
         "additionalProperties": {
           "$ref": "#/$defs/AssetOut"
@@ -3148,16 +3371,47 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "title": "Assets",
         "description": "The assets `data` or `relationships` refer to, with download URLs."
       },
-      "skills": {
-        "additionalProperties": {
-          "$ref": "#/$defs/SkillRef"
+      "script": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/MadeFromArtifact"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The Script it shoots."
+      },
+      "product": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/MadeFromEntity"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The Product version it shows."
+      },
+      "characters": {
+        "items": {
+          "$ref": "#/$defs/MadeFromEntity"
         },
-        "propertyNames": {
-          "format": "uuid"
-        },
-        "type": "object",
-        "title": "Skills",
-        "description": "Skill versions in `data` or `relationships`, keyed by version id."
+        "type": "array",
+        "title": "Characters",
+        "description": "The Character versions it casts.",
+        "default": []
+      },
+      "skill": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/MadeWithSkill"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The Skill version that wrote it; null when none."
       }
     },
     "type": "object",
@@ -3170,9 +3424,11 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "data",
       "batch_id",
       "created_at",
-      "relationships",
       "assets",
-      "skills"
+      "script",
+      "product",
+      "characters",
+      "skill"
     ],
     "title": "Storyboard"
   },

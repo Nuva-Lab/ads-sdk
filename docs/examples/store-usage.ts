@@ -66,10 +66,10 @@ export async function readAsset(nuva: NuvaClient, assetId: string) {
 	// #endregion asset-read
 	return asset;
 }
-export async function submitVideo(nuva: NuvaClient, promptId: string, requestKey: string) {
+export async function submitVideo(nuva: NuvaClient, promptId: string, idempotencyKey: string) {
 	// #region video-job
-	// Persist the Prompt ID and requestKey before calling; keep the returned Job ID.
-	const job = await nuva.videos.generate({ prompt: promptId }, { idempotencyKey: requestKey });
+	// Persist the Prompt ID and idempotencyKey before calling; keep the returned Job ID.
+	const job = await nuva.videos.generate({ prompt: promptId }, { idempotencyKey });
 	return job;
 	// #endregion video-job
 }

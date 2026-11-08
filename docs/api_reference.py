@@ -185,8 +185,7 @@ def links(kind, en, zh):
     ]
 
 
-ARTIFACT = lambda kind: links(kind, 'Added by the SDK: the id, for display.', '由 SDK 添加：用于展示的 ID。') + [
-    Row('schemaVersion', 'number', True, 'Added by the SDK: the same as `schema_version`.', '由 SDK 添加：与 <code>schema_version</code> 相同。')]
+ARTIFACT = lambda kind: links(kind, 'Added by the SDK: the id, for display.', '由 SDK 添加：用于展示的 ID。')
 OPTIONS = P('options', 'StoreCommandOptions')
 COMMAND = P('options', 'CommandOptions')
 ID = lambda what_en, what_zh: P('id', 'string', None, f'The {what_en}\'s id.', f'{what_zh}的 ID。')
@@ -264,22 +263,16 @@ MODELS = {
     'Job': JOB_METHODS,
     'Ad': [Api('AdOut'), *links('ad', 'Added by the SDK: the id, for display.', '由 SDK 添加：用于展示的 ID。')],
     'Batch': [Api('BatchOut'), *links('batch', 'Added by the SDK: the Batch\'s `intent`, for display.', '由 SDK 添加：批次的 <code>intent</code>，用于展示。')],
-    'BatchSummary': [Api('BatchSummary')],
-    'Skill': [Api('SkillDetail'), *links('skill', 'Added by the SDK: the Skill\'s `name`, for display.', '由 SDK 添加：Skill 的 <code>name</code>，用于展示。')],
-    'SkillOut': [Api('SkillOut')],
-    'SkillVersionOut': [Api('SkillVersionOut')],
+    'Skill': [Api('SkillRead'), *links('skill', 'Added by the SDK: the Skill\'s `name`, for display.', '由 SDK 添加：Skill 的 <code>name</code>，用于展示。')],
     'Share': [Api('ShareOut')],
     'SessionFile': [Ts('SessionFile')],
 }
 # The contract component each model shows, so a field of that type links to the model instead of repeating it.
 COMPONENT_MODELS = {'AssetOut': 'Asset', 'Brand': 'Brand', 'Product': 'Product', 'Character': 'Character', 'Script': 'Script',
                     'Storyboard': 'Storyboard', 'Prompt': 'Prompt', 'JobOut': 'JobState', 'AdOut': 'Ad', 'BatchOut': 'Batch',
-                    'BatchSummary': 'BatchSummary', 'SkillDetail': 'Skill', 'SkillOut': 'SkillOut', 'SkillVersionOut': 'SkillVersionOut',
-                    'ShareOut': 'Share'}
+                    'BatchListed': 'Batch', 'SkillRead': 'Skill', 'SkillListed': 'Skill', 'ShareOut': 'Share'}
 MODEL_NOTES = {
     'Job': ('What `videos.generate` returns: a JobState and two methods.', '<code>videos.generate</code> 的返回值：JobState 加两个方法。'),
-    'BatchSummary': ('A Batch in a list: without its Ads and Job counts.', '列表中的批次：不含广告和任务数量。'),
-    'SkillOut': ('A Skill in a list: without its main version.', '列表中的 Skill：不含主版本。'),
 }
 # Types defined on the Introduction page.
 INTRO_TYPES = ('NuvaClientOptions', 'AccessToken', 'AdsError', 'StoreCommandOptions', 'CommandOptions', 'Page')
@@ -354,7 +347,7 @@ PAGES = [
          ('Have the writer cast and shoot a Script as a Storyboard, read it and save your own edits.', '让编写服务为脚本选角并编写拍法、读取分镜并保存你的编辑。'),
          [('A Storyboard is how a Script is shot: who plays each role (`cast`), one `direction` for the whole video, and clips of 5 to 15 seconds, each a list of shots that name people, the Product, files and lines with tokens. Like Scripts, Storyboards never change: each method returns a new one.',
            '分镜说明脚本如何拍摄：每个角色由谁出演（<code>cast</code>）、整条视频统一的 <code>direction</code>，以及 5 到 15 秒的片段；每个片段由若干镜头组成，镜头用标记指代人物、产品、文件和台词。与脚本一样，分镜不会被修改：每个方法都返回一个新分镜。'),
-          ('Tokens and the checks a Storyboard passes: <a href="@guide:generation#tokens">Write shots with tokens</a>.', '标记及分镜需通过的检查：<a href="@guide:generation#tokens">在镜头中使用标记</a>。')],
+          ('Tokens: <a href="@guide:generation#tokens">Tokens in shots</a>. The checks a Storyboard you save passes: <a href="@guide:generation#edit">Edit content yourself</a>.', '标记：<a href="@guide:generation#tokens">镜头中的标记</a>。自己保存的分镜需通过的检查：<a href="@guide:generation#edit">自己编辑内容</a>。')],
          [Method('storyboards.generate', ('Generate a Storyboard', '生成分镜'), [P('input', 'StoryboardInput', Zod('NewStoryboardInput')), OPTIONS], 'Promise<Storyboard>',
                  ('The writer casts and shoots a Script as a new Storyboard, with every clip\'s shots, and saves it. Several Storyboards for the same Script are shot differently from each other.',
                   '编写服务为脚本选角并编写拍法，生成包含每个片段镜头的新分镜并保存。同一脚本的多个分镜拍法互不相同。'), ('POST', '/v1/generate/storyboard')),
@@ -422,24 +415,24 @@ PAGES = [
                  ('GET', '/v1/ads'), response='AdPage', output=page_of('AdPage')),
           Method('batches.get', ('Retrieve a Batch', '读取批次'), [ID('Batch', '批次')], 'Promise<Batch>', ('Reads a Batch with its Ads and how many of its Jobs are in each status.', '读取批次，包括其广告和各状态的任务数量。'),
                  ('GET', '/v1/batches/{batch_id}'), response='BatchOut'),
-          Method('batches.list', ('List Batches', '列出批次'), [LIST_QUERY(('GET', '/v1/batches'))], 'Promise<Page<BatchSummary>>', ('Lists Batches, newest first.', '按从新到旧列出批次。'),
+          Method('batches.list', ('List Batches', '列出批次'), [LIST_QUERY(('GET', '/v1/batches'))], 'Promise<Page<Batch>>', ('Lists Batches, newest first, each as `batches.get` reads it.', '按从新到旧列出批次，每个与 <code>batches.get</code> 读取的相同。'),
                  ('GET', '/v1/batches'), response='BatchPage', output=page_of('BatchPage'))],
-         ['Ad', 'Batch', 'BatchSummary']),
+         ['Ad', 'Batch']),
     Page('reference-skills', ('Skills', 'Skill'),
          ('Read the Skills the writers use and their versions.', '读取编写服务使用的 Skill 及其版本。'),
-         [('A Skill is versioned writing guidance, a `SKILL.md` and its files, that the Agent and the writers load. Your backend registers Skills with the <a href="@guide:backend-go#skills">Go Admin SDK</a>; Nuva uses the Skills configured for your account, and content records the versions it was made with in `skills`.',
-           'Skill 是带版本的编写指导（一个 <code>SKILL.md</code> 及其文件），由 Agent 和编写服务加载。你的后端通过 <a href="@guide:backend-go#skills">Go Admin SDK</a> 注册 Skill；Nuva 使用为你的账户配置的 Skill，内容在 <code>skills</code> 中记录所用的版本。')],
-         [Method('skills.get', ('Retrieve a Skill', '读取 Skill'), [ID('Skill', 'Skill ')], 'Promise<Skill>', ('Reads a Skill and its main version, with download URLs for its files.', '读取 Skill 及其主版本，并附带文件下载地址。'),
-                 ('GET', '/v1/skills/{skill_id}'), response='SkillDetail'),
-          Method('skills.list', ('List Skills', '列出 Skill'), [LIST_QUERY(('GET', '/v1/skills'))], 'Promise<Page<SkillOut>>', ('Lists the Skills you can use, newest first.', '按从新到旧列出你可使用的 Skill。'),
-                 ('GET', '/v1/skills'), response='SkillPage', output=page_of('SkillPage')),
-          Method('skills.version', ('Retrieve a Skill version', '读取 Skill 版本'), [ID('Skill', 'Skill '), P('version', 'number', None, 'The version\'s number, 1 or more.', '版本号，从 1 开始。')], 'Promise<SkillVersionOut>',
-                 ('Reads one version of a Skill, for example one that `skills` on a Script names.', '读取 Skill 的某个版本，例如脚本 <code>skills</code> 中所列的版本。'),
-                 ('GET', '/v1/skills/{skill_id}/versions/{version}'), response='SkillVersionOut')],
-         ['Skill', 'SkillOut', 'SkillVersionOut']),
+         [('A Skill is versioned writing guidance, a `SKILL.md` and its files, that the Agent and the writers load. Your backend registers Skills with the <a href="@guide:backend-go#skills">Go Admin SDK</a>; Nuva uses the Skills configured for your account, and a Script, Storyboard or Prompt names the version it was written with in `skill`. A `Skill` is one version: the latest unless you ask for another; `main_version` is the one new work uses.',
+           'Skill 是带版本的编写指导（一个 <code>SKILL.md</code> 及其文件），由 Agent 和编写服务加载。你的后端通过 <a href="@guide:backend-go#skills">Go Admin SDK</a> 注册 Skill；Nuva 使用为你的账户配置的 Skill，脚本、分镜或提示词在 <code>skill</code> 中给出编写时所用的版本。一个 <code>Skill</code> 是一个版本：默认为最新版本，也可以指定其他版本；<code>main_version</code> 是新工作使用的版本。')],
+         [Method('skills.get', ('Retrieve a Skill', '读取 Skill'), [ID('Skill', 'Skill '), P('options', '{version?: number}', [Row('version', 'number', False, 'The version to read, 1 or more, for example the one a Script\'s `skill` names. Left out: the latest.', '要读取的版本，从 1 开始，例如脚本 <code>skill</code> 中给出的版本。省略时为最新版本。')])], 'Promise<Skill>',
+                 ('Reads a Skill at its latest version, or the one you ask for, with download URLs for its files.', '读取 Skill 的最新版本或指定版本，并附带文件下载地址。'),
+                 ('GET', '/v1/skills/{skill_id}'), response='SkillRead'),
+          Method('skills.list', ('List Skills', '列出 Skill'), [LIST_QUERY(('GET', '/v1/skills'))], 'Promise<Page<Skill>>', ('Lists the Skills you can use, newest first, each at its latest version.', '按从新到旧列出你可使用的 Skill，每个均为最新版本。'),
+                 ('GET', '/v1/skills'), response='SkillPage', output=page_of('SkillPage'))],
+         ['Skill']),
     Page('reference-shares', ('Shares', '共享'),
          ('Share Brands, Products, Characters, Assets and Artifacts with an organization, org or group.', '将品牌、产品、人物、Asset 和产物共享给组织、org 或 group。'),
-         [('An item is private to the user who made it, and to the admins above them, until it is shared with a scope: `customer` (everyone in the organization) or an org or group. Only an admin of the scope or above it shares into it. A share never allows deleting the item or sharing it on.',
+         [('Scopes (orgs, groups) and who administers them are set from your backend: see <a href="@guide:backend-go#permissions">Backend setup › Organize users, name admins and share</a> (the Go Admin SDK\'s `PutScope` and `SetMemberships`).',
+           '范围（org、group）及其管理员由你的后端设置：参见<a href="@guide:backend-go#permissions">后端接入 › 组织用户、指定管理员与共享</a>（Go Admin SDK 的 <code>PutScope</code> 和 <code>SetMemberships</code>）。'),
+          ('An item is private to the user who made it, and to the admins above them, until it is shared with a scope: `customer` (everyone in the organization) or an org or group. Only an admin of the scope or above it shares into it. A share never allows deleting the item or sharing it on.',
            '内容在共享给某个范围之前，只有创建者及其上级管理员可见；范围可以是 <code>customer</code>（组织内所有人）或某个 org、group。只有该范围或上级范围的管理员可以共享到该范围。共享不允许删除内容或再次共享。')],
          [Method('shares.set', ('Share an item', '共享内容'), [P('item', 'ShareTarget', Ts('ShareTarget')),
                  P('scope', 'string', None, '`customer` or the external id of an org or group: 1–255 characters, without `/` or control characters.',
@@ -449,8 +442,8 @@ PAGES = [
                  ('Shares the item with everyone at or below `scope`; a repeat changes the access.', '将内容共享给 <code>scope</code> 范围内（含下级）的所有人；重复调用会修改权限。'),
                  ('PUT', '/v1/shares/{kind}/{item_id}/{scope}'), body='ShareRequest', response='ShareOut'),
           Method('shares.list', ('List an item\'s shares', '列出共享'), [P('item', 'ShareTarget', Ts('ShareTarget'))], 'Promise<Share[]>',
-                 ('Lists an item\'s shares, oldest first, for whoever may share it (its owner or an admin above them); others who can read it get `FORBIDDEN`.',
-                  '按从旧到新列出某项内容的共享，仅限可共享它的人（所有者或其上级管理员）；其他能读取它的人得到 <code>FORBIDDEN</code>。'),
+                 ('Lists an item\'s shares, oldest first, for whoever may share it (its owner or an admin above them); others who can read it get `FORBIDDEN`. It returns an array, not a page: an item has few shares.',
+                  '按从旧到新列出某项内容的共享，仅限可共享它的人（所有者或其上级管理员）；其他能读取它的人得到 <code>FORBIDDEN</code>。返回数组而非分页：一项内容的共享很少。'),
                  ('GET', '/v1/shares/{kind}/{item_id}'), response='SharesOut'),
           Method('shares.remove', ('Stop sharing', '取消共享'), [P('item', 'ShareTarget', Ts('ShareTarget')), P('scope', 'string', None, 'The scope to stop sharing with.', '要停止共享的范围。'), COMMAND], 'Promise<void>',
                  ('Removes the item\'s share with `scope`; it succeeds when there was none, and those it reached get `NOT_FOUND` again.', '移除内容与 <code>scope</code> 的共享；原本没有共享时同样成功，原先通过它访问的人再次得到 <code>NOT_FOUND</code>。'),
@@ -1367,8 +1360,8 @@ def intro_sections(locale='zh'):
     pages = ''.join(f'<li><a href="{filename(page.key, locale)}">{escape(page.title[1] if zh else page.title[0])}</a>: {page.blurb.html(locale)}</li>' for page in PAGES)
     sections = [
         ('overview', t('Overview', '概览'),
-         p(f'Every method of the TypeScript SDK, for API version <code>{API_VERSION}</code>, one page per resource. How the methods fit together is in the guides: <a href="@guide:store">Manage resources</a>, <a href="@guide:generation">Generate content</a>, <a href="@guide:agent">Agent conversations</a>.',
-           f'TypeScript SDK 的全部方法，适用于 API 版本 <code>{API_VERSION}</code>，每种资源一页。方法如何配合使用参见指南：<a href="@guide:store">管理资源</a>、<a href="@guide:generation">生成内容</a>、<a href="@guide:agent">Agent 对话</a>。')
+         p(f'Every method of the TypeScript SDK, for API version <code>{API_VERSION}</code>, one page per resource. How the methods fit together is in the guides: <a href="@guide:agent">Agent conversations</a>, <a href="@guide:store">Products and media</a>, <a href="@guide:generation">Content generation</a>.',
+           f'TypeScript SDK 的全部方法，适用于 API 版本 <code>{API_VERSION}</code>，每种资源一页。方法如何配合使用参见指南：<a href="@guide:agent">Agent 对话</a>、<a href="@guide:store">产品与媒体</a>、<a href="@guide:generation">内容生成</a>。')
          + f'<ul class="page-list">{pages}</ul>'
          + p('In a record, <code>data</code> is what you write and the writers read; the fields around it are the record the service keeps or computes (<code>assets</code> expands the IDs in <code>data</code> with download URLs); <code>ref</code> and <code>label</code> are SDK helpers.',
              '记录中的 <code>data</code> 是你写入、编写服务读取的内容；其外的字段是服务保存或计算出的记录信息（<code>assets</code> 将 <code>data</code> 中的 ID 展开为带下载地址的条目）；<code>ref</code> 和 <code>label</code> 是 SDK 提供的辅助字段。')),

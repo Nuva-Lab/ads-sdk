@@ -69,7 +69,7 @@ test('backend OrderedUUID uses GUID shape without RFC version or variant restric
 	const job = '01a175e0-3000-cccc-1111-abcdefabcdef';
 	for (const value of [product, script, skill, asset, job]) assert.equal(backendIdSchema.parse(value), value);
 	assert.equal(backendSchema('ProductCreate').parse({ brand_id: product, data: { name: 'Ordered' } }).brand_id, product);
-	assert.equal(backendSchema('SkillRef').parse({ skill_id: skill, name: 'writer', version: 1 }).skill_id, skill);
+	assert.equal(backendSchema('MadeWithSkill').parse({ id: skill, name: 'writer', version: 1 }).id, skill);
 	assert.equal(backendSchema('GenerateVideo').parse({ prompt: script, batch_id: job }).batch_id, job);
 	assert.equal(
 		generateScriptSchema.parse({
