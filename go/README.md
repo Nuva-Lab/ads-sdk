@@ -72,7 +72,7 @@ _, err = admin.SetShare(ctx, nuva.ItemRef{Kind: "product", ID: productID}, "team
 
 - **`RoleMember`** reads what is shared with its scope or a scope above it. Every user is a member of `customer` without a row.
 - **`RoleAdmin`** reads, writes, deletes and shares what users at or below its scope own, and can drive their Agent Sessions.
-- **`RoleViewer`** reads what users at or below its scope own, and changes nothing of theirs.
+- **`RoleViewer`** reads what users at or below its scope own, and changes nothing of theirs. A viewer is still a member: an item shared with them for writing, they can edit.
 - **Shares** are `AccessRead` (see and use) or `AccessWrite` (also edit). A share reaches everyone at or below its scope. It never allows deleting the item or sharing it on.
 - Shareable kinds are `brand`, `product`, `character`, `asset`, `script`, `storyboard`, `directing_plan` and `prompt`.
 - The API key administers the whole customer: it lists, reads and shares everyone's items, but writing items takes a user token.

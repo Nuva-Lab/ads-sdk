@@ -38,7 +38,7 @@ def go_sections(locale='zh'):
          + table([t('Role', '角色'), t('What it allows', '允许的操作')], [
              ['<code>RoleMember</code>', t('Reads what is shared with its scope or a scope above it. Every user is a member of <code>customer</code> without a row.', '读取共享给其范围或上级范围的内容。每个用户都默认是 <code>customer</code> 的成员。')],
              ['<code>RoleAdmin</code>', t('Reads, writes, deletes and shares what users at or below its scope own, and can drive their Agent Sessions.', '读取、修改、删除和共享其范围内（含下级）用户拥有的内容，并可代为操作他们的 Agent Session。')],
-             ['<code>RoleViewer</code>', t('Reads what users at or below its scope own, and changes nothing of theirs.', '读取其范围内（含下级）用户拥有的内容，但不能修改。')],
+             ['<code>RoleViewer</code>', t('Reads what users at or below its scope own, and changes nothing of theirs. A viewer is still a member: an item shared with them for writing, they can edit.', '读取其范围内（含下级）用户拥有的内容，但不能修改。查看者仍是成员：以可编辑方式共享给他们的内容可以编辑。')],
          ])
          + p('Scopes form a tree: <code>customer</code> (your whole organization), orgs under it, and groups under an org. <code>SetMemberships</code> replaces a user’s memberships. It takes effect at once for the API; the Agent follows within a minute for Session access. An admin of <code>customer</code> administers everyone. Name your admins before users need to see each other’s work.',
            '范围是一棵树：<code>customer</code>（整个组织）、其下的 org，以及 org 下的 group。<code>SetMemberships</code> 会替换用户的全部成员关系，对 API 立即生效；Agent 对 Session 的访问权限在一分钟内同步。<code>customer</code> 的管理员可管理所有人。在用户需要查看彼此的内容之前，请先指定管理员。')
