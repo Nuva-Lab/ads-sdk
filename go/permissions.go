@@ -116,7 +116,7 @@ func (c *AdminClient) PutScope(ctx context.Context, externalID string, input Sco
 	}
 	err := c.connection.request(ctx, "PUT", "/v1/admin/scopes/"+externalID, nil, input, &out, "id", "external_id", "kind", "parent", "created_at")
 	if err == nil && (!validScope(out) || out.ExternalID != externalID || out.Kind != input.Kind) {
-		err = malformed("unknown")
+		err = malformed()
 	}
 	return out, err
 }
@@ -137,11 +137,11 @@ func (c *AdminClient) ListScopes(ctx context.Context, options ListOptions) (Scop
 	err := c.connection.request(ctx, "GET", "/v1/admin/scopes", query, nil, &out, "items", "next_cursor")
 	if err == nil {
 		if out.Items == nil {
-			err = malformed("")
+			err = malformed()
 		}
 		for _, item := range out.Items {
 			if err == nil && !validScope(item) {
-				err = malformed("")
+				err = malformed()
 			}
 		}
 	}
@@ -181,7 +181,7 @@ func (c *AdminClient) SetMemberships(ctx context.Context, externalUserID string,
 		Memberships []Membership `json:"memberships"`
 	}{memberships}, &out, "user_id", "external_user_id", "memberships")
 	if err == nil && !validMemberships(out, externalUserID) {
-		err = malformed("unknown")
+		err = malformed()
 	}
 	return out, err
 }
@@ -194,7 +194,7 @@ func (c *AdminClient) GetMemberships(ctx context.Context, externalUserID string)
 	}
 	err := c.connection.request(ctx, "GET", "/v1/admin/users/"+externalUserID+"/memberships", nil, nil, &out, "user_id", "external_user_id", "memberships")
 	if err == nil && !validMemberships(out, externalUserID) {
-		err = malformed("")
+		err = malformed()
 	}
 	return out, err
 }
@@ -223,11 +223,11 @@ func (c *AdminClient) ListShares(ctx context.Context, item ItemRef) ([]Share, er
 	err = c.connection.request(ctx, "GET", path, nil, nil, &out, "items")
 	if err == nil {
 		if out.Items == nil {
-			err = malformed("")
+			err = malformed()
 		}
 		for _, share := range out.Items {
 			if err == nil && !validShare(share, item) {
-				err = malformed("")
+				err = malformed()
 			}
 		}
 	}
@@ -249,7 +249,7 @@ func (c *AdminClient) SetShare(ctx context.Context, item ItemRef, scope string, 
 		Access string `json:"access"`
 	}{access}, &out, "kind", "id", "scope", "access", "created_at")
 	if err == nil && (!validShare(out, item) || out.Scope != scope || out.Access != access) {
-		err = malformed("unknown")
+		err = malformed()
 	}
 	return out, err
 }

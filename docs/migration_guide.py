@@ -32,6 +32,7 @@ def migration_sections(locale='zh'):
                 ['<code>storyboards.generate({base, content})</code>', '<code>storyboards.createFrom(base, changes)</code>'],
                 ['<code>storyboards.generate({content})</code>', t('<code>storyboards.generate({script})</code>, then <code>storyboards.createFrom</code>', '<code>storyboards.generate({script})</code>，再用 <code>storyboards.createFrom</code>')],
                 ['<code>NuvaError</code>, <code>NuvaErrorInfo</code>, <code>NuvaErrorCode</code>', '<code>AdsError</code>, <code>AdsErrorInfo</code>, <code>AdsErrorCode</code>'],
+                ['<code>APIError.Acceptance</code> (Go)', t('<code>APIError.Retryable</code>: every Admin write repeats to the same result, so a retryable error can be sent again.', '<code>APIError.Retryable</code>：每个 Admin 写入重复执行的结果都相同，因此可重试的错误可以再次发送。')],
                 ['<code>error.acceptance</code>', t('<code>error.retryable</code>: when it is true, retry; a write with the same <code>idempotencyKey</code>, which is always safe. The SDK makes a key for every write and retries a dropped connection itself.',
                                                    '<code>error.retryable</code>：为 true 时重试；写入使用相同的 <code>idempotencyKey</code>，这样做始终安全。SDK 会为每个写入生成 key，并自行重试中断的连接。')],
                 ['<code>PartialCreationError</code>, <code>error.saved.prompts</code>', t('<code>prompts.generate</code> returns every clip\'s Prompt or an error: call it again (the clips already compiled are reused), or compile one <code>clip</code> at a time.',

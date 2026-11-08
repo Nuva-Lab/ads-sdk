@@ -59,9 +59,9 @@ def go_sections(locale='zh'):
          table([t('Field', '字段'), t('Use', '用途')], [
              ['<code>StatusCode / Code</code>', t('Identify the HTTP status and service error.', '识别 HTTP 状态和服务错误。')],
              ['<code>RequestID</code>', t('Correlate a failed request when available.', '在可用时关联失败请求。')],
-             ['<code>Acceptance</code>', t('Distinguish a rejected write from an uncertain result.', '区分被拒绝的写入与结果不确定的写入。')],
+             ['<code>Retryable</code>', t('Whether the same call may succeed if sent again.', '再次发送相同调用是否可能成功。')],
          ])
-         + p('Use <code>errors.As</code> with <code>*nuva.APIError</code>. To retry a write, send it again with the same idempotency key. Use context deadlines; <code>errors.Is</code> can identify cancellation or timeout. The Go client does not replay writes by itself.',
-           '通过 <code>errors.As</code> 获取 <code>*nuva.APIError</code>。重试写入时，使用相同的幂等 key 再次发送。设置 context 截止时间，并用 <code>errors.Is</code> 判断取消或超时。Go 客户端不会自行重放写入。')
+         + p('Use <code>errors.As</code> with <code>*nuva.APIError</code>. Every Admin write repeats to the same result (scopes, memberships and shares are replaced; the same Skill content is the same version), so a <code>Retryable</code> error can be sent again. Use context deadlines; <code>errors.Is</code> can identify cancellation or timeout. The Go client does not replay writes by itself.',
+           '通过 <code>errors.As</code> 获取 <code>*nuva.APIError</code>。每个 Admin 写入重复执行的结果都相同（范围、成员关系和共享会被替换；相同 Skill 内容即同一版本），因此 <code>Retryable</code> 的错误可以再次发送。设置 context 截止时间，并用 <code>errors.Is</code> 判断取消或超时。Go 客户端不会自行重放写入。')
          + p('Download the <a href="examples/guide_backend.go">complete backend example</a>.', '下载<a href="examples/guide_backend.go">完整后端示例</a>。')),
     ]

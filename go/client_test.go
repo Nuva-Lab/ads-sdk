@@ -113,7 +113,7 @@ func TestSafeErrorsContextAndNoRetries(t *testing.T) {
 	c, _ := NewAdminClient(server.URL, "admin-secret")
 	_, err := c.IssueUserToken(context.Background(), "u")
 	var api *APIError
-	if !errors.As(err, &api) || api.Acceptance != "unknown" || api.Code != "UNAVAILABLE" || strings.Contains(fmt.Sprint(err), "admin-secret") {
+	if !errors.As(err, &api) || api.Code != "UNAVAILABLE" || strings.Contains(fmt.Sprint(err), "admin-secret") {
 		t.Fatalf("unsafe or incomplete error: %v", err)
 	}
 	if calls != 1 {

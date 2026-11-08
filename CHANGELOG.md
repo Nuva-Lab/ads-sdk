@@ -66,6 +66,7 @@ Each entry describes the change from the previous released version.
 | `job.checkpoint`, parsing `job.error` | `job.error_code` |
 | `NuvaError`, `NuvaErrorInfo`, `NuvaErrorCode` | `AdsError`, `AdsErrorInfo`, `AdsErrorCode` |
 | `error.acceptance` | `error.retryable`; retry a write with the same `idempotencyKey` |
+| Go `APIError.Acceptance` | `APIError.Retryable`: every Admin write repeats to the same result |
 | `PartialCreationError`, `error.saved.prompts` | call `prompts.generate` again (finished clips are reused), or one `clip` at a time |
 | `onTrace`, `onWireTrace` | `error.requestId` and `error.method` when you report a problem |
 | `BackendPage<T>`, `page.next_cursor` | `Page<T>`, `page.nextCursor` |
