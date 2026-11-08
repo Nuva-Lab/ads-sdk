@@ -13,6 +13,7 @@ import {
 	editScriptSchema,
 	reviseScriptSchema,
 	newStoryboardSchema,
+	newPromptsSchema,
 	reviseStoryboardSchema,
 } from './generation-schemas.js';
 import { ASSET, ASSET_ROLE_MESSAGE, decodeScript, decodeStoryboard, hasAssetRole, scriptVersion, type ScriptContent } from './script-v3.js';
@@ -127,10 +128,17 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 	const held = (ref: unknown, kind: string) =>
 		ref !== null && typeof ref === 'object' && (ref as { kind?: unknown }).kind === kind && ('content' in ref || 'legacy' in ref || 'data' in ref);
 	/** Reads one Script, Storyboard or Prompt by its id. */
-	const readArtifact = (ref: ResourceRef, kind: keyof typeof kinds): Promise<Artifact> => {
-		if (ref?.kind !== kind) throw moved(`Give the ${kinds[kind]} as { kind: "${kind}", id }.`);
+	const readArtifact = (given: { id: string; kind?: string }, kind: keyof typeof kinds): Promise<Artifact> => {
+		const ref = { kind, id: idOf(given, kind) };
 		return request('artifacts.get', { ref }, { parse: (v) => artifact(v, ref) });
 	};
+	/** The id of a reference to a `kind`: `{ id }` or the record; another kind's record is refused. */
+	function idOf(given: unknown, kind: keyof typeof kinds): string {
+		const value = given as { id?: unknown; kind?: unknown } | null;
+		if (value === null || typeof value !== 'object' || typeof value.id !== 'string') throw moved(`Give the ${kinds[kind]} as { id }, or the ${kinds[kind]} you read.`);
+		if (value.kind !== undefined && value.kind !== kind) throw moved(`Expected a ${kinds[kind]}, not a ${String(value.kind)}.`);
+		return value.id;
+	}
 	/** A new Prompt from `base` with changed render fields, the only Artifact users save directly. */
 	const promptFrom = (base: ResourceRef, data: unknown, o?: { requestId?: string; idempotencyKey?: string }) =>
 		request(
@@ -235,10 +243,6 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 	/** Every Storyboard write goes through the Agent's Storyboard endpoint and its checks. */
 	const storyboardRequest = (input: unknown, o?: { requestId?: string; idempotencyKey?: string }) =>
 		request('storyboards.generate', checked(generateStoryboardSchema, input, true), { parse: (v) => typedStoryboard(artifact(v)) }, o?.requestId, o?.idempotencyKey);
-	const storyboardId = (ref: ResourceRef<'storyboard'>) => {
-		if (ref?.kind !== 'storyboard') throw moved('Give the Storyboard as { kind: "storyboard", id }.');
-		return ref.id;
-	};
 	const moved = (message: string) => new AdsError({ code: 'INVALID_INPUT', message, retryable: false, acceptance: 'not_accepted' });
 	/** The Product a Script was written for: the Product it is based on. */
 	const scriptProduct = (script: Script) => {
@@ -321,7 +325,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 			},
 			generateFrom: async (ref, input, o) => {
 				const { instruction, acceptable_duration_ms } = checked(reviseScriptSchema, input, true);
-				const base = await api.scripts.get(ref);
+				const base = held(ref, 'script') ? (ref as Script) : await api.scripts.get(ref);
 				if (base.format !== 3) throw moved('This Script was saved before Storyboards and is read-only; generate a new Script instead.');
 				const length = base.content.duration_ms;
 				return request(
@@ -364,10 +368,11 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 				return promptFrom(base.ref, data, o);
 			},
 			generate: async (input, o) => {
-				const parsed = checked(generatePromptSchema, input, true);
+				const given = checked(newPromptsSchema, input, true);
+				const parsed = { ...given, storyboard: given.storyboard.id };
 				return request(
 					'prompts.generate',
-					parsed,
+					checked(generatePromptSchema, parsed, true),
 					{
 						parse: (v) => {
 							const raw = z
@@ -404,9 +409,10 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 			generate: async (input, o) => {
 				if (input !== null && typeof input === 'object' && ('content' in input || 'base' in input))
 					throw moved('storyboards.generate writes a new Storyboard; to start from one, use storyboards.generateFrom or createFrom.');
-				return storyboardRequest(checked(newStoryboardSchema, input, true), o);
+				const parsed = checked(newStoryboardSchema, input, true);
+				return storyboardRequest({ ...parsed, script: parsed.script.id }, o);
 			},
-			generateFrom: async (ref, input, o) => storyboardRequest({ base: storyboardId(ref), ...checked(reviseStoryboardSchema, input, true) }, o),
+			generateFrom: async (ref, input, o) => storyboardRequest({ base: idOf(ref, 'storyboard'), ...checked(reviseStoryboardSchema, input, true) }, o),
 			createFrom: async (ref, changes, o) => {
 				const base = held(ref, 'storyboard') ? (ref as Storyboard) : await api.storyboards.get(ref);
 				if (changes !== null && typeof changes === 'object' && 'script' in changes) throw moved('A Storyboard keeps its Script: leave script out of the changes.');
@@ -421,9 +427,11 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 		videos: {
 			generate: async (input, o) => {
 				assertClientRelationships(input.input);
+				// A saved Prompt is { id } (or the Prompt you read); the service takes its id.
+				const body = input?.prompt == null ? input : { ...input, prompt: idOf(input.prompt, 'prompt') };
 				const receipt = await dto(
 					'videos.generate',
-					checked(backendSchema('GenerateVideo'), input, true),
+					checked(backendSchema('GenerateVideo'), body, true),
 					'JobOut',
 					o?.requestId,
 					o?.idempotencyKey,

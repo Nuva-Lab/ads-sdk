@@ -69,7 +69,7 @@ export async function readAsset(nuva: NuvaClient, assetId: string) {
 export async function submitVideo(nuva: NuvaClient, promptId: string, idempotencyKey: string) {
 	// #region video-job
 	// Persist the Prompt ID and idempotencyKey before calling; keep the returned Job ID.
-	const job = await nuva.videos.generate({ prompt: promptId }, { idempotencyKey });
+	const job = await nuva.videos.generate({ prompt: { id: promptId } }, { idempotencyKey });
 	return job;
 	// #endregion video-job
 }
@@ -92,15 +92,15 @@ export async function generateScript(nuva: NuvaClient, productId: string) {
 export async function generateStoryboard(nuva: NuvaClient, scriptId: string, characterId: string) {
 	// #region storyboard-generate
 	// cast is keyed by the Script's role IDs; roles left out are cast by the writer.
-	const storyboard = await nuva.storyboards.generate({ script: scriptId, cast: { host: { id: characterId } } });
+	const storyboard = await nuva.storyboards.generate({ script: { id: scriptId }, cast: { host: { id: characterId } } });
 	// #endregion storyboard-generate
 	return storyboard;
 }
 export async function compileStoryboard(nuva: NuvaClient, storyboardId: string) {
 	// #region prompts-generate
 	// One saved Prompt per clip, in clip order; a clip compiled before from the same inputs keeps its Prompt.
-	const { prompts } = await nuva.prompts.generate({ storyboard: storyboardId, ratio: '9:16' });
-	// Render each one with videos.generate({ prompt: prompt.id }).
+	const { prompts } = await nuva.prompts.generate({ storyboard: { id: storyboardId }, ratio: '9:16' });
+	// Render each one with videos.generate({ prompt }): a Prompt you read is its own reference.
 	// #endregion prompts-generate
 	return prompts;
 }
@@ -143,25 +143,9 @@ export async function attachProductImage(nuva: NuvaClient, product: Product, fil
 export async function reviseScript(nuva: NuvaClient, scriptId: string) {
 	// #region script-revise
 	const revised = await nuva.scripts.generateFrom(
-		{ kind: 'script', id: scriptId },
+		{ id: scriptId },
 		{ instruction: 'Keep the approved facts and revise the opening.', acceptable_duration_ms: { min: 8000, max: 15000 } },
 	);
 	// #endregion script-revise
 	return revised;
-}
-
-export function initializePreview(
-	getAccessToken: () => Promise<string | AccessToken>,
-	origins: { agent: string; generation: string; store: string },
-) {
-	// #region preview-initialize
-	// Service URLs supplied for your environment.
-	const nuva = createNuva({
-		getAccessToken,
-		baseUrl: origins.agent,
-		generationBaseUrl: origins.generation,
-		storeBaseUrl: origins.store,
-	});
-	// #endregion preview-initialize
-	return nuva;
 }

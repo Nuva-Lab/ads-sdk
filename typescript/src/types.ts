@@ -139,12 +139,6 @@ export type NuvaEnvironment = 'sandbox' | 'production';
 export interface NuvaClientOptions {
 	/** Paired Agent and API services. Defaults to sandbox (staging); use credentials issued by that environment. */
 	readonly environment?: NuvaEnvironment;
-	/** Optional Agent endpoint override for local development/testing. Release builds supply the official origin. */
-	readonly baseUrl?: string;
-	/** Optional Store endpoint override for local development/testing. */
-	readonly storeBaseUrl?: string;
-	/** Optional generation endpoint override; an explicit local Agent override may host generation too. */
-	readonly generationBaseUrl?: string;
 	/** Override request deadlines. Defaults: 8s for control/reads; 180s for writers, Asset registration and uploads. */
 	readonly requestTimeoutMs?: number;
 	readonly jobPollIntervalMs?: number;

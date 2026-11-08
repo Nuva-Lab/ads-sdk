@@ -348,7 +348,7 @@ export async function renameProduct(
 
 // #region read-script
 export async function readScript(client: NuvaClient, scriptId: string) {
-  const script = await client.scripts.get({ kind: "script", id: scriptId });
+  const script = await client.scripts.get({ id: scriptId });
   if (script.format === 2) {
     // Saved before Storyboards: readable, but it cannot be edited or shot.
     return { legacy: script.legacy };
@@ -436,7 +436,7 @@ export async function writeStoryboard(
   // "host" is a role ID from script.content.roles.
   return client.storyboards.generate(
     {
-      script: script.id,
+      script,
       cast: { host: { id: characterId } },
       instruction: "Shoot it as a phone selfie in a bright kitchen.",
     },
@@ -447,7 +447,7 @@ export async function writeStoryboard(
 
 // #region read-storyboard
 export async function readStoryboard(client: NuvaClient, storyboardId: string) {
-  const storyboard = await client.storyboards.get({ kind: "storyboard", id: storyboardId });
+  const storyboard = await client.storyboards.get({ id: storyboardId });
   const { cast, direction, clips } = storyboard.content;
   return { cast, direction, clips };
 }
@@ -486,7 +486,7 @@ export async function compileClips(
 ) {
   // One saved Prompt per clip, in clip order; pass clip: "C01" for one clip only.
   const { prompts } = await client.prompts.generate(
-    { storyboard: storyboard.id, ratio: "9:16" },
+    { storyboard, ratio: "9:16" },
     { idempotencyKey },
   );
   return prompts.map((prompt) => ({ clip: prompt.data.clip_id, prompt: prompt.id }));
@@ -495,7 +495,7 @@ export async function compileClips(
 
 // #region generate-video
 export async function generateClip(client: NuvaClient, promptId: string) {
-  const job = await client.videos.generate({ prompt: promptId });
+  const job = await client.videos.generate({ prompt: { id: promptId } });
   return job; // Save job.id before waiting for the video.
 }
 // #endregion generate-video
@@ -548,7 +548,7 @@ export async function waitForClip(job: Job) {
 
 // #region idempotency
 export function videoSubmission(client: NuvaClient, promptId: string) {
-  const input = { prompt: promptId };
+  const input = { prompt: { id: promptId } };
   const options = { idempotencyKey: crypto.randomUUID() };
   return {
     input,

@@ -52,10 +52,10 @@ const character = await nuva.characters.create({
   data: {name: 'Mia', description: 'Late twenties, warm.', image_asset_ids: [photo.id], voice_asset_id: voice.id},
 });
 // `host` is a role ID from revised.content.roles.
-const storyboard = await nuva.storyboards.generate({script: revised.id, cast: {host: character.id}});
+const storyboard = await nuva.storyboards.generate({script: revised, cast: {host: {id: character.id}}});
 // One saved Prompt per clip, in clip order.
-const {prompts} = await nuva.prompts.generate({storyboard: storyboard.id, ratio: '9:16'});
-const job = await nuva.videos.generate({prompt: prompts[0]!.id});
+const {prompts} = await nuva.prompts.generate({storyboard, ratio: '9:16'});
+const job = await nuva.videos.generate({prompt: prompts[0]!});
 const state = await nuva.jobs.get(job.id);
 // Acceptance is not completion. Poll/subscribe or await job.result({timeoutMs}).
 ```
@@ -84,7 +84,7 @@ The Storyboard is where variety comes from: it decides who is cast and how each 
 
 Assets have optional `label` and `description` saying what the file shows. Set them at upload, `assets.upload(file, {kind, label, description})` or `assets.register({upload_token | url, label?, description?})`; registering the same file again replaces them. Writers read them to tell a Product's images apart. An Asset's `label` is null when none was given.
 
-`videos.generate({prompt: promptId})` renders a saved Prompt, such as one from `prompts.generate`. `input: {schema_version: 1, data: {prompt, image_asset_ids, ...}}` renders a raw prompt you wrote and saves its Prompt with the Job. Supply exactly one of `prompt` or `input`; the returned `job.prompt` identifies the Prompt rendered. Without `batch_id` (`batch_id: null` means the same, not "no Batch"), a saved Prompt's Job joins the Prompt's Batch, so Batches follow the chain Script → Storyboard → Prompt → Job; raw `input` has no implicit Batch. Reuse the same idempotency key only for retries of that operation. Jobs expose status, error and an eventual Asset. `jobs.get`, `jobs.subscribe` and `job.result` keep submission separate from completion. Stopping chat or unsubscribing does not cancel a Job. To request best-effort cancellation, ask the Agent; cancellation is only confirmed by the backend Job status.
+`videos.generate({prompt: {id}})` (or the Prompt you read) renders a saved Prompt, such as one from `prompts.generate`. `input: {schema_version: 1, data: {prompt, image_asset_ids, ...}}` renders a raw prompt you wrote and saves its Prompt with the Job. Supply exactly one of `prompt` or `input`; the returned `job.prompt` identifies the Prompt rendered. Without `batch_id` (`batch_id: null` means the same, not "no Batch"), a saved Prompt's Job joins the Prompt's Batch, so Batches follow the chain Script → Storyboard → Prompt → Job; raw `input` has no implicit Batch. Reuse the same idempotency key only for retries of that operation. Jobs expose status, error and an eventual Asset. `jobs.get`, `jobs.subscribe` and `job.result` keep submission separate from completion. Stopping chat or unsubscribing does not cancel a Job. To request best-effort cancellation, ask the Agent; cancellation is only confirmed by the backend Job status.
 
 Edit and postprocess clips in your own editor. Upload the finished video and attach its Asset reference to the same Agent Session, with any optional editing notes or structured details. The Agent handles Ad registration and returns the Ad ID. Include the source clips, trim ranges and editing settings needed to describe the final composition.
 

@@ -189,12 +189,11 @@ ARTIFACT = lambda kind: links(kind, 'Added by the SDK: the id, for display.', '�
 OPTIONS = P('options', 'StoreCommandOptions')
 COMMAND = P('options', 'CommandOptions')
 ID = lambda what_en, what_zh: P('id', 'string', None, f'The {what_en}\'s id.', f'{what_zh}的 ID。')
-REF = lambda kind, what_en, what_zh: P('ref', f'ResourceRef<"{kind}">', None, f'The {what_en}: `{{kind: "{kind}", id}}`, with the id of the version to read.', f'{what_zh}：<code>{{kind: "{kind}", id}}</code>，id 为要读取的版本的 ID。')
-BASE = lambda kind, record, what_en, what_zh: P('base', f'ResourceRef<"{kind}"> | {record}', None,
-    f'The {what_en} to start from: `{{kind: "{kind}", id}}`, or the record you read (then it is not read again). It stays as it was.',
-    f'作为起点的{what_zh}：<code>{{kind: "{kind}", id}}</code>，或已读取的记录（此时不再重新读取）。它保持不变。')
-BASE_REF = lambda kind, what_en, what_zh: P('base', f'ResourceRef<"{kind}">', None, f'The {what_en} to start from: `{{kind: "{kind}", id}}`. It stays as it was.',
-    f'作为起点的{what_zh}：<code>{{kind: "{kind}", id}}</code>。它保持不变。')
+REF = lambda kind, what_en, what_zh: P('ref', 'ArtifactRef', None, f'The {what_en}: `{{id}}`, the id of the version to read, or the {what_en} you read.', f'{what_zh}：<code>{{id}}</code>（要读取的版本的 ID），或已读取的{what_zh}。')
+BASE = lambda kind, record, what_en, what_zh: P('base', f'ArtifactRef | {record}', None,
+    f'The {what_en} to start from: `{{id}}`, or the {what_en} you read (then it is not read again). It stays as it was.',
+    f'作为起点的{what_zh}：<code>{{id}}</code>，或已读取的{what_zh}（此时不再重新读取）。它保持不变。')
+BASE_REF = lambda kind, what_en, what_zh: BASE(kind, {'script': 'Script', 'storyboard': 'Storyboard', 'prompt': 'Prompt'}[kind], what_en, what_zh)
 VERSION_QUERY = P('query', '{version?: number}', Query(None, ('version',)))
 LIST_QUERY = lambda route, *names: P('query', 'StoreQuery', Query(route, ('limit', 'cursor') + names))
 READS_BASE = ('With a reference as `base`, it reads `base` first (`GET`), then saves.', '<code>base</code> 为引用时，先读取 <code>base</code>（<code>GET</code>），再保存。')
@@ -539,11 +538,9 @@ ZOD_NOTES = {
     ('ReviseScriptInput', 'acceptable_duration_ms'): ('A new length range, in milliseconds; left out, the new Script keeps the base\'s length.', '新的时长范围（毫秒）；省略时新脚本保持 base 的时长。'),
     ('ReviseScriptInput', 'acceptable_duration_ms.min'): ('The shortest length, in milliseconds; at most `max`.', '最短时长（毫秒），不大于 <code>max</code>。'),
     ('ReviseScriptInput', 'acceptable_duration_ms.max'): ('The longest length, in milliseconds.', '最长时长（毫秒）。'),
-    ('NewStoryboardInput', 'script'): ('The Script to shoot. A Script saved before Storyboards (`format: 2`) is refused.', '要拍摄的脚本。分镜功能推出前保存的脚本（<code>format: 2</code>）会被拒绝。'),
     ('NewStoryboardInput', 'instruction'): ('The shooting style you want, in words. It may name files with tokens, as in `scripts.generate`.', '用文字说明想要的拍摄风格。可以像 <code>scripts.generate</code> 一样用标记指定文件。'),
     ('NewStoryboardInput', 'batch_id'): ('Only for a Script without a Batch: the Batch to make it in. Otherwise the Storyboard keeps its Script\'s Batch.', '仅用于没有批次的脚本：分镜所属的批次。否则分镜沿用脚本的批次。'),
     ('ReviseStoryboardInput', 'instruction'): ('What to change, in words.', '用文字说明要修改的内容。'),
-    ('GeneratePromptInput', 'storyboard'): ('The Storyboard whose clips to compile.', '要编译其片段的分镜。'),
     ('GeneratePromptInput', 'ratio'): ('The frame of every Prompt compiled. `adaptive` follows the first image or video.', '所编译的每条提示词的画面比例。<code>adaptive</code> 跟随第一张图片或第一个视频。'),
     ('ScriptContent', 'schema_version'): ('The format of the content: 3.', '内容格式版本：3。'),
     ('ScriptContent', 'concept'): ('The idea of the ad.', '广告的创意。'),

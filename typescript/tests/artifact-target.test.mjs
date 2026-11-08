@@ -143,32 +143,32 @@ test('storyboards.generate saves the Storyboard; prompts.generate compiles its c
  };
  const client = createNuva({ baseUrl: 'http://127.0.0.1:9010/api', storeBaseUrl: 'http://127.0.0.1:9011', generationBaseUrl: 'http://127.0.0.1:9012', getAccessToken: async () => 'local-test-only' });
  try {
-  const generated = await client.storyboards.generate({ script: other, cast: { presenter: { id: other } } });
+  const generated = await client.storyboards.generate({ script: { id: other }, cast: { presenter: { id: other } } });
   assert.equal(generated.kind, 'storyboard');
   assert.deepEqual(generated.content, content);
   assert.deepEqual((await client.storyboards.get({ kind: 'storyboard', id })).content, content);
-  await assert.rejects(async () => client.storyboards.generate({ script: other, ratio: '9:16' }), error => error.code === 'INVALID_INPUT', 'A Storyboard takes no ratio.');
+  await assert.rejects(async () => client.storyboards.generate({ script: { id: other }, ratio: '9:16' }), error => error.code === 'INVALID_INPUT', 'A Storyboard takes no ratio.');
 
   reply = () => Response.json({ prompts: [prompt('C01'), prompt('C02', other)] });
-  const { prompts } = await client.prompts.generate({ storyboard: id, ratio: '9:16' });
+  const { prompts } = await client.prompts.generate({ storyboard: { id: id }, ratio: '9:16' });
   assert.deepEqual(prompts.map(p => [p.kind, p.data.clip_id]), [['prompt', 'C01'], ['prompt', 'C02']]);
-  await assert.rejects(client.prompts.generate({ storyboard: id, clip: 'C01' }), error => error.code === 'SERVICE_ERROR', 'One clip returns only its Prompt.');
+  await assert.rejects(client.prompts.generate({ storyboard: { id: id }, clip: 'C01' }), error => error.code === 'SERVICE_ERROR', 'One clip returns only its Prompt.');
   // Without clip, every Prompt names a distinct clip.
   const checked = requests.length;
   for (const prompts of [[prompt('C01'), prompt(null, other)], [prompt('C01'), prompt('C01', other)], [{ ...prompt('C01'), data: { prompt: 'Clip', image_asset_ids: [id] } }]]) {
    reply = () => Response.json({ prompts });
-   await assert.rejects(client.prompts.generate({ storyboard: id }), error => error.code === 'SERVICE_ERROR', JSON.stringify(prompts.map(p => p.data.clip_id)));
+   await assert.rejects(client.prompts.generate({ storyboard: { id: id } }), error => error.code === 'SERVICE_ERROR', JSON.stringify(prompts.map(p => p.data.clip_id)));
   }
   reply = () => Response.json({ error: { code: 'NOT_FOUND', message: 'Storyboard has no clip C09.', retryable: false, acceptance: 'not_accepted' }, request_id: 'unknown-clip' }, { status: 404 });
-  await assert.rejects(client.prompts.generate({ storyboard: id, clip: 'C09' }), error => error.code === 'NOT_FOUND' && acceptanceOf(error) === 'not_accepted' && error.method === 'prompts.generate');
+  await assert.rejects(client.prompts.generate({ storyboard: { id: id }, clip: 'C09' }), error => error.code === 'NOT_FOUND' && acceptanceOf(error) === 'not_accepted' && error.method === 'prompts.generate');
   requests.splice(checked);
   reply = () => Response.json({ prompts: [{ ...prompt('C01'), storyboard: { id: other } }] });
-  await assert.rejects(client.prompts.generate({ storyboard: id }), error => error.code === 'SERVICE_ERROR', 'Prompts are based on the requested Storyboard.');
+  await assert.rejects(client.prompts.generate({ storyboard: { id: id } }), error => error.code === 'SERVICE_ERROR', 'Prompts are based on the requested Storyboard.');
   for (const bad of [{ script: other }, { storyboard: id, clip: '1' }, { storyboard: id, instruction: 'Brighter' }])
    await assert.rejects(async () => client.prompts.generate(bad), error => error.code === 'INVALID_INPUT', JSON.stringify(bad));
   reply = () => Response.json({ error: { code: 'PARTIAL_CREATION', message: 'C02 failed', retryable: false }, request_id: 'partial', saved: { prompts: [prompt('C01')] } }, { status: 409 });
   // The SDK has no partial result: an error is an error (the service answers 0.5 callers all or nothing).
-  await assert.rejects(client.prompts.generate({ storyboard: id }), error =>
+  await assert.rejects(client.prompts.generate({ storyboard: { id: id } }), error =>
    error.code === 'PARTIAL_CREATION' && error.requestId === 'partial' && error.method === 'prompts.generate' && !('saved' in error));
   assert.deepEqual(requests.map(([method, url, body]) => [method, url, body]), [
    ['POST', 'http://127.0.0.1:9012/v1/generate/storyboard', { script: other, cast: { presenter: { id: other } } }],

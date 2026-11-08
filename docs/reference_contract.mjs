@@ -27,7 +27,7 @@ const zod = {
 	ReviseScriptInput: json(generation.reviseScriptSchema, 'input'),
 	NewStoryboardInput: json(generation.newStoryboardSchema, 'input'),
 	ReviseStoryboardInput: json(generation.reviseStoryboardSchema, 'input'),
-	GeneratePromptInput: json(generation.generatePromptSchema, 'input'),
+	GeneratePromptInput: json(generation.newPromptsSchema, 'input'),
 	ScriptContent: json(content.scriptSchema, 'output'),
 	StoryboardContent: json(content.storyboardSchema, 'output'),
 };

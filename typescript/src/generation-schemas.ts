@@ -61,9 +61,14 @@ const sdkCastSchema = z
 	.optional()
 	.describe('Characters to cast, by Script role: { role: { id, version? } }. Other roles are cast by the writer.');
 /** `storyboards.generate`: a new Storyboard for a Script. */
+/** A Script, Storyboard or Prompt to start from: `{ id }`, or the record you read. */
+export const artifactReferenceSchema = z
+	.object({ id: backendIdSchema.describe('Its id.') })
+	.loose()
+	.transform(({ id }) => ({ id }));
 export const newStoryboardSchema = z
 	.object({
-		script: backendIdSchema,
+		script: artifactReferenceSchema.describe('The Script to shoot: { id }, or the Script you read.'),
 		cast: sdkCastSchema,
 		instruction: z.string().max(32000).optional(),
 		batch_id: backendIdSchema.optional(),
@@ -112,7 +117,12 @@ export type GenerateStoryboardInput = z.infer<typeof generateStoryboardSchema>;
 export type EditScriptInput = z.infer<typeof editScriptSchema>;
 export type NewScriptInput = z.infer<typeof newScriptSchema>;
 export type ReviseScriptInput = z.infer<typeof reviseScriptSchema>;
-export type NewStoryboardInput = z.infer<typeof newStoryboardSchema>;
+export type NewStoryboardInput = z.input<typeof newStoryboardSchema>;
 export type ReviseStoryboardInput = z.infer<typeof reviseStoryboardSchema>;
 export type UpdateStoryboardInput = z.infer<typeof updateStoryboardSchema>;
 export type GeneratePromptInput = z.infer<typeof generatePromptSchema>;
+/** `prompts.generate(input)`: as the writer takes it, with the Storyboard as `{ id }` or the Storyboard you read. */
+export const newPromptsSchema = generatePromptSchema.extend({
+	storyboard: artifactReferenceSchema.describe('The Storyboard to compile: { id }, or the Storyboard you read.'),
+});
+export type NewPromptsInput = z.input<typeof newPromptsSchema>;

@@ -2,7 +2,7 @@ import type { NuvaClient, Asset } from '@nuva/sdk';
 
 export interface VideoSubmission {
 	clip: string;
-	input: { prompt: string };
+	input: { prompt: { id: string } };
 	idempotencyKey: string;
 	jobId?: string;
 	assetId?: string;
@@ -75,14 +75,14 @@ export async function createProductVideo(
 	// Keep each key: a retry with the same key and input reuses the accepted request.
 	progress.storyboardKey = crypto.randomUUID();
 	await saveProgress(structuredClone(progress));
-	const storyboard = await nuva.storyboards.generate({ script: script.id }, { idempotencyKey: progress.storyboardKey });
+	const storyboard = await nuva.storyboards.generate({ script: { id: script.id } }, { idempotencyKey: progress.storyboardKey });
 	progress.storyboardId = storyboard.id;
 	// If a clip fails, call again: the clips already compiled are reused, so only the failed ones are compiled again.
 	progress.promptsKey = crypto.randomUUID();
 	await saveProgress(structuredClone(progress));
-	const { prompts } = await nuva.prompts.generate({ storyboard: storyboard.id, ratio: '9:16' }, { idempotencyKey: progress.promptsKey });
+	const { prompts } = await nuva.prompts.generate({ storyboard: { id: storyboard.id }, ratio: '9:16' }, { idempotencyKey: progress.promptsKey });
 	// One Prompt per clip, in clip order; each clip's Prompt joins the Storyboard's Batch.
-	progress.videos = prompts.map(prompt => ({ clip: prompt.data.clip_id, input: { prompt: prompt.id }, idempotencyKey: crypto.randomUUID() }));
+	progress.videos = prompts.map(prompt => ({ clip: prompt.data.clip_id, input: { prompt: { id: prompt.id } }, idempotencyKey: crypto.randomUUID() }));
 	// Persist exact submission inputs and keys BEFORE contacting the video service.
 	await saveProgress(structuredClone(progress));
 	await submitPendingVideos(nuva, progress, saveProgress);

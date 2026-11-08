@@ -147,7 +147,7 @@ test('saved Prompt mode sends the caller\'s idempotency key, or one the SDK make
 	const requests = [];
 	await withClient(async (_url, options) => { requests.push(options); return Response.json({ ...queued, prompt: id }, { status: 202 }); }, async (client) => {
 		for (const options of [{ idempotencyKey: 'existing-key' }, undefined, undefined]) {
-			const job = await client.videos.generate({ prompt: id }, options);
+			const job = await client.videos.generate({ prompt: { id: id } }, options);
 			assert.equal(job.prompt, id);
 		}
 	});

@@ -38,6 +38,8 @@ Each entry describes the change from the previous released version.
 - **One `Batch` type** (breaking): `batches.list` returns `Page<Batch>`, each with its Ads and Job counts as `batches.get` reads it; `BatchSummary` is removed.
 - **What an Artifact was made from reads as named fields** (breaking): a Script's `product` (`{id, version}`) and `skill` (`{id, name, version}`); a Storyboard's `script` (`{id}`), `product`, `characters` and `skill`; a Prompt's `storyboard` (with `data.clip_id`) and `skill`. `relationships` and the `skills` map are gone.
 - **`schemaVersion` is removed**; read `schema_version`.
+- **Every reference is `{id}` (an entity's `{id, version?}`), or the record you read** (breaking): `scripts.get({id})`, `storyboards.generate({script: {id}})`, `prompts.generate({storyboard: {id}})`, `videos.generate({prompt: {id}})`, and every `generateFrom`/`createFrom` base. `kind` is implied by the method. Shares keep `{kind, id}`, since one method covers every kind.
+- **Service origins are not client options** (breaking): `baseUrl`, `storeBaseUrl` and `generationBaseUrl` are gone; choose an `environment`.
 - **Brands take a `description` and `attributes`, and Products a `description`**, which the Script writer reads as context. `PATCH` them like the other fields.
 - **Removed:** `onTrace` and `onWireTrace` from the client options (quote an error's `requestId` and `method` instead), and the `TraceEntry` and `WireTraceEntry` types.
 - **Removed:** the generic `artifacts` client (read with `scripts.get`, `storyboards.get`, `prompts.get`), `ScriptSchema`, `PromptSchema`, `PerformanceSnapshotSchema`, `defineArtifactSchema`, `ProductImageUploadError`, and from `@nuva/sdk/schemas` the generation-service schemas, the generate-input schemas, `encodeScriptPackage`/`decodeScriptPackage` and `storyboardIssues`. Ads and Batches are written by the Agent only, and their write types are no longer exported.
@@ -74,6 +76,8 @@ Each entry describes the change from the previous released version.
 | `BatchSummary` from `batches.list` | `Batch`, with `ads` and `jobs` |
 | `artifact.relationships`, `artifact.skills` | `script.product`, `storyboard.script` / `product` / `characters`, `prompt.storyboard`, and `skill` |
 | `artifact.schemaVersion` | `artifact.schema_version` |
+| `scripts.get({kind: 'script', id})`, `storyboards.generate({script: id})`, `prompts.generate({storyboard: id})`, `videos.generate({prompt: id})` | `{id}` (or the record you read) for each |
+| `baseUrl`, `storeBaseUrl`, `generationBaseUrl` | `environment` |
 
 The full guide, from preview.4 and from preview.3, with before-and-after code, is the docs page **Upgrade to preview.5** (`migration.html`).
 
@@ -87,9 +91,9 @@ Generation is now four steps:
 
 ```ts
 const script = await nuva.scripts.generate({product: product.id, acceptable_duration_ms: {min: 8000, max: 15000}});
-const storyboard = await nuva.storyboards.generate({script: script.id, cast: {host: character.id}});
-const {prompts} = await nuva.prompts.generate({storyboard: storyboard.id, ratio: '9:16'});
-const job = await nuva.videos.generate({prompt: prompts[0]!.id});
+const storyboard = await nuva.storyboards.generate({script, cast: {host: {id: character.id}}});
+const {prompts} = await nuva.prompts.generate({storyboard, ratio: '9:16'});
+const job = await nuva.videos.generate({prompt: prompts[0]!});
 ```
 
 ### What changed

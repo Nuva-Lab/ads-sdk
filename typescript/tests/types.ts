@@ -1,11 +1,12 @@
 import { createNuva, Message, type ScriptPackage } from '@nuva/sdk';
+import { withServices } from '@nuva/sdk/internal';
 import type { StopReceipt } from '@nuva/sdk';
-const client = createNuva({ baseUrl: 'http://127.0.0.1:8940/api', getAccessToken: async () => 'mock-user:alex' });
+const client = createNuva(withServices({ getAccessToken: async () => 'mock-user:alex' }, { baseUrl: 'http://127.0.0.1:8940/api' }));
 declare const script: ScriptPackage;
 // @ts-expect-error There is no generic Artifact client: Scripts, Storyboards and Prompts have their own.
 void client.artifacts;
 // Saved Prompt IDs remain a valid backend video request.
-void client.videos.generate({ prompt: '00000000-0000-4000-8000-000000000001' });
+void client.videos.generate({ prompt: { id: '00000000-0000-4000-8000-000000000001' } });
 void Message.create().mention({ ref: { kind: 'script', id: 'a' }, label: 'Script' });
 const stopResult: Promise<StopReceipt> = client.agent({ sessionId: 'work-session' }).stop({ requestId: 'stop-request' });
 void stopResult;
@@ -15,11 +16,11 @@ void client.agent({ sessionId: 'work-session' }).stop({ cutoff: 10 });
 client.close();
 
 // @ts-expect-error A Storyboard is not compiled when it is written; the ratio belongs to its Prompts.
-void client.storyboards.generate({ script: '00000000-0000-4000-8000-000000000001', ratio: '9:16' });
+void client.storyboards.generate({ script: { id: '00000000-0000-4000-8000-000000000001' }, ratio: '9:16' });
 // @ts-expect-error Prompts are compiled from a Storyboard, not a Script.
 void client.prompts.generate({ script: '00000000-0000-4000-8000-000000000001' });
 // @ts-expect-error The generation service accepts omission, not an explicit null ratio.
-void client.prompts.generate({ storyboard: '00000000-0000-4000-8000-000000000001', ratio: null });
+void client.prompts.generate({ storyboard: { id: '00000000-0000-4000-8000-000000000001' }, ratio: null });
 // @ts-expect-error Starting from a Storyboard is storyboards.generateFrom(base, { instruction }).
 void client.storyboards.generate({ base: '00000000-0000-4000-8000-000000000001', instruction: 'Shorter' });
 // @ts-expect-error There is no Storyboard from scratch: your changes are storyboards.createFrom(base, changes).
@@ -35,8 +36,8 @@ void client.storyboards.update;
 const storyboard: Promise<import('@nuva/sdk').Storyboard> = client.storyboards.generateFrom({ kind: 'storyboard', id: '00000000-0000-4000-8000-000000000001' }, { instruction: 'Shorter' });
 void storyboard.then(async (board) => {
 	const shots: string[] = board.content.clips[0]!.shots;
-	const { prompts } = await client.prompts.generate({ storyboard: board.id, clip: 'C01', ratio: '9:16' });
-	void client.videos.generate({ prompt: prompts[0]!.id });
+	const { prompts } = await client.prompts.generate({ storyboard: { id: board.id }, clip: 'C01', ratio: '9:16' });
+	void client.videos.generate({ prompt: { id: prompts[0]!.id } });
 	// @ts-expect-error Video generation takes a saved Prompt ID or raw input, not a Storyboard clip.
 	void client.videos.generate({ storyboard: { id: board.id, clip: 'C01' } });
 	void shots;
@@ -86,10 +87,10 @@ const rawVideoPrompt: RawPromptInput = {
 const withCharacters: RawPromptInput = { schema_version: 1, data: { prompt: '<Picture 1>', image_asset_ids: ['id'], characters: ['c'] } };
 const rawVideoRequest: GenerateVideoInput = { input: rawVideoPrompt, prompt: null, resolution: '768P', seed: 7 };
 const rawVideoJob: Promise<Job<Asset>> = client.videos.generate(rawVideoRequest, { idempotencyKey: 'stable-key' });
-void client.videos.generate({ prompt: 'saved-id', input: null });
+void client.videos.generate({ prompt: { id: 'saved-id' }, input: null });
 void rawVideoJob.then(async (job) => {
 	const promptId: string = job.prompt;
-	const saved: Prompt = await client.prompts.get({ kind: 'prompt', id: promptId });
+	const saved: Prompt = await client.prompts.get({ id: promptId });
 	// What it was made from reads as named fields.
 	const fromStoryboard: string | undefined = saved.storyboard?.id;
 	const writtenWith: string | undefined = saved.skill?.name;
@@ -105,7 +106,7 @@ void client.videos.generate({});
 // @ts-expect-error Null does not select a source.
 void client.videos.generate({ prompt: null, input: null });
 // @ts-expect-error Saved ID and raw input cannot both be supplied.
-void client.videos.generate({ prompt: 'saved-id', input: rawVideoPrompt });
+void client.videos.generate({ prompt: { id: 'saved-id' }, input: rawVideoPrompt });
 // @ts-expect-error Raw content requires the versioned data envelope.
 void client.videos.generate({ input: { prompt: 'raw text' } });
 // @ts-expect-error Only Prompt v1 is supported.
@@ -186,3 +187,6 @@ void reported;
 createNuva({ getAccessToken: async () => 'token', onTrace: () => {} });
 // @ts-expect-error The trace hooks are not public options.
 createNuva({ getAccessToken: async () => 'token', onWireTrace: () => {} });
+
+// @ts-expect-error Service origins are set with withServices (workspace-only); customers choose an environment.
+createNuva({ getAccessToken: async () => 'token', baseUrl: 'http://127.0.0.1:1' });

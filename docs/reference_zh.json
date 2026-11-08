@@ -118,9 +118,6 @@
   "`read` (see and use) or `write` (also edit).": "`read`（查看和使用）或 `write`（还可编辑）。",
   "When the item was first shared with this scope.": "首次共享给该范围的时间。",
   "Paired Agent and API services. Defaults to sandbox (staging); use credentials issued by that environment.": "配套的 Agent 和 API 服务。默认为 sandbox（staging）；请使用该环境签发的凭证。",
-  "Optional Agent endpoint override for local development/testing. Release builds supply the official origin.": "可选，覆盖 Agent 服务地址，用于本地开发或测试。正式版本已内置官方地址。",
-  "Optional Store endpoint override for local development/testing.": "可选，覆盖 Store 服务地址，用于本地开发或测试。",
-  "Optional generation endpoint override; an explicit local Agent override may host generation too.": "可选，覆盖生成服务地址；显式设置的本地 Agent 地址也可以提供生成服务。",
   "ISO datetime or Unix epoch milliseconds, supplied by the customer backend.": "ISO 时间字符串或 Unix 毫秒时间戳，由客户后端提供。",
   "Optional stable identity metadata. The gateway verifies token identity independently.": "可选的稳定身份信息。网关会独立验证令牌身份。",
   "A stable, machine-readable code, e.g. `NOT_FOUND` or `REVISION_CONFLICT`.": "稳定、供程序判断的错误码，例如 `NOT_FOUND` 或 `REVISION_CONFLICT`。",
@@ -166,5 +163,8 @@
   "When the files' download URLs stop working: in an hour.": "文件下载地址的失效时间：一小时后。",
   "What the product is, given to the Script writer as context.": "产品是什么，作为背景信息提供给脚本编写服务。",
   "A description of the voice: age, gender, pitch, timbre, accent.": "对声音的描述：年龄、性别、音高、音色、口音。",
-  "Speak with the cast Character's own voice file instead of a described voice; needs a `character` that has one.": "使用所选人物自己的声音文件，而不是描述的声音；需要一个有声音文件的 `character`。"
+  "Speak with the cast Character's own voice file instead of a described voice; needs a `character` that has one.": "使用所选人物自己的声音文件，而不是描述的声音；需要一个有声音文件的 `character`。",
+  "The Script to shoot: { id }, or the Script you read.": "要拍摄的脚本：{ id }，或已读取的脚本。",
+  "Its id.": "其 ID。",
+  "The Storyboard to compile: { id }, or the Storyboard you read.": "要编译的分镜：{ id }，或已读取的分镜。"
 }

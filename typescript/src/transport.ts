@@ -5,6 +5,7 @@ import { AdsError, acceptanceOf, errorInfo, initOf, withMethod, type AdsErrorIni
 import { frozen } from './protocol.js';
 import type { ServerFrame, StateEvent, WireTraceEntry } from './protocol.js';
 import { wireObserver } from './wire-trace.js';
+import { servicesOf } from './dev-services.js';
 import type { NuvaClientOptions } from './types.js';
 import { dataRequest } from './data-routes.js';
 import { backendSchema } from './backend-schema.js';
@@ -115,7 +116,7 @@ export class Transport {
 	private httpControllers = new Set<AbortController>();
 	constructor(private readonly options: NuvaClientOptions) {
 		this.origins = originsForEnvironment(options?.environment);
-		const agentOrigin = options?.baseUrl ?? this.origins.agent;
+		const agentOrigin = (options === undefined ? undefined : servicesOf(options).baseUrl) ?? this.origins.agent;
 		if (agentOrigin === undefined)
 			throw new TypeError(
 				'Agent service origin is not configured in this unpublished preview. Supply baseUrl only for an explicitly configured development/test service.',
@@ -327,11 +328,11 @@ export class Transport {
 		const serviceBase = route.agent
 			? this.base.origin
 			: route.generation
-				? (this.options.generationBaseUrl ??
-					this.options.storeBaseUrl ??
+				? (servicesOf(this.options).generationBaseUrl ??
+					servicesOf(this.options).storeBaseUrl ??
 					this.origins.generation ??
-					(this.options.baseUrl === undefined ? undefined : this.base.origin))
-				: (this.options.storeBaseUrl ?? this.origins.store);
+					(servicesOf(this.options).baseUrl === undefined ? undefined : this.base.origin))
+				: (servicesOf(this.options).storeBaseUrl ?? this.origins.store);
 		if (serviceBase === undefined)
 			throw new AdsError({
 				code: 'UNSUPPORTED_OPERATION',

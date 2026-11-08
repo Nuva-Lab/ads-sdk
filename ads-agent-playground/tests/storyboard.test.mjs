@@ -159,7 +159,7 @@ test("Render clip compiles the clip's Prompt, then renders that Prompt", async (
     videos: {
       generate: async (input, options) => {
         calls.push(["videos.generate", input, typeof options.idempotencyKey]);
-        return { id: "job-1", status: "queued", prompt: input.prompt };
+        return { id: "job-1", status: "queued", prompt: input.prompt.id };
       },
     },
   });
@@ -169,8 +169,8 @@ test("Render clip compiles the clip's Prompt, then renders that Prompt", async (
   [...root.querySelectorAll('[data-clip="C01"] button')].find((button) => button.textContent.includes("Render clip")).click();
   for (let i = 0; i < 5; i++) await settle();
   assert.deepEqual(calls, [
-    ["prompts.generate", { storyboard: ids.storyboard, clip: "C01" }, "string"],
-    ["videos.generate", { prompt: "prompt-c01" }, "string"],
+    ["prompts.generate", { storyboard: { id: ids.storyboard }, clip: "C01" }, "string"],
+    ["videos.generate", { prompt: { id: "prompt-c01" } }, "string"],
   ]);
   assert.deepEqual(remembered.map((record) => record.ref), [{ kind: "job", id: "job-1" }]);
 });
@@ -194,12 +194,12 @@ test("each clip keeps its own request records; an unknown video submission is re
     },
     videos: {
       generate: async (input, options) => {
-        calls.push(["videos.generate", input.prompt, options.idempotencyKey]);
-        if (input.prompt.startsWith("prompt-C02") && failVideo) {
+        calls.push(["videos.generate", input.prompt.id, options.idempotencyKey]);
+        if (input.prompt.id.startsWith("prompt-C02") && failVideo) {
           failVideo = false;
           throw Object.assign(new Error("Lost response"), { code: "CONNECTION_ERROR", retryable: true });
         }
-        return { id: "job-" + input.prompt, status: "queued", prompt: input.prompt };
+        return { id: "job-" + input.prompt.id, status: "queued", prompt: input.prompt.id };
       },
     },
   });

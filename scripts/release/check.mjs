@@ -38,7 +38,7 @@ export async function checkRelease(output = DIST) {
 		run('pnpm', ['add', '--ignore-scripts', '--prefer-offline', archives[1]], consumer);
 		await writeFile(resolve(consumer, 'sdk-only.mjs'), "import assert from 'node:assert/strict'; import {Message,createNuva} from '@nuva/sdk'; assert.ok(Message.create().text('pnpm bundled protocol')); assert.equal(typeof createNuva,'function');");
 		run(process.execPath, ['sdk-only.mjs'], consumer);
-		await writeFile(resolve(consumer, 'sdk-only.ts'), "import {createNuva,Message,type ScriptPackage} from '@nuva/sdk'; const client=createNuva({baseUrl:'https://fixture.invalid/api',storeBaseUrl:'https://fixture.invalid',getAccessToken:async()=> 'unused'}); declare const script:ScriptPackage; const version:2=script.schema_version; Message.create().text('Typed pnpm consumer'); client.close();");
+		await writeFile(resolve(consumer, 'sdk-only.ts'), "import {createNuva,Message,type ScriptPackage} from '@nuva/sdk'; const client=createNuva({getAccessToken:async()=> 'unused'}); declare const script:ScriptPackage; const version:2=script.schema_version; Message.create().text('Typed pnpm consumer'); client.close();");
 		const sdkOnlyRequire = createRequire(resolve(ROOT, 'typescript/package.json'));
 		const sdkOnlyCompiler = resolve(dirname(sdkOnlyRequire.resolve('typescript/package.json')), 'bin/tsc');
 		run(process.execPath, [sdkOnlyCompiler, '--noEmit', '--strict', '--skipLibCheck', 'false', '--target', 'ES2022', '--module', 'NodeNext', '--moduleResolution', 'NodeNext', '--lib', 'ES2023,DOM', 'sdk-only.ts'], consumer);
@@ -63,7 +63,7 @@ const schemas=await import('@nuva/sdk/schemas');
 for (const name of ['scriptSchema','storyboardSchema','encodeScript','decodeScript','encodeStoryboard','decodeStoryboard']) assert.ok(schemas[name]!==undefined,name);
 for (const name of ['scriptLines','storyboardTokens','NARRATOR','MIN_CLIP_MS','scriptAuthoringSchema','scriptVersion','clipReferences','storyboardIssues','generateScriptSchema','encodeScriptPackage','scriptRequestSchema','adapted','compiler']) assert.equal(name in schemas,false,name+' is internal');
 await assert.rejects(import('@nuva/sdk/internal'),error=>error.code==='ERR_PACKAGE_PATH_NOT_EXPORTED');
-const client=createNuva({baseUrl:'https://fixture.invalid/api',storeBaseUrl:'https://fixture.invalid',getAccessToken:async()=> 'not-used'});
+const client=createNuva({getAccessToken:async()=> 'not-used'});
 assert.equal(typeof client.agent({sessionId:'fixture'}).respond,'function'); assert.equal(client.sessions.getMain,undefined);
 assert.ok(Message.create().text('Customer handoff').attach({ref:{kind:'product',id},label:'Saved Product'})); client.close();
 const releasedOrigins=${JSON.stringify(manifest.serviceOrigins)};
@@ -74,8 +74,8 @@ if(releasedOrigins.agent){
  try{
   await assert.rejects(defaults.products.get(id));
   await assert.rejects(defaults.scripts.generate({product:{id},acceptable_duration_ms:{min:5000,max:10000}}));
-  await assert.rejects(defaults.storyboards.generate({script:id}));
-  await assert.rejects(defaults.prompts.generate({storyboard:id}));
+  await assert.rejects(defaults.storyboards.generate({script:{id}}));
+  await assert.rejects(defaults.prompts.generate({storyboard:{id}}));
   assert.equal(new URL(calls[0]).origin,new URL(releasedOrigins.store).origin);
   assert.equal(calls[1],(releasedOrigins.generation.endsWith('/')?releasedOrigins.generation.slice(0,-1):releasedOrigins.generation)+'/v1/generate/script');
   assert.equal(calls[2],(releasedOrigins.generation.endsWith('/')?releasedOrigins.generation.slice(0,-1):releasedOrigins.generation)+'/v1/generate/storyboard');
@@ -92,7 +92,7 @@ import type {ScriptContent} from '@nuva/sdk/schemas';
 import {CLIENT_PROTOCOL_REVISION} from '@nuva/protocol';
 const wire:1=CLIENT_PROTOCOL_REVISION;
 const client=createNuva({getAccessToken:async()=>({token:'backend-issued',expiresAt:0})});
-async function creation(file:File){const brand=await client.brands.create({data:{name:'Brand'}});const base=await client.products.create({brand_id:brand.id,data:{name:'Product',attributes:{nested:{ok:true}}}});const image=await client.assets.upload(file,{kind:'image'});const product=await client.products.update(base,{data:{image_asset_ids:[image.id]}});const script=await client.scripts.generate({product:{id:product.id},acceptable_duration_ms:{min:5000,max:10000}});const storyboard=await client.storyboards.generate({script:script.id});const {prompts}=await client.prompts.generate({storyboard:storyboard.id,clip:storyboard.content.clips[0]!.id});const job=await client.videos.generate({prompt:prompts[0]!.id});return {script:script.format===3?script.content.panels:script.legacy.clips,job};}
+async function creation(file:File){const brand=await client.brands.create({data:{name:'Brand'}});const base=await client.products.create({brand_id:brand.id,data:{name:'Product',attributes:{nested:{ok:true}}}});const image=await client.assets.upload(file,{kind:'image'});const product=await client.products.update(base,{data:{image_asset_ids:[image.id]}});const script=await client.scripts.generate({product:{id:product.id},acceptable_duration_ms:{min:5000,max:10000}});const storyboard=await client.storyboards.generate({script});const {prompts}=await client.prompts.generate({storyboard,clip:storyboard.content.clips[0]!.id});const job=await client.videos.generate({prompt:prompts[0]!});return {script:script.format===3?script.content.panels:script.legacy.clips,job};}
 declare const content:ScriptPackage;const inner:2=content.schema_version;
 declare const idea:ScriptContent;const v3:3=idea.schema_version;
 Message.create().text('Hello');

@@ -74,11 +74,11 @@ export async function readResource(
     case "character":
       return sdk.characters.get(id);
     case "script":
-      return sdk.scripts.get({ kind, id });
+      return sdk.scripts.get({ id });
     case "storyboard":
-      return sdk.storyboards.get({ kind, id });
+      return sdk.storyboards.get({ id });
     case "prompt":
-      return sdk.prompts.get({ kind, id });
+      return sdk.prompts.get({ id });
     case "job":
       return sdk.jobs.get(id);
     case "asset":
@@ -669,7 +669,6 @@ async function renderResourceDetail(
           () =>
             action(async () => {
               const parent = await host.sdk.scripts.get({
-                kind: "script",
                 id: script.base_id!,
               });
               host.remember(parent);

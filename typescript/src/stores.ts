@@ -1,4 +1,4 @@
-import type { GeneratePromptInput, NewScriptInput, ReviseScriptInput, NewStoryboardInput, ReviseStoryboardInput } from './generation-schemas.js';
+import type { NewPromptsInput, NewScriptInput, ReviseScriptInput, NewStoryboardInput, ReviseStoryboardInput } from './generation-schemas.js';
 import type { ScriptContent, StoryboardContent } from './script-v3.js';
 import type { CommandOptions, JsonObject, JsonValue, ResourceRef, ResourceLink, AdsErrorInfo, Page, Unsubscribe } from './types.js';
 import type { BackendSchemas as B } from './backend-target.js';
@@ -97,8 +97,10 @@ export interface JobsClient {
 	cancel(id: string, options?: CommandOptions): Promise<JobState>;
 }
 export type ScriptInput = NewScriptInput;
-export type StoryboardInput = NewStoryboardInput;
-export type PromptInput = GeneratePromptInput;
+/** `storyboards.generate(input)`: the Script as `{ id }` or the Script you read. */
+export type StoryboardInput = Omit<NewStoryboardInput, 'script'> & { readonly script: ArtifactRef };
+/** `prompts.generate(input)`: the Storyboard as `{ id }` or the Storyboard you read. */
+export type PromptInput = Omit<NewPromptsInput, 'storyboard'> & { readonly storyboard: ArtifactRef };
 /**
  * Scripts, Storyboards and Prompts never change: each method returns a new one, and the one you started from stays as
  * it was. `generate` has the writer make one from scratch; `generateFrom` has the writer make one from an existing one,
@@ -106,27 +108,30 @@ export type PromptInput = GeneratePromptInput;
  * a `…From` method twice on the same base gives two alternatives side by side.
  */
 /** `base` for a `…From` method: a reference, or the record you hold (then it isn't read again). */
-export type Base<K extends string, T> = ResourceRef<K> | T;
+/** A Script, Storyboard or Prompt: `{ id }`, or the record you read. */
+export type ArtifactRef = { readonly id: string };
+/** What a method starts from: a reference, or the record you read (then it is not read again). */
+export type Base<T> = ArtifactRef | T;
 export interface ScriptsClient {
-	get(ref: ResourceRef<'script'>): Promise<Script>;
+	get(ref: ArtifactRef): Promise<Script>;
 	/** The writer writes a new Script for a Product. */
 	generate(input: ScriptInput, options?: StoreCommandOptions): Promise<Script>;
 	/** The writer writes a new Script from `base`, as instructed. Without `acceptable_duration_ms` it keeps `base`'s length. */
-	generateFrom(base: ResourceRef<'script'>, input: ReviseScriptInput, options?: StoreCommandOptions): Promise<Script>;
+	generateFrom(base: Base<Script>, input: ReviseScriptInput, options?: StoreCommandOptions): Promise<Script>;
 	/** Saves `base` with the top-level content fields you change (`concept`, `roles`, `panels`, …); the rest is copied from `base`. */
-	createFrom(base: Base<'script', Script>, changes: Partial<ScriptContent>, options?: StoreCommandOptions): Promise<Script>;
+	createFrom(base: Base<Script>, changes: Partial<ScriptContent>, options?: StoreCommandOptions): Promise<Script>;
 }
 export interface StoryboardsClient {
-	get(ref: ResourceRef<'storyboard'>): Promise<Storyboard>;
+	get(ref: ArtifactRef): Promise<Storyboard>;
 	/** The writer writes a new Storyboard for a Script. */
 	generate(input: StoryboardInput, options?: StoreCommandOptions): Promise<Storyboard>;
 	/** The writer writes a new Storyboard from `base`, as instructed, with the latest Product and Characters (a `cast` entry's `version` pins one). */
-	generateFrom(base: ResourceRef<'storyboard'>, input: ReviseStoryboardInput, options?: StoreCommandOptions): Promise<Storyboard>;
+	generateFrom(base: Base<Storyboard>, input: ReviseStoryboardInput, options?: StoreCommandOptions): Promise<Storyboard>;
 	/**
 	 * Saves `base` with the top-level content fields you change (`cast`, `direction`, `clips`); the rest is copied from
 	 * `base`, which keeps its Product and Character versions: an edit changes only what you edit.
 	 */
-	createFrom(base: Base<'storyboard', Storyboard>, changes: Partial<Omit<StoryboardContent, 'script'>>, options?: StoreCommandOptions): Promise<Storyboard>;
+	createFrom(base: Base<Storyboard>, changes: Partial<Omit<StoryboardContent, 'script'>>, options?: StoreCommandOptions): Promise<Storyboard>;
 }
 /** The render fields of a Prompt: the only ones `prompts.createFrom` changes. */
 export type PromptChanges = Partial<Pick<B['PromptReadV1'], 'prompt' | 'image_asset_ids' | 'video_asset_ids' | 'audio_asset_ids' | 'seconds' | 'ratio'>>;
@@ -136,11 +141,11 @@ export type PromptChanges = Partial<Pick<B['PromptReadV1'], 'prompt' | 'image_as
  * your own from one, and raw `videos.generate({ input })` renders one written from scratch.
  */
 export interface PromptsClient {
-	get(ref: ResourceRef<'prompt'>): Promise<Prompt>;
+	get(ref: ArtifactRef): Promise<Prompt>;
 	/** Compiles a Storyboard's clips, or one clip, into Prompts in clip order. A clip compiled before from the same inputs returns its saved Prompt. */
 	generate(input: PromptInput, options?: StoreCommandOptions): Promise<{ prompts: (Prompt & { data: { clip_id: string } })[] }>;
 	/** Saves `base` with the render fields you change; the rest is copied from `base`. Its text must name every attached file. */
-	createFrom(base: Base<'prompt', Prompt>, changes: PromptChanges, options?: StoreCommandOptions): Promise<Prompt>;
+	createFrom(base: Base<Prompt>, changes: PromptChanges, options?: StoreCommandOptions): Promise<Prompt>;
 }
 /**
  * `idempotencyKey` makes a write safe to retry: the same key with the same input returns what the first call made,
@@ -152,7 +157,7 @@ export interface StoreCommandOptions extends CommandOptions {
 export type VideoCommandOptions = StoreCommandOptions;
 export type RawPromptInput = B['RawPromptInput'];
 /** A saved Prompt ID or raw input. Without `batch_id` (or with `batch_id: null`, which means the same) a saved Prompt's Job joins the Prompt's Batch; raw input has none. */
-export type GenerateVideoInput = Omit<B['GenerateVideo'], 'prompt' | 'input'> & ({ prompt: string; input?: null } | { input: RawPromptInput; prompt?: null });
+export type GenerateVideoInput = Omit<B['GenerateVideo'], 'prompt' | 'input'> & ({ prompt: ArtifactRef; input?: null } | { input: RawPromptInput; prompt?: null });
 /** The kinds of item a share can be given for. Batches, Jobs and Ads are never shared. */
 export type ShareableKind = 'brand' | 'product' | 'character' | 'asset' | 'script' | 'storyboard' | 'prompt';
 /** An Artifact may be named by any of its versions' IDs; its shares cover every version and carry its first version's ID. */

@@ -181,14 +181,14 @@ export const examples: Record<string, (client: NuvaClient) => Promise<unknown>> 
 	},
 	'scripts.get': async (client) => {
 		// #region scripts.get
-		const script = await client.scripts.get({ kind: 'script', id: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b07' });
+		const script = await client.scripts.get({ id: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b07' });
 		// #endregion scripts.get
 		return script;
 	},
 	'scripts.generateFrom': async (client) => {
 		// #region scripts.generateFrom
 		const script = await client.scripts.generateFrom(
-			{ kind: 'script', id: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b07' },
+			{ id: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b07' },
 			{ instruction: '开场第一句就说保温时长。' },
 		);
 		// #endregion scripts.generateFrom
@@ -196,7 +196,7 @@ export const examples: Record<string, (client: NuvaClient) => Promise<unknown>> 
 	},
 	'scripts.createFrom': async (client) => {
 		// #region scripts.createFrom
-		const base = await client.scripts.get({ kind: 'script', id: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b07' });
+		const base = await client.scripts.get({ id: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b07' });
 		if (base.format !== 3) throw new Error('Saved before Storyboards: read-only.');
 		const script = await client.scripts.createFrom(base, {
 			panels: base.content.panels.map((panel) => (panel.id === 'P01' ? { ...panel, notes: '屏幕文字：7:00 出门' } : panel)),
@@ -207,7 +207,7 @@ export const examples: Record<string, (client: NuvaClient) => Promise<unknown>> 
 	'storyboards.generate': async (client) => {
 		// #region storyboards.generate
 		const storyboard = await client.storyboards.generate({
-			script: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b07',
+			script: { id: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b07' },
 			cast: { commuter: { id: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b03' } },
 			instruction: '手机自拍感，清晨自然光，不加音乐。',
 		});
@@ -216,14 +216,14 @@ export const examples: Record<string, (client: NuvaClient) => Promise<unknown>> 
 	},
 	'storyboards.get': async (client) => {
 		// #region storyboards.get
-		const storyboard = await client.storyboards.get({ kind: 'storyboard', id: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b0a' });
+		const storyboard = await client.storyboards.get({ id: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b0a' });
 		// #endregion storyboards.get
 		return storyboard;
 	},
 	'storyboards.generateFrom': async (client) => {
 		// #region storyboards.generateFrom
 		const storyboard = await client.storyboards.generateFrom(
-			{ kind: 'storyboard', id: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b0a' },
+			{ id: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b0a' },
 			{ instruction: '改成固定机位，暖色调。' },
 		);
 		// #endregion storyboards.generateFrom
@@ -231,7 +231,7 @@ export const examples: Record<string, (client: NuvaClient) => Promise<unknown>> 
 	},
 	'storyboards.createFrom': async (client) => {
 		// #region storyboards.createFrom
-		const base = await client.storyboards.get({ kind: 'storyboard', id: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b0a' });
+		const base = await client.storyboards.get({ id: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b0a' });
 		const storyboard = await client.storyboards.createFrom(base, {
 			direction: '手机自拍感，清晨自然光，保留环境声，结尾加轻快钢琴。',
 		});
@@ -242,7 +242,7 @@ export const examples: Record<string, (client: NuvaClient) => Promise<unknown>> 
 		// #region prompts.generate
 		// Every clip, in clip order; pass clip: 'C01' for one.
 		const { prompts } = await client.prompts.generate({
-			storyboard: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b0a',
+			storyboard: { id: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b0a' },
 			ratio: '9:16',
 		});
 		// #endregion prompts.generate
@@ -250,19 +250,19 @@ export const examples: Record<string, (client: NuvaClient) => Promise<unknown>> 
 	},
 	'prompts.get': async (client) => {
 		// #region prompts.get
-		const prompt = await client.prompts.get({ kind: 'prompt', id: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b0d' });
+		const prompt = await client.prompts.get({ id: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b0d' });
 		// #endregion prompts.get
 		return prompt;
 	},
 	'prompts.createFrom': async (client) => {
 		// #region prompts.createFrom
-		const prompt = await client.prompts.createFrom({ kind: 'prompt', id: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b0d' }, { seconds: 6 });
+		const prompt = await client.prompts.createFrom({ id: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b0d' }, { seconds: 6 });
 		// #endregion prompts.createFrom
 		return prompt;
 	},
 	'videos.generate': async (client) => {
 		// #region videos.generate
-		const job = await client.videos.generate({ prompt: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b0d' });
+		const job = await client.videos.generate({ prompt: { id: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b0d' } });
 		// #endregion videos.generate
 		return job;
 	},

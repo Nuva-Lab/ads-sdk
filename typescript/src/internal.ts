@@ -43,6 +43,7 @@ export { adapted, compiler } from './backend-schema.js';
 export type { Overlay as BackendOverlay } from './backend-target.js';
 // The admin page records SDK traffic with it (wire-trace.ts).
 export { withWireTrace } from './wire-trace.js';
+export { withServices, type ServiceOrigins } from './dev-services.js';
 export type { WireTraceEntry } from './protocol.js';
 // Whether a failed write was taken (the SDK's replay decisions; not on the public error), for tests.
 export { acceptanceOf } from './errors.js';
