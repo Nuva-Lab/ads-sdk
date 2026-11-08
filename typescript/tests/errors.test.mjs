@@ -61,3 +61,13 @@ test('bad input is refused before anything is sent, naming the method', async ()
 		restore();
 	}
 });
+
+test('a new Session is not sent again after a dropped connection: a repeat would open a second one', async () => {
+	const { nuva, requests, restore } = client(() => { throw new TypeError('fetch failed'); });
+	try {
+		await assert.rejects(nuva.sessions.create({ title: 'One' }), (error) => error.code === 'CONNECTION_ERROR');
+		assert.equal(requests.length, 1);
+	} finally {
+		restore();
+	}
+});

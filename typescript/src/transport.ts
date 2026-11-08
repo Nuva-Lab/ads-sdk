@@ -27,6 +27,7 @@ const keyed = new Set([
 	'characters.update',
 ]);
 const writes = new Set([
+	'sessions.create',
 	'prompts.createFrom',
 	'jobs.cancel',
 	'assets.register',

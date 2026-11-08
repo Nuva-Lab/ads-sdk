@@ -467,7 +467,7 @@ function decode<T>(envelope: z.ZodType<{ content: T }>, text: string, what: stri
 	if (!result.success) throw new TypeError(`Unsupported or invalid ${what} content.`);
 	return result.data.content;
 }
-/** A stored Storyboard as it reads now: one saved before `own_voice` said `voice: "character"` for it. */
+/** A stored Storyboard as it reads now: its stored `voice: "character"` (legacyVoices) is own_voice. */
 function ownVoices(value: unknown): unknown {
 	const cast = (value as { content?: { cast?: Record<string, Record<string, unknown>> } } | null)?.content?.cast;
 	if (cast === null || typeof cast !== 'object') return value;
@@ -485,7 +485,23 @@ function ownVoices(value: unknown): unknown {
 export const encodeScript = (content: ScriptContent) => encode(scriptEnvelope, { format: 'nuva.script', version: 3, content }, 'Script');
 export const decodeScript = (text: string): ScriptContent => decode(scriptEnvelope, text, 'Script');
 /** A Storyboard's `data.text`: `{ format: 'nuva.storyboard', version: 1, content }`. */
-export const encodeStoryboard = (content: StoryboardContent) => encode(storyboardEnvelope, { format: 'nuva.storyboard', version: 1, content }, 'Storyboard');
+export const encodeStoryboard = (content: StoryboardContent) =>
+	legacyVoices(encode(storyboardEnvelope, { format: 'nuva.storyboard', version: 1, content }, 'Storyboard'));
+/**
+ * The stored form of `own_voice`: `voice: "character"`, as Storyboard version 1 has always stored it, so SDKs up to
+ * 0.1.0-preview.4 and an earlier Agent still read every saved Storyboard. `decodeStoryboard` reads it back as own_voice.
+ */
+function legacyVoices(text: string): string {
+	const value = JSON.parse(text) as { content: { cast: Record<string, Record<string, unknown>> } };
+	let changed = false;
+	for (const [role, entry] of Object.entries(value.content.cast)) {
+		if (entry.own_voice !== true) continue;
+		const { own_voice: _, ...rest } = entry;
+		value.content.cast[role] = { ...rest, voice: LEGACY_OWN_VOICE };
+		changed = true;
+	}
+	return changed ? JSON.stringify(value) : text;
+}
 export const decodeStoryboard = (text: string): StoryboardContent => decode(storyboardEnvelope, text, 'Storyboard');
 /** Which Script format a stored text is: 3, or 2 for a read-only legacy ScriptPackage. */
 export function scriptVersion(text: string): 2 | 3 | undefined {

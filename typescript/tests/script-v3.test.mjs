@@ -439,3 +439,10 @@ test('a Storyboard saved before own_voice reads its voice: "character" as own_vo
 	const stored = JSON.stringify({ format: 'nuva.storyboard', version: 1, content: { ...storyboard(), cast: { presenter: { character: presenter.id, voice: 'character' } } } });
 	assert.deepEqual(decodeStoryboard(stored).cast.presenter, { character: presenter.id, own_voice: true });
 });
+
+test('own_voice is stored as voice: "character", the form every earlier reader knows, and read back as own_voice', () => {
+	const board = { ...storyboard(), cast: { ...storyboard().cast, presenter: { character: presenter.id, own_voice: true } } };
+	const text = encodeStoryboard(board);
+	assert.deepEqual(JSON.parse(text).content.cast.presenter, { character: presenter.id, voice: 'character' });
+	assert.deepEqual(decodeStoryboard(text).cast.presenter, { character: presenter.id, own_voice: true });
+});
