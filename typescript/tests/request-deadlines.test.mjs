@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setImmediate } from 'node:timers/promises';
 import { Transport } from '../dist/transport.js';
+import { acceptanceOf } from '../dist/internal.js';
 
 function fixture(t, options = {}) {
 	const original = globalThis.fetch;
@@ -33,7 +34,7 @@ for (const method of ['scripts.generate', 'storyboards.generate', 'prompts.gener
 test('long writer deadline retains uncertain acceptance without automatic resubmission', async t => {
 	const f = fixture(t);
 	const result = f.transport.data('scripts.generate', {}, 'saved-request-id');
-	const rejected = assert.rejects(result, e => e.acceptance === 'unknown' && e.requestId === 'saved-request-id' && /may still complete/.test(e.message));
+	const rejected = assert.rejects(result, e => acceptanceOf(e) === 'unknown' && e.requestId === 'saved-request-id' && /may still complete/.test(e.message));
 	await setImmediate();
 	t.mock.timers.tick(180000);
 	await rejected;
@@ -42,7 +43,7 @@ for (const method of ['storyboards.generate', 'prompts.generate'])
 	test(`${method} outlasts the Script deadline and expires at 300 seconds`, async t => {
 		const f = fixture(t);
 		const result = f.transport.data(method, {}, 'long-request-id');
-		const rejected = assert.rejects(result, e => e.acceptance === 'unknown' && e.requestId === 'long-request-id' && /may still complete/.test(e.message));
+		const rejected = assert.rejects(result, e => acceptanceOf(e) === 'unknown' && e.requestId === 'long-request-id' && /may still complete/.test(e.message));
 		await setImmediate();
 		t.mock.timers.tick(180000);
 		assert.equal(f.request().signal.aborted, false);
@@ -52,7 +53,7 @@ for (const method of ['storyboards.generate', 'prompts.generate'])
 test('explicit short deadlines still apply to generation', async t => {
 	const f = fixture(t, { requestTimeoutMs: 25 });
 	const result = f.transport.data('scripts.generate', {}, 'explicit');
-	const rejected = assert.rejects(result, e => e.acceptance === 'unknown');
+	const rejected = assert.rejects(result, e => acceptanceOf(e) === 'unknown');
 	await setImmediate(); t.mock.timers.tick(25); await rejected;
 });
 test('ordinary reads retain the short default deadline', async t => {

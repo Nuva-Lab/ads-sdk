@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createNuva } from '../dist/index.js';
+import { acceptanceOf } from '../dist/internal.js';
 
 const id = '01a175e0-31b3-da69-176e-0842e6f6602e';
 const asset = {
@@ -45,14 +46,14 @@ test('assets.update refuses unknown fields and empty text before sending', async
 	const { nuva, requests, restore } = client(() => Response.json(asset));
 	try {
 		for (const changes of [{ kind: 'video' }, { label: '' }])
-			await assert.rejects(nuva.assets.update(id, changes), (error) => error.code === 'INVALID_INPUT' && error.acceptance === 'not_accepted');
+			await assert.rejects(nuva.assets.update(id, changes), (error) => error.code === 'INVALID_INPUT' && acceptanceOf(error) === 'not_accepted');
 		assert.equal(requests.length, 0);
 	} finally {
 		restore();
 	}
 });
 
-test('a file upload sends no Idempotency-Key; a URL registration does', async () => {
+test('a file upload registers with a key the SDK makes; a URL registration with the caller\'s', async () => {
 	const { nuva, requests, restore } = client(({ url }) =>
 		url.endsWith('/v1/assets/uploads')
 			? Response.json({ upload_url: 'https://files.invalid/put', upload_token: 't', expires_at: '2026-11-07T01:00:00Z', max_bytes: 100 }, { status: 201 })
@@ -65,7 +66,9 @@ test('a file upload sends no Idempotency-Key; a URL registration does', async ()
 		await nuva.assets.upload(new File([new Uint8Array(10)], 'a.png', { type: 'image/png' }), { idempotencyKey: 'k-1' });
 		await nuva.assets.upload({ url: 'https://example.com/a.png' }, { kind: 'image', idempotencyKey: 'k-2' });
 		const registrations = requests.filter(({ url }) => url === 'https://store.invalid/v1/assets');
-		assert.deepEqual(registrations.map(key), [null, 'k-2']);
+		const [file, url] = registrations.map(key);
+		assert.match(file, /^[0-9a-f-]{36}$/);
+		assert.equal(url, 'k-2');
 	} finally {
 		restore();
 	}

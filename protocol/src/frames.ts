@@ -5,7 +5,7 @@ import {
 	errorSchema,
 	jsonValueSchema,
 	sessionSnapshotSchema,
-	type NuvaErrorInfo,
+	type AdsErrorInfo,
 	type SessionSnapshot,
 } from './model.js';
 
@@ -18,7 +18,7 @@ export interface RequestFrame {
 	method: string;
 	params: unknown;
 }
-export type ReplyFrame = ({ type: 'result'; id: string; result: unknown } | { type: 'error'; id: string; error: NuvaErrorInfo }) & {
+export type ReplyFrame = ({ type: 'result'; id: string; result: unknown } | { type: 'error'; id: string; error: AdsErrorInfo }) & {
 	version?: 1;
 };
 export type StateEvent = { version?: 1; type: 'state' } & SessionSnapshot;

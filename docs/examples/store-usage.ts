@@ -7,7 +7,7 @@ import {
 	type Script,
 	type ResourceRef,
 	type JobState,
-	type NuvaErrorInfo,
+	type AdsErrorInfo,
 } from '@nuva/sdk';
 import type { BackendSchemas, ScriptContent } from '@nuva/sdk/schemas';
 
@@ -73,7 +73,7 @@ export async function submitVideo(nuva: NuvaClient, promptId: string, requestKey
 	return job;
 	// #endregion video-job
 }
-export function followVideo(nuva: NuvaClient, jobId: string, onProgress: (state: JobState) => void, onError: (error: NuvaErrorInfo) => void) {
+export function followVideo(nuva: NuvaClient, jobId: string, onProgress: (state: JobState) => void, onError: (error: AdsErrorInfo) => void) {
 	// Reopen progress using the saved ID, without submitting another Job.
 	// Return the unsubscribe function to the UI owner; unsubscribing does not cancel the Job.
 	return nuva.jobs.subscribe(jobId, onProgress, onError);

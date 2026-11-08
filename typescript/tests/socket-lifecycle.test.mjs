@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createNuva, Message } from '../dist/index.js';
+import { acceptanceOf } from '../dist/internal.js';
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function until(read, predicate) {
 	for (let index = 0; index < 100; index++) {
@@ -130,7 +131,7 @@ test('handshake deadline rejects an unsent write even when close emits no event'
 		boundary.restore();
 	});
 	const error = await rejectedWithin(client.agent({ sessionId: 'socket-fixture' }).send(Message.text('Do not replay')));
-	assert.equal(error.acceptance, 'not_accepted');
+	assert.equal(acceptanceOf(error), 'not_accepted');
 	assert.equal(boundary.instances.flatMap((socket) => socket.sent).length, 0);
 });
 test('closing the client rejects pending connection waits without onclose', async (t) => {

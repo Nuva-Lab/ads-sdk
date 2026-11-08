@@ -1,102 +1,64 @@
-import { z } from 'zod';
-import { backendSchema } from './backend-schema.js';
-import type { BackendSchemas } from './backend-target.js';
-import { frozen } from './protocol.js';
-import type { NuvaErrorCode, NuvaErrorInfo } from './types.js';
+import type { AdsErrorCode } from '@nuva/protocol';
+import type { AdsErrorInfo } from './types.js';
 
-export class NuvaError extends Error implements NuvaErrorInfo {
-	readonly code: NuvaErrorCode;
+/** Whether the service took a failed write: the SDK's own replay decisions read it; it is not part of the error. */
+export type Acceptance = 'not_accepted' | 'unknown';
+/** What an AdsError is made from inside the SDK. */
+export interface AdsErrorInit {
+	readonly code: AdsErrorCode;
+	readonly message: string;
 	readonly retryable: boolean;
-	readonly details?: { path: string; message: string }[] | null;
 	readonly requestId?: string;
-	readonly acceptance?: 'not_accepted' | 'unknown';
-	constructor(info: NuvaErrorInfo & { details?: { path: string; message: string }[] | null }) {
-		super(info.message);
-		this.name = 'NuvaError';
-		this.code = info.code;
-		this.retryable = info.retryable;
-		if (info.details !== undefined) this.details = info.details;
-		if (info.requestId !== undefined) this.requestId = info.requestId;
-		if (info.acceptance !== undefined) this.acceptance = info.acceptance;
+	readonly method?: string;
+	readonly details?: { path: string; message: string }[] | null;
+	readonly acceptance?: Acceptance;
+}
+const acceptances = new WeakMap<AdsError, Acceptance>();
+
+export class AdsError extends Error implements AdsErrorInfo {
+	readonly code: AdsErrorCode;
+	readonly retryable: boolean;
+	readonly requestId?: string;
+	readonly method?: string;
+	readonly details?: { path: string; message: string }[];
+	constructor(init: AdsErrorInit) {
+		super(init.message);
+		this.name = 'AdsError';
+		this.code = init.code;
+		this.retryable = init.retryable;
+		if (init.requestId !== undefined) this.requestId = init.requestId;
+		if (init.method !== undefined) this.method = init.method;
+		if (init.details != null && init.details.length > 0) this.details = init.details;
+		if (init.acceptance !== undefined) acceptances.set(this, init.acceptance);
 	}
-	toJSON(): NuvaErrorInfo & { details?: { path: string; message: string }[] | null } {
+	toJSON(): AdsErrorInfo {
 		return {
 			code: this.code,
 			message: this.message,
 			retryable: this.retryable,
-			...(this.details === undefined ? {} : { details: this.details }),
 			...(this.requestId === undefined ? {} : { requestId: this.requestId }),
-			...(this.acceptance === undefined ? {} : { acceptance: this.acceptance }),
+			...(this.method === undefined ? {} : { method: this.method }),
+			...(this.details === undefined ? {} : { details: this.details }),
 		};
 	}
 }
 
-/** The clip Prompts already saved before a later one failed in `prompts.generate`. These are validated raw backend
- * records of one Storyboard, not a successful generation response. */
-export interface PartialCreationSaved {
-	prompts: BackendSchemas['Prompt'][];
+/** Whether the service took the write `error` came from (`undefined`: not known, or a read). */
+export function acceptanceOf(error: AdsError): Acceptance | undefined {
+	return acceptances.get(error);
 }
-export class PartialCreationError extends NuvaError {
-	readonly code = 'PARTIAL_CREATION' as const;
-	readonly saved: PartialCreationSaved;
-	constructor(info: NuvaErrorInfo, saved: unknown) {
-		const parsed = z
-			.object({ prompts: z.array(backendSchema('Prompt')) })
-			.strict()
-			.safeParse(saved);
-		const storyboards = new Set(
-			(parsed.data?.prompts ?? []).flatMap((prompt) => prompt.relationships.filter((relationship) => relationship.target.kind === 'storyboard').map((relationship) => relationship.target.id)),
-		);
-		if (
-			!parsed.success ||
-			storyboards.size > 1 ||
-			parsed.data.prompts.some(
-				(prompt) => prompt.schema_version !== 1 || !prompt.relationships.some((relationship) => relationship.target.kind === 'storyboard'),
-			) ||
-			new Set(parsed.data.prompts.map((prompt) => prompt.id)).size !== parsed.data.prompts.length
-		)
-			throw new NuvaError({
-				code: 'SERVICE_ERROR',
-				message: 'Invalid partial records; expected unique Prompts based on one Storyboard.',
-				retryable: false,
-				...(info.requestId === undefined ? {} : { requestId: info.requestId }),
-				acceptance: 'unknown',
-			});
-		super({ ...info, code: 'PARTIAL_CREATION', acceptance: 'unknown' });
-		this.name = 'PartialCreationError';
-		this.saved = frozen(parsed.data);
-	}
-	override toJSON(): ReturnType<NuvaError['toJSON']> & { saved: PartialCreationSaved } {
-		return { ...super.toJSON(), saved: this.saved };
-	}
+/** `error` as an AdsErrorInit, with its acceptance, to make a changed copy. */
+export function initOf(error: AdsError): AdsErrorInit {
+	const acceptance = acceptances.get(error);
+	return { ...error.toJSON(), ...(acceptance === undefined ? {} : { acceptance }) };
 }
-/** The upload succeeded. Preserve its Asset if optimistic Product attachment fails. */
-export class ProductImageUploadError extends NuvaError {
-	readonly productId: string;
-	readonly asset: import('./stores.js').Asset;
-	readonly assetId: string;
-	constructor(productId: string, asset: import('./stores.js').Asset, error: unknown) {
-		const info =
-			error instanceof NuvaError
-				? error.toJSON()
-				: {
-						code: 'SERVICE_ERROR' as const,
-						message: 'Image uploaded, but Product attachment failed.',
-						retryable: false,
-						acceptance: 'unknown' as const,
-					};
-		super(info);
-		this.name = 'ProductImageUploadError';
-		this.productId = productId;
-		this.asset = frozen(structuredClone(asset));
-		this.assetId = asset.id;
-	}
-	override toJSON() {
-		return { ...super.toJSON(), productId: this.productId, assetId: this.assetId, asset: this.asset };
-	}
+/** `error` with the SDK method it came from, when it has none yet. */
+export function withMethod(error: unknown, method: string): unknown {
+	if (!(error instanceof AdsError) || error.method !== undefined) return error;
+	return new AdsError({ ...initOf(error), method });
 }
 
-export function errorInfo(error: unknown): NuvaErrorInfo {
-	if (error instanceof NuvaError) return error.toJSON();
+export function errorInfo(error: unknown): AdsErrorInfo {
+	if (error instanceof AdsError) return error.toJSON();
 	return { code: 'SERVICE_ERROR', message: error instanceof Error ? error.message : String(error), retryable: false };
 }

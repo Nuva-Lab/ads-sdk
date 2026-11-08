@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-import { createNuva, PartialCreationError } from '../dist/index.js';
+import { createNuva } from '../dist/index.js';
 import { backendSchema } from '../dist/internal.js';
 
 // OrderedUUID deliberately does not require an RFC UUID version/variant.
@@ -143,17 +143,19 @@ test('raw generation forwards ordered Asset IDs and stable keys, then reads its 
 	assert.deepEqual(input.data.image_asset_ids, [promptId, id], 'Caller reference ordering remains unchanged');
 });
 
-test('saved Prompt mode retains its original keyed request and does not invent a key', async () => {
+test('saved Prompt mode sends the caller\'s idempotency key, or one the SDK makes for each call', async () => {
 	const requests = [];
 	await withClient(async (_url, options) => { requests.push(options); return Response.json({ ...queued, prompt: id }, { status: 202 }); }, async (client) => {
-		for (const options of [{ idempotencyKey: 'existing-key' }, undefined]) {
+		for (const options of [{ idempotencyKey: 'existing-key' }, undefined, undefined]) {
 			const job = await client.videos.generate({ prompt: id }, options);
 			assert.equal(job.prompt, id);
 		}
 	});
 	for (const request of requests) assert.deepEqual(JSON.parse(request.body), { prompt: id });
 	assert.equal(new Headers(requests[0].headers).get('Idempotency-Key'), 'existing-key');
-	assert.equal(new Headers(requests[1].headers).get('Idempotency-Key'), null);
+	const made = requests.slice(1).map((request) => new Headers(request.headers).get('Idempotency-Key'));
+	assert.ok(made.every((key) => /^[0-9a-f-]{36}$/.test(key)), 'The SDK makes a key when the caller gives none.');
+	assert.notEqual(made[0], made[1], 'Each call gets its own.');
 });
 
 test('backend validation failures preserve reference paths and idempotency conflicts', async () => {
@@ -162,18 +164,11 @@ test('backend validation failures preserve reference paths and idempotency confl
 		await withClient(async () => Response.json({ error: { code, message: 'Backend rejected request', details, retryable: false }, request_id: 'local-backend-error' }, { status }), async (client) => {
 			await assert.rejects(client.videos.generate({ input }, { idempotencyKey: 'same-key' }), (error) => {
 				assert.equal(error.code, code);
-				assert.deepEqual(error.details, details);
+				// details are a validation error's alone: an empty list is left out.
+				assert.deepEqual(error.details, details.length ? details : undefined);
 				return true;
 			});
 		});
 	}
 });
 
-test('partial Prompt receipts retain each Prompt\'s relationships and require one based on a Storyboard', () => {
-	const info = { code: 'PARTIAL_CREATION', message: 'Saved one Prompt', retryable: false };
-	const compiled = { ...savedPrompt, data: { ...data, clip_id: 'C01' }, relationships: [...relationships, { type: 'based_on', target: { kind: 'storyboard', id } }] };
-	const error = new PartialCreationError(info, { prompts: [compiled] });
-	assert.deepEqual(error.saved.prompts[0].relationships, compiled.relationships);
-	assert.throws(() => new PartialCreationError(info, { prompts: [savedPrompt] }), (error) => error.code === 'SERVICE_ERROR');
-	assert.throws(() => new PartialCreationError(info, { prompts: [{ ...compiled, data: { ...data, plan: id } }] }), (error) => error.code === 'SERVICE_ERROR');
-});

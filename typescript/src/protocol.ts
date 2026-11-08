@@ -1,13 +1,4 @@
 export type { RequestFrame, ReplyFrame, StateEvent, ServerFrame } from '@nuva/protocol';
-export interface TraceEntry {
-	id: string;
-	transport: 'http' | 'websocket';
-	method: string;
-	phase: 'request' | 'result' | 'error' | 'event';
-	at: number;
-	data: unknown;
-	durationMs?: number;
-}
 /** Actual transport bodies before protocol decoding. Authentication values are redacted. */
 export interface WireTraceEntry {
 	at: number;

@@ -1,6 +1,6 @@
 // One example per method of the API reference. The page shows each `#region`; reference_examples.mjs runs every
 // example against the backend answers in reference-responses.ts and shows the value it returns.
-import { createNuva, NuvaError, type JobState, type NuvaClient } from '@nuva/sdk';
+import { createNuva, AdsError, type JobState, type NuvaClient } from '@nuva/sdk';
 
 /** A file from your upload control. */
 declare const file: File;
@@ -25,7 +25,7 @@ export async function idempotentWrite(client: NuvaClient) {
 	const idempotencyKey = crypto.randomUUID();
 	const input = { product: { id: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b02' }, acceptable_duration_ms: { min: 10000, max: 15000 } };
 	const script = await client.scripts.generate(input, { idempotencyKey }).catch((error: unknown) => {
-		if (error instanceof NuvaError && error.acceptance === 'unknown') return client.scripts.generate(input, { idempotencyKey });
+		if (error instanceof AdsError && error.retryable) return client.scripts.generate(input, { idempotencyKey });
 		throw error;
 	});
 	// #endregion idempotency

@@ -272,8 +272,8 @@ def guide_pages(locale='zh'):
                 '提示词将一个分镜片段转为视频模型的输入：提示词文本和按顺序排列的参考素材。它只需符合分镜和模型的要求，创意选择在分镜中完成。<code>prompts.generate({storyboard, clip?, ratio?})</code> 按片段顺序返回 <code>{prompts}</code>，每个片段一条已保存的提示词，带有 <code>data.clip_id</code>。只编译一个片段时传入 <code>clip</code>（<code>"C01"</code>）。<code>ratio</code> 可选 <code>adaptive</code>、<code>21:9</code>、<code>16:9</code>、<code>4:3</code>、<code>1:1</code>、<code>3:4</code>、<code>9:16</code>。默认超时为 300 秒。')
             + p('A clip compiled before from the same inputs (its shots, casting, lines, references and ratio) returns its saved Prompt and is not compiled or charged again. In a revised or edited Storyboard, a clip that did not change keeps its base Prompt\'s text.',
                 '已用相同输入（镜头、选角、台词、参考素材和画面比例）编译过的片段直接返回已保存的提示词，不会再次编译或计费。修改或编辑后的分镜中，未变化的片段沿用 base 提示词的文本。')
-            + p('If some Prompts are saved and a later one fails, the call throws <code>PartialCreationError</code>; <code>saved.prompts</code> holds the Prompts saved so far. Retry the same input with the same <code>idempotencyKey</code> to finish the remaining clips.',
-                '如果部分提示词已保存、之后某条失败，调用会抛出 <code>PartialCreationError</code>；<code>saved.prompts</code> 是已保存的提示词。使用相同输入和相同 <code>idempotencyKey</code> 重试即可完成剩余片段。')),
+            + p('You get every clip\'s Prompt or an error. If a clip fails, call again: the clips already compiled are reused, so only the failed ones are compiled again. If one clip keeps failing, compile the others one at a time with <code>clip</code>.',
+                '要么返回所有片段的提示词，要么返回错误。某个片段失败时再次调用即可：已编译的片段会被复用，只有失败的片段会重新编译。如果某个片段持续失败，可以用 <code>clip</code> 逐个编译其余片段。')),
         section('change-render', 'Change what gets rendered', '修改生成的内容',
             p('A Prompt is compiled from its Storyboard clip, the Product and the cast Characters. To change an image, a person, a shot or a line, change it there and compile again; never edit a compiled Prompt\'s text by hand. The text names each attached file by its position (<code>&lt;Picture 1&gt;</code> is the first image), so a hand edit that drops or reorders one makes the video ignore that file.',
                 '提示词由分镜片段、产品和已选角人物编译而成。需要修改图片、人物、镜头或台词时，请在这些来源中修改后重新编译；不要手动编辑已编译提示词的文本。提示词按位置指代附带的文件（<code>&lt;Picture 1&gt;</code> 是第一张图片），手动编辑时漏掉或打乱这些标记，视频就会忽略对应文件。')
@@ -284,8 +284,8 @@ def guide_pages(locale='zh'):
             ])
             + p('To render text of your own that no Storyboard describes, send it as raw input with <code>videos.generate({input})</code>. Its text must name every file it attaches; otherwise the request is rejected with <code>422 INVALID_PROMPT</code>.',
                 '需要生成不来自分镜的自定义文本时，用 <code>videos.generate({input})</code> 以原始输入提交。文本必须提到附带的每个文件，否则请求返回 <code>422 INVALID_PROMPT</code>。')
-            + p('Either way, the video model sees only the prompt text, the files attached to it, the length and the frame. So a Character or Product reaches a clip only through a Storyboard, or, in a raw render, when you attach its pictures and name them in the text. Earlier SDKs sent a <code>characters</code> list with raw input; it never reached the video model, and a non-empty one is now refused.',
-                '无论哪种方式，视频模型只看到提示词文本、附带的文件、时长和画面比例。因此人物或产品只能通过分镜进入片段；在原始渲染中，则需要你自己附加其图片并在文本中提到。早期 SDK 在原始输入中发送的 <code>characters</code> 列表从未传给视频模型，现在非空时会被拒绝。')),
+            + p('Either way, the video model sees only the prompt text, the files attached to it, the length and the frame. So a Character or Product reaches a clip only through a Storyboard, or, in a raw render, when you attach its pictures and name them in the text.',
+                '无论哪种方式，视频模型只看到提示词文本、附带的文件、时长和画面比例。因此人物或产品只能通过分镜进入片段；在原始渲染中，则需要你自己附加其图片并在文本中提到。')),
         section('video', 'Submit a video Job and display the result', '提交视频任务并展示结果',
             ex('generate-video')
             + response('job')
@@ -319,8 +319,8 @@ def guide_pages(locale='zh'):
             ex('idempotency')
             + p('Create this object once per deliberate generation. Retrying <code>submit()</code> reuses the same input and operation key. Persist both if retries must survive a page reload. Create a new object for a deliberate regeneration, even when the input is unchanged.',
                 '每次明确发起新的生成时创建此对象。重试 <code>submit()</code> 会复用相同输入和操作 key。需要跨页面刷新重试时，将两者一并持久化。即使输入不变，主动重新生成也应创建新对象。')
-            + p('The SDK does not automatically replay a write with unknown acceptance. See <a href="' + link('reference', 'errors') + '">errors and retry behavior</a>.',
-                'SDK 不会自动重放接受状态不明的写入。参见<a href="' + link('reference', 'errors') + '">错误与重试行为</a>。')
+            + p('The SDK sends a write again by itself, with the same key, only after a dropped connection or <code>SERVICE_BUSY</code>. See <a href="' + link('reference', 'errors') + '">errors and retry behavior</a>.',
+                'SDK 只会在连接中断或 <code>SERVICE_BUSY</code> 时使用相同 key 自行重发写入。参见<a href="' + link('reference', 'errors') + '">错误与重试行为</a>。')
             + p('Download the <a href="examples/creation-chain.ts">complete Product-to-clips example</a>. Keep its caller-owned progress object and implement saveProgress in your application. createProductVideo starts a new flow once and records accepted resources, the Storyboard and Prompt operation keys and the video operation keys; submitPendingVideos explicitly resumes saved submissions; waitForProductVideos resumes reads without submitting new Jobs. For interrupted preparation, inspect the retained IDs and SDK error details before deciding the next operation.',
                 '下载<a href="examples/creation-chain.ts">从产品到视频片段的完整示例</a>。保留由调用方持有的 progress 对象，并在应用中实现 saveProgress。createProductVideo 只启动一次新流程并记录已接受的资源、分镜和提示词的操作 key 及视频操作 key；submitPendingVideos 用于主动恢复已保存的提交；waitForProductVideos 只恢复查询，不创建新任务。准备阶段中断时，先检查保留的 ID 和 SDK 错误详情，再决定下一项操作。')),
     ]

@@ -201,12 +201,12 @@ LIST_QUERY = lambda route, *names: P('query', 'StoreQuery', Query(route, ('limit
 READS_BASE = ('With a reference as `base`, it reads `base` first (`GET`), then saves.', '<code>base</code> 为引用时，先读取 <code>base</code>（<code>GET</code>），再保存。')
 
 
-NEXT_CURSOR = Row('nextCursor', 'string | null', True, 'Added by the SDK: the same as `next_cursor`.', '由 SDK 添加：与 <code>next_cursor</code> 相同。')
+NEXT_CURSOR = Row('nextCursor', 'string | null', True, 'Pass as `cursor` for the next page; null on the last one.', '作为 <code>cursor</code> 传入以获取下一页；最后一页为 null。')
 
 
 def page_of(component):
     """What a list method returns: the page's items, as the contract describes them, and its cursor."""
-    return [Field(component, 'items'), Field(component, 'next_cursor'), NEXT_CURSOR]
+    return [Field(component, 'items'), NEXT_CURSOR]
 
 
 def profiles(kind, name, en, zh):
@@ -219,7 +219,7 @@ def profiles(kind, name, en, zh):
         Method(f'{plural}.get', (f'Retrieve a {en}', f'读取{zh}'), [ID(en, zh), VERSION_QUERY], f'Promise<{name}>',
                (f'Reads the latest version of a {en}, or the `version` you ask for.', f'读取{zh}的最新版本，或指定的 <code>version</code>。'),
                ('GET', f'/v1/{plural}/{{{kind}_id}}'), response=name),
-        Method(f'{plural}.list', (f'List {en}s', f'列出{zh}'), [LIST_QUERY(('GET', f'/v1/{plural}'), *(('brand_id',) if kind == 'product' else ()))], f'Promise<BackendPage<{name}>>',
+        Method(f'{plural}.list', (f'List {en}s', f'列出{zh}'), [LIST_QUERY(('GET', f'/v1/{plural}'), *(('brand_id',) if kind == 'product' else ()))], f'Promise<Page<{name}>>',
                (f'Lists the {en}s you can read, a page at a time, each at its latest version.', f'分页列出你有权读取的{zh}，每个均为最新版本。'),
                ('GET', f'/v1/{plural}'), response=f'{name}Page', output=page_of(f'{name}Page')),
         Method(f'{plural}.update', (f'Update a {en}', f'修改{zh}'), [P('ref', 'EntityRef', Ts('EntityRef')), P('changes', f'{name}Changes', Api(f'{name}Edit', omit=('version',))), OPTIONS], f'Promise<{name}>',
@@ -282,7 +282,7 @@ MODEL_NOTES = {
     'SkillOut': ('A Skill in a list: without its main version.', '列表中的 Skill：不含主版本。'),
 }
 # Types defined on the Introduction page.
-INTRO_TYPES = ('NuvaClientOptions', 'AccessToken', 'NuvaError', 'StoreCommandOptions', 'CommandOptions', 'BackendPage')
+INTRO_TYPES = ('NuvaClientOptions', 'AccessToken', 'AdsError', 'StoreCommandOptions', 'CommandOptions', 'Page')
 
 PAGES = [
     Page('reference-assets', ('Assets', '素材（Asset）'),
@@ -380,8 +380,8 @@ PAGES = [
                  ('POST', '/v1/generate/prompt'),
                  output=[Row('prompts', 'Prompt[]', True, 'One saved Prompt per clip, in clip order, each with `data.clip_id` naming its clip.',
                              '每个片段一条已保存的提示词，按片段顺序排列，每条的 <code>data.clip_id</code> 指明其片段。')],
-                 notes=[('If some Prompts are saved and a later clip fails, it throws `PartialCreationError` with `saved.prompts`; retry with the same input and `idempotencyKey` to finish.',
-                         '如果部分提示词已保存而之后的片段失败，会抛出带有 <code>saved.prompts</code> 的 <code>PartialCreationError</code>；使用相同输入和 <code>idempotencyKey</code> 重试即可完成。')]),
+                 notes=[('You get every clip\'s Prompt or an error. If a clip fails, call it again: the clips already compiled are reused, so only the failed ones are compiled (and charged) again. To get the clips that work while one keeps failing, compile them one at a time with `clip`.',
+                         '要么返回所有片段的提示词，要么返回错误。某个片段失败时再次调用即可：已编译的片段会被复用，只有失败的片段会重新编译（并计费）。如果某个片段持续失败，可以用 <code>clip</code> 逐个编译其余片段。')]),
           Method('prompts.get', ('Retrieve a Prompt', '读取提示词'), [REF('prompt', 'Prompt', '提示词')], 'Promise<Prompt>',
                  ('Reads a Prompt, for example the one a Job renders (`job.prompt`).', '读取提示词，例如任务所渲染的提示词（<code>job.prompt</code>）。'),
                  ('GET', '/v1/artifacts/prompt/{artifact_id}'), response='Prompt'),
@@ -405,7 +405,7 @@ PAGES = [
                  ('GET', '/v1/jobs/{job_id}'), response='JobOut'),
           Method('jobs.subscribe', ('Watch a Job', '关注任务'), [ID('Job', '任务'), P('listener', '(state: JobState) => void', None, 'Called with each state, polled every `jobPollIntervalMs`, until the Job is `completed`, `failed` or `cancelled`.',
                                                        '按 <code>jobPollIntervalMs</code> 轮询，每个状态都会传入，直到任务为 <code>completed</code>、<code>failed</code> 或 <code>cancelled</code>。'),
-                                    P('onError', '(error: NuvaErrorInfo) => void', None, 'Called when a poll fails; polling continues.', '某次轮询失败时调用；轮询继续。')],
+                                    P('onError', '(error: AdsErrorInfo) => void', None, 'Called when a poll fails; polling continues.', '某次轮询失败时调用；轮询继续。')],
                  '() => void', ('Polls a Job and calls `listener` with each state; the returned function stops watching locally, not the Job.', '轮询任务并将每个状态传给 <code>listener</code>；返回的函数只停止本地关注，不会停止任务。'),
                  ('GET', '/v1/jobs/{job_id}'), response='JobOut'),
           Method('jobs.cancel', ('Cancel a Job', '取消任务'), [ID('Job', '任务'), COMMAND], 'Promise<JobState>',
@@ -418,11 +418,11 @@ PAGES = [
            '成片广告（Ad）是最终视频及其合成方式。批次（Batch）汇集一次尝试中的工作：在某个批次中生成的脚本，其分镜、提示词以及渲染它们的任务都沿用该批次；批次列出其中做出的广告。广告和批次由 Agent 创建，SDK 负责读取。')],
          [Method('ads.get', ('Retrieve an Ad', '读取广告'), [ID('Ad', '广告')], 'Promise<Ad>', ('Reads a final Ad: its video and how it was put together.', '读取成片广告：其视频及合成方式。'),
                  ('GET', '/v1/ads/{ad_id}'), response='AdOut'),
-          Method('ads.list', ('List Ads', '列出广告'), [LIST_QUERY(('GET', '/v1/ads'), 'batch_id')], 'Promise<BackendPage<Ad>>', ('Lists Ads, newest first, optionally of one Batch.', '按从新到旧列出广告，可只列出某个批次的广告。'),
+          Method('ads.list', ('List Ads', '列出广告'), [LIST_QUERY(('GET', '/v1/ads'), 'batch_id')], 'Promise<Page<Ad>>', ('Lists Ads, newest first, optionally of one Batch.', '按从新到旧列出广告，可只列出某个批次的广告。'),
                  ('GET', '/v1/ads'), response='AdPage', output=page_of('AdPage')),
           Method('batches.get', ('Retrieve a Batch', '读取批次'), [ID('Batch', '批次')], 'Promise<Batch>', ('Reads a Batch with its Ads and how many of its Jobs are in each status.', '读取批次，包括其广告和各状态的任务数量。'),
                  ('GET', '/v1/batches/{batch_id}'), response='BatchOut'),
-          Method('batches.list', ('List Batches', '列出批次'), [LIST_QUERY(('GET', '/v1/batches'))], 'Promise<BackendPage<BatchSummary>>', ('Lists Batches, newest first.', '按从新到旧列出批次。'),
+          Method('batches.list', ('List Batches', '列出批次'), [LIST_QUERY(('GET', '/v1/batches'))], 'Promise<Page<BatchSummary>>', ('Lists Batches, newest first.', '按从新到旧列出批次。'),
                  ('GET', '/v1/batches'), response='BatchPage', output=page_of('BatchPage'))],
          ['Ad', 'Batch', 'BatchSummary']),
     Page('reference-skills', ('Skills', 'Skill'),
@@ -431,7 +431,7 @@ PAGES = [
            'Skill 是带版本的编写指导（一个 <code>SKILL.md</code> 及其文件），由 Agent 和编写服务加载。你的后端通过 <a href="@guide:backend-go#skills">Go Admin SDK</a> 注册 Skill；Nuva 使用为你的账户配置的 Skill，内容在 <code>skills</code> 中记录所用的版本。')],
          [Method('skills.get', ('Retrieve a Skill', '读取 Skill'), [ID('Skill', 'Skill ')], 'Promise<Skill>', ('Reads a Skill and its main version, with download URLs for its files.', '读取 Skill 及其主版本，并附带文件下载地址。'),
                  ('GET', '/v1/skills/{skill_id}'), response='SkillDetail'),
-          Method('skills.list', ('List Skills', '列出 Skill'), [LIST_QUERY(('GET', '/v1/skills'))], 'Promise<BackendPage<SkillOut>>', ('Lists the Skills you can use, newest first.', '按从新到旧列出你可使用的 Skill。'),
+          Method('skills.list', ('List Skills', '列出 Skill'), [LIST_QUERY(('GET', '/v1/skills'))], 'Promise<Page<SkillOut>>', ('Lists the Skills you can use, newest first.', '按从新到旧列出你可使用的 Skill。'),
                  ('GET', '/v1/skills'), response='SkillPage', output=page_of('SkillPage')),
           Method('skills.version', ('Retrieve a Skill version', '读取 Skill 版本'), [ID('Skill', 'Skill '), P('version', 'number', None, 'The version\'s number, 1 or more.', '版本号，从 1 开始。')], 'Promise<SkillVersionOut>',
                  ('Reads one version of a Skill, for example one that `skills` on a Script names.', '读取 Skill 的某个版本，例如脚本 <code>skills</code> 中所列的版本。'),
@@ -493,7 +493,6 @@ AGENT_METHODS = {
 
 # Descriptions for members whose declaration has no TSDoc; TSDoc is used (and translated) otherwise.
 TS_NOTES = {
-    'NuvaClientOptions.onTrace': ('Receives SDK diagnostics for each request and event. Redact credentials and private content before keeping or sharing them.', '接收每个请求和事件的 SDK 诊断信息。保存或分享前应去除凭证和私有内容。'),
     'NuvaClientOptions.getAccessToken': ('Your callback that fetches a user token from your backend: `{token, expiresAt}` (or a bare token string, which has no expiry). The SDK caches it and calls this again before it expires; concurrent refreshes share one call.',
                                          '由你实现的回调，从你的后端获取用户令牌：<code>{token, expiresAt}</code>（或仅令牌字符串，此时没有过期时间）。SDK 会缓存令牌并在过期前再次调用；并发刷新共用一次调用。'),
     'NuvaClientOptions.jobPollIntervalMs': ('How often `subscribe` and `result` poll a Job\'s status, at least 10 ms.', '<code>subscribe</code> 和 <code>result</code> 轮询任务状态的间隔，至少 10 毫秒。'),
@@ -518,8 +517,6 @@ TS_OVERRIDES = {
                                  '在诊断信息和错误中关联本次请求（以 <code>X-Request-ID</code> 发送）；省略时自动生成。它不能让写入安全重试。'),
 }
 TS_TYPES = {
-    'NuvaClientOptions.onTrace': '(trace: TraceEntry) => void',
-    'NuvaClientOptions.onWireTrace': '(trace: WireTraceEntry) => void | Promise<void>',
     'NuvaClientOptions.getAccessToken': '() => Promise<string | AccessToken>',
     'AccessToken.principal': '{customerId: string, userId: string}',
 }
@@ -866,6 +863,9 @@ def ts_rows(walker, spec):
     return rows
 
 
+SDK_QUERY = {'cursor': ('A page\'s `nextCursor`, for the page after it.', '某页的 <code>nextCursor</code>，用于获取其下一页。')}
+
+
 def query_rows(walker, spec, route):
     rows = []
     method, path = route
@@ -884,7 +884,10 @@ def query_rows(walker, spec, route):
             walker.problems.append(f'StoreQuery has no {name}.')
         schema = parameter['schema']
         text = parameter.get('description') or schema.get('description')
-        if text:
+        if name in SDK_QUERY:
+            # The REST contract names the backend's field; the SDK's page has its own name.
+            desc = T(*SDK_QUERY[name], source=f'{path}?{name}')
+        elif text:
             desc = T(text, source=f'{path}?{name}')
         elif name in QUERY_NOTES:
             desc = T(*QUERY_NOTES[name], source=f'{path}?{name}')
@@ -943,9 +946,8 @@ def spec_rows(walker, specs, owner, route=None):
 
 
 ERROR_ROWS = [Api('Error'), Field('ErrorResponse', 'request_id', 'requestId', required=False),
-              Row('saved', '{prompts: Prompt[]}', False, 'For `PARTIAL_CREATION` only (`PartialCreationError`): the Prompts saved before a later clip failed.',
-                  '仅用于 <code>PARTIAL_CREATION</code>（<code>PartialCreationError</code>）：之后的片段失败前已保存的提示词。')]
-PAGE_ROWS = [Row('items', 'T[]', True, 'The page\'s items.', '本页的条目。'), Field('ProductPage', 'next_cursor'), NEXT_CURSOR]
+              Row('method', 'string', False, 'The SDK method that failed, e.g. `products.update`.', '失败的 SDK 方法，例如 <code>products.update</code>。')]
+PAGE_ROWS = [Row('items', 'T[]', True, 'The page\'s items.', '本页的条目。'), NEXT_CURSOR]
 
 
 def build_model():
@@ -953,8 +955,8 @@ def build_model():
     built = {'walker': walker, 'methods': {}, 'models': {}, 'intro': {}}
     for name in ('NuvaClientOptions', 'AccessToken', 'StoreCommandOptions', 'CommandOptions'):
         built['intro'][name] = spec_rows(walker, Ts(name), name)
-    built['intro']['NuvaError'] = spec_rows(walker, ERROR_ROWS, 'NuvaError')
-    built['intro']['BackendPage'] = spec_rows(walker, PAGE_ROWS, 'BackendPage')
+    built['intro']['AdsError'] = spec_rows(walker, ERROR_ROWS, 'AdsError')
+    built['intro']['Page'] = spec_rows(walker, PAGE_ROWS, 'Page')
     for name, specs in MODELS.items():
         built['models'][name] = spec_rows(walker, specs, name)
     for page in PAGES:
@@ -1312,8 +1314,8 @@ def method_section(method, built, page_key, locale):
         if named:
             name = named[-1]
             body += f'<p>{compact(name, built["models"][name], locale)}</p>'
-            if 'BackendPage' in method.returns:
-                body += f'<p>{t("A page of them:", "按页返回：")} <code>{link_types("BackendPage")} {{ items, next_cursor, nextCursor }}</code></p>'
+            if 'Page<' in method.returns:
+                body += f'<p>{t("A page of them:", "按页返回：")} <code>{link_types("Page")} {{ items, nextCursor }}</code></p>'
         else:
             body += f'<p><code>{link_types(method.returns)}</code>{t(": nothing.", "：无返回内容。") if method.returns == "Promise<void>" else ""}</p>'
     body += f'<h3>{t("Example", "示例")}</h3>' + code(region(method.path), 'ts', locale) + response_html(method, locale)
@@ -1367,7 +1369,9 @@ def intro_sections(locale='zh'):
         ('overview', t('Overview', '概览'),
          p(f'Every method of the TypeScript SDK, for API version <code>{API_VERSION}</code>, one page per resource. How the methods fit together is in the guides: <a href="@guide:store">Manage resources</a>, <a href="@guide:generation">Generate content</a>, <a href="@guide:agent">Agent conversations</a>.',
            f'TypeScript SDK 的全部方法，适用于 API 版本 <code>{API_VERSION}</code>，每种资源一页。方法如何配合使用参见指南：<a href="@guide:store">管理资源</a>、<a href="@guide:generation">生成内容</a>、<a href="@guide:agent">Agent 对话</a>。')
-         + f'<ul class="page-list">{pages}</ul>'),
+         + f'<ul class="page-list">{pages}</ul>'
+         + p('In a record, <code>data</code> is what you write and the writers read; the fields around it are the record the service keeps or computes (<code>assets</code> expands the IDs in <code>data</code> with download URLs); <code>ref</code> and <code>label</code> are SDK helpers.',
+             '记录中的 <code>data</code> 是你写入、编写服务读取的内容；其外的字段是服务保存或计算出的记录信息（<code>assets</code> 将 <code>data</code> 中的 ID 展开为带下载地址的条目）；<code>ref</code> 和 <code>label</code> 是 SDK 提供的辅助字段。')),
         ('client', t('Create the client', '创建客户端'),
          '<div class="signature"><code><strong>createNuva</strong>(options: ' + type_link('NuvaClientOptions') + '): NuvaClient</code></div>'
          + p('Create one client per signed-in user, and call <code>close()</code> on logout or account change.', '为每个已登录用户创建一个客户端；退出登录或切换账号时调用 <code>close()</code>。')
@@ -1378,12 +1382,12 @@ def intro_sections(locale='zh'):
          p(f'The SDK sends <code>Nuva-Api-Version: {API_VERSION}</code> with every request, and this reference describes that version. You don\'t set it; a new SDK release that moves to a newer version says so in its upgrade guide.',
            f'SDK 在每个请求中发送 <code>Nuva-Api-Version: {API_VERSION}</code>，本参考描述的就是该版本。无需自行设置；升级到新 API 版本的 SDK 版本会在升级指南中说明。')),
         ('errors', t('Errors', '错误'),
-         p('Every failure is a <code>NuvaError</code>. Branch on <code>code</code>; show <code>message</code>; quote <code>requestId</code> when you report a problem.',
-           '所有失败都是 <code>NuvaError</code>。按 <code>code</code> 分支处理，展示 <code>message</code>，反馈问题时附上 <code>requestId</code>。')
-         + source_example('errors', locale, "import { NuvaError, type NuvaClient } from '@nuva/sdk';")
-         + heading('NuvaError') + rows('NuvaError')
-         + p('A write\'s error says whether the write happened. <code>acceptance: "not_accepted"</code>: nothing happened, so it is safe to retry. <code>acceptance: "unknown"</code>: it may have happened (a timeout, a lost response, a server error); retry only with the same <code>idempotencyKey</code>, or read the resource first. A read\'s error has no <code>acceptance</code>. The SDK replays a write by itself only after renewing the token, when the service reported <code>not_accepted</code>.',
-             '写入的错误会说明写入是否发生。<code>acceptance: "not_accepted"</code>：未执行任何操作，可安全重试。<code>acceptance: "unknown"</code>：可能已执行（超时、响应丢失、服务端错误）；只能使用相同的 <code>idempotencyKey</code> 重试，或先读取资源确认。读取的错误没有 <code>acceptance</code>。仅当服务返回 <code>not_accepted</code> 时，SDK 才会在刷新令牌后自行重放写入。')
+         p('Every failure is an <code>AdsError</code>. Branch on <code>code</code>; show <code>message</code>; when you report a problem to us, send <code>requestId</code> and <code>method</code>. Every error from a request the SDK sent has a <code>requestId</code>; one refused before sending (bad input) has none, since nothing reached the service.',
+           '所有失败都是 <code>AdsError</code>。按 <code>code</code> 分支处理，展示 <code>message</code>；向我们反馈问题时，请附上 <code>requestId</code> 和 <code>method</code>。SDK 已发出的请求所产生的错误都带有 <code>requestId</code>；发送前即被拒绝的错误（输入有误）没有，因为请求未到达服务。')
+         + source_example('errors', locale, "import { AdsError, type NuvaClient } from '@nuva/sdk';")
+         + heading('AdsError') + rows('AdsError')
+         + p('When <code>retryable</code> is true, send the call again; for a write, with the same <code>idempotencyKey</code>. That is always safe: a write that already happened returns what it made. The SDK already sends a request again by itself after a dropped connection or <code>SERVICE_BUSY</code> (twice at most, with the same key), but not after a timeout.',
+             '<code>retryable</code> 为 true 时可以再次调用；写入请使用相同的 <code>idempotencyKey</code>。这样做始终安全：已完成的写入会返回其结果。连接中断或 <code>SERVICE_BUSY</code> 时，SDK 已会自行重发请求（最多两次，使用相同 key），超时则不会。')
          + table([t('Code', '错误码'), t('Handling', '处理方式')], [
              ['<code>UNAUTHENTICATED / FORBIDDEN</code>', t('Check login and resource access.', '检查登录状态和资源权限。')],
              ['<code>NOT_FOUND</code>', t('The item does not exist or is not shared with the user.', '内容不存在，或未共享给该用户。')],
@@ -1391,21 +1395,20 @@ def intro_sections(locale='zh'):
              ['<code>IDEMPOTENCY_CONFLICT</code>', t('The key belongs to different input. Use the original input to recover, or a new key for new work.', '该 key 已绑定不同输入。恢复时使用原输入；新任务使用新 key。')],
              ['<code>INVALID_INPUT</code>', t('The input is malformed or uses a removed form; nothing was done. The message says what to change.', '输入格式错误或使用了已移除的写法，未执行任何操作。错误信息说明需要修改的内容。')],
              ['<code>REJECTED</code>', t('The service refused the input, for example a Storyboard that fails its checks. The message lists the problems.', '服务拒绝了输入，例如分镜未通过检查。错误信息列出具体问题。')],
-             ['<code>PARTIAL_CREATION</code>', t('Some clip Prompts were saved, not all: keep <code>saved.prompts</code> and retry with the same <code>idempotencyKey</code>.', '部分片段提示词已保存：保留 <code>saved.prompts</code>，再使用相同 <code>idempotencyKey</code> 重试。')],
              ['<code>ASSET_EXISTS</code>', t('You added this file before with a different label or description. The message names the Asset; change its text with <code>assets.update</code>.', '你之前添加过该文件，但标签或描述不同。错误信息给出该 Asset；请用 <code>assets.update</code> 修改其文字。')],
              ['<code>JOB_FINISHED</code>', t('The Job already ended; it cannot be cancelled.', '任务已结束，不能取消。')],
              ['<code>CALL_ALREADY_RESOLVED / CALL_OBSOLETE</code>', t('Read the current interaction state.', '读取当前交互状态。')],
          ])),
         ('idempotency', t('Idempotency keys and request IDs', '幂等 key 与请求 ID'),
-         p('<code>idempotencyKey</code> makes a write safe to retry: the same key with the same input returns what the first call made, and the same key with other input fails with <code>IDEMPOTENCY_CONFLICT</code>. Keep one key for the retries of one write, and use a new one for a new write, even with the same input. <code>requestId</code> only correlates a request in traces and errors; it does not make a retry safe.',
-           '<code>idempotencyKey</code> 让写入可安全重试：相同 key 和相同输入返回第一次调用的结果；相同 key 但输入不同时返回 <code>IDEMPOTENCY_CONFLICT</code>。同一次写入的重试使用同一个 key；新的写入即使输入相同也使用新 key。<code>requestId</code> 只用于在诊断信息和错误中关联请求，不能让重试变得安全。')
+         p('<code>idempotencyKey</code> makes a write safe to retry: the same key with the same input returns what the first call made, and the same key with other input fails with <code>IDEMPOTENCY_CONFLICT</code>. The SDK makes a key for every write that takes one, and uses it for its own retries. If you retry a write yourself, pass your own key, the same one each time; use a new one for a new write, even with the same input. Writes that take no key (<code>jobs.cancel</code>, <code>products.delete</code>, <code>shares.set</code>, <code>shares.remove</code>, <code>assets.update</code>, and the Agent\'s <code>send</code>, <code>stop</code>, <code>respond</code> and <code>fail</code>, which use their <code>requestId</code>) end the same however often they are sent. <code>requestId</code> otherwise only correlates a request in errors.',
+           '<code>idempotencyKey</code> 让写入可安全重试：相同 key 和相同输入返回第一次调用的结果；相同 key 但输入不同时返回 <code>IDEMPOTENCY_CONFLICT</code>。SDK 会为每个支持 key 的写入生成一个 key，并在自行重试时使用。如果你自己重试写入，请传入自己的 key，每次都相同；新的写入即使输入相同也使用新 key。不支持 key 的写入（<code>jobs.cancel</code>、<code>products.delete</code>、<code>shares.set</code>、<code>shares.remove</code>、<code>assets.update</code>，以及 Agent 的 <code>send</code>、<code>stop</code>、<code>respond</code>、<code>fail</code>，它们使用各自的 <code>requestId</code>）无论发送多少次结果都相同。除此之外，<code>requestId</code> 只用于在错误中关联请求。')
          + code(region('idempotency'), 'ts', locale)
          + heading('StoreCommandOptions', t(': the options of a write that takes a key', '：支持幂等 key 的写入方法的选项')) + rows('StoreCommandOptions')
          + heading('CommandOptions', t(': the options of a write that takes none', '：不支持幂等 key 的写入方法的选项')) + rows('CommandOptions')),
         ('lists', t('Lists', '列表'),
          p('A <code>list</code> method returns one page. Pass <code>nextCursor</code> as <code>cursor</code> to read the next, until it is null.',
            '<code>list</code> 方法每次返回一页。将 <code>nextCursor</code> 作为 <code>cursor</code> 传入读取下一页，直到它为 null。')
-         + heading('BackendPage') + rows('BackendPage')),
+         + heading('Page') + rows('Page')),
         ('versions', t('Versions', '版本'),
          table([t('Value', '值'), t('Meaning', '含义')], [
              ['<code>0.1.0-preview.5</code>', t('SDK package version.', 'SDK 包版本。')],

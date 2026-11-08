@@ -8,7 +8,7 @@ import {
 import {
   createNuva,
   Message,
-  NuvaError,
+  AdsError,
   type AccessToken,
   type NuvaClient,
   type AgentHandle,
@@ -563,7 +563,7 @@ export async function loadProduct(client: NuvaClient, productId: string) {
   try {
     return await client.products.get(productId);
   } catch (error) {
-    if (error instanceof NuvaError) {
+    if (error instanceof AdsError) {
       return {
         error: {
           code: error.code,

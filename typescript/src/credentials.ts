@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { NuvaError } from './errors.js';
+import { AdsError } from './errors.js';
 import type { AccessToken, NuvaClientOptions } from './types.js';
 export interface Credential {
 	readonly token: string;
@@ -20,16 +20,16 @@ export class Credentials {
 	constructor(
 		private options: NuvaClientOptions,
 		private changed: (credential: Credential) => void,
-		private failed: (error: NuvaError) => void,
+		private failed: (error: AdsError) => void,
 	) {
 		this.skew = options.tokenRefreshSkewMs ?? 30_000;
 		if (!Number.isFinite(this.skew) || this.skew < 0) throw new TypeError('tokenRefreshSkewMs must be nonnegative.');
 	}
 	async get(): Promise<Credential> {
 		if (this.closed)
-			throw new NuvaError({ code: 'CONNECTION_ERROR', message: 'Client closed.', retryable: false, acceptance: 'not_accepted' });
+			throw new AdsError({ code: 'CONNECTION_ERROR', message: 'Client closed.', retryable: false, acceptance: 'not_accepted' });
 		if (this.identityFailed)
-			throw new NuvaError({
+			throw new AdsError({
 				code: 'UNAUTHENTICATED',
 				message: 'Token principal changed; create a new client for the new account.',
 				retryable: false,
@@ -106,7 +106,7 @@ export class Credentials {
 		} catch {
 			this.cached = undefined;
 			clearTimeout(this.timer);
-			const error = new NuvaError({
+			const error = new AdsError({
 				code: 'UNAUTHENTICATED',
 				message: this.identityFailed
 					? 'Token principal changed; create a new client for the new account.'

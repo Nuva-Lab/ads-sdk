@@ -16,9 +16,7 @@
   "The version of `data`'s format.": "`data` 的格式版本。",
   "When this version was saved.": "该版本的保存时间。",
   "The assets `data` refers to, with download URLs.": "`data` 所引用的 Asset，附带下载地址。",
-  "From `next_cursor`.": "取自 `next_cursor`。",
   "The brands on this page, each at its current version, newest first.": "本页的品牌，均为当前版本，按从新到旧排列。",
-  "Pass as `cursor` for the next page.": "作为 `cursor` 传入以获取下一页。",
   "Only the fields to change; the rest keep their values. A list is replaced as a whole: `[]` empties it, and `null` clears an optional value.": "只传要修改的字段，其余字段保持不变。列表整体替换：`[]` 表示清空，`null` 清除可选值。",
   "The product's details.": "产品的详细信息。",
   "The product's name.": "产品名称。",
@@ -144,7 +142,6 @@
   "Optional Agent endpoint override for local development/testing. Release builds supply the official origin.": "可选，覆盖 Agent 服务地址，用于本地开发或测试。正式版本已内置官方地址。",
   "Optional Store endpoint override for local development/testing.": "可选，覆盖 Store 服务地址，用于本地开发或测试。",
   "Optional generation endpoint override; an explicit local Agent override may host generation too.": "可选，覆盖生成服务地址；显式设置的本地 Agent 地址也可以提供生成服务。",
-  "Observe raw transport bodies. Opt-in; observer failures cannot interrupt requests.": "查看原始传输内容。需主动开启；观察回调出错不会中断请求。",
   "ISO datetime or Unix epoch milliseconds, supplied by the customer backend.": "ISO 时间字符串或 Unix 毫秒时间戳，由客户后端提供。",
   "Optional stable identity metadata. The gateway verifies token identity independently.": "可选的稳定身份信息。网关会独立验证令牌身份。",
   "A stable, machine-readable code, e.g. `NOT_FOUND` or `REVISION_CONFLICT`.": "稳定、供程序判断的错误码，例如 `NOT_FOUND` 或 `REVISION_CONFLICT`。",
@@ -153,7 +150,6 @@
   "The problems with the request's fields, when the error is about them; left out otherwise.": "错误与请求字段有关时，列出各字段的问题；否则省略。",
   "The request field the problem is in, as a dotted path, e.g. `data.prompt`.": "出现问题的请求字段，以点号分隔的路径表示，例如 `data.prompt`。",
   "What is wrong with it.": "问题所在。",
-  "`not_accepted`: the request was refused before anything was saved. `unknown`: it may have been saved. Left out when the error doesn't say.": "`not_accepted`：请求在保存任何内容之前被拒绝。`unknown`：可能已保存。错误未说明时省略。",
   "This request's id, also sent as the `X-Request-ID` header; quote it when reporting a problem.": "本次请求的 ID，也通过 `X-Request-ID` 响应头返回；反馈问题时请提供。",
   "Opaque ID; the same as the resource reference's `id`.": "不透明 ID；与资源引用中的 `id` 相同。",
   "The file's media type, such as `image/png` or `audio/mpeg`.": "文件的媒体类型，例如 `image/png` 或 `audio/mpeg`。",
@@ -168,5 +164,7 @@
   "A longer description of what the file shows; null removes it.": "对文件内容的较长描述；null 删除该值。",
   "A longer description of what the file shows.": "对文件内容的较长描述。",
   "A short name for what the file shows, given at upload or edited since.": "文件内容的简短名称，上传时填写或之后修改。",
-  "A longer description of what the file shows, given at upload or edited since.": "对文件内容的较长描述，上传时填写或之后修改。"
+  "A longer description of what the file shows, given at upload or edited since.": "对文件内容的较长描述，上传时填写或之后修改。",
+  "What the brand is and stands for, given to the Script writer as context.": "品牌是什么、代表什么，作为背景信息提供给脚本编写服务。",
+  "More about the brand as JSON, given to the Script writer as context. IDs here are not references: they grant no access to what they name.": "品牌的更多信息（JSON），作为背景信息提供给脚本编写服务。其中的 ID 不是引用：不授予对其所指内容的访问权限。"
 }

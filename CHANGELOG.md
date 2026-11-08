@@ -30,6 +30,12 @@ Each entry describes the change from the previous released version.
 - **Jobs.** `jobs.cancel(id)` stops a queued or running Job. A failed Job reads `error_code: "GENERATION_FAILED"` with a fixed `error` message, and `error` stays null until the Job is final. `checkpoint` is gone. Callbacks carry the same shape.
 - **Assets.** `assets.upload(source, options)` takes a File or `{url}` for a public HTTPS URL; `assets.register` and `assets.uploadIntent` are removed.
 - **Errors.** The backend's `UNAUTHORIZED` and `INVALID_REQUEST` are `UNAUTHENTICATED` and `INVALID_INPUT`, as the SDK names them, and every error's `details[].path` is the request's own field path.
+- **`AdsError`** (breaking; was `NuvaError`, with `AdsErrorInfo` and `AdsErrorCode`). It carries `code`, `message`, `retryable`, `requestId`, `method` (the SDK method that failed, e.g. `products.update`) and, for validation errors only, `details`. Send us `requestId` and `method` when you report a problem. `acceptance` is gone: when `retryable` is true, retry; a write with the same `idempotencyKey`, which is always safe.
+- **Retries.** Every write that takes an idempotency key sends one: yours, or one the SDK makes. The SDK sends a request that is safe to repeat again by itself, with the same key, after a dropped connection or `SERVICE_BUSY` (twice at most) and after a 401 once the token is renewed; never after a timeout. To retry a write yourself, pass your own key.
+- **`prompts.generate` returns every clip's Prompt or an error** (breaking). `PartialCreationError` and `PARTIAL_CREATION` are gone. A call after a failure reuses the clips already compiled and compiles only the rest; to get the clips that work while one keeps failing, compile one at a time with `clip`.
+- **Lists return `Page<T>`: `{items, nextCursor}`** (breaking; was `BackendPage<T>`, which also carried `next_cursor`), as the Agent's lists already did.
+- **Brands take a `description` and `attributes`**, which the Script writer reads as context next to the Product's. `PATCH` them like the other fields.
+- **Removed:** `onTrace` and `onWireTrace` from the client options (quote an error's `requestId` and `method` instead), and the `TraceEntry` and `WireTraceEntry` types.
 - **Removed:** the generic `artifacts` client (read with `scripts.get`, `storyboards.get`, `prompts.get`), `ScriptSchema`, `PromptSchema`, `PerformanceSnapshotSchema`, `defineArtifactSchema`, `ProductImageUploadError`, and from `@nuva/sdk/schemas` the generation-service schemas, the generate-input schemas, `encodeScriptPackage`/`decodeScriptPackage` and `storyboardIssues`. Ads and Batches are written by the Agent only, and their write types are no longer exported.
 - **Scripts, Storyboards and Prompts are created by the writers only** (breaking). `scripts.create`, `prompts.create`, `artifacts.create` and `artifacts.update` are removed. A Storyboard can no longer be saved from scratch.
 - **The `directing_plan` Artifact kind is gone** from the SDK types (`ArtifactKind`, `DirectingPlan`, `ShareableKind`, Go `ItemRef`).
@@ -54,6 +60,11 @@ Each entry describes the change from the previous released version.
 | `record.revision`, `artifact.entities` | `{id, version}`; relationships read `{kind, id, version}` |
 | raw input `characters`, `clip_id`, `relationships` | attach the picture and name it `<Picture N>` |
 | `job.checkpoint`, parsing `job.error` | `job.error_code` |
+| `NuvaError`, `NuvaErrorInfo`, `NuvaErrorCode` | `AdsError`, `AdsErrorInfo`, `AdsErrorCode` |
+| `error.acceptance` | `error.retryable`; retry a write with the same `idempotencyKey` |
+| `PartialCreationError`, `error.saved.prompts` | call `prompts.generate` again (finished clips are reused), or one `clip` at a time |
+| `onTrace`, `onWireTrace` | `error.requestId` and `error.method` when you report a problem |
+| `BackendPage<T>`, `page.next_cursor` | `Page<T>`, `page.nextCursor` |
 
 The full guide, from preview.4 and from preview.3, with before-and-after code, is the docs page **Upgrade to preview.5** (`migration.html`).
 

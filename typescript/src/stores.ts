@@ -1,10 +1,9 @@
 import type { GeneratePromptInput, NewScriptInput, ReviseScriptInput, NewStoryboardInput, ReviseStoryboardInput } from './generation-schemas.js';
 import type { ScriptContent, StoryboardContent } from './script-v3.js';
-import type { CommandOptions, JsonObject, JsonValue, ResourceRef, ResourceLink, NuvaErrorInfo, Unsubscribe } from './types.js';
+import type { CommandOptions, JsonObject, JsonValue, ResourceRef, ResourceLink, AdsErrorInfo, Page, Unsubscribe } from './types.js';
 import type { BackendSchemas as B } from './backend-target.js';
 import type { ScriptPackage } from './service-schemas.js';
 export type { ScriptPackage } from './service-schemas.js';
-export type BackendPage<T> = { readonly items: readonly T[]; readonly next_cursor: string | null; readonly nextCursor: string | null };
 export type StoreQuery = { limit?: number; cursor?: string | null; brand_id?: string; batch_id?: string };
 export type Product = B['Product'] & ResourceLink<'product'>;
 export type Brand = B['Brand'] & ResourceLink<'brand'>;
@@ -34,7 +33,7 @@ export type EntityRef = { readonly id: string; readonly version: number };
 export interface ProfilesClient<T, C, E extends { data?: unknown }> {
 	/** The latest version, or `version`. */
 	get(id: string, query?: { version?: number }): Promise<T>;
-	list(query?: StoreQuery): Promise<BackendPage<T>>;
+	list(query?: StoreQuery): Promise<Page<T>>;
 	create(input: C, options?: StoreCommandOptions): Promise<T>;
 	/**
 	 * Changes the fields `data` sends and keeps the rest; a list is replaced as a whole, `[]` empties it and `null`
@@ -80,12 +79,12 @@ export interface ResultOptions {
 	timeoutMs?: number;
 }
 export type Job<T = Asset> = B['JobOut'] & {
-	subscribe(listener: (state: JobState) => void, onError?: (error: NuvaErrorInfo) => void): Unsubscribe;
+	subscribe(listener: (state: JobState) => void, onError?: (error: AdsErrorInfo) => void): Unsubscribe;
 	result(options?: ResultOptions): Promise<T>;
 };
 export interface JobsClient {
 	get(id: string): Promise<JobState>;
-	subscribe(id: string, listener: (state: JobState) => void, onError?: (error: NuvaErrorInfo) => void): Unsubscribe;
+	subscribe(id: string, listener: (state: JobState) => void, onError?: (error: AdsErrorInfo) => void): Unsubscribe;
 	/** Stops a queued or running Job; it ends `cancelled`. A finished Job can't be cancelled (`JOB_FINISHED`). */
 	cancel(id: string, options?: CommandOptions): Promise<JobState>;
 }
@@ -191,16 +190,16 @@ export interface StoreClients {
 	readonly jobs: JobsClient;
 	readonly ads: {
 		get(id: string): Promise<Ad>;
-		list(query?: StoreQuery): Promise<BackendPage<Ad>>;
+		list(query?: StoreQuery): Promise<Page<Ad>>;
 	};
 	readonly batches: {
 		get(id: string): Promise<Batch>;
-		list(query?: StoreQuery): Promise<BackendPage<B['BatchSummary']>>;
+		list(query?: StoreQuery): Promise<Page<B['BatchSummary']>>;
 	};
 	readonly shares: SharesClient;
 	readonly skills: {
 		get(id: string): Promise<Skill>;
-		list(query?: StoreQuery): Promise<BackendPage<B['SkillOut']>>;
+		list(query?: StoreQuery): Promise<Page<B['SkillOut']>>;
 		version(id: string, version: number): Promise<B['SkillVersionOut']>;
 	};
 }

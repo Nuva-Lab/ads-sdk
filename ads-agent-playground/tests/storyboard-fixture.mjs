@@ -180,7 +180,7 @@ export function fakeSdk(extra = {}) {
     products: { get: async (id, query) => (id === ids.product && query?.version === 2 ? product : Promise.reject(new Error("Unexpected Product read"))) },
     characters: {
       get: async (id) => characters[id] ?? Promise.reject(new Error("Character not found")),
-      list: async () => ({ items: [mia, leo], next_cursor: null }),
+      list: async () => ({ items: [mia, leo], nextCursor: null }),
     },
     scripts: { get: async () => script },
     ...extra,

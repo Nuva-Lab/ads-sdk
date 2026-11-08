@@ -197,7 +197,7 @@ test("each clip keeps its own request records; an unknown video submission is re
         calls.push(["videos.generate", input.prompt, options.idempotencyKey]);
         if (input.prompt.startsWith("prompt-C02") && failVideo) {
           failVideo = false;
-          throw Object.assign(new Error("Lost response"), { code: "CONNECTION_ERROR", acceptance: "unknown" });
+          throw Object.assign(new Error("Lost response"), { code: "CONNECTION_ERROR", retryable: true });
         }
         return { id: "job-" + input.prompt, status: "queued", prompt: input.prompt };
       },
@@ -350,7 +350,7 @@ test("save sends the edited Storyboard and shows the service's rejection beside 
     sent.push(content);
     throw Object.assign(new Error("C01: The lines need 12 s at a natural pace; the clip is 10 s."), {
       code: "INVALID_INPUT",
-      acceptance: "not_accepted",
+      retryable: false,
       details: [{ path: "content.clips[0]", message: "Too much speech." }],
     });
   });

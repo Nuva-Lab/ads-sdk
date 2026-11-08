@@ -1,6 +1,5 @@
 import type { MessageDraft } from './message.js';
 import type { StoreClients } from './stores.js';
-import type { TraceEntry } from './protocol.js';
 import type {
 	CommandOptions,
 	SendReceipt,
@@ -20,6 +19,19 @@ import type {
 	Session,
 } from '@nuva/protocol';
 export type * from '@nuva/protocol';
+/**
+ * A failure, as an AdsError and an `onError` listener carry it. Branch on `code`; retry when `retryable` (a write with
+ * the same `idempotencyKey`); quote `requestId` and `method` when you report a problem.
+ */
+export interface AdsErrorInfo {
+	readonly code: import('@nuva/protocol').AdsErrorCode;
+	readonly message: string;
+	readonly retryable: boolean;
+	readonly requestId?: string;
+	readonly method?: string;
+	/** Validation errors only: which input fields are wrong. */
+	readonly details?: { path: string; message: string }[];
+}
 export interface AgentOptions {
 	readonly sessionId: string;
 }
@@ -133,9 +145,6 @@ export interface NuvaClientOptions {
 	readonly storeBaseUrl?: string;
 	/** Optional generation endpoint override; an explicit local Agent override may host generation too. */
 	readonly generationBaseUrl?: string;
-	readonly onTrace?: (trace: TraceEntry) => void;
-	/** Observe raw transport bodies. Opt-in; observer failures cannot interrupt requests. */
-	readonly onWireTrace?: (trace: import('./protocol.js').WireTraceEntry) => void | Promise<void>;
 	/** Override request deadlines. Defaults: 8s for control/reads; 180s for writers, Asset registration and uploads. */
 	readonly requestTimeoutMs?: number;
 	readonly jobPollIntervalMs?: number;

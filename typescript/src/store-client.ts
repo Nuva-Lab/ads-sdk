@@ -1,7 +1,7 @@
 import { backendIdSchema } from './backend-id.js';
 import { z } from 'zod';
 import { Transport, isWriteMethod } from './transport.js';
-import { NuvaError, PartialCreationError } from './errors.js';
+import { AdsError, acceptanceOf, initOf, withMethod } from './errors.js';
 import { frozen } from './protocol.js';
 import { backendSchema } from './backend-schema.js';
 import { decodeScriptPackage } from './script-content.js';
@@ -17,7 +17,7 @@ import {
 } from './generation-schemas.js';
 import { ASSET, ASSET_ROLE_MESSAGE, decodeScript, decodeStoryboard, hasAssetRole, scriptVersion, type ScriptContent } from './script-v3.js';
 import type { BackendSchemas as B } from './backend-target.js';
-import type { NuvaClientOptions, NuvaErrorInfo, ResourceRef, ResourceLink } from './types.js';
+import type { NuvaClientOptions, AdsErrorInfo, ResourceRef, ResourceLink } from './types.js';
 import type {
 	StoreClients,
 	Artifact,
@@ -35,8 +35,8 @@ function checked<T>(schema: { parse(v: unknown): T }, value: unknown, input = fa
 	try {
 		return schema.parse(value);
 	} catch (e) {
-		if (e instanceof NuvaError) throw e;
-		throw new NuvaError({
+		if (e instanceof AdsError) throw e;
+		throw new AdsError({
 			code: input ? 'INVALID_INPUT' : 'SERVICE_ERROR',
 			message: e instanceof Error ? e.message : 'Invalid data.',
 			retryable: false,
@@ -48,12 +48,12 @@ function checked<T>(schema: { parse(v: unknown): T }, value: unknown, input = fa
 const link = <T extends { id: string }, K extends string>(v: T, kind: K, label: string) => ({ ...v, ref: { kind, id: v.id }, label });
 function assertClientRelationships(input: unknown): void {
 	if (input !== null && typeof input === 'object' && Object.hasOwn(input, 'relationships'))
-		throw new NuvaError({ code: 'UNSUPPORTED_OPERATION', message: 'Artifact relationships are managed by the Agent.', retryable: false, acceptance: 'not_accepted' });
+		throw new AdsError({ code: 'UNSUPPORTED_OPERATION', message: 'Artifact relationships are managed by the Agent.', retryable: false, acceptance: 'not_accepted' });
 }
 export function createStores(transport: Transport, options: NuvaClientOptions) {
 	let closed = false;
 	const stops = new Set<() => void>();
-	const closeErrors = new Map<() => void, (error: NuvaErrorInfo) => void>();
+	const closeErrors = new Map<() => void, (error: AdsErrorInfo) => void>();
 	const interval = options.jobPollIntervalMs ?? 500;
 	if (!Number.isFinite(interval) || interval < 10) throw new TypeError('jobPollIntervalMs must be at least 10.');
 	async function request<T>(
@@ -79,9 +79,9 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 				'id' in result
 			) {
 				if (params.id !== result.id)
-					throw new NuvaError({ code: 'SERVICE_ERROR', message: 'Response resource identity differs from the request.', retryable: false });
+					throw new AdsError({ code: 'SERVICE_ERROR', message: 'Response resource identity differs from the request.', retryable: false });
 				if ('version' in params && params.version !== undefined && 'version' in result && params.version !== result.version)
-					throw new NuvaError({
+					throw new AdsError({
 						code: 'SERVICE_ERROR',
 						message: 'Response revision differs from the requested version.',
 						retryable: false,
@@ -89,12 +89,11 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 			}
 			return frozen(result);
 		} catch (e) {
-			if (e instanceof PartialCreationError) throw e;
-			if (e instanceof NuvaError)
-				throw new NuvaError({
-					...e.toJSON(),
+			if (e instanceof AdsError)
+				throw new AdsError({
+					...initOf(e),
 					requestId: e.requestId ?? requestId,
-					...(isWriteMethod(method) && (received || e.code === 'SERVICE_ERROR') && e.acceptance === undefined
+					...(isWriteMethod(method) && (received || e.code === 'SERVICE_ERROR') && acceptanceOf(e) === undefined
 						? { acceptance: 'unknown' as const }
 						: {}),
 				});
@@ -116,10 +115,10 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 			.loose()
 			.parse(v);
 		if (schema_version !== 1)
-			throw new NuvaError({ code: 'UNSUPPORTED_SCHEMA', message: `${kind}@${schema_version} is newer than this SDK; upgrade it.`, retryable: false });
+			throw new AdsError({ code: 'UNSUPPORTED_SCHEMA', message: `${kind}@${schema_version} is newer than this SDK; upgrade it.`, retryable: false });
 		const raw = backendSchema(kinds[kind]).parse(v);
 		if (expected && (raw.id !== expected.id || raw.kind !== expected.kind))
-			throw new NuvaError({ code: 'SERVICE_ERROR', message: 'Artifact identity mismatch.', retryable: false });
+			throw new AdsError({ code: 'SERVICE_ERROR', message: 'Artifact identity mismatch.', retryable: false });
 		return { ...raw, ref: { kind, id: raw.id }, label: raw.id, schemaVersion: raw.schema_version } as BackendArtifact;
 	}
 	/** Whether `ref` is the full record (read before) rather than a reference. */
@@ -153,7 +152,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 			get: (id: string, query = {}) => request(collection + '.get', { id, ...query }, parser),
 			list: async (query = {}) => {
 				const raw = await dto(collection + '.list', query, `${name}Page`);
-				return { ...raw, items: raw.items.map((v) => parser.parse(v)), nextCursor: raw.next_cursor };
+				return { items: raw.items.map((v) => parser.parse(v)), nextCursor: raw.next_cursor };
 			},
 			create: async (input: unknown, o?: { requestId?: string; idempotencyKey?: string }) =>
 				request(collection + '.create', checked(backendSchema(`${name}Create`), input, true), parser, o?.requestId, o?.idempotencyKey),
@@ -173,8 +172,8 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 	// An Asset's own label (or null) is kept; display code falls back to its ID.
 	const assetParser = { parse: (v: unknown) => { const raw = backendSchema('AssetOut').parse(v); return { ...raw, ref: { kind: 'asset' as const, id: raw.id } }; } };
 	const getJob = (id: string) => dto('jobs.get', { id }, 'JobOut');
-	function subscribe(id: string, listener: (s: JobState) => void, onError?: (e: NuvaErrorInfo) => void) {
-		if (closed) throw new NuvaError({ code: 'CONNECTION_ERROR', message: 'Client closed.', retryable: false });
+	function subscribe(id: string, listener: (s: JobState) => void, onError?: (e: AdsErrorInfo) => void) {
+		if (closed) throw new AdsError({ code: 'CONNECTION_ERROR', message: 'Client closed.', retryable: false });
 		let active = true,
 			timer: ReturnType<typeof setTimeout> | undefined;
 		const stop = () => {
@@ -195,7 +194,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 					return;
 				}
 			} catch (e) {
-				if (active) onError?.(e instanceof NuvaError ? e.toJSON() : { code: 'SERVICE_ERROR', message: String(e), retryable: false });
+				if (active) onError?.(e instanceof AdsError ? e.toJSON() : { code: 'SERVICE_ERROR', message: String(e), retryable: false });
 			}
 			if (active) timer = setTimeout(() => void poll(), interval);
 		};
@@ -204,7 +203,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 	}
 	const typedScript = (a: Artifact): Script => {
 		if (a.ref.kind !== 'script' || a.schemaVersion !== 1)
-			throw new NuvaError({ code: 'UNSUPPORTED_SCHEMA', message: 'Expected script@1.', retryable: false });
+			throw new AdsError({ code: 'UNSUPPORTED_SCHEMA', message: 'Expected script@1.', retryable: false });
 		const data = checked(backendSchema('ScriptDataV1'), a.data);
 		const base = { ...(a as BackendArtifact), kind: 'script' as const, ref: { kind: 'script' as const, id: a.ref.id }, data };
 		// Scripts saved before Storyboards are read-only v2 ScriptPackages.
@@ -214,7 +213,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 	};
 	const typedStoryboard = (a: Artifact): Storyboard => {
 		if (a.ref.kind !== 'storyboard' || a.schemaVersion !== 1)
-			throw new NuvaError({ code: 'UNSUPPORTED_SCHEMA', message: 'Expected storyboard@1.', retryable: false });
+			throw new AdsError({ code: 'UNSUPPORTED_SCHEMA', message: 'Expected storyboard@1.', retryable: false });
 		const data = checked(backendSchema('StoryboardDataV1'), a.data);
 		return {
 			...(a as BackendArtifact),
@@ -227,9 +226,9 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 	/** `asset` is reserved: no new Script or version may have a role called `asset`. */
 	const reservedRoles = (content: ScriptContent, current?: Script) => {
 		if (current?.format === 3 && hasAssetRole(current.content))
-			throw new NuvaError({ code: 'INVALID_INPUT', message: ASSET_ROLE_MESSAGE, retryable: false, acceptance: 'not_accepted' });
+			throw new AdsError({ code: 'INVALID_INPUT', message: ASSET_ROLE_MESSAGE, retryable: false, acceptance: 'not_accepted' });
 		if (content?.roles?.some((role) => role.id === ASSET))
-			throw new NuvaError({ code: 'INVALID_INPUT', message: 'roles: narrator, product and asset are reserved.', retryable: false, acceptance: 'not_accepted' });
+			throw new AdsError({ code: 'INVALID_INPUT', message: 'roles: narrator, product and asset are reserved.', retryable: false, acceptance: 'not_accepted' });
 	};
 	/** Every Storyboard write goes through the Agent's Storyboard endpoint and its checks. */
 	const storyboardRequest = (input: unknown, o?: { requestId?: string; idempotencyKey?: string }) =>
@@ -238,12 +237,12 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 		if (ref?.kind !== 'storyboard') throw moved('Give the Storyboard as { kind: "storyboard", id }.');
 		return ref.id;
 	};
-	const moved = (message: string) => new NuvaError({ code: 'INVALID_INPUT', message, retryable: false, acceptance: 'not_accepted' });
+	const moved = (message: string) => new AdsError({ code: 'INVALID_INPUT', message, retryable: false, acceptance: 'not_accepted' });
 	/** The Product a Script was written for: the Product it is based on. */
 	const scriptProduct = (script: Script) => {
 		const product = script.relationships?.find((relationship) => relationship.type === 'based_on' && relationship.target.kind === 'product')?.target;
 		if (product === undefined)
-			throw new NuvaError({ code: 'SERVICE_ERROR', message: 'The Script does not say which Product it was written for.', retryable: false });
+			throw new AdsError({ code: 'SERVICE_ERROR', message: 'The Script does not say which Product it was written for.', retryable: false });
 		return product.id;
 	};
 	// An Artifact's share carries its first version's ID, whichever version named it; any other item's names the item.
@@ -303,10 +302,10 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 				}
 				const prefix = source.type.split('/')[0];
 				const kind = o?.kind ?? (prefix === 'image' || prefix === 'video' || prefix === 'audio' ? prefix : undefined);
-				if (!kind) throw new NuvaError({ code: 'INVALID_INPUT', message: 'Specify the media kind for this upload.', retryable: false });
+				if (!kind) throw new AdsError({ code: 'INVALID_INPUT', message: 'Specify the media kind for this upload.', retryable: false });
 				const intent = await dto('assets.uploadIntent', checked(backendSchema('UploadRequest'), { kind }, true), 'UploadOut', o?.requestId);
 				if (source.size > intent.max_bytes)
-					throw new NuvaError({ code: 'INVALID_INPUT', message: `The file is larger than ${intent.max_bytes} bytes.`, retryable: false });
+					throw new AdsError({ code: 'INVALID_INPUT', message: `The file is larger than ${intent.max_bytes} bytes.`, retryable: false });
 				await transport.upload(intent.upload_url, source);
 				return register({ upload_token: intent.upload_token });
 			},
@@ -384,7 +383,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 									(prompt) => !prompt.relationships.some((relationship) => relationship.target.kind === 'storyboard' && relationship.target.id === parsed.storyboard),
 								)
 							)
-								throw new NuvaError({
+								throw new AdsError({
 									code: 'SERVICE_ERROR',
 									message: 'Generation must return unique Prompts of the requested Storyboard clips.',
 									retryable: false,
@@ -452,7 +451,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 									if (s.status === 'completed')
 										done(() => {
 											if (s.asset === null) {
-												reject(new NuvaError({ code: 'SERVICE_ERROR', message: 'Completed Job has no Asset.', retryable: false }));
+												reject(new AdsError({ code: 'SERVICE_ERROR', message: 'Completed Job has no Asset.', retryable: false }));
 												return;
 											}
 											resolve(assetParser.parse(s.asset) as Asset);
@@ -460,7 +459,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 									else if (s.status === 'failed' || s.status === 'cancelled')
 										done(() =>
 											reject(
-												new NuvaError({
+												new AdsError({
 													code: s.status === 'cancelled' ? 'JOB_CANCELLED' : 'SERVICE_ERROR',
 													message: s.error ?? (s.status === 'cancelled' ? 'Job cancelled.' : 'Job failed without an error message.'),
 													retryable: false,
@@ -468,14 +467,14 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 											),
 										);
 								},
-								(e) => done(() => reject(new NuvaError(e))),
+								(e) => done(() => reject(new AdsError(e))),
 							);
 							if (opts.timeoutMs !== undefined)
 								timer = setTimeout(
 									() =>
 										done(() =>
 											reject(
-												new NuvaError({ code: 'CONNECTION_ERROR', message: 'Timed out waiting; server work continues.', retryable: true }),
+												new AdsError({ code: 'CONNECTION_ERROR', message: 'Timed out waiting; server work continues.', retryable: true }),
 											),
 										),
 									opts.timeoutMs,
@@ -488,27 +487,27 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 			get: (id) => request('ads.get', { id }, resource('AdOut', 'ad')),
 			list: async (query = {}) => {
 				const raw = await dto('ads.list', query, 'AdPage');
-				return { ...raw, items: raw.items.map((v) => link(v, 'ad', v.id)), nextCursor: raw.next_cursor };
+				return { items: raw.items.map((v) => link(v, 'ad', v.id)), nextCursor: raw.next_cursor };
 			},
 		},
 		batches: {
 			get: (id) => request('batches.get', { id }, resource('BatchOut', 'batch')),
 			list: async (query = {}) => {
 				const raw = await dto('batches.list', query, 'BatchPage');
-				return { ...raw, nextCursor: raw.next_cursor };
+				return { items: raw.items, nextCursor: raw.next_cursor };
 			},
 		},
 		skills: {
 			get: (id) => request('skills.get', { id }, resource('SkillDetail', 'skill')),
 			list: async (query = {}) => {
 				const raw = await dto('skills.list', query, 'SkillPage');
-				return { ...raw, nextCursor: raw.next_cursor };
+				return { items: raw.items, nextCursor: raw.next_cursor };
 			},
 			version: (id, version) => dto('skills.version', { id, version }, 'SkillVersionOut'),
 		},
 	};
 	return {
-		api,
+		api: named(api),
 		close() {
 			closed = true;
 			for (const stop of stops) {
@@ -518,4 +517,31 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 			stops.clear();
 		},
 	};
+}
+
+/**
+ * The clients, each method's errors naming it (`products.update`): an AdsError a method throws, or rejects with, carries
+ * `method`, also one raised before any request (bad input).
+ */
+function named<T extends object>(clients: T): T {
+	const wrap = (method: string, fn: (...args: unknown[]) => unknown) =>
+		(...args: unknown[]) => {
+			try {
+				const result = fn(...args);
+				return result instanceof Promise ? result.catch((error: unknown) => Promise.reject(withMethod(error, method))) : result;
+			} catch (error) {
+				throw withMethod(error, method);
+			}
+		};
+	return Object.fromEntries(
+		Object.entries(clients).map(([collection, methods]) => [
+			collection,
+			Object.fromEntries(
+				Object.entries(methods as Record<string, unknown>).map(([name, fn]) => [
+					name,
+					typeof fn === 'function' ? wrap(`${collection}.${name}`, fn as (...args: unknown[]) => unknown) : fn,
+				]),
+			),
+		]),
+	) as T;
 }

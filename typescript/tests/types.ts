@@ -14,16 +14,6 @@ void client.agent({ sessionId: 'work-session' }).stop();
 void client.agent({ sessionId: 'work-session' }).stop({ cutoff: 10 });
 client.close();
 
-import { PartialCreationError } from '@nuva/sdk';
-declare const creationFailure: unknown;
-if (creationFailure instanceof PartialCreationError) {
-	const code: 'PARTIAL_CREATION' = creationFailure.code;
-	// @ts-expect-error A Prompt receipt has no Plan.
-	creationFailure.saved.plan;
-	const savedPromptIds: string[] = creationFailure.saved.prompts.map((prompt) => prompt.id);
-	void [code, savedPromptIds];
-}
-
 // @ts-expect-error A Storyboard is not compiled when it is written; the ratio belongs to its Prompts.
 void client.storyboards.generate({ script: '00000000-0000-4000-8000-000000000001', ratio: '9:16' });
 // @ts-expect-error Prompts are compiled from a Storyboard, not a Script.
@@ -182,3 +172,14 @@ export function SessionFileName(): string {
 // An Asset is attached and quoted as is: its own `label` may be missing or null.
 declare const uploaded: Asset;
 void Message.create().attach(uploaded).quote(uploaded);
+
+// An AdsError says what failed and where: no acceptance (retry with the same idempotencyKey) and no partial result.
+declare const failure: import('@nuva/sdk').AdsError;
+const reported: [string, string | undefined, string | undefined, boolean] = [failure.code, failure.requestId, failure.method, failure.retryable];
+// @ts-expect-error Whether a write was taken is the SDK's own business.
+void failure.acceptance;
+void reported;
+// @ts-expect-error The trace hooks are not public options.
+createNuva({ getAccessToken: async () => 'token', onTrace: () => {} });
+// @ts-expect-error The trace hooks are not public options.
+createNuva({ getAccessToken: async () => 'token', onWireTrace: () => {} });

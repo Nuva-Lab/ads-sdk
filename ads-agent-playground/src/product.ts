@@ -51,8 +51,8 @@ export async function renderProduct(
   if (!container.isConnected) return;
   let products = page.items.slice(),
     brands = brandPage.items.slice();
-  let productCursor = page.next_cursor,
-    brandCursor = brandPage.next_cursor;
+  let productCursor = page.nextCursor,
+    brandCursor = brandPage.nextCursor;
   let selectedId = selected;
   container.replaceChildren();
   const toolbar = node("div", "", "gallery-toolbar");
@@ -70,7 +70,7 @@ export async function renderProduct(
         });
         for (const product of next.items)
           products = [...products.filter((p) => p.id !== product.id), product];
-        productCursor = next.next_cursor;
+        productCursor = next.nextCursor;
         drawGallery();
       } finally {
         more.disabled = false;
@@ -280,7 +280,7 @@ export async function renderProduct(
                   limit: 100,
                 });
               brands.push(...next.items);
-              brandCursor = next.next_cursor;
+              brandCursor = next.nextCursor;
               fillBrands();
               brand.value = selected;
             } finally {

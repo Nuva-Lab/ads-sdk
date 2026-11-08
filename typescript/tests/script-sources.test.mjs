@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createNuva } from '../dist/index.js';
 import { encodeScriptPackage, decodeScript } from '../dist/internal.js';
+import { acceptanceOf } from '../dist/internal.js';
 
 const content = JSON.parse(await readFile(new URL('./fixtures/script-v3.json', import.meta.url), 'utf8'));
 const legacy = JSON.parse(await readFile(new URL('./fixtures/script-response.json', import.meta.url), 'utf8'));
@@ -64,7 +65,7 @@ test('a v2 ScriptPackage Script reads as read-only legacy; createFrom refuses it
     assert.deepEqual(read.legacy, legacy);
     assert.equal(read.content, undefined);
     // A v2 Script is read-only: createFrom refuses it before anything is sent.
-    await assert.rejects(sdk.scripts.createFrom({ kind: 'script', id }, content), (e) => e.code === 'INVALID_INPUT' && e.acceptance === 'not_accepted' && e.message.includes('read-only'));
+    await assert.rejects(sdk.scripts.createFrom({ kind: 'script', id }, content), (e) => e.code === 'INVALID_INPUT' && acceptanceOf(e) === 'not_accepted' && e.message.includes('read-only'));
     assert.ok(requests.every(([method]) => method === 'GET'));
   } finally { sdk.close(); globalThis.fetch = original; }
 });
@@ -88,7 +89,7 @@ test('asset is reserved: createFrom refuses it, and a stored Script with that ro
   };
   const sdk = createNuva({ getAccessToken: async () => 'fixture', storeBaseUrl: 'https://backend.invalid' });
   try {
-    await assert.rejects(sdk.scripts.createFrom({ kind: 'script', id }, withAsset), (e) => e.code === 'INVALID_INPUT' && e.acceptance === 'not_accepted' && e.message.includes('asset are reserved'));
+    await assert.rejects(sdk.scripts.createFrom({ kind: 'script', id }, withAsset), (e) => e.code === 'INVALID_INPUT' && acceptanceOf(e) === 'not_accepted' && e.message.includes('asset are reserved'));
     assert.deepEqual(requests, ['GET']);
     stored = withAsset;
     await assert.rejects(sdk.scripts.createFrom({ kind: 'script', id }, content), (e) => e.code === 'INVALID_INPUT' && e.message.includes('generate a new Script'));

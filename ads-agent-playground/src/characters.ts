@@ -29,7 +29,7 @@ export async function listCharacters(sdk: Pick<NuvaClient, "characters">): Promi
   for (let page = 0; page < 5; page++) {
     const result = await sdk.characters.list({ limit: 100, ...(cursor ? { cursor } : {}) });
     items.push(...result.items);
-    cursor = result.next_cursor;
+    cursor = result.nextCursor;
     if (!cursor) break;
   }
   return items;
@@ -59,7 +59,7 @@ export async function renderCharacters(
   const first = await sdk.characters.list({ limit: 100 });
   if (!container.isConnected) return;
   let characters = first.items.slice(),
-    cursor = first.next_cursor;
+    cursor = first.nextCursor;
   container.replaceChildren();
   const toolbar = node("div", "", "gallery-toolbar");
   const create = button(msg("New Character"), () => edit(), "secondary", "plus");
@@ -74,7 +74,7 @@ export async function renderCharacters(
         const next = await sdk.characters.list({ cursor, limit: 100 });
         for (const character of next.items)
           characters = [...characters.filter((c) => c.id !== character.id), character];
-        cursor = next.next_cursor;
+        cursor = next.nextCursor;
         draw();
       } finally {
         more.disabled = false;

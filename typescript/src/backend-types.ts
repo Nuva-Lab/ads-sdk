@@ -1005,6 +1005,18 @@ export interface components {
              * @description The brand's name.
              */
             name: string;
+            /**
+             * Description
+             * @description What the brand is and stands for, given to the Script writer as context.
+             */
+            description?: string | null;
+            /**
+             * Attributes
+             * @description More about the brand as JSON, given to the Script writer as context. IDs here are not references: they grant no access to what they name.
+             */
+            attributes?: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
         };
         /** BrandEdit */
         BrandEdit: {
@@ -1023,6 +1035,18 @@ export interface components {
              * @description The brand's name.
              */
             name?: string;
+            /**
+             * Description
+             * @description What the brand is and stands for, given to the Script writer as context.
+             */
+            description?: string | null;
+            /**
+             * Attributes
+             * @description More about the brand as JSON, given to the Script writer as context. IDs here are not references: they grant no access to what they name.
+             */
+            attributes?: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
         };
         /** BrandPage */
         BrandPage: {
@@ -1289,11 +1313,6 @@ export interface components {
              * @description The problems with the request's fields, when the error is about them; left out otherwise.
              */
             details?: components["schemas"]["ErrorDetail"][] | null;
-            /**
-             * Acceptance
-             * @description `not_accepted`: the request was refused before anything was saved. `unknown`: it may have been saved. Left out when the error doesn't say.
-             */
-            acceptance?: ("not_accepted" | "unknown") | null;
         };
         /** ErrorDetail */
         ErrorDetail: {

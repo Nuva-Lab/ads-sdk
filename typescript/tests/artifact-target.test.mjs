@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { createNuva, PartialCreationError } from '../dist/index.js';
+import { createNuva } from '../dist/index.js';
 import { backendSchema, encodeStoryboard } from '../dist/internal.js';
+import { acceptanceOf } from '../dist/internal.js';
 const id = '01a175e0-31b3-da69-176e-0842e6f6602e';
 const relationships = [{ type: 'based_on', target: { kind: 'product', id } }, { type: 'based_on', target: { kind: 'skill', id: '01a175e0-2000-0000-ffff-abcdefabcdef' } }];
 const other = '01a175e0-3000-cccc-1111-abcdefabcdef';
@@ -21,30 +22,12 @@ test('Script and Storyboard content is text; source relationships are explicit a
 	}
 });
 
-test('partial Prompt receipts retain null Batch and reject Prompts not based on one Storyboard', () => {
-	const saved = { ...record('prompt', { prompt: 'Clip', image_asset_ids: [id], clip_id: 'C01' }), relationships: [{ type: 'based_on', target: { kind: 'storyboard', id } }] };
-	const info = { code: 'PARTIAL_CREATION', message: 'One saved', retryable: false };
-	const receipt = new PartialCreationError(info, { prompts: [saved] }).saved;
-	assert.equal(receipt.prompts[0].batch_id, null);
-	assert.deepEqual(new PartialCreationError(info, { prompts: [] }).saved.prompts, []);
-	const { relationships: _, ...legacy } = saved;
-	const elsewhere = { ...saved, id: other, relationships: [{ type: 'based_on', target: { kind: 'storyboard', id: other } }] };
-	for (const invalid of [
-		{ storyboard: record('storyboard', { text: 'Encoded Storyboard' }), prompts: [saved] },
-		{ prompts: [legacy] },
-		{ prompts: [{ ...saved, relationships }] },
-		{ prompts: [saved, elsewhere] },
-		{ prompts: [{ ...saved, data: { ...saved.data, plan: id } }] },
-		{ prompts: [saved, saved] },
-	])
-		assert.throws(() => new PartialCreationError(info, invalid), error => error.code === 'SERVICE_ERROR', JSON.stringify(invalid));
-});
-
-test('PR error acceptance remains optional and nullable without inventing retry authority', () => {
+test('acceptance is not in the public error contract; a service that still sends it is read', async () => {
 	const base = { code: 'FAILED', message: 'Failure', retryable: false };
 	assert.deepEqual(backendSchema('Error').parse(base), base);
-	for (const acceptance of [null, 'not_accepted', 'unknown']) assert.deepEqual(backendSchema('Error').parse({ ...base, acceptance }), { ...base, acceptance });
-	assert.equal(backendSchema('Error').safeParse({ ...base, acceptance: 'accepted' }).success, false);
+	const contract = JSON.parse(await readFile(new URL('../schema/backend.openapi.json', import.meta.url), 'utf8')).components.schemas;
+	assert.equal(contract.Error.properties.acceptance, undefined);
+	for (const acceptance of [null, 'not_accepted', 'unknown']) assert.equal(backendSchema('Error').safeParse({ ...base, acceptance }).success, true);
 });
 
 test('customers write Artifacts only through their own clients, and never their relationships', async () => {
@@ -82,7 +65,7 @@ test('customers write Artifacts only through their own clients, and never their 
     () => client.scripts.createFrom({ kind: 'script', id }, { relationships: refs }),
     () => client.prompts.createFrom({ kind: 'prompt', id }, { relationships: refs }),
     () => client.videos.generate({ input: { schema_version: 1, data: prompt, relationships: refs } }),
-   ]) await assert.rejects(async () => invoke(), error => error.code === 'UNSUPPORTED_OPERATION' && error.acceptance === 'not_accepted');
+   ]) await assert.rejects(async () => invoke(), error => error.code === 'UNSUPPORTED_OPERATION' && acceptanceOf(error) === 'not_accepted');
   }
   assert.equal(calls.length, before + 1, 'Relationship writes fail before any HTTP request (the clip_id check read the base)');
  } finally { client.close(); globalThis.fetch = original; }
@@ -129,7 +112,7 @@ test('generateFrom and createFrom go through the writer endpoints; the old gener
    [() => client.storyboards.generate({ content: board }), 'createFrom'],
    [() => client.scripts.generate({ product, base: id, acceptable_duration_ms: { min: 5000, max: 9000 } }), 'scripts.generateFrom'],
   ])
-   await assert.rejects(async () => invoke(), (error) => error.code === 'INVALID_INPUT' && error.acceptance === 'not_accepted' && error.message.includes(method), method);
+   await assert.rejects(async () => invoke(), (error) => error.code === 'INVALID_INPUT' && acceptanceOf(error) === 'not_accepted' && error.message.includes(method), method);
   for (const invalid of [
    () => client.storyboards.generateFrom(ref, {}),
    () => client.storyboards.generateFrom(ref, { instruction: '' }),
@@ -170,15 +153,16 @@ test('storyboards.generate saves the Storyboard; prompts.generate compiles its c
    await assert.rejects(client.prompts.generate({ storyboard: id }), error => error.code === 'SERVICE_ERROR', JSON.stringify(prompts.map(p => p.data.clip_id)));
   }
   reply = () => Response.json({ error: { code: 'NOT_FOUND', message: 'Storyboard has no clip C09.', retryable: false, acceptance: 'not_accepted' }, request_id: 'unknown-clip' }, { status: 404 });
-  await assert.rejects(client.prompts.generate({ storyboard: id, clip: 'C09' }), error => error.code === 'NOT_FOUND' && error.acceptance === 'not_accepted' && !(error instanceof PartialCreationError));
+  await assert.rejects(client.prompts.generate({ storyboard: id, clip: 'C09' }), error => error.code === 'NOT_FOUND' && acceptanceOf(error) === 'not_accepted' && error.method === 'prompts.generate');
   requests.splice(checked);
   reply = () => Response.json({ prompts: [{ ...prompt('C01'), relationships }] });
   await assert.rejects(client.prompts.generate({ storyboard: id }), error => error.code === 'SERVICE_ERROR', 'Prompts are based on the requested Storyboard.');
   for (const bad of [{ script: other }, { storyboard: id, clip: '1' }, { storyboard: id, instruction: 'Brighter' }])
    await assert.rejects(async () => client.prompts.generate(bad), error => error.code === 'INVALID_INPUT', JSON.stringify(bad));
   reply = () => Response.json({ error: { code: 'PARTIAL_CREATION', message: 'C02 failed', retryable: false }, request_id: 'partial', saved: { prompts: [prompt('C01')] } }, { status: 409 });
+  // The SDK has no partial result: an error is an error (the service answers 0.5 callers all or nothing).
   await assert.rejects(client.prompts.generate({ storyboard: id }), error =>
-   error instanceof PartialCreationError && error.acceptance === 'unknown' && error.saved.prompts[0].id === id);
+   error.code === 'PARTIAL_CREATION' && error.requestId === 'partial' && error.method === 'prompts.generate' && !('saved' in error));
   assert.deepEqual(requests.map(([method, url, body]) => [method, url, body]), [
    ['POST', 'http://127.0.0.1:9012/v1/generate/storyboard', { script: other, cast: { presenter: { id: other } } }],
    ['GET', `http://127.0.0.1:9011/v1/artifacts/storyboard/${id}`, undefined],

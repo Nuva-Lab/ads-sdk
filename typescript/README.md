@@ -26,7 +26,7 @@ const nuva = createNuva({
 
 Keep the customer Admin API key on your backend. The SDK accepts only user credentials. Use one client per authenticated user and call `nuva.close()` on logout. Tokens with expiry are cached/coalesced and renewed proactively; an active socket reauthenticates the same verified identity before new commands proceed. String-only token providers have no proactive expiry guarantee.
 
-A validated read rejection may cause one bounded authentication refresh/retry. Writes require an explicit backend `acceptance: "not_accepted"` marker before a 401 can be retried. Unknown acceptance, malformed responses, lost acknowledgements and postdispatch 5xx/408 never authorize automatic replay. Agent commands are not resubmitted merely because credentials changed.
+Every write that takes an idempotency key sends one (yours, or one the SDK makes). A request that is safe to repeat is sent again, with the same key, after a dropped connection or `SERVICE_BUSY` (twice at most), and after a 401 once the token is renewed; a timed-out request is not. To retry a write yourself, pass your own `idempotencyKey`. An `AdsError` carries `code`, `message`, `retryable`, `requestId`, `method` and, for validation errors, `details`: quote `requestId` and `method` when you report a problem.
 
 ## Product to saved video
 
@@ -117,4 +117,4 @@ await agent.stop(); // Current loop only; does not cancel existing Jobs.
 
 Use `sessions.create/get/list/history`, `loadEarlierMessages` and `refresh` for Session state. `respond` sends output for a registered pending client call; `fail` reports inability to obtain the result. Keep drafts when an acknowledgement is lost and retry with the original request ID only when appropriate. Clients cannot submit trusted author metadata or internal tool calls.
 
-`@nuva/sdk/react` exports `NuvaProvider` and `useAgent`. It uses the same client and state contract; it does not introduce a second conversation owner. Opt-in `onWireTrace` observes transport bodies; treat them as sensitive application data and redact before storing or sharing.
+`@nuva/sdk/react` exports `NuvaProvider` and `useAgent`. It uses the same client and state contract; it does not introduce a second conversation owner.

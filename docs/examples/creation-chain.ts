@@ -77,7 +77,7 @@ export async function createProductVideo(
 	await saveProgress(structuredClone(progress));
 	const storyboard = await nuva.storyboards.generate({ script: script.id }, { idempotencyKey: progress.storyboardKey });
 	progress.storyboardId = storyboard.id;
-	// If some clips are compiled and a later one fails (PartialCreationError), retry with this key to finish them.
+	// If a clip fails, call again: the clips already compiled are reused, so only the failed ones are compiled again.
 	progress.promptsKey = crypto.randomUUID();
 	await saveProgress(structuredClone(progress));
 	const { prompts } = await nuva.prompts.generate({ storyboard: storyboard.id, ratio: '9:16' }, { idempotencyKey: progress.promptsKey });

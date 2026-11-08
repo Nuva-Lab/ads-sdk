@@ -2,7 +2,7 @@ import { parseStateEvent, parseSession, parseSessions, parseMessages, parseMessa
 import { Transport } from './transport.js';
 import { frozen, stableJSON } from './protocol.js';
 import { draftValue } from './message.js';
-import { NuvaError } from './errors.js';
+import { AdsError } from './errors.js';
 import type { StateEvent } from './protocol.js';
 import type {
 	AgentHandle,
@@ -17,7 +17,7 @@ import type {
 	JsonValue,
 	NotificationHostCall,
 	SessionFile,
-	NuvaErrorInfo,
+	AdsErrorInfo,
 	Page,
 	PaginationQuery,
 	ResponseReceipt,
@@ -62,12 +62,12 @@ class AgentController implements AgentHandle {
 		controllers.set(this.api, this);
 	}
 	private start() {
-		if (this.closed) throw new NuvaError({ code: 'CONNECTION_ERROR', message: 'Client is closed.', retryable: false });
+		if (this.closed) throw new AdsError({ code: 'CONNECTION_ERROR', message: 'Client is closed.', retryable: false });
 		if (!this.unwatch)
 			this.unwatch = this.transport.watch(
 				this.sessionId,
 				(event) => this.apply(event),
-				(error) => this.syncError(error),
+				(error) => this.syncError(new AdsError(error).toJSON()),
 			);
 	}
 	private emit() {
@@ -120,7 +120,7 @@ class AgentController implements AgentHandle {
 			}
 		}
 	}
-	private syncError(error: NuvaErrorInfo) {
+	private syncError(error: AdsErrorInfo) {
 		this.state =
 			this.state.status === 'loading' || this.state.status === 'error'
 				? frozen({ status: 'error', error })
@@ -150,7 +150,7 @@ class AgentController implements AgentHandle {
 		const value = await this.transport.socket('agent.stop', { sessionId: this.sessionId }, requestId);
 		const parsed = stopReceiptSchema.safeParse(value);
 		if (!parsed.success || parsed.data.sessionId !== this.sessionId || parsed.data.requestId !== requestId)
-			throw new NuvaError({
+			throw new AdsError({
 				code: 'SERVICE_ERROR',
 				message: 'Malformed Stop receipt.',
 				retryable: false,
@@ -179,7 +179,7 @@ class AgentController implements AgentHandle {
 			parsed.data.call.toolName !== call.toolName ||
 			stableJSON(parsed.data.call.input) !== stableJSON(call.input)
 		)
-			throw new NuvaError({
+			throw new AdsError({
 				code: 'SERVICE_ERROR',
 				message: 'Invalid client-response receipt.',
 				retryable: false,
@@ -210,7 +210,7 @@ class AgentController implements AgentHandle {
 			parsed.data.call.toolName !== call.toolName ||
 			stableJSON(parsed.data.call.input) !== stableJSON(call.input)
 		)
-			throw new NuvaError({
+			throw new AdsError({
 				code: 'SERVICE_ERROR',
 				message: 'Invalid client-failure receipt.',
 				retryable: false,
@@ -284,7 +284,7 @@ class AgentController implements AgentHandle {
 		try {
 			return parseSessionFile(value);
 		} catch (error) {
-			throw error instanceof NuvaError ? new NuvaError({ ...error.toJSON(), requestId }) : error;
+			throw error instanceof AdsError ? new AdsError({ ...error.toJSON(), requestId }) : error;
 		}
 	};
 	close() {

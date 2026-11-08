@@ -574,6 +574,27 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "minLength": 1,
         "title": "Name",
         "description": "The brand's name."
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 5000
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description",
+        "description": "What the brand is and stands for, given to the Script writer as context."
+      },
+      "attributes": {
+        "additionalProperties": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "type": "object",
+        "title": "Attributes",
+        "description": "More about the brand as JSON, given to the Script writer as context. IDs here are not references: they grant no access to what they name."
       }
     },
     "additionalProperties": false,
@@ -611,6 +632,27 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "minLength": 1,
         "title": "Name",
         "description": "The brand's name."
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 5000
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description",
+        "description": "What the brand is and stands for, given to the Script writer as context."
+      },
+      "attributes": {
+        "additionalProperties": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "type": "object",
+        "title": "Attributes",
+        "description": "More about the brand as JSON, given to the Script writer as context. IDs here are not references: they grant no access to what they name."
       }
     },
     "additionalProperties": false,
@@ -1131,22 +1173,6 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         ],
         "title": "Details",
         "description": "The problems with the request's fields, when the error is about them; left out otherwise."
-      },
-      "acceptance": {
-        "anyOf": [
-          {
-            "type": "string",
-            "enum": [
-              "not_accepted",
-              "unknown"
-            ]
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "title": "Acceptance",
-        "description": "`not_accepted`: the request was refused before anything was saved. `unknown`: it may have been saved. Left out when the error doesn't say."
       }
     },
     "type": "object",

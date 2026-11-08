@@ -1,10 +1,11 @@
 import { originsForEnvironment } from './environments.js';
 import { Credentials } from './credentials.js';
 import { parseFrame } from './wire-schema.js';
-import { NuvaError, PartialCreationError, errorInfo } from './errors.js';
+import { AdsError, acceptanceOf, errorInfo, initOf, withMethod, type AdsErrorInit } from './errors.js';
 import { frozen } from './protocol.js';
-import type { ServerFrame, StateEvent, TraceEntry, WireTraceEntry } from './protocol.js';
-import type { NuvaClientOptions, NuvaErrorInfo } from './types.js';
+import type { ServerFrame, StateEvent, WireTraceEntry } from './protocol.js';
+import { wireObserver } from './wire-trace.js';
+import type { NuvaClientOptions } from './types.js';
 import { dataRequest } from './data-routes.js';
 import { backendSchema } from './backend-schema.js';
 
@@ -55,6 +56,13 @@ const writes = new Set([
 	'agent.respond',
 	'agent.fail',
 ]);
+/** Writes without an idempotency key that end the same however often they are sent. */
+const sameWhenRepeated = new Set(['jobs.cancel', 'products.delete', 'shares.set', 'shares.remove', 'assets.update', 'assets.uploadIntent']);
+/** How often a request safe to repeat is sent again after a transient failure, and the first wait (tripled each time). */
+const RETRIES = 2;
+const RETRY_DELAY_MS = 500;
+/** Connection errors that were timeouts: not sent again (the request may still be running). */
+const timeouts = new WeakSet<AdsError>();
 export function isWriteMethod(method: string): boolean {
 	return writes.has(method);
 }
@@ -63,12 +71,12 @@ interface Pending {
 	method: string;
 	started: number;
 	resolve(value: unknown): void;
-	reject(error: NuvaError): void;
+	reject(error: AdsError): void;
 	timer: ReturnType<typeof setTimeout>;
 }
 interface Watch {
 	receive(event: StateEvent): void;
-	fail(error: NuvaErrorInfo): void;
+	fail(error: AdsErrorInit): void;
 	sequence: number;
 	epoch: number;
 }
@@ -85,7 +93,7 @@ export class Transport {
 				token: string;
 				promise: Promise<void>;
 				resolve: () => void;
-				reject: (error: NuvaError) => void;
+				reject: (error: AdsError) => void;
 				timer: ReturnType<typeof setTimeout>;
 		  }
 		| undefined;
@@ -94,9 +102,9 @@ export class Transport {
 	private ready = false;
 	private connecting: Promise<void> | undefined;
 	private connectionResolve: (() => void) | undefined;
-	private connectionReject: ((error: NuvaError) => void) | undefined;
+	private connectionReject: ((error: AdsError) => void) | undefined;
 	private connectTimer: ReturnType<typeof setTimeout> | undefined;
-	private disconnectCurrent: ((error: NuvaErrorInfo) => void) | undefined;
+	private disconnectCurrent: ((error: AdsErrorInit) => void) | undefined;
 	private reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 	private retries = 0;
 	private epoch = 0;
@@ -131,17 +139,11 @@ export class Transport {
 			(error) => this.authenticationFailed(error),
 		);
 	}
-	private trace(trace: TraceEntry) {
-		try {
-			this.options.onTrace?.(frozen(structuredClone(trace)));
-		} catch (error) {
-			console.error('Nuva trace listener failed', error);
-		}
-	}
 	private wire(trace: Omit<WireTraceEntry, 'at'>) {
-		if (this.options.onWireTrace === undefined) return;
+		const observe = wireObserver(this.options);
+		if (observe === undefined) return;
 		try {
-			const result = this.options.onWireTrace(frozen(structuredClone({ ...trace, at: Date.now() })));
+			const result = observe(frozen(structuredClone({ ...trace, at: Date.now() })));
 			void Promise.resolve(result).catch(() => console.error('Nuva wire observer failed.'));
 		} catch {
 			console.error('Nuva wire observer failed.');
@@ -149,13 +151,13 @@ export class Transport {
 	}
 	private assertOpen() {
 		if (this.closed)
-			throw new NuvaError({ code: 'CONNECTION_ERROR', message: 'This client is closed.', retryable: false, acceptance: 'not_accepted' });
+			throw new AdsError({ code: 'CONNECTION_ERROR', message: 'This client is closed.', retryable: false, acceptance: 'not_accepted' });
 	}
 	private async token() {
 		this.assertOpen();
 		return (await this.credentials.get()).token;
 	}
-	private authenticationFailed(error: NuvaError) {
+	private authenticationFailed(error: AdsError) {
 		const socket = this.ws;
 		this.authFailed = true;
 		this.renewal?.reject(error);
@@ -177,14 +179,14 @@ export class Transport {
 		}
 		const ws = this.ws;
 		if (!this.ready || !ws || ws.readyState !== WebSocket.OPEN)
-			throw new NuvaError({
+			throw new AdsError({
 				code: 'UNAUTHENTICATED',
 				message: 'Socket authentication unavailable.',
 				retryable: false,
 				acceptance: 'not_accepted',
 			});
 		const id = 'reauth-' + crypto.randomUUID();
-		let resolve!: () => void, reject!: (e: NuvaError) => void;
+		let resolve!: () => void, reject!: (e: AdsError) => void;
 		const promise = new Promise<void>((yes, no) => {
 			resolve = yes;
 			reject = no;
@@ -192,7 +194,7 @@ export class Transport {
 		const timer = setTimeout(
 			() =>
 				this.authenticationFailed(
-					new NuvaError({
+					new AdsError({
 						code: 'UNAUTHENTICATED',
 						message: 'Socket reauthentication was not acknowledged.',
 						retryable: false,
@@ -213,10 +215,12 @@ export class Transport {
 		return promise;
 	}
 
-	async http<T>(method: string, params: unknown, id: string = crypto.randomUUID()): Promise<T> {
+	http<T>(method: string, params: unknown, id: string = crypto.randomUUID()): Promise<T> {
+		return this.http_<T>(method, params, id).catch((error: unknown) => Promise.reject(withMethod(error, method)));
+	}
+	private async http_<T>(method: string, params: unknown, id: string): Promise<T> {
 		this.assertOpen();
 		const started = Date.now();
-		this.trace({ id, method, transport: 'http', phase: 'request', at: started, data: params });
 		const controller = new AbortController();
 		this.httpControllers.add(controller);
 		const timer = setTimeout(() => controller.abort(), this.timeout);
@@ -251,32 +255,31 @@ export class Transport {
 					this.credentials.reject(token);
 					void this.credentials.get().catch(() => {});
 				}
-				throw new NuvaError(frame.error);
+				throw new AdsError(frame.error);
 			}
 			if (!response.ok || frame.type !== 'result' || frame.id !== id)
-				throw new NuvaError({
+				throw new AdsError({
 					code: 'SERVICE_ERROR',
 					message: 'Invalid API response.',
 					retryable: false,
 					...(writes.has(method) ? { acceptance: 'unknown' as const } : {}),
 				});
 			this.assertOpen();
-			this.trace({ id, method, transport: 'http', phase: 'result', at: Date.now(), durationMs: Date.now() - started, data: frame.result });
 			return frozen(frame.result as T);
 		} catch (cause) {
 			const error =
-				cause instanceof NuvaError
+				cause instanceof AdsError
 					? cause
-					: new NuvaError({
+					: new AdsError({
 							code: 'CONNECTION_ERROR',
 							message: cause instanceof Error ? cause.message : 'Request failed.',
 							retryable: true,
 							...(writes.has(method) ? { acceptance: sent ? ('unknown' as const) : ('not_accepted' as const) } : {}),
 						});
-			const reported = new NuvaError({
-				...error.toJSON(),
+			const reported = new AdsError({
+				...initOf(error),
 				requestId: id,
-				...(writes.has(method) && error.acceptance === undefined
+				...(writes.has(method) && acceptanceOf(error) === undefined
 					? !sent
 						? { acceptance: 'not_accepted' as const }
 						: error.code === 'SERVICE_ERROR'
@@ -284,31 +287,34 @@ export class Transport {
 							: {}
 					: {}),
 			});
-			this.trace({
-				id,
-				method,
-				transport: 'http',
-				phase: 'error',
-				at: Date.now(),
-				durationMs: Date.now() - started,
-				data: reported.toJSON(),
-			});
 			throw reported;
 		} finally {
 			clearTimeout(timer);
 			this.httpControllers.delete(controller);
 		}
 	}
-	async data<T>(
-		method: string,
-		params: unknown,
-		id: string = crypto.randomUUID(),
-		idempotencyKey?: string,
-		authRetried = false,
-	): Promise<T> {
+	/**
+	 * A Store or generation request. A write that takes an idempotency key always sends one: the caller's, or one made
+	 * here. A request that is safe to repeat (a read, a keyed write, or a write that repeats to the same result) is sent
+	 * again, with the same key, after a dropped connection or `SERVICE_BUSY`, at most twice; a timed-out one is not.
+	 */
+	async data<T>(method: string, params: unknown, id: string = crypto.randomUUID(), idempotencyKey?: string): Promise<T> {
+		const key = idempotencyKey ?? (keyed.has(method) ? crypto.randomUUID() : undefined);
+		const repeatable = !writes.has(method) || key !== undefined || sameWhenRepeated.has(method);
+		for (let attempt = 0; ; attempt++) {
+			try {
+				return await this.dataOnce<T>(method, params, id, key);
+			} catch (error) {
+				const transient = error instanceof AdsError && !timeouts.has(error) && (error.code === 'CONNECTION_ERROR' || error.code === 'SERVICE_BUSY');
+				if (!repeatable || !transient || attempt >= RETRIES || this.closed) throw error;
+				await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS * 3 ** attempt));
+			}
+		}
+	}
+	private async dataOnce<T>(method: string, params: unknown, id: string, idempotencyKey: string | undefined, authRetried = false): Promise<T> {
 		this.assertOpen();
 		if (idempotencyKey !== undefined && (!keyed.has(method) || !/^[\x21-\x7e]{1,200}$/.test(idempotencyKey)))
-			throw new NuvaError({
+			throw new AdsError({
 				code: 'INVALID_INPUT',
 				message: keyed.has(method)
 					? 'An idempotency key is 1–200 visible ASCII characters.'
@@ -326,7 +332,7 @@ export class Transport {
 					(this.options.baseUrl === undefined ? undefined : this.base.origin))
 				: (this.options.storeBaseUrl ?? this.origins.store);
 		if (serviceBase === undefined)
-			throw new NuvaError({
+			throw new AdsError({
 				code: 'UNSUPPORTED_OPERATION',
 				message: 'Generation service origin is not configured in this unpublished preview.',
 				retryable: false,
@@ -387,7 +393,7 @@ export class Transport {
 			try {
 				result = JSON.parse(raw);
 			} catch {
-				throw new NuvaError({
+				throw new AdsError({
 					code: 'SERVICE_ERROR',
 					message: 'Backend returned invalid JSON.',
 					retryable: false,
@@ -398,7 +404,7 @@ export class Transport {
 			if (!response.ok) {
 				const parsed = backendSchema('ErrorResponse').safeParse(result);
 				if (!parsed.success)
-					throw new NuvaError({
+					throw new AdsError({
 						code: 'SERVICE_ERROR',
 						message: 'Backend returned an invalid error response.',
 						retryable: false,
@@ -413,8 +419,10 @@ export class Transport {
 				// an explicit pre-dispatch rejection authorizes replay; invalidating
 				// the token alone merely prepares the next explicit caller request.
 				if (authenticated401) this.credentials.reject(token);
-				if (authenticated401 && !authRetried && (route.method === 'GET' || rejectedAuth)) {
-					return this.data<T>(method, params, id, idempotencyKey, true);
+				// A request safe to repeat (a read, a keyed write, one that repeats to the same result) is sent again once the token is renewed.
+				const repeatable = route.method === 'GET' || idempotencyKey !== undefined || sameWhenRepeated.has(method);
+				if (authenticated401 && !authRetried && (repeatable || rejectedAuth)) {
+					return this.dataOnce<T>(method, params, id, idempotencyKey, true);
 				}
 				const info = {
 					code: parsed.data.error.code,
@@ -434,28 +442,24 @@ export class Transport {
 						? { acceptance: rejectedAuth ? ('not_accepted' as const) : ('unknown' as const) }
 						: {}),
 				};
-				if (method === 'prompts.generate' && info.code === 'PARTIAL_CREATION')
-					throw new PartialCreationError(
-						info,
-						typeof result === 'object' && result !== null && 'saved' in result ? result.saved : undefined,
-					);
-				throw new NuvaError(info);
+				throw new AdsError(info);
 			}
 			this.assertOpen();
 			return frozen(result as T);
 		} catch (error) {
-			if (error instanceof PartialCreationError) throw error;
-			if (error instanceof NuvaError)
-				throw new NuvaError({ ...error.toJSON(), ...(route.method !== 'GET' && !sent ? { acceptance: 'not_accepted' as const } : {}) });
-			throw new NuvaError({
+			if (error instanceof AdsError)
+				throw new AdsError({ ...initOf(error), ...(route.method !== 'GET' && !sent ? { acceptance: 'not_accepted' as const } : {}) });
+			const failed = new AdsError({
 				code: 'CONNECTION_ERROR',
 				message: timedOut
-					? (sent && route.method !== 'GET' ? 'Request timed out; the operation may still complete. Inspect its result before retrying.' : 'Request timed out.')
+					? (sent && route.method !== 'GET' ? 'Request timed out; the operation may still complete. Retry with the same idempotencyKey.' : 'Request timed out.')
 					: error instanceof Error ? error.message : 'Backend request failed.',
 				retryable: true,
 				requestId: id,
 				...(route.method === 'GET' ? {} : { acceptance: sent ? 'unknown' : 'not_accepted' }),
 			});
+			if (timedOut) timeouts.add(failed);
+			throw failed;
 		} finally {
 			clearTimeout(timer);
 			this.httpControllers.delete(controller);
@@ -478,10 +482,10 @@ export class Transport {
 				credentials: 'omit',
 			});
 			if (!response.ok)
-				throw new NuvaError({ code: 'SERVICE_ERROR', message: 'Direct upload failed.', retryable: false, acceptance: 'unknown' });
+				throw new AdsError({ code: 'SERVICE_ERROR', message: 'Direct upload failed.', retryable: false, acceptance: 'unknown' });
 		} catch (e) {
-			if (e instanceof NuvaError) throw e;
-			throw new NuvaError({
+			if (e instanceof AdsError) throw e;
+			throw new AdsError({
 				code: 'CONNECTION_ERROR',
 				message: 'Direct upload outcome is uncertain.',
 				retryable: true,
@@ -513,7 +517,7 @@ export class Transport {
 	private connect(): Promise<void> {
 		this.assertOpen();
 		if (this.authFailed)
-			throw new NuvaError({
+			throw new AdsError({
 				code: 'UNAUTHENTICATED',
 				message: 'Socket authentication failed; create a new client after signing in.',
 				retryable: false,
@@ -525,7 +529,7 @@ export class Transport {
 		const url = new URL('agent', this.base);
 		url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
 		const ws = new WebSocket(url);
-		let protocolFailure: NuvaErrorInfo | undefined;
+		let protocolFailure: AdsErrorInit | undefined;
 		this.ws = ws;
 		this.authFailed = false;
 		const epoch = ++this.epoch;
@@ -536,7 +540,7 @@ export class Transport {
 			this.connectionReject = reject;
 		});
 		const connected = this.connecting;
-		const terminate = (error: NuvaErrorInfo) => {
+		const terminate = (error: AdsErrorInit) => {
 			if (!current()) return;
 			ended = true;
 			this.ws = undefined;
@@ -546,18 +550,17 @@ export class Transport {
 			clearTimeout(this.connectTimer);
 			if (this.renewal) {
 				clearTimeout(this.renewal.timer);
-				this.renewal.reject(new NuvaError({ ...error, acceptance: 'not_accepted' }));
+				this.renewal.reject(new AdsError({ ...error, acceptance: 'not_accepted' }));
 				this.renewal = undefined;
 			}
 			if ((!this.authFailed && !protocolFailure) || this.connecting !== undefined) this.failConnection(error);
 			for (const [id, pending] of this.pending) {
 				clearTimeout(pending.timer);
-				const failure = new NuvaError({
+				const failure = new AdsError({
 					...error,
 					requestId: id,
 					...(writes.has(pending.method) ? { acceptance: 'unknown' as const } : {}),
 				});
-				this.trace({ id, method: pending.method, transport: 'websocket', phase: 'error', at: Date.now(), data: failure.toJSON() });
 				pending.reject(failure);
 			}
 			this.pending.clear();
@@ -600,7 +603,7 @@ export class Transport {
 				})
 				.catch((error) => {
 					if (!current()) return;
-					this.authenticationFailed(new NuvaError(errorInfo(error)));
+					this.authenticationFailed(new AdsError(errorInfo(error)));
 				});
 		};
 		ws.onmessage = (event) => {
@@ -621,7 +624,7 @@ export class Transport {
 				const renewal = this.renewal;
 				if (!renewal || renewal.id !== frame.id) {
 					this.authenticationFailed(
-						new NuvaError({
+						new AdsError({
 							code: 'UNAUTHENTICATED',
 							message: 'Unexpected socket authentication acknowledgement.',
 							retryable: false,
@@ -637,7 +640,7 @@ export class Transport {
 				return;
 			}
 			if (frame.type === 'error' && this.renewal?.id === frame.id) {
-				this.authenticationFailed(new NuvaError({ ...frame.error, acceptance: 'not_accepted' }));
+				this.authenticationFailed(new AdsError({ ...frame.error, acceptance: 'not_accepted' }));
 				return;
 			}
 			if (frame.type === 'ready') {
@@ -655,19 +658,11 @@ export class Transport {
 				const watch = this.watches.get(frame.sessionId);
 				if (!watch || frame.sequence < watch.sequence) return;
 				watch.sequence = frame.sequence;
-				this.trace({
-					id: 'event-' + frame.sequence + '-' + frame.sessionId,
-					method: 'agent.state',
-					transport: 'websocket',
-					phase: 'event',
-					at: Date.now(),
-					data: frame,
-				});
 				watch.receive(frozen(frame));
 				return;
 			}
 			if (frame.type === 'error' && frame.id === 'auth') {
-				this.authenticationFailed(new NuvaError(frame.error));
+				this.authenticationFailed(new AdsError(frame.error));
 				return;
 			}
 			if (frame.type !== 'result' && frame.type !== 'error') {
@@ -690,27 +685,9 @@ export class Transport {
 					this.credentials.reject(this.socketToken);
 					void this.credentials.get().catch(() => {});
 				}
-				const error = new NuvaError({ ...frame.error, requestId: frame.id });
-				this.trace({
-					id: frame.id,
-					method: pending.method,
-					transport: 'websocket',
-					phase: 'error',
-					at: Date.now(),
-					durationMs: Date.now() - pending.started,
-					data: error.toJSON(),
-				});
+				const error = new AdsError({ ...frame.error, requestId: frame.id });
 				pending.reject(error);
 			} else {
-				this.trace({
-					id: frame.id,
-					method: pending.method,
-					transport: 'websocket',
-					phase: 'result',
-					at: Date.now(),
-					durationMs: Date.now() - pending.started,
-					data: frame.result,
-				});
 				pending.resolve(frozen(frame.result));
 			}
 		};
@@ -738,26 +715,29 @@ export class Transport {
 		};
 		return connected;
 	}
-	private failConnection(info: NuvaErrorInfo) {
-		this.connectionReject?.(new NuvaError(info));
+	private failConnection(info: AdsErrorInit) {
+		this.connectionReject?.(new AdsError(info));
 		this.connecting = undefined;
 		this.connectionResolve = undefined;
 		this.connectionReject = undefined;
 		if (!this.closed) for (const watch of this.watches.values()) watch.fail(info);
 	}
-	async socket<T>(method: string, params: unknown, id: string = crypto.randomUUID()): Promise<T> {
+	socket<T>(method: string, params: unknown, id: string = crypto.randomUUID()): Promise<T> {
+		return this.socket_<T>(method, params, id).catch((error: unknown) => Promise.reject(withMethod(error, method)));
+	}
+	private async socket_<T>(method: string, params: unknown, id: string): Promise<T> {
 		this.assertOpen();
 		const started = Date.now();
 		try {
 			await this.connect();
 			await this.reauthenticate(await this.token());
 		} catch (error) {
-			throw new NuvaError({ ...errorInfo(error), requestId: id, ...(writes.has(method) ? { acceptance: 'not_accepted' as const } : {}) });
+			throw new AdsError({ ...errorInfo(error), requestId: id, ...(writes.has(method) ? { acceptance: 'not_accepted' as const } : {}) });
 		}
 		this.assertOpen();
 		const ws = this.ws;
 		if (!ws || ws.readyState !== WebSocket.OPEN)
-			throw new NuvaError({
+			throw new AdsError({
 				code: 'CONNECTION_ERROR',
 				message: 'Not connected.',
 				retryable: true,
@@ -765,19 +745,17 @@ export class Transport {
 				acceptance: 'not_accepted',
 			});
 		if (this.pending.has(id))
-			throw new NuvaError({ code: 'REQUEST_ID_CONFLICT', message: 'This request is already in flight.', retryable: false, requestId: id });
-		this.trace({ id, method, transport: 'websocket', phase: 'request', at: started, data: params });
+			throw new AdsError({ code: 'REQUEST_ID_CONFLICT', message: 'This request is already in flight.', retryable: false, requestId: id });
 		return new Promise<T>((resolve, reject) => {
 			const timer = setTimeout(() => {
 				this.pending.delete(id);
-				const error = new NuvaError({
+				const error = new AdsError({
 					code: 'CONNECTION_ERROR',
 					message: 'No acknowledgement received. Inspect saved state before explicitly deciding whether to retry.',
 					retryable: true,
 					requestId: id,
 					...(writes.has(method) ? { acceptance: 'unknown' as const } : {}),
 				});
-				this.trace({ id, method, transport: 'websocket', phase: 'error', at: Date.now(), data: error.toJSON() });
 				reject(error);
 			}, this.timeout);
 			this.pending.set(id, { method, started, resolve: (value) => resolve(value as T), reject, timer });
@@ -801,7 +779,7 @@ export class Transport {
 		if (this.renewal) {
 			clearTimeout(this.renewal.timer);
 			this.renewal.reject(
-				new NuvaError({ code: 'CONNECTION_ERROR', message: 'Client closed.', retryable: false, acceptance: 'not_accepted' }),
+				new AdsError({ code: 'CONNECTION_ERROR', message: 'Client closed.', retryable: false, acceptance: 'not_accepted' }),
 			);
 			this.renewal = undefined;
 		}
@@ -820,7 +798,7 @@ export class Transport {
 		for (const [id, p] of this.pending) {
 			clearTimeout(p.timer);
 			p.reject(
-				new NuvaError({
+				new AdsError({
 					code: 'CONNECTION_ERROR',
 					message: 'Client closed before acknowledgement.',
 					retryable: false,
