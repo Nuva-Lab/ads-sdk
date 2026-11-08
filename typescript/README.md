@@ -48,8 +48,9 @@ try {
 ## Product to saved video
 
 ```ts
+// productPhoto, facePhoto and voiceRecording are File objects from your app.
 const brand = await nuva.brands.create({ data: { name: 'Example', description: 'Outdoor gear for commuters.' } });
-const photo = await nuva.assets.upload(file, { kind: 'image', label: 'Travel cup, front' });
+const photo = await nuva.assets.upload(productPhoto, { kind: 'image', label: 'Travel cup, front' });
 const product = await nuva.products.create({
   brand_id: brand.id,
   data: { name: 'Travel cup', facts: ['350 ml capacity'], image_asset_ids: [photo.id] },
@@ -61,6 +62,8 @@ const script = await nuva.scripts.generate({
 });
 const shorter = await nuva.scripts.generateFrom(script, { instruction: 'Shorten the opening.' });
 // A Character keeps the same person in every clip; `host` is a role ID from the Script.
+const face = await nuva.assets.upload(facePhoto, { kind: 'image', label: 'Mia, front' });
+const voice = await nuva.assets.upload(voiceRecording, { kind: 'audio', label: 'Mia, voice' });
 const character = await nuva.characters.create({
   data: { name: 'Mia', description: 'Late twenties, warm.', image_asset_ids: [face.id], voice_asset_id: voice.id },
 });
