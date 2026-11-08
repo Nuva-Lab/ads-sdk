@@ -7,7 +7,7 @@ import {
 	type Script,
 	type ResourceRef,
 	type JobState,
-	type NuvaErrorInfo,
+	type AdsErrorInfo,
 } from '@nuva/sdk';
 import type { BackendSchemas, ScriptContent } from '@nuva/sdk/schemas';
 
@@ -17,7 +17,7 @@ export function initialize(getAccessToken: () => Promise<string | AccessToken>) 
 	// #endregion initialize
 	return nuva;
 }
-export async function createProduct(nuva: NuvaClient, brandId: string, productData: BackendSchemas['ProductDataV1']) {
+export async function createProduct(nuva: NuvaClient, brandId: string, productData: BackendSchemas['ProductDataV2']) {
 	// #region product-create
 	const product = await nuva.products.create({ brand_id: brandId, data: productData });
 	// #endregion product-create
@@ -26,30 +26,31 @@ export async function createProduct(nuva: NuvaClient, brandId: string, productDa
 export async function readProduct(nuva: NuvaClient, productId: string) {
 	// #region product-read
 	const product = await nuva.products.get(productId);
-	// product.id survives edits; product.revision identifies this exact version.
+	// product.id survives edits; product.version is the version you read.
 	// #endregion product-read
 	return product;
 }
-export async function updateProduct(nuva: NuvaClient, product: Product, editedData: BackendSchemas['ProductDataV1']) {
+export async function updateProduct(nuva: NuvaClient, product: Product, sellingPoints: string[]) {
 	// #region product-update
-	const saved = await nuva.products.update({ base: product, brand_id: product.brand_id, data: editedData });
-	// Use saved as the base for the next update.
+	// Only the fields in data change. A newer version saved since fails with REVISION_CONFLICT.
+	const saved = await nuva.products.update(product, { data: { selling_points: sellingPoints } });
+	// Use saved for the next update.
 	// #endregion product-update
 	return saved;
 }
-export async function readArtifact(nuva: NuvaClient, scriptRef: ResourceRef) {
+export async function readScript(nuva: NuvaClient, scriptRef: ResourceRef<'script'>) {
 	// #region artifact-read
-	const script = await nuva.artifacts.get(scriptRef);
+	const script = await nuva.scripts.get(scriptRef);
 	// #endregion artifact-read
 	return script;
 }
-export async function editScript(nuva: NuvaClient, script: Script, content: ScriptContent) {
+export async function editScript(nuva: NuvaClient, script: Script, changes: Partial<ScriptContent>) {
 	// #region script-update
-	// Scripts are written by the writer (scripts.generate) and changed with scripts.revise or scripts.update.
-	const revised = await nuva.scripts.update(script.ref, { content });
-	// The new version has a new ID; base_id points to its parent.
+	// The writer writes Scripts (scripts.generate, scripts.generateFrom); createFrom saves your own changes.
+	const edited = await nuva.scripts.createFrom(script.ref, changes);
+	// A new Script with a new ID; base_id is the one it came from, which stays as it was.
 	// #endregion script-update
-	return revised;
+	return edited;
 }
 export async function uploadAsset(nuva: NuvaClient, file: File, kind: BackendSchemas['AssetOut']['kind']) {
 	// #region asset-upload
@@ -65,14 +66,14 @@ export async function readAsset(nuva: NuvaClient, assetId: string) {
 	// #endregion asset-read
 	return asset;
 }
-export async function submitVideo(nuva: NuvaClient, promptId: string, requestKey: string) {
+export async function submitVideo(nuva: NuvaClient, promptId: string, idempotencyKey: string) {
 	// #region video-job
-	// Persist the Prompt ID and requestKey before calling; keep the returned Job ID.
-	const job = await nuva.videos.generate({ prompt: promptId }, { idempotencyKey: requestKey });
+	// Persist the Prompt ID and idempotencyKey before calling; keep the returned Job ID.
+	const job = await nuva.videos.generate({ prompt: { id: promptId } }, { idempotencyKey });
 	return job;
 	// #endregion video-job
 }
-export function followVideo(nuva: NuvaClient, jobId: string, onProgress: (state: JobState) => void, onError: (error: NuvaErrorInfo) => void) {
+export function followVideo(nuva: NuvaClient, jobId: string, onProgress: (state: JobState) => void, onError: (error: AdsErrorInfo) => void) {
 	// Reopen progress using the saved ID, without submitting another Job.
 	// Return the unsubscribe function to the UI owner; unsubscribing does not cancel the Job.
 	return nuva.jobs.subscribe(jobId, onProgress, onError);
@@ -80,7 +81,7 @@ export function followVideo(nuva: NuvaClient, jobId: string, onProgress: (state:
 export async function generateScript(nuva: NuvaClient, productId: string) {
 	// #region script-generate
 	const script = await nuva.scripts.generate({
-		product: productId,
+		product: { id: productId },
 		acceptable_duration_ms: { min: 8000, max: 15000 },
 	});
 	// A new Script is v3: concept, roles and panels with exact lines.
@@ -91,15 +92,15 @@ export async function generateScript(nuva: NuvaClient, productId: string) {
 export async function generateStoryboard(nuva: NuvaClient, scriptId: string, characterId: string) {
 	// #region storyboard-generate
 	// cast is keyed by the Script's role IDs; roles left out are cast by the writer.
-	const storyboard = await nuva.storyboards.generate({ script: scriptId, cast: { host: characterId } });
+	const storyboard = await nuva.storyboards.generate({ script: { id: scriptId }, cast: { host: { id: characterId } } });
 	// #endregion storyboard-generate
 	return storyboard;
 }
 export async function compileStoryboard(nuva: NuvaClient, storyboardId: string) {
 	// #region prompts-generate
 	// One saved Prompt per clip, in clip order; a clip compiled before from the same inputs keeps its Prompt.
-	const { prompts } = await nuva.prompts.generate({ storyboard: storyboardId, ratio: '9:16' });
-	// Render each one with videos.generate({ prompt: prompt.id }).
+	const { prompts } = await nuva.prompts.generate({ storyboard: { id: storyboardId }, ratio: '9:16' });
+	// Render each one with videos.generate({ prompt }): a Prompt you read is its own reference.
 	// #endregion prompts-generate
 	return prompts;
 }
@@ -133,33 +134,18 @@ export async function createBrand(nuva: NuvaClient) {
 }
 export async function attachProductImage(nuva: NuvaClient, product: Product, file: File) {
 	// #region product-upload-image
-	const uploaded = await nuva.products.uploadImage({ base: product, file });
-	// Use uploaded.product as the base for the next Product update.
+	const image = await nuva.assets.upload(file, { kind: 'image', label: 'Cup, side' });
+	// If the update fails, the Asset is still saved: retry the update with image.id instead of uploading again.
+	const saved = await nuva.products.update(product, { data: { image_asset_ids: [...(product.data.image_asset_ids ?? []), image.id] } });
 	// #endregion product-upload-image
-	return uploaded;
+	return saved;
 }
 export async function reviseScript(nuva: NuvaClient, scriptId: string) {
 	// #region script-revise
-	const revised = await nuva.scripts.revise(
-		{ kind: 'script', id: scriptId },
+	const revised = await nuva.scripts.generateFrom(
+		{ id: scriptId },
 		{ instruction: 'Keep the approved facts and revise the opening.', acceptable_duration_ms: { min: 8000, max: 15000 } },
 	);
 	// #endregion script-revise
 	return revised;
-}
-
-export function initializePreview(
-	getAccessToken: () => Promise<string | AccessToken>,
-	origins: { agent: string; generation: string; store: string },
-) {
-	// #region preview-initialize
-	// Service URLs supplied for your environment.
-	const nuva = createNuva({
-		getAccessToken,
-		baseUrl: origins.agent,
-		generationBaseUrl: origins.generation,
-		storeBaseUrl: origins.store,
-	});
-	// #endregion preview-initialize
-	return nuva;
 }

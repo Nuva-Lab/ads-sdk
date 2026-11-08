@@ -74,11 +74,11 @@ export async function readResource(
     case "character":
       return sdk.characters.get(id);
     case "script":
-      return sdk.scripts.get({ kind, id });
+      return sdk.scripts.get({ id });
     case "storyboard":
-      return sdk.storyboards.get({ kind, id });
+      return sdk.storyboards.get({ id });
     case "prompt":
-      return sdk.prompts.get({ kind, id });
+      return sdk.prompts.get({ id });
     case "job":
       return sdk.jobs.get(id);
     case "asset":
@@ -90,7 +90,7 @@ export async function readResource(
     case "skill":
       return sdk.skills.get(id);
     default:
-      return sdk.artifacts.get(record.ref);
+      throw new UiError(msg("A {p0} can't be opened here.", { p0: kind }));
   }
 }
 function pendingRequests(container: HTMLElement, host: ResourceHost) {
@@ -669,7 +669,6 @@ async function renderResourceDetail(
           () =>
             action(async () => {
               const parent = await host.sdk.scripts.get({
-                kind: "script",
                 id: script.base_id!,
               });
               host.remember(parent);
@@ -762,8 +761,25 @@ async function renderResourceDetail(
           purpose: "clip",
         });
       }
-      if (state.error) output.append(details(msg("Job failure"), state.error));
+      if (state.error)
+        output.append(
+          details(msg("Job failure"), state.error_code ? { error_code: state.error_code, error: state.error } : state.error),
+        );
+      cancel.hidden = !["queued", "running"].includes(state.status);
     };
+    // Stops the render; the Job then reads `cancelled`.
+    const cancel = button(msg("Cancel render"), () =>
+      void action(async () => {
+        cancel.disabled = true;
+        try {
+          render(await host.sdk.jobs.cancel(job.id));
+          notice(msg("Render cancelled."));
+        } finally {
+          cancel.disabled = false;
+        }
+      }),
+    );
+    controls.append(cancel);
     render(job);
     if (["queued", "running"].includes(job.status)) {
       let unsubscribe: (() => void) | undefined;

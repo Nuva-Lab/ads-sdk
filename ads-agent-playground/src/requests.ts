@@ -50,8 +50,9 @@ export async function keyed<T>(
     localStorage.removeItem(slot);
     return result;
   } catch (error) {
-    if ((error as { acceptance?: string }).acceptance === "not_accepted")
-      localStorage.removeItem(slot);
+    // A refused request (not retryable, and not an unreadable answer) is over: its key is not reused.
+    const { retryable, code } = error as { retryable?: boolean; code?: string };
+    if (retryable === false && code !== "SERVICE_ERROR") localStorage.removeItem(slot);
     throw error;
   }
 }

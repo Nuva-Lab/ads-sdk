@@ -7,6 +7,7 @@ import {
   type ResourceLink,
   type AccessToken,
 } from "@nuva/sdk";
+import { withServices } from "@nuva/sdk/internal";
 import { icon } from "./icons.js";
 import { ChatController } from "./chat.js";
 import { renderProduct, refreshProductGallery } from "./product.js";
@@ -341,9 +342,7 @@ async function main() {
         );
       nextId = connection.id;
       let requested = false;
-      const sdk = createNuva({
-        baseUrl: connection.agent,
-        storeBaseUrl: connection.api,
+      const sdk = createNuva(withServices({
         getAccessToken: async (): Promise<AccessToken> => {
           const path = requested
             ? "/playground/token?force=1"
@@ -358,7 +357,7 @@ async function main() {
             );
           return response.json();
         },
-      });
+      }, { baseUrl: connection.agent, storeBaseUrl: connection.api }));
       try {
         await sdk.sessions.list({ limit: 1 });
       } catch (failure) {

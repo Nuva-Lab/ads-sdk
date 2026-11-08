@@ -11,17 +11,17 @@ const product = {
   ref: { kind: "product", id: pId },
   label: "Morrow Travel Cup",
   version: 1,
-  revision: pId,
   brand_id: brandId,
   created_at: "2026-10-26T09:40:00Z",
-  schema_version: 1,
+  schema_version: 2,
   data: {
     name: "Morrow Travel Cup",
     facts: ["350 ml capacity", "Double-wall insulation"],
     selling_points: ["Your coffee, still warm at noon."],
     constraints: [],
     target_audience: "A slower morning, wherever you go.",
-    images: ["a1a1a1a1-0000-4000-8000-0000000000c0"],
+    image_asset_ids: ["a1a1a1a1-0000-4000-8000-0000000000c0"],
+    video_asset_ids: [],
     attributes: {},
   },
   assets: { "a1a1a1a1-0000-4000-8000-0000000000c0": { download_url: location.origin + "/cup.svg", label: "Front of the cup" } },
@@ -86,7 +86,7 @@ const referencePrompt = {
   batch_id: null,
   created_at: "2026-10-26T09:40:00Z",
   assets: referenceAssets,
-  entities: {},
+  relationships: [],
   skills: {},
   data: {
     seconds: 4,
@@ -104,7 +104,7 @@ const referenceJob = {
   prompt: referencePromptId,
   seed: 0,
   resolution: "768P",
-  checkpoint: "Fixture video model",
+  error_code: null,
   batch_id: null,
   asset: referenceAssets.motion,
   error: null,
@@ -138,7 +138,6 @@ const characters: any[] = [
     ref: { kind: "character", id: miaId },
     label: "Mia",
     version: 1,
-    revision: miaId,
     schema_version: 1,
     created_at: "2026-10-26T09:40:00Z",
     data: {
@@ -158,7 +157,6 @@ const characters: any[] = [
     ref: { kind: "character", id: leoId },
     label: "Leo",
     version: 1,
-    revision: leoId,
     schema_version: 1,
     created_at: "2026-10-26T09:40:00Z",
     data: { name: "Leo", description: "Her colleague, thirties, tall.", image_asset_ids: ["a1a1a1a1-0000-4000-8000-000000000003"], voice_asset_id: null },
@@ -177,8 +175,7 @@ const scriptV3 = {
   schema_version: 1,
   created_at: "2026-10-26T09:42:00Z",
   data: { text: "{}" },
-  relationships: [{ type: "based_on", target: { kind: "product", id: pId } }],
-  entities: { [pId]: { kind: "product", id: pId, version: 1 } },
+  relationships: [{ type: "based_on", target: { kind: "product", id: pId, version: 1 } }],
   assets: {},
   skills: {},
   content: {
@@ -240,13 +237,12 @@ const storyboard = {
   created_at: "2026-10-26T09:43:00Z",
   data: { text: "{}" },
   relationships: [],
-  entities: {},
   assets: {},
   skills: {},
   content: {
     script: scriptId,
     cast: {
-      host: { character: miaId, voice: "character" },
+      host: { character: miaId, own_voice: true },
       colleague: { look: "A tall man in his thirties, navy shirt, sleeves rolled up" },
       narrator: { voice: "A warm, low female voice, unhurried" },
     },
@@ -375,19 +371,18 @@ const sdk = {
       if (!saved) throw new Error("Product not found");
       return saved;
     },
-    update: async (input: any) => {
-      const index = productList.findIndex(
-        (product) => product.id === input.base.id,
-      );
-      if (index < 0 || productList[index].version !== input.base.version)
-        throw new Error("Product version conflict");
+    // Changes only the fields sent, from the version read, like the service.
+    update: async (ref: { id: string; version: number }, changes: any) => {
+      const index = productList.findIndex((product) => product.id === ref.id);
+      if (index < 0 || productList[index].version !== ref.version)
+        throw Object.assign(new Error("Product version conflict"), { code: "REVISION_CONFLICT" });
+      const data = { ...productList[index].data, ...changes.data };
       const saved = {
         ...productList[index],
-        data: input.data,
-        brand_id: input.brand_id,
-        version: input.base.version + 1,
-        revision: crypto.randomUUID(),
-        label: input.data.name,
+        data,
+        brand_id: changes.brand_id ?? productList[index].brand_id,
+        version: ref.version + 1,
+        label: data.name,
       };
       productList[index] = saved;
       void fetch("/test-events", {
@@ -395,7 +390,7 @@ const sdk = {
         body: JSON.stringify({
           action: "product.updated",
           id: saved.id,
-          data: saved.data,
+          changes,
         }),
       });
       return saved;
@@ -407,7 +402,6 @@ const sdk = {
         id,
         ref: { kind: "product", id },
         label: input.data.name,
-        revision: id,
         data: input.data,
         brand_id: input.brand_id,
         assets: {},
@@ -445,13 +439,13 @@ const sdk = {
       void fetch("/test-events", { method: "POST", body: JSON.stringify({ action: "storyboards.generate", input }) });
       return storyboard;
     },
-    revise: async (ref: any, input: any) => {
-      void fetch("/test-events", { method: "POST", body: JSON.stringify({ action: "storyboards.revise", input: { base: ref.id, ...input } }) });
+    generateFrom: async (ref: any, input: any) => {
+      void fetch("/test-events", { method: "POST", body: JSON.stringify({ action: "storyboards.generateFrom", input: { base: ref.id, ...input } }) });
       return { ...storyboard, id: crypto.randomUUID(), base_id: ref.id };
     },
-    update: async (ref: any, input: any) => {
-      void fetch("/test-events", { method: "POST", body: JSON.stringify({ action: "storyboards.update", input: { base: ref.id, ...input } }) });
-      return { ...storyboard, id: crypto.randomUUID(), base_id: ref.id, content: input.content };
+    createFrom: async (ref: any, changes: any) => {
+      void fetch("/test-events", { method: "POST", body: JSON.stringify({ action: "storyboards.createFrom", input: { base: ref.id, changes } }) });
+      return { ...storyboard, id: crypto.randomUUID(), base_id: ref.id, content: { ...storyboard.content, ...changes } };
     },
   },
   characters: {
@@ -468,7 +462,12 @@ const sdk = {
       return { ...referenceJob, status: "queued", asset: null };
     },
   },
-  jobs: { get: async () => referenceJob },
+  jobs: {
+    get: async () => referenceJob,
+    cancel: async () => {
+      throw Object.assign(new Error("The Job has finished."), { code: "JOB_FINISHED" });
+    },
+  },
   assets: {
     get: async (id: string) =>
       referenceAssets[id as keyof typeof referenceAssets],

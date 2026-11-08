@@ -95,7 +95,7 @@ export type MessageView = MessageBase &
 				readonly role: 'assistant';
 		  }
 	) &
-	({ readonly state: 'streaming' | 'complete' | 'interrupted' } | { readonly state: 'failed'; readonly error: NuvaErrorInfo });
+	({ readonly state: 'streaming' | 'complete' | 'interrupted' } | { readonly state: 'failed'; readonly error: AdsErrorInfo });
 
 /**
  * Minimal JSON-compatible subset of AI SDK's dynamic-tool part protocol.
@@ -150,16 +150,16 @@ export interface SessionWaiting {
 
 export type AgentReadState =
 	| { readonly status: 'loading' }
-	| { readonly status: 'error'; readonly error: NuvaErrorInfo }
+	| { readonly status: 'error'; readonly error: AdsErrorInfo }
 	| (AgentData & {
 			/** Synchronization error; retain loaded data and the last known execution status. */
-			readonly error?: NuvaErrorInfo;
+			readonly error?: AdsErrorInfo;
 	  } & ({ readonly status: 'idle' | 'running' } | { readonly status: 'waiting_for_response'; readonly callIds: readonly string[] }));
 
 /** Initial loading/error, then the addressed Agent's execution status. */
 export type AgentStatus = AgentReadState['status'];
 
-export type NuvaErrorCode =
+export type AdsErrorCode =
 	| 'UNAUTHENTICATED'
 	| 'FORBIDDEN'
 	| 'NOT_FOUND'
@@ -180,8 +180,8 @@ export type NuvaErrorCode =
 	// Backend error codes are an open string vocabulary, matching the wire schema.
 	| (string & {});
 
-export interface NuvaErrorInfo {
-	readonly code: NuvaErrorCode;
+export interface AdsErrorInfo {
+	readonly code: AdsErrorCode;
 	readonly message: string;
 	readonly retryable: boolean;
 	readonly requestId?: string;

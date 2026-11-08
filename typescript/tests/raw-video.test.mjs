@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-import { createNuva, PartialCreationError } from '../dist/index.js';
-import { backendSchema } from '../dist/schemas.js';
+import { createNuva } from '../dist/index.js';
+import { backendSchema } from '../dist/internal.js';
 
 // OrderedUUID deliberately does not require an RFC UUID version/variant.
 const id = '01a175e0-31b3-da69-176e-0842e6f6602e';
@@ -15,20 +15,20 @@ const data = {
 	image_asset_ids: [promptId, id],
 	video_asset_ids: [id],
 	audio_asset_ids: [id],
-	characters: [id],
 	seconds: 5,
 	ratio: '9:16',
 };
 const input = { schema_version: 1, data };
 const queued = {
 	id: jobId, prompt: promptId, status: 'queued', seed: 7, resolution: '768P',
-	batch_id: id, asset: null, checkpoint: null, error: null, callback: null,
+	batch_id: id, asset: null, error: null, error_code: null, callback: null,
 	created_at: '2026-10-26T12:00:00Z',
 };
 const savedPrompt = {
 	kind: 'prompt', id: promptId, lineage_id: promptId, base_id: null, schema_version: 1,
-	data, relationships, batch_id: id, created_at: queued.created_at,
-	assets: {}, entities: {}, skills: {},
+	// A raw render's Prompt is based on nothing saved.
+	data, storyboard: null, skill: null, batch_id: id, created_at: queued.created_at,
+	assets: {},
 };
 
 async function withClient(fetcher, run) {
@@ -42,42 +42,36 @@ async function withClient(fetcher, run) {
 	finally { client.close(); globalThis.fetch = savedFetch; }
 }
 
-test('video target has separate provenance and leaves the observed contract intact', async () => {
-	const raw = await readFile(new URL('../schema/backend-video.openapi.json', import.meta.url), 'utf8');
-	const source = JSON.parse(await readFile(new URL('../schema/backend-video.source.json', import.meta.url), 'utf8'));
-	const observed = JSON.parse(await readFile(new URL('../schema/backend.openapi.json', import.meta.url), 'utf8'));
-	const target = JSON.parse(raw).components.schemas;
+test('a raw render takes what the model renders from, and nothing else', async () => {
+	const contract = JSON.parse(await readFile(new URL('../schema/backend.openapi.json', import.meta.url), 'utf8')).components.schemas;
+	assert.deepEqual(Object.keys(contract.RawPromptDataV1.properties).sort(), ['audio_asset_ids', 'image_asset_ids', 'prompt', 'ratio', 'seconds', 'video_asset_ids']);
+	assert.deepEqual(Object.keys(contract.RawPromptInput.properties).sort(), ['data', 'schema_version']);
+	assert.equal(contract.GenerateVideo.oneOf.length, 2);
+	const source = JSON.parse(await readFile(new URL('../schema/backend.source.json', import.meta.url), 'utf8'));
+	const raw = await readFile(new URL('../schema/backend.openapi.json', import.meta.url), 'utf8');
 	assert.equal(createHash('sha256').update(raw).digest('hex'), source.sha256);
-	// A target records the backend change it comes from; `pending` is allowed only until release (check-tag.mjs).
 	assert.match(source.commit, /^([0-9a-f]{40}|pending)$/);
-	assert.match(source.pullRequest, /^(https:\/\/github\.com\/Nuva-Lab\/WhatIf\/pull\/\d+|pending)$/);
-	assert.match(source.status, /target-only/);
-	assert.equal(observed.components.schemas.GenerateVideo.properties.input, undefined);
-	assert.equal(target.GenerateVideo.oneOf.length, 2);
-	for (const name of Object.keys(target).filter((name) => !source.overlaySchemas.includes(name)))
-		assert.deepEqual(target[name], observed.components.schemas[name], `${name} dependency must stay equal to the observed schema`);
 });
 
 test('saved ID and raw input accept the backend null/omission and option boundaries', () => {
 	const schema = backendSchema('GenerateVideo');
-	assert.deepEqual(schema.parse({ prompt: id }), { prompt: id, seed: 0 });
-	assert.deepEqual(schema.parse({ prompt: id, input: null }), { prompt: id, input: null, seed: 0 });
+	// No seed is sent unless given: the backend then picks a random one and returns it.
+	assert.deepEqual(schema.parse({ prompt: id }), { prompt: id });
+	assert.deepEqual(schema.parse({ prompt: id, input: null }), { prompt: id, input: null });
 	for (const other of [{}, { prompt: null }]) {
 		const value = { input, ...other, seed: Number.MAX_SAFE_INTEGER, resolution: null, callback_url: null, batch_id: null };
 		assert.deepEqual(schema.parse(value), value);
 	}
-	for (const relationships of [undefined, null, []]) {
-		const raw = { schema_version: 1, data: { prompt: 'Raw text' }, ...(relationships === undefined ? {} : { relationships }) };
-		const parsed = schema.parse({ input: raw });
-		assert.equal(parsed.input.data.prompt, 'Raw text');
-		assert.deepEqual(parsed.input.relationships, relationships);
-	}
+	// A raw render records no sources and names no Characters: the model never sees them.
+	for (const extra of [{ relationships: [] }, { relationships: null }])
+		assert.equal(schema.safeParse({ input: { schema_version: 1, data: { prompt: 'Raw text' }, ...extra } }).success, false);
+	assert.equal(schema.safeParse({ input: { schema_version: 1, data: { prompt: 'Raw text', characters: [] } } }).success, false);
 	// A Storyboard clip is rendered by its compiled Prompt's ID (prompts.generate), not named here.
 	for (const bad of [{ storyboard: { id, clip: 'C02' } }, { prompt: id, storyboard: { id, clip: 'C02' } }])
 		assert.equal(schema.safeParse(bad).success, false, JSON.stringify(bad));
-	const boundaries = { ...data, prompt: 'x'.repeat(10000), image_asset_ids: Array(9).fill(id), video_asset_ids: Array(3).fill(id), audio_asset_ids: Array(3).fill(id), characters: Array(10).fill(id), seconds: 15 };
+	const boundaries = { ...data, prompt: 'x'.repeat(10000), image_asset_ids: Array(9).fill(id), video_asset_ids: Array(3).fill(id), audio_asset_ids: Array(3).fill(id), seconds: 15 };
 	// Cross-list model limits and Asset ownership/kinds remain backend checks.
-	assert.equal(schema.safeParse({ input: { schema_version: 1, data: boundaries, relationships: Array(100).fill(relationships[0]) } }).success, true);
+	assert.equal(schema.safeParse({ input: { schema_version: 1, data: boundaries } }).success, true);
 	for (const ratio of ['adaptive', '21:9', '16:9', '4:3', '1:1', '3:4', '9:16', null])
 		assert.equal(schema.safeParse({ input: { schema_version: 1, data: { prompt: 'Raw', ratio, seconds: null } } }).success, true);
 });
@@ -135,7 +129,7 @@ test('raw generation forwards ordered Asset IDs and stable keys, then reads its 
 		assert.equal(typeof first.subscribe, 'function');
 		const saved = await client.prompts.get({ kind: 'prompt', id: first.prompt });
 		assert.deepEqual(saved.data, data);
-		assert.deepEqual(saved.relationships, relationships);
+		assert.equal(saved.storyboard ?? null, null, 'Raw input is compiled from no Storyboard.');
 		assert.equal(saved.id, first.prompt);
 		assert.deepEqual(saved.ref, { kind: 'prompt', id: promptId });
 	});
@@ -149,17 +143,19 @@ test('raw generation forwards ordered Asset IDs and stable keys, then reads its 
 	assert.deepEqual(input.data.image_asset_ids, [promptId, id], 'Caller reference ordering remains unchanged');
 });
 
-test('saved Prompt mode retains its original keyed request and does not invent a key', async () => {
+test('saved Prompt mode sends the caller\'s idempotency key, or one the SDK makes for each call', async () => {
 	const requests = [];
 	await withClient(async (_url, options) => { requests.push(options); return Response.json({ ...queued, prompt: id }, { status: 202 }); }, async (client) => {
-		for (const options of [{ idempotencyKey: 'existing-key' }, undefined]) {
-			const job = await client.videos.generate({ prompt: id }, options);
+		for (const options of [{ idempotencyKey: 'existing-key' }, undefined, undefined]) {
+			const job = await client.videos.generate({ prompt: { id: id } }, options);
 			assert.equal(job.prompt, id);
 		}
 	});
-	for (const request of requests) assert.deepEqual(JSON.parse(request.body), { prompt: id, seed: 0 });
+	for (const request of requests) assert.deepEqual(JSON.parse(request.body), { prompt: id });
 	assert.equal(new Headers(requests[0].headers).get('Idempotency-Key'), 'existing-key');
-	assert.equal(new Headers(requests[1].headers).get('Idempotency-Key'), null);
+	const made = requests.slice(1).map((request) => new Headers(request.headers).get('Idempotency-Key'));
+	assert.ok(made.every((key) => /^[0-9a-f-]{36}$/.test(key)), 'The SDK makes a key when the caller gives none.');
+	assert.notEqual(made[0], made[1], 'Each call gets its own.');
 });
 
 test('backend validation failures preserve reference paths and idempotency conflicts', async () => {
@@ -168,18 +164,11 @@ test('backend validation failures preserve reference paths and idempotency confl
 		await withClient(async () => Response.json({ error: { code, message: 'Backend rejected request', details, retryable: false }, request_id: 'local-backend-error' }, { status }), async (client) => {
 			await assert.rejects(client.videos.generate({ input }, { idempotencyKey: 'same-key' }), (error) => {
 				assert.equal(error.code, code);
-				assert.deepEqual(error.details, details);
+				// details are a validation error's alone: an empty list is left out.
+				assert.deepEqual(error.details, details.length ? details : undefined);
 				return true;
 			});
 		});
 	}
 });
 
-test('partial Prompt receipts retain each Prompt\'s relationships and require one based on a Storyboard', () => {
-	const info = { code: 'PARTIAL_CREATION', message: 'Saved one Prompt', retryable: false };
-	const compiled = { ...savedPrompt, relationships: [...relationships, { type: 'based_on', target: { kind: 'storyboard', id } }] };
-	const error = new PartialCreationError(info, { prompts: [compiled] });
-	assert.deepEqual(error.saved.prompts[0].relationships, compiled.relationships);
-	assert.throws(() => new PartialCreationError(info, { prompts: [savedPrompt] }), (error) => error.code === 'SERVICE_ERROR');
-	assert.throws(() => new PartialCreationError(info, { prompts: [{ ...compiled, data: { ...data, plan: id } }] }), (error) => error.code === 'SERVICE_ERROR');
-});

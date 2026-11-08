@@ -255,8 +255,15 @@ export function openNewStoryboard(
       script,
       characters,
       submit: async (input) => {
-        const saved = await keyed(host, "storyboard", input, (key) =>
-          host.sdk.storyboards.generate(input, { idempotencyKey: key }),
+        // A role is cast by the Character's id: its latest version.
+        const { cast, ...rest } = input;
+        const request = {
+          ...rest,
+          script: { id: rest.script },
+          ...(cast === undefined ? {} : { cast: Object.fromEntries(Object.entries(cast).map(([role, id]) => [role, { id }])) }),
+        };
+        const saved = await keyed(host, "storyboard", request, (key) =>
+          host.sdk.storyboards.generate(request, { idempotencyKey: key }),
         );
         const record = storyboardRecord(saved.id);
         host.remember(record);
@@ -408,7 +415,7 @@ function castSummary(content: StoryboardContent, material: StoryboardMaterial) {
     else plays.append(node("p", key === NARRATOR ? "—" : msg("Not cast"), key === NARRATOR ? "muted" : "cast-missing"));
     const voice = node("div", "", "cast-voice");
     voice.append(node("span", msg("Voice"), "config-label"));
-    if (entry?.voice === "character") {
+    if (entry?.own_voice === true) {
       const chip = node("span", "", "reference-chip");
       chip.dataset.color = "2";
       const visual = node("span", "", "reference-thumb");
@@ -491,7 +498,7 @@ export async function renderStoryboard(
   const body = node("div", "", "storyboard");
   body.append(node("p", msg("Loading…"), "muted"));
   card.append(body);
-  const script = await host.sdk.scripts.get({ kind: "script", id: storyboard.content.script });
+  const script = await host.sdk.scripts.get({ id: storyboard.content.script });
   if (!navigation.alive()) return;
   if (script.format !== 3) {
     body.replaceChildren(node("p", msg("This Storyboard's Script is a legacy Script."), "empty"));
@@ -511,11 +518,11 @@ export async function renderStoryboard(
         const part = `${storyboard.id}:${clip}`;
         // A submission whose outcome is unknown is retried exactly as it was sent, with its Prompt and key, so a
         // recompiled Prompt with another ID cannot leave it stuck.
-        let input = pendingInput(host, "video", part) as { prompt: string } | undefined;
+        let input = pendingInput(host, "video", part) as { prompt: { id: string } } | undefined;
         if (input === undefined) {
-          const request = { storyboard: storyboard.id, clip };
+          const request = { storyboard: { id: storyboard.id }, clip };
           const { prompts } = await keyed(host, "prompt", request, (key) => host.sdk.prompts.generate(request, { idempotencyKey: key }), part);
-          input = { prompt: prompts[0]!.id };
+          input = { prompt: { id: prompts[0]!.id } };
         }
         setText(status, msg("Starting…"));
         const submission = input;
@@ -559,7 +566,7 @@ export async function renderStoryboard(
             save: async (content) => {
               const input = { base: storyboard.id, content };
               const saved = await keyed(host, "storyboard-edit", input, (key) =>
-                host.sdk.storyboards.update({ kind: "storyboard", id: storyboard.id }, { content }, { idempotencyKey: key }),
+                host.sdk.storyboards.createFrom({ kind: "storyboard", id: storyboard.id }, content, { idempotencyKey: key }),
               );
               const record = storyboardRecord(saved.id);
               host.remember(record);
@@ -598,7 +605,7 @@ export async function renderStoryboard(
           setButtonText(submit, msg("Revising…"));
           try {
             const saved = await keyed(host, "storyboard-revision", input, (key) =>
-              host.sdk.storyboards.revise({ kind: "storyboard", id: storyboard.id }, { instruction: text }, { idempotencyKey: key }),
+              host.sdk.storyboards.generateFrom({ kind: "storyboard", id: storyboard.id }, { instruction: text }, { idempotencyKey: key }),
             );
             const record = storyboardRecord(saved.id);
             host.remember(record);

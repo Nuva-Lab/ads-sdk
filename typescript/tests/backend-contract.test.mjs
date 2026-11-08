@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { backendSchema, generateScriptSchema, generateStoryboardSchema, generatePromptSchema, skillSelectionSchema } from '../dist/schemas.js';
+import { backendSchema, generateScriptSchema, generateStoryboardSchema, generatePromptSchema, skillSelectionSchema } from '../dist/internal.js';
 
 const id = '11111111-1111-4111-8111-111111111111';
 test('backend Product creation requires a Brand and rejects unsupported profile fields', () => {
@@ -16,10 +16,8 @@ test('backend Artifact v1 remains explicit rather than interpreting ScriptPackag
 	assert.equal(backendSchema('ScriptDataV1').parse({ text: 'An ad script' }).text, 'An ad script');
 	assert.equal(backendSchema('ScriptDataV1').safeParse({ schema_version: 2, concept: {}, clips: [] }).success, false);
 });
-test('backend Ad registration requires the final video and preserves editor data', () => {
-	const value = { batch_id: id, schema_version: 1, asset_id: id, composition: { clips: [{ asset_id: id }], editor: { zoom: 2 } } };
-	assert.deepEqual(backendSchema('AdCreate').parse(value).composition.editor, { zoom: 2 });
-	assert.equal(backendSchema('AdCreate').safeParse({ batch_id: id, schema_version: 1, composition: value.composition }).success, false);
+test('customers don\'t register Ads: the public contract has no AdCreate', () => {
+	assert.throws(() => backendSchema('AdCreate'));
 });
 
 test('shared creation schemas accept exact service boundaries without tightening valid inputs', () => {
@@ -49,10 +47,10 @@ test('a Storyboard request is a new Storyboard for a Script, a revision of a bas
 		assert.equal(generateStoryboardSchema.safeParse(invalid).success, false, JSON.stringify(invalid));
 });
 
-test('Product attributes are an explicit JSON target overlay while the observed schema stays unchanged', async () => {
+test('Product attributes hold any JSON object, checked recursively', async () => {
 	const { readFile } = await import('node:fs/promises');
-	const observed = JSON.parse(await readFile(new URL('../schema/backend.openapi.json', import.meta.url), 'utf8'));
-	assert.equal(observed.components.schemas.ProductDataV1.properties.attributes, undefined);
+	const contract = JSON.parse(await readFile(new URL('../schema/backend.openapi.json', import.meta.url), 'utf8'));
+	assert.equal(contract.components.schemas.ProductDataV2.properties.attributes.type, 'object');
 	const data = { name: 'Bottle', attributes: { nested: { color: 'blue' }, tags: ['one'], quantity: 3 } };
 	assert.deepEqual(backendSchema('ProductCreate').parse({ brand_id: id, data }).data.attributes, data.attributes);
 	assert.equal(
@@ -62,7 +60,7 @@ test('Product attributes are an explicit JSON target overlay while the observed 
 });
 
 test('backend OrderedUUID uses GUID shape without RFC version or variant restrictions', async () => {
-	const { backendIdSchema } = await import('../dist/schemas.js');
+	const { backendIdSchema } = await import('../dist/internal.js');
 	const { backendDefinitions } = await import('../dist/backend-definitions.js');
 	const product = '01a175e0-20c1-3f18-da7c-5afa67a79363';
 	const script = '01a175e0-31b3-da69-176e-0842e6f6602e';
@@ -71,8 +69,7 @@ test('backend OrderedUUID uses GUID shape without RFC version or variant restric
 	const job = '01a175e0-3000-cccc-1111-abcdefabcdef';
 	for (const value of [product, script, skill, asset, job]) assert.equal(backendIdSchema.parse(value), value);
 	assert.equal(backendSchema('ProductCreate').parse({ brand_id: product, data: { name: 'Ordered' } }).brand_id, product);
-	assert.equal(backendSchema('ScriptCreate').parse({ schema_version: 1, data: { text: 'Script' }, relationships: [{ type: 'based_on', target: { kind: 'product', id: product } }] }).relationships[0].target.id, product);
-	assert.equal(backendSchema('SkillRef').parse({ skill_id: skill, name: 'writer', version: 1 }).skill_id, skill);
+	assert.equal(backendSchema('MadeWithSkill').parse({ id: skill, name: 'writer', version: 1 }).id, skill);
 	assert.equal(backendSchema('GenerateVideo').parse({ prompt: script, batch_id: job }).batch_id, job);
 	assert.equal(
 		generateScriptSchema.parse({
@@ -100,7 +97,7 @@ test('backend OrderedUUID uses GUID shape without RFC version or variant restric
 
 
 test('assembly is not an exported customer schema or route', async () => {
-	const schemas = await import('../dist/schemas.js');
+	const schemas = await import('../dist/internal.js');
 	const { dataRequest } = await import('../dist/data-routes.js');
 	assert.equal('assembleVideoSchema' in schemas, false);
 	assert.equal('assembledVideoSchema' in schemas, false);

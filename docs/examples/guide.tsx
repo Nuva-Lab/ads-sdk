@@ -8,8 +8,7 @@ import {
 import {
   createNuva,
   Message,
-  NuvaError,
-  ProductImageUploadError,
+  AdsError,
   type AccessToken,
   type NuvaClient,
   type AgentHandle,
@@ -299,16 +298,16 @@ function Conversation({
 // #region create-product
 export async function createProduct(client: NuvaClient, file: File) {
   const brand = await client.brands.create({ data: { name: "Morrow" } });
-  const product = await client.products.create({
+  const image = await client.assets.upload(file, { kind: "image", label: "Cup, front" });
+  return client.products.create({
     brand_id: brand.id,
     data: {
       name: "Travel cup",
       facts: ["350 ml capacity"],
       attributes: { color: "blue" },
+      image_asset_ids: [image.id],
     },
   });
-  const uploaded = await client.products.uploadImage({ base: product, file });
-  return uploaded.product;
 }
 // #endregion create-product
 
@@ -342,34 +341,14 @@ export async function renameProduct(
   base: Product,
   name: string,
 ) {
-  return client.products.update({
-    base,
-    brand_id: base.brand_id,
-    data: { ...base.data, name },
-  });
+  // Send only what changes; the other fields keep their values.
+  return client.products.update(base, { data: { name } });
 }
 // #endregion update-product
 
-// #region upload-error
-export async function addProductImage(
-  client: NuvaClient,
-  base: Product,
-  file: File,
-) {
-  try {
-    return await client.products.uploadImage({ base, file });
-  } catch (error) {
-    if (error instanceof ProductImageUploadError) {
-      return { product: null, uploadedAsset: error.asset, error };
-    }
-    throw error;
-  }
-}
-// #endregion upload-error
-
 // #region read-script
 export async function readScript(client: NuvaClient, scriptId: string) {
-  const script = await client.scripts.get({ kind: "script", id: scriptId });
+  const script = await client.scripts.get({ id: scriptId });
   if (script.format === 2) {
     // Saved before Storyboards: readable, but it cannot be edited or shot.
     return { legacy: script.legacy };
@@ -391,9 +370,8 @@ export async function editLine(
     ...panel,
     lines: panel.lines.map((line) => (line.id === lineId ? { ...line, text } : line)),
   }));
-  return client.scripts.update(script.ref, {
-    content: { ...script.content, panels },
-  });
+  // The other content fields are copied from script.
+  return client.scripts.createFrom(script.ref, { panels });
 }
 // #endregion save-script
 
@@ -422,10 +400,9 @@ export async function addLabeledImage(client: NuvaClient, base: Product, file: F
     label: "Box, back",
     description: "The back of the gift box, with the ingredient list.",
   });
-  return client.products.update({
-    base,
-    brand_id: base.brand_id,
-    data: { ...base.data, images: [...(base.data.images ?? []), asset.id] },
+  // A list is replaced as a whole: send the images to keep, with the new one.
+  return client.products.update(base, {
+    data: { image_asset_ids: [...(base.data.image_asset_ids ?? []), asset.id] },
   });
 }
 // #endregion label-image
@@ -433,7 +410,7 @@ export async function addLabeledImage(client: NuvaClient, base: Product, file: F
 // #region write-script
 export async function writeScript(client: NuvaClient, productId: string) {
   return client.scripts.generate({
-    product: productId,
+    product: { id: productId },
     acceptable_duration_ms: { min: 8000, max: 15000 },
     instruction: "Use the product facts. Open with a morning commute.",
   });
@@ -442,8 +419,8 @@ export async function writeScript(client: NuvaClient, productId: string) {
 
 // #region revise-script
 export async function reviseScript(client: NuvaClient, base: Script) {
-  // Without acceptable_duration_ms the revision keeps the Script's length.
-  return client.scripts.revise(base.ref, {
+  // Without acceptable_duration_ms the new Script keeps base's length.
+  return client.scripts.generateFrom(base.ref, {
     instruction: "Keep the product facts and shorten the opening.",
   });
 }
@@ -454,23 +431,23 @@ export async function writeStoryboard(
   client: NuvaClient,
   script: Script,
   characterId: string,
-  requestKey: string, // Save it to retry this request.
+  idempotencyKey: string, // Save it to retry this request.
 ) {
   // "host" is a role ID from script.content.roles.
   return client.storyboards.generate(
     {
-      script: script.id,
-      cast: { host: characterId },
+      script,
+      cast: { host: { id: characterId } },
       instruction: "Shoot it as a phone selfie in a bright kitchen.",
     },
-    { idempotencyKey: requestKey },
+    { idempotencyKey },
   );
 }
 // #endregion write-storyboard
 
 // #region read-storyboard
 export async function readStoryboard(client: NuvaClient, storyboardId: string) {
-  const storyboard = await client.storyboards.get({ kind: "storyboard", id: storyboardId });
+  const storyboard = await client.storyboards.get({ id: storyboardId });
   const { cast, direction, clips } = storyboard.content;
   return { cast, direction, clips };
 }
@@ -478,7 +455,7 @@ export async function readStoryboard(client: NuvaClient, storyboardId: string) {
 
 // #region revise-storyboard
 export async function reviseStoryboard(client: NuvaClient, base: Storyboard) {
-  return client.storyboards.revise(base.ref, {
+  return client.storyboards.generateFrom(base.ref, {
     instruction: "Open on a close-up of the product before the host speaks.",
   });
 }
@@ -497,7 +474,7 @@ export async function editShot(
       ? { ...clip, shots: clip.shots.map((value, i) => (i === shot ? text : value)) }
       : clip,
   );
-  return client.storyboards.update(base.ref, { content: { ...base.content, clips } });
+  return client.storyboards.createFrom(base.ref, { clips });
 }
 // #endregion edit-storyboard
 
@@ -505,12 +482,12 @@ export async function editShot(
 export async function compileClips(
   client: NuvaClient,
   storyboard: Storyboard,
-  requestKey: string, // Save it to retry this request.
+  idempotencyKey: string, // Save it to retry this request.
 ) {
   // One saved Prompt per clip, in clip order; pass clip: "C01" for one clip only.
   const { prompts } = await client.prompts.generate(
-    { storyboard: storyboard.id, ratio: "9:16" },
-    { idempotencyKey: requestKey },
+    { storyboard, ratio: "9:16" },
+    { idempotencyKey },
   );
   return prompts.map((prompt) => ({ clip: prompt.data.clip_id, prompt: prompt.id }));
 }
@@ -518,7 +495,7 @@ export async function compileClips(
 
 // #region generate-video
 export async function generateClip(client: NuvaClient, promptId: string) {
-  const job = await client.videos.generate({ prompt: promptId });
+  const job = await client.videos.generate({ prompt: { id: promptId } });
   return job; // Save job.id before waiting for the video.
 }
 // #endregion generate-video
@@ -527,7 +504,7 @@ export async function generateClip(client: NuvaClient, promptId: string) {
 export async function generateClipFromText(
   client: NuvaClient,
   imageAssetId: string,
-  requestKey: string,
+  idempotencyKey: string,
 ) {
   return client.videos.generate({
     input: {
@@ -539,7 +516,7 @@ export async function generateClipFromText(
         ratio: "9:16",
       },
     },
-  }, { idempotencyKey: requestKey });
+  }, { idempotencyKey });
 }
 // #endregion generate-video-raw
 
@@ -571,7 +548,7 @@ export async function waitForClip(job: Job) {
 
 // #region idempotency
 export function videoSubmission(client: NuvaClient, promptId: string) {
-  const input = { prompt: promptId };
+  const input = { prompt: { id: promptId } };
   const options = { idempotencyKey: crypto.randomUUID() };
   return {
     input,
@@ -586,7 +563,7 @@ export async function loadProduct(client: NuvaClient, productId: string) {
   try {
     return await client.products.get(productId);
   } catch (error) {
-    if (error instanceof NuvaError) {
+    if (error instanceof AdsError) {
       return {
         error: {
           code: error.code,

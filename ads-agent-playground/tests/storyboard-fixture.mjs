@@ -58,7 +58,6 @@ export const ids = {
   script: uuid(1),
   storyboard: uuid(2),
   product: uuid(3),
-  productRevision: uuid(4),
   productFront: uuid(5),
   productBack: uuid(6),
   mia: uuid(7),
@@ -128,8 +127,7 @@ export const script = {
   schema_version: 1,
   created_at: "2026-11-01T09:00:00Z",
   data: { text: "{}" },
-  relationships: [{ type: "based_on", target: { kind: "product", id: ids.productRevision } }],
-  entities: { [ids.productRevision]: { kind: "product", id: ids.product, version: 2 } },
+  product: { id: ids.product, version: 2 },
   assets: {},
   skills: {},
 };
@@ -138,11 +136,10 @@ export const product = {
   ref: { kind: "product", id: ids.product },
   label: "Morrow Cup",
   version: 2,
-  revision: ids.productRevision,
   brand_id: uuid(20),
-  schema_version: 1,
+  schema_version: 2,
   created_at: "2026-11-01T09:00:00Z",
-  data: { name: "Morrow Cup", images: [ids.productFront, ids.productBack] },
+  data: { name: "Morrow Cup", image_asset_ids: [ids.productFront, ids.productBack], video_asset_ids: [] },
   assets: { [ids.productFront]: asset(ids.productFront, "image", "Front"), [ids.productBack]: asset(ids.productBack, "image", "Back of the box") },
 };
 const character = (id, name, images, voice) => ({
@@ -150,7 +147,6 @@ const character = (id, name, images, voice) => ({
   ref: { kind: "character", id },
   label: name,
   version: 1,
-  revision: uuid(30 + images.length),
   schema_version: 1,
   created_at: "2026-11-01T09:00:00Z",
   data: { name, description: `${name}, as seen in every clip.`, image_asset_ids: images.map(([image]) => image), voice_asset_id: voice ?? null },
@@ -164,7 +160,7 @@ export const leo = character(ids.leo, "Leo", [[ids.leoFront, null]]);
 export const storyboardContent = {
   script: ids.script,
   cast: {
-    host: { character: ids.mia, voice: "character" },
+    host: { character: ids.mia, own_voice: true },
     friend: { look: "A tall man in a grey coat" },
     narrator: { voice: "A warm, low female voice" },
   },
@@ -184,7 +180,7 @@ export function fakeSdk(extra = {}) {
     products: { get: async (id, query) => (id === ids.product && query?.version === 2 ? product : Promise.reject(new Error("Unexpected Product read"))) },
     characters: {
       get: async (id) => characters[id] ?? Promise.reject(new Error("Character not found")),
-      list: async () => ({ items: [mia, leo], next_cursor: null }),
+      list: async () => ({ items: [mia, leo], nextCursor: null }),
     },
     scripts: { get: async () => script },
     ...extra,

@@ -2,16 +2,15 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import openapiTS, { astToString } from 'openapi-typescript';
 
-// Keep the observed backend and the source-pinned PR target independently reproducible.
-for (const prefix of ['backend', 'backend-video']) {
+// The public contract. The internal one, the Agent's, is in WhatIf (agents/ads-agent/packages/internal-contract).
+for (const prefix of ['backend']) {
 	const input = new URL(`../schema/${prefix}.openapi.json`, import.meta.url);
 	const source = JSON.parse(await readFile(new URL(`../schema/${prefix}.source.json`, import.meta.url), 'utf8'));
 	const text = await readFile(input, 'utf8');
 	if (createHash('sha256').update(text).digest('hex') !== source.sha256)
 		throw new Error('Backend snapshot differs from its recorded source.');
 	const document = JSON.parse(text);
-	const targetLabel = prefix === 'backend' ? '' : ' PR target only; deployment not asserted.';
-	const header = `// Generated from ads_backend/openapi.json at ${source.commit}.${targetLabel} Do not edit.\n`;
+	const header = `// Generated from ${source.path} at ${source.commit}. Do not edit.\n`;
 	const types =
 		header +
 		astToString(await openapiTS(document, { defaultNonNullable: false })) +

@@ -1,5 +1,8 @@
 import { msg, UiError } from "./i18n.js";
-import type { Product, ResourceLink, JsonObject } from "@nuva/sdk";
+import type { Product, ProductsClient, ResourceLink, JsonObject } from "@nuva/sdk";
+type NewProductData = Parameters<ProductsClient["create"]>[0]["data"];
+/** What `products.update` changes in a Product's `data`. */
+export type ProductChanges = NonNullable<Parameters<ProductsClient["update"]>[1]["data"]>;
 export type KnownResource = ResourceLink & {
   sessionId: string;
   sourceScriptId?: string;
@@ -76,24 +79,35 @@ export function productFields(product?: Product): ProductFields {
     attributes: JSON.stringify(product?.data.attributes ?? {}, null, 2),
   };
 }
-/** Untouched optional/null fields retain the exact captured base semantics. No read/rebase occurs here. */
-export function productData(
-  base: Product | undefined,
-  fields: ProductFields,
-): Product["data"] {
+/** A new Product's data, from the form. */
+export function newProductData(fields: ProductFields): NewProductData {
+  if (!fields.name.trim()) throw new UiError(msg("Product name is required."));
+  return {
+    name: fields.name.trim(),
+    image_asset_ids: [],
+    facts: lines(fields.facts),
+    selling_points: lines(fields.selling_points),
+    constraints: lines(fields.constraints),
+    target_audience: fields.target_audience.trim() || null,
+    attributes: attributes(fields.attributes),
+  };
+}
+/**
+ * Only the fields the form changed from `base`, as `products.update` sends them; the service keeps the rest as
+ * saved. An emptied audience clears it (`null`); a list is sent whole.
+ */
+export function productChanges(base: Product, fields: ProductFields): ProductChanges {
   if (!fields.name.trim()) throw new UiError(msg("Product name is required."));
   const before = productFields(base);
-  const data: Product["data"] = base
-    ? { ...base.data }
-    : { name: fields.name.trim(), images: [] };
-  data.name = fields.name.trim();
+  const changes: ProductChanges = {};
+  if (fields.name.trim() !== base.data.name) changes.name = fields.name.trim();
   for (const key of ["facts", "selling_points", "constraints"] as const)
-    if (!base || fields[key] !== before[key]) data[key] = lines(fields[key]);
-  if (!base || fields.target_audience !== before.target_audience)
-    data.target_audience = fields.target_audience.trim() || null;
-  if (!base || fields.attributes !== before.attributes)
-    data.attributes = attributes(fields.attributes);
-  return data;
+    if (fields[key] !== before[key]) changes[key] = lines(fields[key]);
+  if (fields.target_audience !== before.target_audience)
+    changes.target_audience = fields.target_audience.trim() || null;
+  if (fields.attributes !== before.attributes)
+    changes.attributes = attributes(fields.attributes);
+  return changes;
 }
 export function secondsToMs(text: string) {
   const value = Number(text);

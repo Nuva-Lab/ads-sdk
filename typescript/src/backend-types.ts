@@ -1,4 +1,4 @@
-// Generated from ads_backend/openapi.json at 20c6fd9bf15f2f7dd335e0e192b58fd3ccc46d5d. Do not edit.
+// Generated from ads_backend/openapi.json at pending. Do not edit.
 export interface paths {
     "/v1/admin/tokens": {
         parameters: {
@@ -9,7 +9,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Issue a user token */
+        /**
+         * Issue a user token
+         * @description For your backend, with your API key: a token that acts as the user with `external_user_id`, valid for an hour. The first token for an id creates the user.
+         */
         post: operations["issue_user_token_v1_admin_tokens_post"];
         delete?: never;
         options?: never;
@@ -26,7 +29,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Start an upload */
+        /**
+         * Start an upload
+         * @description Returns a URL to PUT the file to and a token to register it with POST /v1/assets once the PUT succeeds. Both expire after an hour.
+         */
         post: operations["start_upload_v1_assets_uploads_post"];
         delete?: never;
         options?: never;
@@ -45,7 +51,7 @@ export interface paths {
         put?: never;
         /**
          * Register an asset from an upload or a URL
-         * @description Returns 201 with a new asset, or 200 with your existing asset when you registered the same file, with the same MIME type, before.
+         * @description Returns 201 with a new asset, or 200 with your existing asset when you registered the same file, with the same MIME type, before. A different label or description for a file you already have is 409 ASSET_EXISTS: change them with PATCH /v1/assets/{asset_id}.
          */
         post: operations["create_asset_v1_assets_post"];
         delete?: never;
@@ -62,8 +68,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Read an asset you uploaded or generated
-         * @description Returns 404 for assets of other users, as for missing ones. Other users get an asset's download URL with the object that references it.
+         * Read an asset you uploaded or generated, or one a shared Product or Character uses
+         * @description Returns 404 for other users' assets that no Brand, Product or Character refers to, as for missing ones.
          */
         get: operations["get_asset_v1_assets__asset_id__get"];
         put?: never;
@@ -71,7 +77,11 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Edit an asset's label and description
+         * @description Changes the fields the body sends and keeps the rest; null removes a value. The file itself never changes. Only the user who uploaded it, or an admin above them, edits it.
+         */
+        patch: operations["update_asset_v1_assets__asset_id__patch"];
         trace?: never;
     };
     "/v1/brands": {
@@ -87,7 +97,10 @@ export interface paths {
          */
         get: operations["list_brands_v1_brands_get"];
         put?: never;
-        /** Create a brand */
+        /**
+         * Create a brand
+         * @description Saves a new brand as version 1.
+         */
         post: operations["create_brand_v1_brands_post"];
         delete?: never;
         options?: never;
@@ -107,16 +120,16 @@ export interface paths {
          * @description The current version, or the given one.
          */
         get: operations["get_brand_v1_brands__brand_id__get"];
-        /**
-         * Save a new version of a brand
-         * @description `version` must be the current version; otherwise 409 REVISION_CONFLICT. Returns the current version unchanged when the edit changes nothing.
-         */
-        put: operations["update_brand_v1_brands__brand_id__put"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Edit a brand
+         * @description Changes the fields `data` sends and keeps the rest, saving the next version. `version` must be the current one; otherwise 409 REVISION_CONFLICT. An edit that changes nothing returns the current version without adding one. A repeated Idempotency-Key with the same input returns the version it saved, even after later edits (but 404 once it is deleted).
+         */
+        patch: operations["update_brand_v1_brands__brand_id__patch"];
         trace?: never;
     };
     "/v1/products": {
@@ -132,7 +145,10 @@ export interface paths {
          */
         get: operations["list_products_v1_products_get"];
         put?: never;
-        /** Create a product */
+        /**
+         * Create a product
+         * @description Saves a new product as version 1.
+         */
         post: operations["create_product_v1_products_post"];
         delete?: never;
         options?: never;
@@ -152,16 +168,20 @@ export interface paths {
          * @description The current version, or the given one.
          */
         get: operations["get_product_v1_products__product_id__get"];
-        /**
-         * Save a new version of a product
-         * @description `version` must be the current version; otherwise 409 REVISION_CONFLICT. Returns the current version unchanged when the edit changes nothing.
-         */
-        put: operations["update_product_v1_products__product_id__put"];
+        put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete a product
+         * @description Deletes the product for every user of the customer: it is no longer listed, no version of it can be read, edited or used in new content, and its assets are no longer shared through it. What was already made from it is kept but can't be revised; saved Prompts still start Jobs. Deleting it again also returns 204.
+         */
+        delete: operations["delete_product_v1_products__product_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Edit a product
+         * @description Changes the fields `data` sends and keeps the rest, saving the next version. `version` must be the current one; otherwise 409 REVISION_CONFLICT. An edit that changes nothing returns the current version without adding one. A repeated Idempotency-Key with the same input returns the version it saved, even after later edits (but 404 once it is deleted).
+         */
+        patch: operations["update_product_v1_products__product_id__patch"];
         trace?: never;
     };
     "/v1/characters": {
@@ -177,7 +197,10 @@ export interface paths {
          */
         get: operations["list_characters_v1_characters_get"];
         put?: never;
-        /** Create a character */
+        /**
+         * Create a character
+         * @description Saves a new character as version 1.
+         */
         post: operations["create_character_v1_characters_post"];
         delete?: never;
         options?: never;
@@ -197,16 +220,16 @@ export interface paths {
          * @description The current version, or the given one.
          */
         get: operations["get_character_v1_characters__character_id__get"];
-        /**
-         * Save a new version of a character
-         * @description `version` must be the current version; otherwise 409 REVISION_CONFLICT. Returns the current version unchanged when the edit changes nothing.
-         */
-        put: operations["update_character_v1_characters__character_id__put"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Edit a character
+         * @description Changes the fields `data` sends and keeps the rest, saving the next version. `version` must be the current one; otherwise 409 REVISION_CONFLICT. An edit that changes nothing returns the current version without adding one. A repeated Idempotency-Key with the same input returns the version it saved, even after later edits (but 404 once it is deleted).
+         */
+        patch: operations["update_character_v1_characters__character_id__patch"];
         trace?: never;
     };
     "/v1/batches": {
@@ -222,8 +245,7 @@ export interface paths {
          */
         get: operations["list_batches_v1_batches_get"];
         put?: never;
-        /** Create a batch */
-        post: operations["create_batch_v1_batches_post"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -237,47 +259,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read a batch and its log */
+        /**
+         * Read a batch, its Ads and Job counts
+         * @description The Batch, its Ads oldest first, and how many of its Jobs are in each status.
+         */
         get: operations["get_batch_v1_batches__batch_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/batches/{batch_id}/log": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Append to a batch's log
-         * @description A batch holds at most 500 log entries (409 BATCH_FULL).
-         */
-        post: operations["append_log_v1_batches__batch_id__log_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/artifacts/script": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create a script */
-        post: operations["create_script_v1_artifacts_script_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -291,7 +279,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read a script */
+        /**
+         * Read a script
+         * @description This version, by its id. A version never changes.
+         */
         get: operations["get_script_v1_artifacts_script__artifact_id__get"];
         put?: never;
         post?: never;
@@ -301,37 +292,20 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/artifacts/script/{artifact_id}/versions": {
+    "/v1/artifacts/storyboard/{artifact_id}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        put?: never;
         /**
-         * Save a new version of a script
-         * @description Based on the given version, which need not be the latest: versions form a tree. `batch_id` defaults to the base's batch.
+         * Read a storyboard
+         * @description This version, by its id. A version never changes.
          */
-        post: operations["create_script_version_v1_artifacts_script__artifact_id__versions_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/artifacts/directing_plan": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
+        get: operations["get_storyboard_v1_artifacts_storyboard__artifact_id__get"];
         put?: never;
-        /** Create a directing_plan */
-        post: operations["create_directing_plan_v1_artifacts_directing_plan_post"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -345,47 +319,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read a directing_plan */
+        /**
+         * Read a directing_plan
+         * @description This version, by its id. A version never changes.
+         */
         get: operations["get_directing_plan_v1_artifacts_directing_plan__artifact_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/artifacts/directing_plan/{artifact_id}/versions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Save a new version of a directing_plan
-         * @description Based on the given version, which need not be the latest: versions form a tree. `batch_id` defaults to the base's batch.
-         */
-        post: operations["create_directing_plan_version_v1_artifacts_directing_plan__artifact_id__versions_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/artifacts/prompt": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create a prompt */
-        post: operations["create_prompt_v1_artifacts_prompt_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -399,7 +339,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read a prompt */
+        /**
+         * Read a prompt
+         * @description This version, by its id. A version never changes.
+         */
         get: operations["get_prompt_v1_artifacts_prompt__artifact_id__get"];
         put?: never;
         post?: never;
@@ -420,7 +363,7 @@ export interface paths {
         put?: never;
         /**
          * Save a new version of a prompt
-         * @description Based on the given version, which need not be the latest: versions form a tree. `batch_id` defaults to the base's batch.
+         * @description Based on the given version, which need not be the latest: versions form a tree. Omitted `batch_id` and `relationships` inherit the base; explicit [] clears relationships. Script, Storyboard and directing plan versions are the Agent's (a user token gets 403); a user may version a Prompt.
          */
         post: operations["create_prompt_version_v1_artifacts_prompt__artifact_id__versions_post"];
         delete?: never;
@@ -496,25 +439,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read a Skill and its main version */
+        /**
+         * Read a Skill
+         * @description A Skill of the customer's or one of Nuva's platform Skills, at its latest version or the `version` asked for, with its files. `main_version` is the one new work uses.
+         */
         get: operations["get_skill_v1_skills__skill_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/skills/{skill_id}/versions/{version}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read a Skill version */
-        get: operations["get_skill_version_v1_skills__skill_id__versions__version__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -533,8 +462,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Generate a clip from a prompt
-         * @description Starts a job for a prompt artifact of yours; read it with GET /v1/jobs/{id}, or receive its final status at `callback_url`.
+         * Generate a clip from a saved Prompt or raw Prompt input
+         * @description Starts a job for a prompt artifact of yours; read it with GET /v1/jobs/{id}, or receive its final status at `callback_url`. Alternatively supply `input` to save a Prompt and enqueue its Job in one transaction; Job.prompt is the saved Prompt ID.
          */
         post: operations["generate_video_v1_generate_video_post"];
         delete?: never;
@@ -550,7 +479,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read a job */
+        /**
+         * Read a job
+         * @description Its status and, once it has completed, the generated clip as `asset`.
+         */
         get: operations["get_job_v1_jobs__job_id__get"];
         put?: never;
         post?: never;
@@ -593,11 +525,7 @@ export interface paths {
          */
         get: operations["list_ads_v1_ads_get"];
         put?: never;
-        /**
-         * Create an ad from an exported video
-         * @description The ad never changes; a new cut is a new ad. A batch holds at most 500 ads (409 BATCH_FULL).
-         */
-        post: operations["create_ad_v1_ads_post"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -611,7 +539,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read an ad */
+        /**
+         * Read an ad
+         * @description The Ad with its final video and the clips and audio its composition uses.
+         */
         get: operations["get_ad_v1_ads__ad_id__get"];
         put?: never;
         post?: never;
@@ -621,47 +552,142 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/scopes/{external_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Create or change an org or group
+         * @description Idempotent. An org hangs from the customer; a group from one of its orgs, and changing `parent` moves the group. A scope's kind never changes. Putting an archived scope restores it.
+         */
+        put: operations["put_scope_v1_admin_scopes__external_id__put"];
+        post?: never;
+        /**
+         * Archive an org or group
+         * @description Its memberships and the shares with it stop counting. An org with groups left is refused (409). Archiving it again also returns 204.
+         */
+        delete: operations["archive_scope_v1_admin_scopes__external_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/scopes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the customer's orgs and groups
+         * @description Those that aren't archived, newest first.
+         */
+        get: operations["list_scopes_v1_admin_scopes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/users/{external_user_id}/memberships": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a user's memberships
+         * @description The user's scopes and roles; 404 when no user has this external id.
+         */
+        get: operations["get_memberships_v1_admin_users__external_user_id__memberships_get"];
+        /**
+         * Set a user's memberships
+         * @description Replaces the user's scopes and roles; `customer` with `admin` makes a customer admin, with `viewer` a reader of the whole customer. Every user is a member of the customer without a row. Takes effect at once. The first call for an id creates the user, like a first token.
+         */
+        put: operations["put_memberships_v1_admin_users__external_user_id__memberships_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/shares/{kind}/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List an item's shares
+         * @description The scopes the item is shared with, and how. Those who see the item but may not share it get 403.
+         */
+        get: operations["list_shares_v1_shares__kind___item_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/shares/{kind}/{item_id}/{scope}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Share an item with a scope
+         * @description Everyone below the scope can read the item (`read`) or also edit it (`write`). Allowed for an admin of the scope or one above it who administers the item's owner (or owns it), and for the customer's API key. Idempotent; a repeat changes `access`.
+         */
+        put: operations["put_share_v1_shares__kind___item_id___scope__put"];
+        post?: never;
+        /**
+         * Stop sharing an item with a scope
+         * @description Those who saw the item only through this share no longer find it (404). Removing a share that does not exist also returns 204.
+         */
+        delete: operations["delete_share_v1_shares__kind___item_id___scope__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** AdCreate */
-        AdCreate: {
-            /**
-             * Batch Id
-             * Format: uuid
-             * @description One of the caller's batches.
-             */
-            batch_id: string;
-            /**
-             * Schema Version
-             * @description Only 1 is accepted.
-             */
-            schema_version: number;
-            /** @description At most 100 clips and 20 audio assets; `editor` is at most 65536 bytes as JSON. */
-            composition: components["schemas"]["CompositionV1"];
-            /**
-             * Asset Id
-             * Format: uuid
-             * @description The final video: a video asset.
-             */
-            asset_id: string;
-        };
         /** AdOut */
         AdOut: {
             /**
              * Id
              * Format: uuid
+             * @description The Ad's id.
              */
             id: string;
             /**
              * Batch Id
-             * Format: uuid
+             * @description The Batch it belongs to; null when none.
              */
-            batch_id: string;
-            /** Schema Version */
+            batch_id: string | null;
+            /**
+             * Schema Version
+             * @description The version of `composition`'s format.
+             */
             schema_version: number;
-            composition: components["schemas"]["CompositionV1"];
+            /** @description How the final video was put together: its clips in order and the audio under them; null when not known. */
+            composition: components["schemas"]["CompositionReadV1"] | null;
             /** @description The final video. */
             asset: components["schemas"]["AssetOut"];
             /**
@@ -674,12 +700,16 @@ export interface components {
             /**
              * Created At
              * Format: date-time
+             * @description When the Ad was created.
              */
             created_at: string;
         };
         /** AdPage */
         AdPage: {
-            /** Items */
+            /**
+             * Items
+             * @description The Ads on this page, newest first.
+             */
             items: components["schemas"]["AdOut"][];
             /**
              * Next Cursor
@@ -704,23 +734,55 @@ export interface components {
              * @description Required with `url`.
              */
             kind?: ("image" | "video" | "audio") | null;
+            /**
+             * Label
+             * @description A short name for what the file shows, e.g. which part of a product package.
+             */
+            label?: string | null;
+            /**
+             * Description
+             * @description A longer description of what the file shows.
+             */
+            description?: string | null;
+        };
+        /** AssetEdit */
+        AssetEdit: {
+            /**
+             * Label
+             * @description A short name for what the file shows; null removes it.
+             */
+            label?: string | null;
+            /**
+             * Description
+             * @description A longer description of what the file shows; null removes it.
+             */
+            description?: string | null;
         };
         /** AssetOut */
         AssetOut: {
             /**
              * Id
              * Format: uuid
+             * @description The asset's id.
              */
             id: string;
             /**
              * Kind
+             * @description `image`, `video` or `audio`.
              * @enum {string}
              */
             kind: "image" | "video" | "audio";
-            /** Mime */
+            /**
+             * Mime
+             * @description The file's MIME type, as detected from its content.
+             */
             mime: string;
+            /** @description `uploaded` (an upload or a URL you registered) or `generated` (a Job's clip). */
             source: components["schemas"]["AssetSource"];
-            /** Size Bytes */
+            /**
+             * Size Bytes
+             * @description The file's size in bytes.
+             */
             size_bytes: number;
             /**
              * Metadata
@@ -730,15 +792,30 @@ export interface components {
                 [key: string]: unknown;
             };
             /**
+             * Label
+             * @description A short name for what the file shows, given at upload or edited since.
+             */
+            label?: string | null;
+            /**
+             * Description
+             * @description A longer description of what the file shows, given at upload or edited since.
+             */
+            description?: string | null;
+            /**
              * Created At
              * Format: date-time
+             * @description When the asset was registered.
              */
             created_at: string;
-            /** Download Url */
+            /**
+             * Download Url
+             * @description A temporary URL to download the file, until `download_url_expires_at`.
+             */
             download_url: string;
             /**
              * Download Url Expires At
              * Format: date-time
+             * @description When `download_url` stops working: an hour after this response.
              */
             download_url_expires_at: string;
         };
@@ -752,6 +829,7 @@ export interface components {
             /**
              * Id
              * Format: uuid
+             * @description The Ad's id.
              */
             id: string;
             /**
@@ -763,36 +841,65 @@ export interface components {
             /**
              * Created At
              * Format: date-time
+             * @description When the Ad was created.
              */
             created_at: string;
         };
-        /** BatchCreate */
-        BatchCreate: {
+        /**
+         * BatchListed
+         * @description A Batch in a list: as GET /v1/batches/{id} reads it. SDKs before the version header read
+         *     it without its Ads and Job counts (BatchSummary).
+         */
+        BatchListed: {
+            /**
+             * Id
+             * Format: uuid
+             * @description The Batch's id.
+             */
+            id: string;
             /**
              * Intent
              * @description Its title and purpose: what it tries.
              */
             intent: string;
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the Batch was created.
+             */
+            created_at: string;
+            /**
+             * Ads
+             * @description Oldest first; read each with GET /v1/ads/{id}.
+             */
+            ads: components["schemas"]["BatchAd"][] | null;
+            /**
+             * Jobs
+             * @description How many of the batch's jobs are in each status.
+             */
+            jobs: {
+                [key: string]: number;
+            } | null;
         };
         /** BatchOut */
         BatchOut: {
             /**
              * Id
              * Format: uuid
+             * @description The Batch's id.
              */
             id: string;
-            /** Intent */
+            /**
+             * Intent
+             * @description Its title and purpose: what it tries.
+             */
             intent: string;
             /**
              * Created At
              * Format: date-time
+             * @description When the Batch was created.
              */
             created_at: string;
-            /**
-             * Log
-             * @description Oldest first.
-             */
-            log: components["schemas"]["LogEntry"][];
             /**
              * Ads
              * @description Oldest first; read each with GET /v1/ads/{id}.
@@ -808,47 +915,36 @@ export interface components {
         };
         /** BatchPage */
         BatchPage: {
-            /** Items */
-            items: components["schemas"]["BatchSummary"][];
+            /**
+             * Items
+             * @description The Batches on this page, newest first.
+             */
+            items: components["schemas"]["BatchListed"][];
             /**
              * Next Cursor
              * @description Pass as `cursor` for the next page.
              */
             next_cursor: string | null;
         };
-        /** BatchSummary */
-        BatchSummary: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Intent */
-            intent: string;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-        };
         /** Brand */
         Brand: {
             /**
              * Id
              * Format: uuid
-             * @description Stays the same across versions.
+             * @description Its id: the same for every version. A reference to it is `{id, version?}`; without `version` it means the latest.
              */
             id: string;
-            /** Version */
+            /**
+             * Version
+             * @description 1 for the first version, then one more per edit.
+             */
             version: number;
             /**
-             * Revision
-             * Format: uuid
-             * @description This version's id; content made from it records this id.
+             * Schema Version
+             * @description The version of `data`'s format.
              */
-            revision: string;
-            /** Schema Version */
             schema_version: number;
+            /** @description The brand's details. */
             data: components["schemas"]["BrandDataV1"];
             /**
              * Created At
@@ -866,16 +962,65 @@ export interface components {
         };
         /** BrandCreate */
         BrandCreate: {
+            /** @description The brand's details. */
             data: components["schemas"]["BrandDataV1"];
         };
         /** BrandDataV1 */
         BrandDataV1: {
-            /** Name */
+            /**
+             * Name
+             * @description The brand's name.
+             */
             name: string;
+            /**
+             * Description
+             * @description What the brand is and stands for, given to the Script writer as context.
+             */
+            description?: string | null;
+            /**
+             * Attributes
+             * @description More about the brand as JSON, given to the Script writer as context. IDs here are not references: they grant no access to what they name.
+             */
+            attributes?: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+        };
+        /** BrandEdit */
+        BrandEdit: {
+            /**
+             * Version
+             * @description The version you read. If someone saved a newer one since, the edit is refused with 409 REVISION_CONFLICT: read the brand again.
+             */
+            version: number;
+            /** @description Only the fields to change; the rest keep their values. A list is replaced as a whole: `[]` empties it, and `null` clears an optional value. */
+            data?: components["schemas"]["BrandEditData"];
+        };
+        /** BrandEditData */
+        BrandEditData: {
+            /**
+             * Name
+             * @description The brand's name.
+             */
+            name?: string;
+            /**
+             * Description
+             * @description What the brand is and stands for, given to the Script writer as context.
+             */
+            description?: string | null;
+            /**
+             * Attributes
+             * @description More about the brand as JSON, given to the Script writer as context. IDs here are not references: they grant no access to what they name.
+             */
+            attributes?: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
         };
         /** BrandPage */
         BrandPage: {
-            /** Items */
+            /**
+             * Items
+             * @description The brands on this page, each at its current version, newest first.
+             */
             items: components["schemas"]["Brand"][];
             /**
              * Next Cursor
@@ -883,19 +1028,14 @@ export interface components {
              */
             next_cursor: string | null;
         };
-        /** BrandUpdate */
-        BrandUpdate: {
-            /**
-             * Version
-             * @description The version this edit is based on.
-             */
-            version: number;
-            data: components["schemas"]["BrandDataV1"];
-        };
         /** CallbackOut */
         CallbackOut: {
-            /** Url */
+            /**
+             * Url
+             * @description The `callback_url` the Job was started with.
+             */
             url: string;
+            /** @description Null until the Job ends; then `pending` while the final status is being sent (failures are retried), `sent` once your URL answered 2xx, or `failed` after the last attempt. */
             status: components["schemas"]["CallbackStatus"] | null;
         };
         /**
@@ -908,19 +1048,20 @@ export interface components {
             /**
              * Id
              * Format: uuid
-             * @description Stays the same across versions.
+             * @description Its id: the same for every version. A reference to it is `{id, version?}`; without `version` it means the latest.
              */
             id: string;
-            /** Version */
+            /**
+             * Version
+             * @description 1 for the first version, then one more per edit.
+             */
             version: number;
             /**
-             * Revision
-             * Format: uuid
-             * @description This version's id; content made from it records this id.
+             * Schema Version
+             * @description The version of `data`'s format.
              */
-            revision: string;
-            /** Schema Version */
             schema_version: number;
+            /** @description The character's details. */
             data: components["schemas"]["CharacterDataV1"];
             /**
              * Created At
@@ -938,11 +1079,15 @@ export interface components {
         };
         /** CharacterCreate */
         CharacterCreate: {
+            /** @description The character's details. */
             data: components["schemas"]["CharacterDataV1"];
         };
         /** CharacterDataV1 */
         CharacterDataV1: {
-            /** Name */
+            /**
+             * Name
+             * @description The character's name.
+             */
             name: string;
             /**
              * Description
@@ -960,24 +1105,51 @@ export interface components {
              */
             voice_asset_id?: string | null;
         };
+        /** CharacterEdit */
+        CharacterEdit: {
+            /**
+             * Version
+             * @description The version you read. If someone saved a newer one since, the edit is refused with 409 REVISION_CONFLICT: read the character again.
+             */
+            version: number;
+            /** @description Only the fields to change; the rest keep their values. A list is replaced as a whole: `[]` empties it, and `null` clears an optional value. */
+            data?: components["schemas"]["CharacterEditData"];
+        };
+        /** CharacterEditData */
+        CharacterEditData: {
+            /**
+             * Name
+             * @description The character's name.
+             */
+            name?: string;
+            /**
+             * Description
+             * @description Looks, persona, speaking style and language.
+             */
+            description?: string | null;
+            /**
+             * Image Asset Ids
+             * @description Image asset ids; the first is the default.
+             */
+            image_asset_ids?: string[];
+            /**
+             * Voice Asset Id
+             * @description An audio asset id.
+             */
+            voice_asset_id?: string | null;
+        };
         /** CharacterPage */
         CharacterPage: {
-            /** Items */
+            /**
+             * Items
+             * @description The characters on this page, each at its current version, newest first.
+             */
             items: components["schemas"]["Character"][];
             /**
              * Next Cursor
              * @description Pass as `cursor` for the next page.
              */
             next_cursor: string | null;
-        };
-        /** CharacterUpdate */
-        CharacterUpdate: {
-            /**
-             * Version
-             * @description The version this edit is based on.
-             */
-            version: number;
-            data: components["schemas"]["CharacterDataV1"];
         };
         /** Clip */
         Clip: {
@@ -998,8 +1170,11 @@ export interface components {
              */
             end_ms?: number | null;
         };
-        /** CompositionV1 */
-        CompositionV1: {
+        /**
+         * CompositionReadV1
+         * @description A composition as it is read; the editor's project data is the Agent's.
+         */
+        CompositionReadV1: {
             /**
              * Clips
              * @description In playing order.
@@ -1011,19 +1186,12 @@ export interface components {
              * @default []
              */
             audio_asset_ids?: string[];
-            /**
-             * Editor
-             * @description The editor's own project data, stored and returned as given.
-             * @default {}
-             */
-            editor?: {
-                [key: string]: unknown;
-            };
         };
         /** DirectingPlan */
         DirectingPlan: {
             /**
              * Kind
+             * @description Always `directing_plan`.
              * @constant
              */
             kind: "directing_plan";
@@ -1044,136 +1212,105 @@ export interface components {
              * @description The version this one was edited from.
              */
             base_id: string | null;
-            /** Schema Version */
+            /**
+             * Schema Version
+             * @description The version of `data`'s format.
+             */
             schema_version: number;
+            /** @description The directing plan's content. */
             data: components["schemas"]["DirectingPlanDataV1"];
-            /** Batch Id */
+            /**
+             * Batch Id
+             * @description The Batch it was made in; null when none.
+             */
             batch_id: string | null;
             /**
              * Created At
              * Format: date-time
+             * @description When this version was saved.
              */
             created_at: string;
             /**
              * Assets
-             * @description The assets `data` refers to, with download URLs.
+             * @description The assets `data` or `relationships` refer to, with download URLs.
              */
             assets: {
                 [key: string]: components["schemas"]["AssetOut"];
             };
-            /**
-             * Entities
-             * @description The entity versions `data` refers to, by `revision`.
-             */
-            entities: {
-                [key: string]: components["schemas"]["EntityRef"];
-            };
-            /**
-             * Skills
-             * @description The Skill versions `data` refers to, by version id.
-             */
-            skills: {
-                [key: string]: components["schemas"]["SkillRef"];
-            };
-        };
-        /** DirectingPlanCreate */
-        DirectingPlanCreate: {
-            /**
-             * Schema Version
-             * @description Only 1 is accepted.
-             */
-            schema_version: number;
-            data: components["schemas"]["DirectingPlanDataV1"];
-            /**
-             * Batch Id
-             * @description The batch it is made in; one of the caller's.
-             */
-            batch_id?: string | null;
         };
         /** DirectingPlanDataV1 */
         DirectingPlanDataV1: {
             /**
-             * Script
-             * @description The script it plans.
+             * Text
+             * @description The plan, in markdown: how the ad is shot and cut. It need not be one section per clip.
              */
-            script?: string | null;
-            /**
-             * Specs
-             * @description One per clip.
-             */
-            specs: components["schemas"]["Spec"][];
-            /**
-             * Skill
-             * @description The Skill version planned with.
-             */
-            skill?: string | null;
-        };
-        /** DirectingPlanVersionCreate */
-        DirectingPlanVersionCreate: {
-            data: components["schemas"]["DirectingPlanDataV1"];
-            /**
-             * Batch Id
-             * @description The batch it is made in; one of the caller's.
-             */
-            batch_id?: string | null;
-        };
-        /**
-         * EntityRef
-         * @description An entity version a row refers to, to read it with GET /v1/{kind}s/{id}?version=.
-         */
-        EntityRef: {
-            /** Kind */
-            kind: string;
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Version */
-            version: number;
+            text: string;
         };
         /** Error */
         Error: {
-            /** Code */
+            /**
+             * Code
+             * @description A stable, machine-readable code, e.g. `NOT_FOUND` or `REVISION_CONFLICT`.
+             */
             code: string;
-            /** Message */
+            /**
+             * Message
+             * @description An explanation for people to read; branch on `code`.
+             */
             message: string;
-            /** Retryable */
+            /**
+             * Retryable
+             * @description Whether the same request may succeed if sent again later.
+             */
             retryable: boolean;
-            /** Details */
+            /**
+             * Details
+             * @description The problems with the request's fields, when the error is about them; left out otherwise.
+             */
             details?: components["schemas"]["ErrorDetail"][] | null;
         };
         /** ErrorDetail */
         ErrorDetail: {
-            /** Path */
+            /**
+             * Path
+             * @description The request field the problem is in, as a dotted path, e.g. `data.prompt`.
+             */
             path: string;
-            /** Message */
+            /**
+             * Message
+             * @description What is wrong with it.
+             */
             message: string;
         };
         /** ErrorResponse */
         ErrorResponse: {
+            /** @description What went wrong. */
             error: components["schemas"]["Error"];
-            /** Request Id */
+            /**
+             * Request Id
+             * @description This request's id, also sent as the `X-Request-ID` header; quote it when reporting a problem.
+             */
             request_id: string;
         };
         /** GenerateVideo */
         GenerateVideo: {
             /**
              * Prompt
-             * Format: uuid
-             * @description The prompt artifact to run.
+             * @description An existing saved Prompt ID.
              */
-            prompt: string;
+            prompt?: string | null;
             /**
              * Seed
-             * @default 0
+             * @description The render's randomness. Omitted: a random seed, returned as `seed`; pass it again with the same Prompt to repeat the draw.
              */
-            seed?: number;
+            seed?: number | null;
             /**
              * Resolution
-             * @description Omitted: the model's default.
+             * @description Omitted: 768P.
              */
             resolution?: ("480P" | "768P") | null;
+            /** @description A Prompt of your own, saved with this Job: the prompt text and the files it names. Characters and Products reach a clip only through a Storyboard; here, attach their pictures yourself. */
+            input?: components["schemas"]["RawPromptInput"] | null;
             /**
              * Callback Url
              * @description A public HTTPS URL for the final status.
@@ -1181,42 +1318,65 @@ export interface components {
             callback_url?: string | null;
             /**
              * Batch Id
-             * @description One of the caller's batches.
+             * @description One of the caller's batches; when omitted, a saved Prompt's Job joins the Prompt's Batch.
              */
             batch_id?: string | null;
-        };
+        } & ({
+            prompt: string;
+            input?: null;
+        } | {
+            input: Record<string, never>;
+            prompt?: null;
+        });
         /** JobOut */
         JobOut: {
             /**
              * Id
              * Format: uuid
+             * @description The Job's id.
              */
             id: string;
+            /** @description `queued` (waiting, also after a failed attempt that is retried), `running`, then `completed`, `failed` or `cancelled`, which are final. */
             status: components["schemas"]["JobStatus"];
             /**
              * Prompt
              * Format: uuid
+             * @description The Prompt it renders; with raw `input`, the Prompt saved for it.
              */
             prompt: string;
-            /** Seed */
+            /**
+             * Seed
+             * @description The seed it renders with; pass it again with the same Prompt to repeat the draw.
+             */
             seed: number;
-            /** Resolution */
+            /**
+             * Resolution
+             * @description `480P` or `768P`; null when not chosen: 768P.
+             */
             resolution: string | null;
-            /** Batch Id */
+            /**
+             * Batch Id
+             * @description The Batch it belongs to; null when none.
+             */
             batch_id: string | null;
             /** @description The generated clip, once completed. */
             asset: components["schemas"]["AssetOut"] | null;
             /**
-             * Checkpoint
-             * @description The model weights that made the clip.
+             * Error
+             * @description Why the Job failed, once it has; null otherwise. Read `error_code`.
              */
-            checkpoint: string | null;
-            /** Error */
             error: string | null;
+            /**
+             * Error Code
+             * @description `GENERATION_FAILED` when the Job failed; null otherwise.
+             */
+            error_code: string | null;
+            /** @description Delivery of the final status to `callback_url`; null when none was given. */
             callback: components["schemas"]["CallbackOut"] | null;
             /**
              * Created At
              * Format: date-time
+             * @description When the Job was started.
              */
             created_at: string;
         };
@@ -1225,53 +1385,129 @@ export interface components {
          * @enum {string}
          */
         JobStatus: "queued" | "running" | "completed" | "failed" | "cancelled";
-        /** LogEntry */
-        LogEntry: {
+        JsonValue: unknown;
+        /** MadeFromArtifact */
+        MadeFromArtifact: {
             /**
              * Id
              * Format: uuid
+             * @description The version's id.
              */
             id: string;
-            /** Text */
-            text: string;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
         };
-        /** LogEntryCreate */
-        LogEntryCreate: {
+        /** MadeFromEntity */
+        MadeFromEntity: {
             /**
-             * Text
-             * @description What was changed in the batch, and why.
+             * Id
+             * Format: uuid
+             * @description The entity's id.
              */
-            text: string;
+            id: string;
+            /**
+             * Version
+             * @description The version it was made from.
+             */
+            version: number;
+        };
+        /** MadeWithSkill */
+        MadeWithSkill: {
+            /**
+             * Id
+             * Format: uuid
+             * @description The Skill's id.
+             */
+            id: string;
+            /**
+             * Name
+             * @description Its name.
+             */
+            name: string;
+            /**
+             * Version
+             * @description The version that wrote it.
+             */
+            version: number;
         };
         /** MainRequest */
         MainRequest: {
-            /** Version */
+            /**
+             * Version
+             * @description The version to make main.
+             */
             version: number;
+        };
+        /** MembershipIn */
+        MembershipIn: {
+            /**
+             * Scope
+             * @description `customer` or an external id.
+             */
+            scope: string;
+            /** @description `member`; `admin` (reads, writes, deletes and shares what users below the scope own); or `viewer` (reads what they own, and changes nothing of theirs). */
+            role: components["schemas"]["MembershipRole"];
+        };
+        /** MembershipOut */
+        MembershipOut: {
+            /**
+             * Scope
+             * @description `customer` or the scope's external id.
+             */
+            scope: string;
+            /** @description `member`, `admin` or `viewer`. */
+            role: components["schemas"]["MembershipRole"];
+        };
+        /**
+         * MembershipRole
+         * @enum {string}
+         */
+        MembershipRole: "member" | "admin" | "viewer";
+        /** MembershipsOut */
+        MembershipsOut: {
+            /**
+             * User Id
+             * Format: uuid
+             * @description Nuva's id for the user, as in its user tokens.
+             */
+            user_id: string;
+            /**
+             * External User Id
+             * @description The user's id in your system.
+             */
+            external_user_id: string;
+            /**
+             * Memberships
+             * @description The user's roles in scopes that aren't archived, oldest scope first.
+             */
+            memberships: components["schemas"]["MembershipOut"][];
+        };
+        /** MembershipsRequest */
+        MembershipsRequest: {
+            /**
+             * Memberships
+             * @description The user's whole set of scopes and roles, each scope once; it replaces the current set, and `[]` removes them all.
+             */
+            memberships: components["schemas"]["MembershipIn"][];
         };
         /** Product */
         Product: {
             /**
              * Id
              * Format: uuid
-             * @description Stays the same across versions.
+             * @description Its id: the same for every version. A reference to it is `{id, version?}`; without `version` it means the latest.
              */
             id: string;
-            /** Version */
+            /**
+             * Version
+             * @description 1 for the first version, then one more per edit.
+             */
             version: number;
             /**
-             * Revision
-             * Format: uuid
-             * @description This version's id; content made from it records this id.
+             * Schema Version
+             * @description The version of `data`'s format.
              */
-            revision: string;
-            /** Schema Version */
             schema_version: number;
-            data: components["schemas"]["ProductDataV1"];
+            /** @description The product's details. */
+            data: components["schemas"]["ProductDataV2"];
             /**
              * Brand Id
              * Format: uuid
@@ -1294,7 +1530,8 @@ export interface components {
         };
         /** ProductCreate */
         ProductCreate: {
-            data: components["schemas"]["ProductDataV1"];
+            /** @description The product's details. */
+            data: components["schemas"]["ProductDataV2"];
             /**
              * Brand Id
              * Format: uuid
@@ -1302,39 +1539,136 @@ export interface components {
              */
             brand_id: string;
         };
-        /** ProductDataV1 */
-        ProductDataV1: {
-            /** Name */
+        /**
+         * ProductDataV2
+         * @description A Product as writers read it. Its media fields are named like every other list of files
+         *     (`image_asset_ids`, `video_asset_ids`); version 1 called them `images` and `videos`.
+         */
+        ProductDataV2: {
+            /**
+             * Name
+             * @description The product's name.
+             */
             name: string;
             /**
-             * Images
-             * @description Image asset ids.
+             * Description
+             * @description What the product is, given to the Script writer as context.
+             */
+            description?: string | null;
+            /**
+             * Attributes
+             * @description More about the product as JSON, given to the Script writer as context. IDs here are not references: they grant no access to what they name.
+             */
+            attributes?: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /**
+             * Image Asset Ids
+             * @description Pictures of the product. The first is the default a Storyboard shows for `{{product}}`; `{{product:<asset id>}}` picks another.
              * @default []
              */
-            images?: string[];
+            image_asset_ids?: string[];
+            /**
+             * Video Asset Ids
+             * @description Videos of the product, which a Storyboard shot can name as `{{product:<asset id>}}`.
+             * @default []
+             */
+            video_asset_ids?: string[];
             /**
              * Selling Points
+             * @description What to say about the product; Scripts cite them as facts.
              * @default []
              */
             selling_points?: string[];
-            /** Target Audience */
+            /**
+             * Target Audience
+             * @description Who the ads are for.
+             */
             target_audience?: string | null;
             /**
              * Facts
-             * @description Other facts about the product.
+             * @description Other facts the Script writer may use.
              * @default []
              */
             facts?: string[];
             /**
              * Constraints
-             * @description Brand constraints on what ads may say.
+             * @description What ads may not say or show, as the brand requires.
              * @default []
+             */
+            constraints?: string[];
+        };
+        /** ProductEdit */
+        ProductEdit: {
+            /**
+             * Version
+             * @description The version you read. If someone saved a newer one since, the edit is refused with 409 REVISION_CONFLICT: read the product again.
+             */
+            version: number;
+            /** @description Only the fields to change; the rest keep their values. A list is replaced as a whole: `[]` empties it, and `null` clears an optional value. */
+            data?: components["schemas"]["ProductEditData"];
+            /**
+             * Brand Id
+             * @description The Brand it belongs to (the Brand's id).
+             */
+            brand_id?: string | null;
+        };
+        /** ProductEditData */
+        ProductEditData: {
+            /**
+             * Name
+             * @description The product's name.
+             */
+            name?: string;
+            /**
+             * Description
+             * @description What the product is, given to the Script writer as context.
+             */
+            description?: string | null;
+            /**
+             * Attributes
+             * @description More about the product as JSON, given to the Script writer as context. IDs here are not references: they grant no access to what they name.
+             */
+            attributes?: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /**
+             * Image Asset Ids
+             * @description Pictures of the product. The first is the default a Storyboard shows for `{{product}}`; `{{product:<asset id>}}` picks another.
+             */
+            image_asset_ids?: string[];
+            /**
+             * Video Asset Ids
+             * @description Videos of the product, which a Storyboard shot can name as `{{product:<asset id>}}`.
+             */
+            video_asset_ids?: string[];
+            /**
+             * Selling Points
+             * @description What to say about the product; Scripts cite them as facts.
+             */
+            selling_points?: string[];
+            /**
+             * Target Audience
+             * @description Who the ads are for.
+             */
+            target_audience?: string | null;
+            /**
+             * Facts
+             * @description Other facts the Script writer may use.
+             */
+            facts?: string[];
+            /**
+             * Constraints
+             * @description What ads may not say or show, as the brand requires.
              */
             constraints?: string[];
         };
         /** ProductPage */
         ProductPage: {
-            /** Items */
+            /**
+             * Items
+             * @description The products on this page, each at its current version, newest first.
+             */
             items: components["schemas"]["Product"][];
             /**
              * Next Cursor
@@ -1342,25 +1676,11 @@ export interface components {
              */
             next_cursor: string | null;
         };
-        /** ProductUpdate */
-        ProductUpdate: {
-            /**
-             * Version
-             * @description The version this edit is based on.
-             */
-            version: number;
-            data: components["schemas"]["ProductDataV1"];
-            /**
-             * Brand Id
-             * Format: uuid
-             * @description The Brand it belongs to (the Brand's id).
-             */
-            brand_id: string;
-        };
         /** Prompt */
         Prompt: {
             /**
              * Kind
+             * @description Always `prompt`.
              * @constant
              */
             kind: "prompt";
@@ -1381,45 +1701,124 @@ export interface components {
              * @description The version this one was edited from.
              */
             base_id: string | null;
-            /** Schema Version */
+            /**
+             * Schema Version
+             * @description The version of `data`'s format.
+             */
             schema_version: number;
-            data: components["schemas"]["PromptDataV1"];
-            /** Batch Id */
+            /** @description The prompt's content. */
+            data: components["schemas"]["PromptReadV1"];
+            /**
+             * Batch Id
+             * @description The Batch it was made in; null when none.
+             */
             batch_id: string | null;
             /**
              * Created At
              * Format: date-time
+             * @description When this version was saved.
              */
             created_at: string;
             /**
              * Assets
-             * @description The assets `data` refers to, with download URLs.
+             * @description The assets `data` or `relationships` refer to, with download URLs.
              */
             assets: {
                 [key: string]: components["schemas"]["AssetOut"];
             };
-            /**
-             * Entities
-             * @description The entity versions `data` refers to, by `revision`.
-             */
-            entities: {
-                [key: string]: components["schemas"]["EntityRef"];
-            };
-            /**
-             * Skills
-             * @description The Skill versions `data` refers to, by version id.
-             */
-            skills: {
-                [key: string]: components["schemas"]["SkillRef"];
-            };
+            /** @description The Storyboard it was compiled from (its clip is `data.clip_id`); null for raw input. */
+            storyboard: components["schemas"]["MadeFromArtifact"] | null;
+            /** @description The Skill version that wrote it; null when none. */
+            skill: components["schemas"]["MadeWithSkill"] | null;
         };
-        /** PromptCreate */
-        PromptCreate: {
+        /**
+         * PromptDataV1
+         * @description A saved Prompt: what the clip is rendered from, and which Characters and Storyboard clip
+         *     it came from, which the Agent records. Seed, resolution and callback belong to the Job. The
+         *     total number of references the model takes (12) is checked when the prompt is used.
+         */
+        PromptDataV1: {
             /**
-             * Schema Version
-             * @description Only 1 is accepted.
+             * Prompt
+             * @description What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other.
              */
-            schema_version: number;
+            prompt: string;
+            /**
+             * Image Asset Ids
+             * @description Images the clip uses, as <Picture 1>, <Picture 2>, … in this order. A person or product looks like their picture only when it is attached here and named.
+             * @default []
+             */
+            image_asset_ids?: string[];
+            /**
+             * Video Asset Ids
+             * @description Videos the clip uses, as <Video 1>, … in order.
+             * @default []
+             */
+            video_asset_ids?: string[];
+            /**
+             * Audio Asset Ids
+             * @description Audio the clip uses (a voice, music, sound), as <Audio 1>, … in order.
+             * @default []
+             */
+            audio_asset_ids?: string[];
+            /**
+             * Seconds
+             * @description The clip's length. Omitted: 5 seconds.
+             */
+            seconds?: number | null;
+            /**
+             * Ratio
+             * @description The frame. Omitted: 16:9. `adaptive` follows the first image or video.
+             */
+            ratio?: ("adaptive" | "21:9" | "16:9" | "4:3" | "1:1" | "3:4" | "9:16") | null;
+        };
+        /**
+         * PromptReadV1
+         * @description A saved Prompt as it is read. Which Character versions it shows is the Agent's record.
+         */
+        PromptReadV1: {
+            /**
+             * Prompt
+             * @description What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other.
+             */
+            prompt: string;
+            /**
+             * Image Asset Ids
+             * @description Images the clip uses, as <Picture 1>, <Picture 2>, … in this order. A person or product looks like their picture only when it is attached here and named.
+             * @default []
+             */
+            image_asset_ids?: string[];
+            /**
+             * Video Asset Ids
+             * @description Videos the clip uses, as <Video 1>, … in order.
+             * @default []
+             */
+            video_asset_ids?: string[];
+            /**
+             * Audio Asset Ids
+             * @description Audio the clip uses (a voice, music, sound), as <Audio 1>, … in order.
+             * @default []
+             */
+            audio_asset_ids?: string[];
+            /**
+             * Seconds
+             * @description The clip's length. Omitted: 5 seconds.
+             */
+            seconds?: number | null;
+            /**
+             * Ratio
+             * @description The frame. Omitted: 16:9. `adaptive` follows the first image or video.
+             */
+            ratio?: ("adaptive" | "21:9" | "16:9" | "4:3" | "1:1" | "3:4" | "9:16") | null;
+            /**
+             * Clip Id
+             * @description For a Prompt compiled from a Storyboard: the clip it renders (`C01`, …).
+             */
+            clip_id?: string | null;
+        };
+        /** PromptVersionCreate */
+        PromptVersionCreate: {
+            /** @description The prompt's content. */
             data: components["schemas"]["PromptDataV1"];
             /**
              * Batch Id
@@ -1428,62 +1827,136 @@ export interface components {
             batch_id?: string | null;
         };
         /**
-         * PromptDataV1
-         * @description What POST /v1/videos takes to describe a clip; seed, resolution and callback belong to the
-         *     Job. Each list's order numbers its references in the prompt: <Picture 1>, <Video 1>, ...
-         *     The total number of references a model takes is checked when the prompt is used.
+         * RawPromptDataV1
+         * @description What a raw render takes: the prompt text and the files it names, the length and the frame,
+         *     which is all the video model sees.
          */
-        PromptDataV1: {
-            /** Prompt */
+        RawPromptDataV1: {
+            /**
+             * Prompt
+             * @description What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other.
+             */
             prompt: string;
             /**
              * Image Asset Ids
+             * @description Images the clip uses, as <Picture 1>, <Picture 2>, … in this order. A person or product looks like their picture only when it is attached here and named.
              * @default []
              */
             image_asset_ids?: string[];
             /**
              * Video Asset Ids
+             * @description Videos the clip uses, as <Video 1>, … in order.
              * @default []
              */
             video_asset_ids?: string[];
             /**
              * Audio Asset Ids
+             * @description Audio the clip uses (a voice, music, sound), as <Audio 1>, … in order.
              * @default []
              */
             audio_asset_ids?: string[];
-            /** Seconds */
+            /**
+             * Seconds
+             * @description The clip's length. Omitted: 5 seconds.
+             */
             seconds?: number | null;
-            /** Ratio */
+            /**
+             * Ratio
+             * @description The frame. Omitted: 16:9. `adaptive` follows the first image or video.
+             */
             ratio?: ("adaptive" | "21:9" | "16:9" | "4:3" | "1:1" | "3:4" | "9:16") | null;
-            /**
-             * Plan
-             * @description The directing plan it comes from.
-             */
-            plan?: string | null;
-            /**
-             * Clip Key
-             * @description Its spec in `plan`.
-             */
-            clip_key?: string | null;
         };
-        /** PromptVersionCreate */
-        PromptVersionCreate: {
-            data: components["schemas"]["PromptDataV1"];
+        /** RawPromptInput */
+        RawPromptInput: {
             /**
-             * Batch Id
-             * @description The batch it is made in; one of the caller's.
+             * Schema Version
+             * @description The version of `data`'s format: 1.
+             * @constant
              */
-            batch_id?: string | null;
+            schema_version: 1;
+            /** @description What the clip is rendered from: the prompt text, the files it names, the length and the frame. */
+            data: components["schemas"]["RawPromptDataV1"];
         };
         /** RegisteredSkill */
         RegisteredSkill: {
+            /** @description The Skill. */
             skill: components["schemas"]["SkillOut"];
+            /** @description The new version, or the latest one when its content was the same. */
             version: components["schemas"]["SkillVersionOut"];
+        };
+        /** ScopeOut */
+        ScopeOut: {
+            /**
+             * Id
+             * Format: uuid
+             * @description Nuva's id for the scope.
+             */
+            id: string;
+            /**
+             * External Id
+             * @description Your id for the org or group, as in its path.
+             */
+            external_id: string;
+            /**
+             * Kind
+             * @description `org` or `group`.
+             * @enum {string}
+             */
+            kind: "org" | "group";
+            /**
+             * Parent
+             * @description The parent's external id, or `customer` for the root.
+             */
+            parent: string;
+            /**
+             * Name
+             * @description Its display name; null when none was given.
+             */
+            name: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the scope was first put.
+             */
+            created_at: string;
+        };
+        /** ScopePage */
+        ScopePage: {
+            /**
+             * Items
+             * @description The orgs and groups on this page that aren't archived, newest first.
+             */
+            items: components["schemas"]["ScopeOut"][];
+            /**
+             * Next Cursor
+             * @description Pass as `cursor` for the next page; null on the last page.
+             */
+            next_cursor: string | null;
+        };
+        /** ScopeRequest */
+        ScopeRequest: {
+            /**
+             * Kind
+             * @description `org` (under the customer) or `group` (under an org).
+             * @enum {string}
+             */
+            kind: "org" | "group";
+            /**
+             * Parent
+             * @description A group's org, by its external id.
+             */
+            parent?: string | null;
+            /**
+             * Name
+             * @description A display name. Every PUT sets it, so leaving it out clears it.
+             */
+            name?: string | null;
         };
         /** Script */
         Script: {
             /**
              * Kind
+             * @description Always `script`.
              * @constant
              */
             kind: "script";
@@ -1504,87 +1977,128 @@ export interface components {
              * @description The version this one was edited from.
              */
             base_id: string | null;
-            /** Schema Version */
+            /**
+             * Schema Version
+             * @description The version of `data`'s format.
+             */
             schema_version: number;
+            /** @description The script's content. */
             data: components["schemas"]["ScriptDataV1"];
-            /** Batch Id */
+            /**
+             * Batch Id
+             * @description The Batch it was made in; null when none.
+             */
             batch_id: string | null;
             /**
              * Created At
              * Format: date-time
+             * @description When this version was saved.
              */
             created_at: string;
             /**
              * Assets
-             * @description The assets `data` refers to, with download URLs.
+             * @description The assets `data` or `relationships` refer to, with download URLs.
              */
             assets: {
                 [key: string]: components["schemas"]["AssetOut"];
             };
-            /**
-             * Entities
-             * @description The entity versions `data` refers to, by `revision`.
-             */
-            entities: {
-                [key: string]: components["schemas"]["EntityRef"];
-            };
-            /**
-             * Skills
-             * @description The Skill versions `data` refers to, by version id.
-             */
-            skills: {
-                [key: string]: components["schemas"]["SkillRef"];
-            };
-        };
-        /** ScriptCreate */
-        ScriptCreate: {
-            /**
-             * Schema Version
-             * @description Only 1 is accepted.
-             */
-            schema_version: number;
-            data: components["schemas"]["ScriptDataV1"];
-            /**
-             * Batch Id
-             * @description The batch it is made in; one of the caller's.
-             */
-            batch_id?: string | null;
+            /** @description The Product version it was written for. */
+            product: components["schemas"]["MadeFromEntity"] | null;
+            /** @description The Skill version that wrote it; null when none. */
+            skill: components["schemas"]["MadeWithSkill"] | null;
         };
         /** ScriptDataV1 */
         ScriptDataV1: {
             /**
-             * Product
-             * @description The Product version written for: its `revision`.
-             */
-            product?: string | null;
-            /**
              * Text
-             * @description The script, in markdown.
+             * @description The Script, encoded by the SDK (`nuva.script`); read it as the SDK's `content`.
              */
             text: string;
-            /**
-             * Skill
-             * @description The Skill version written with.
-             */
-            skill?: string | null;
         };
-        /** ScriptVersionCreate */
-        ScriptVersionCreate: {
-            data: components["schemas"]["ScriptDataV1"];
+        /**
+         * ShareAccess
+         * @enum {string}
+         */
+        ShareAccess: "read" | "write";
+        /** ShareOut */
+        ShareOut: {
             /**
-             * Batch Id
-             * @description The batch it is made in; one of the caller's.
+             * Kind
+             * @description The item's kind, as in the path.
              */
-            batch_id?: string | null;
-        };
-        /** SkillDetail */
-        SkillDetail: {
+            kind: string;
             /**
              * Id
              * Format: uuid
+             * @description The shared item: an asset's id, an entity's id, or an Artifact's first version's id. A share covers every version.
              */
             id: string;
-            /** Name */
+            /**
+             * Scope
+             * @description The scope it is shared with: `customer` or an external id.
+             */
+            scope: string;
+            /** @description `read` (see and use) or `write` (also edit). */
+            access: components["schemas"]["ShareAccess"];
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the item was first shared with this scope.
+             */
+            created_at: string;
+        };
+        /** ShareRequest */
+        ShareRequest: {
+            /** @description `read` (see and use) or `write` (also edit). */
+            access: components["schemas"]["ShareAccess"];
+        };
+        /** SharesOut */
+        SharesOut: {
+            /**
+             * Items
+             * @description The item's shares with scopes that aren't archived, oldest first.
+             */
+            items: components["schemas"]["ShareOut"][];
+        };
+        /** SkillFile */
+        SkillFile: {
+            /**
+             * Path
+             * @description The file's path in the Skill, e.g. `SKILL.md`.
+             */
+            path: string;
+            /**
+             * Bytes
+             * @description Its size in bytes.
+             */
+            bytes: number;
+            /**
+             * Sha256
+             * @description The SHA-256 of its content, in hex.
+             */
+            sha256: string;
+            /**
+             * Download Url
+             * @description A temporary URL for its content, until `download_url_expires_at`.
+             */
+            download_url: string;
+        };
+        /**
+         * SkillListed
+         * @description A Skill in a list, at its latest version; SDKs before the version header read it without
+         *     one (SkillOut).
+         */
+        SkillListed: {
+            /**
+             * Id
+             * Format: uuid
+             * @description The Skill's id.
+             */
+            id: string;
+            /**
+             * Name
+             * @description Its name, as registered.
+             */
             name: string;
             /**
              * Platform
@@ -1599,29 +2113,54 @@ export interface components {
             /**
              * Created At
              * Format: date-time
+             * @description When its first version was registered.
              */
             created_at: string;
-            main: components["schemas"]["SkillVersionOut"] | null;
-        };
-        /** SkillFile */
-        SkillFile: {
-            /** Path */
-            path: string;
-            /** Bytes */
-            bytes: number;
-            /** Sha256 */
-            sha256: string;
-            /** Download Url */
-            download_url: string;
+            /**
+             * Version
+             * @description The version shown here: the latest.
+             */
+            version: number | null;
+            /**
+             * Description
+             * @description Its description, as registered.
+             */
+            description: string | null;
+            /**
+             * Note
+             * @description What this version changes.
+             */
+            note: string | null;
+            /**
+             * Attributes
+             * @description The fields for the Agent's loader, as registered.
+             */
+            attributes: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Files
+             * @description Its files, by path, each with a download URL.
+             */
+            files: components["schemas"]["SkillFile"][] | null;
+            /**
+             * Download Url Expires At
+             * @description When the files' download URLs stop working: in an hour.
+             */
+            download_url_expires_at: string | null;
         };
         /** SkillOut */
         SkillOut: {
             /**
              * Id
              * Format: uuid
+             * @description The Skill's id.
              */
             id: string;
-            /** Name */
+            /**
+             * Name
+             * @description Its name, as in PUT /v1/admin/skills/{name}.
+             */
             name: string;
             /**
              * Platform
@@ -1636,13 +2175,17 @@ export interface components {
             /**
              * Created At
              * Format: date-time
+             * @description When its first version was registered.
              */
             created_at: string;
         };
         /** SkillPage */
         SkillPage: {
-            /** Items */
-            items: components["schemas"]["SkillOut"][];
+            /**
+             * Items
+             * @description The Skills on this page, newest first, each at its latest version.
+             */
+            items: components["schemas"]["SkillListed"][];
             /**
              * Next Cursor
              * @description Pass as `cursor` for the next page.
@@ -1650,19 +2193,70 @@ export interface components {
             next_cursor: string | null;
         };
         /**
-         * SkillRef
-         * @description A Skill version a row refers to, to read it with GET /v1/skills/{id}/versions/{version}.
+         * SkillRead
+         * @description A Skill at one version: the latest, or the one asked for. SDKs before the version header
+         *     read the Skill with its `main` version (SkillDetail).
          */
-        SkillRef: {
+        SkillRead: {
             /**
-             * Skill Id
+             * Id
              * Format: uuid
+             * @description The Skill's id.
              */
-            skill_id: string;
-            /** Name */
+            id: string;
+            /**
+             * Name
+             * @description Its name, as registered.
+             */
             name: string;
-            /** Version */
-            version: number;
+            /**
+             * Platform
+             * @description Provided by Nuva to every customer.
+             */
+            platform: boolean;
+            /**
+             * Main Version
+             * @description The version new work uses by default.
+             */
+            main_version: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             * @description When its first version was registered.
+             */
+            created_at: string;
+            /**
+             * Version
+             * @description The version shown here.
+             */
+            version: number | null;
+            /**
+             * Description
+             * @description Its description, as registered.
+             */
+            description: string | null;
+            /**
+             * Note
+             * @description What this version changes.
+             */
+            note: string | null;
+            /**
+             * Attributes
+             * @description The fields for the Agent's loader, as registered.
+             */
+            attributes: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Files
+             * @description Its files, by path, each with a download URL.
+             */
+            files: components["schemas"]["SkillFile"][] | null;
+            /**
+             * Download Url Expires At
+             * @description When the files' download URLs stop working: in an hour.
+             */
+            download_url_expires_at: string | null;
         };
         /** SkillRegistration */
         SkillRegistration: {
@@ -1681,7 +2275,10 @@ export interface components {
             attributes?: {
                 [key: string]: unknown;
             };
-            /** Description */
+            /**
+             * Description
+             * @description What the Skill is for, kept with this version.
+             */
             description?: string | null;
             /**
              * Note
@@ -1698,7 +2295,10 @@ export interface components {
              * @description e.g. github.com/Nuva-Lab/WhatIf
              */
             repo: string;
-            /** Commit */
+            /**
+             * Commit
+             * @description The commit, in hex.
+             */
             commit: string;
             /**
              * Path
@@ -1717,50 +2317,119 @@ export interface components {
             /**
              * Skill Id
              * Format: uuid
+             * @description The Skill it is a version of.
              */
             skill_id: string;
-            /** Version */
+            /**
+             * Version
+             * @description 1 for the first version, then one more per new version.
+             */
             version: number;
-            /** Description */
+            /**
+             * Description
+             * @description The description registered with it.
+             */
             description: string | null;
-            /** Note */
+            /**
+             * Note
+             * @description What this version changes, as registered.
+             */
             note: string | null;
-            source: components["schemas"]["SkillSource"] | null;
-            /** Attributes */
+            /**
+             * Attributes
+             * @description The fields for the Agent's loader registered with it, as given.
+             */
             attributes: {
                 [key: string]: unknown;
             };
-            /** Files */
+            /**
+             * Files
+             * @description Its files, by path, each with a download URL.
+             */
             files: components["schemas"]["SkillFile"][];
             /**
              * Download Url Expires At
              * Format: date-time
+             * @description When the files' download URLs stop working: an hour after this response.
              */
             download_url_expires_at: string;
             /**
              * Created At
              * Format: date-time
+             * @description When this version was registered.
              */
             created_at: string;
         };
-        /** Spec */
-        Spec: {
+        /** Storyboard */
+        Storyboard: {
             /**
-             * Clip Key
-             * @description Lines the clip's prompt up with this spec.
+             * Kind
+             * @description Always `storyboard`.
+             * @constant
              */
-            clip_key: string;
+            kind: "storyboard";
             /**
-             * Text
-             * @description Picture, shots and lines, in markdown.
+             * Id
+             * Format: uuid
+             * @description This version's id.
              */
-            text: string;
+            id: string;
+            /**
+             * Lineage Id
+             * Format: uuid
+             * @description The first version's id.
+             */
+            lineage_id: string;
+            /**
+             * Base Id
+             * @description The version this one was edited from.
+             */
+            base_id: string | null;
+            /**
+             * Schema Version
+             * @description The version of `data`'s format.
+             */
+            schema_version: number;
+            /** @description The storyboard's content. */
+            data: components["schemas"]["StoryboardDataV1"];
+            /**
+             * Batch Id
+             * @description The Batch it was made in; null when none.
+             */
+            batch_id: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             * @description When this version was saved.
+             */
+            created_at: string;
+            /**
+             * Assets
+             * @description The assets `data` or `relationships` refer to, with download URLs.
+             */
+            assets: {
+                [key: string]: components["schemas"]["AssetOut"];
+            };
+            /** @description The Script it shoots. */
+            script: components["schemas"]["MadeFromArtifact"] | null;
+            /** @description The Product version it shows. */
+            product: components["schemas"]["MadeFromEntity"] | null;
             /**
              * Characters
-             * @description Character versions that appear: `revision`s.
+             * @description The Character versions it casts.
              * @default []
              */
-            characters?: string[];
+            characters: components["schemas"]["MadeFromEntity"][];
+            /** @description The Skill version that wrote it; null when none. */
+            skill: components["schemas"]["MadeWithSkill"] | null;
+        };
+        /** StoryboardDataV1 */
+        StoryboardDataV1: {
+            /**
+             * Text
+             * @description How a Script is shot: casting, locations, timed shots and each clip's references, encoded by the SDK (`nuva.storyboard`). It is `based_on` its Script and the Characters it casts.
+             */
+            text: string;
         };
         /** TokenRequest */
         TokenRequest: {
@@ -1779,6 +2448,7 @@ export interface components {
             access_token: string;
             /**
              * Token Type
+             * @description Always `Bearer`.
              * @default Bearer
              */
             token_type?: string;
@@ -1788,6 +2458,7 @@ export interface components {
              * @description Request a new token before this time.
              */
             expires_at: string;
+            /** @description The user the token is for. */
             user: components["schemas"]["TokenUser"];
         };
         /** TokenUser */
@@ -1798,7 +2469,10 @@ export interface components {
              * @description Nuva's id for the user; the `sub` claim of the token.
              */
             id: string;
-            /** External User Id */
+            /**
+             * External User Id
+             * @description The user's id in your system, as you sent it.
+             */
             external_user_id: string;
         };
         /** UploadOut */
@@ -1816,15 +2490,20 @@ export interface components {
             /**
              * Expires At
              * Format: date-time
+             * @description When `upload_url` and `upload_token` stop working: an hour after the request.
              */
             expires_at: string;
-            /** Max Bytes */
+            /**
+             * Max Bytes
+             * @description The largest file of this kind, in bytes; a larger one is refused when registered (413 ASSET_TOO_LARGE).
+             */
             max_bytes: number;
         };
         /** UploadRequest */
         UploadRequest: {
             /**
              * Kind
+             * @description What you will upload: `image` (JPEG, PNG or WebP), `video` (MP4) or `audio` (MP3, WAV or MP4).
              * @enum {string}
              */
             kind: "image" | "video" | "audio";
@@ -1925,7 +2604,10 @@ export interface operations {
     create_asset_v1_assets_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional stable write key scoped to customer/user/method/path. Reuse only with the same effective input. */
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -2049,12 +2731,67 @@ export interface operations {
             };
         };
     };
+    update_asset_v1_assets__asset_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                asset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetEdit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     list_brands_v1_brands_get: {
         parameters: {
             query?: {
                 limit?: number;
                 /** @description From `next_cursor`. */
                 cursor?: string | null;
+                /** @description Only those this user owns (an admin's view). */
+                user_id?: string | null;
             };
             header?: never;
             path?: never;
@@ -2094,7 +2831,10 @@ export interface operations {
     create_brand_v1_brands_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional stable write key scoped to customer/user/method/path. Reuse only with the same effective input. */
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -2115,6 +2855,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2184,10 +2933,13 @@ export interface operations {
             };
         };
     };
-    update_brand_v1_brands__brand_id__put: {
+    update_brand_v1_brands__brand_id__patch: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional stable write key scoped to customer/user/method/path. Reuse only with the same effective input. */
+                "Idempotency-Key"?: string | null;
+            };
             path: {
                 brand_id: string;
             };
@@ -2195,7 +2947,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["BrandUpdate"];
+                "application/json": components["schemas"]["BrandEdit"];
             };
         };
         responses: {
@@ -2253,6 +3005,8 @@ export interface operations {
                 /** @description From `next_cursor`. */
                 cursor?: string | null;
                 brand_id?: string | null;
+                /** @description Only those this user owns (an admin's view). */
+                user_id?: string | null;
             };
             header?: never;
             path?: never;
@@ -2292,7 +3046,10 @@ export interface operations {
     create_product_v1_products_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional stable write key scoped to customer/user/method/path. Reuse only with the same effective input. */
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -2313,6 +3070,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2382,7 +3148,7 @@ export interface operations {
             };
         };
     };
-    update_product_v1_products__product_id__put: {
+    delete_product_v1_products__product_id__delete: {
         parameters: {
             query?: never;
             header?: never;
@@ -2391,9 +3157,59 @@ export interface operations {
             };
             cookie?: never;
         };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_product_v1_products__product_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional stable write key scoped to customer/user/method/path. Reuse only with the same effective input. */
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ProductUpdate"];
+                "application/json": components["schemas"]["ProductEdit"];
             };
         };
         responses: {
@@ -2450,6 +3266,8 @@ export interface operations {
                 limit?: number;
                 /** @description From `next_cursor`. */
                 cursor?: string | null;
+                /** @description Only those this user owns (an admin's view). */
+                user_id?: string | null;
             };
             header?: never;
             path?: never;
@@ -2489,7 +3307,10 @@ export interface operations {
     create_character_v1_characters_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional stable write key scoped to customer/user/method/path. Reuse only with the same effective input. */
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -2510,6 +3331,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2579,10 +3409,13 @@ export interface operations {
             };
         };
     };
-    update_character_v1_characters__character_id__put: {
+    update_character_v1_characters__character_id__patch: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional stable write key scoped to customer/user/method/path. Reuse only with the same effective input. */
+                "Idempotency-Key"?: string | null;
+            };
             path: {
                 character_id: string;
             };
@@ -2590,7 +3423,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CharacterUpdate"];
+                "application/json": components["schemas"]["CharacterEdit"];
             };
         };
         responses: {
@@ -2683,48 +3516,6 @@ export interface operations {
             };
         };
     };
-    create_batch_v1_batches_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BatchCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BatchOut"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
     get_batch_v1_batches__batch_id__get: {
         parameters: {
             query?: never;
@@ -2756,110 +3547,6 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    append_log_v1_batches__batch_id__log_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                batch_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LogEntryCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LogEntry"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    create_script_v1_artifacts_script_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ScriptCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Script"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2927,7 +3614,7 @@ export interface operations {
             };
         };
     };
-    create_script_version_v1_artifacts_script__artifact_id__versions_post: {
+    get_storyboard_v1_artifacts_storyboard__artifact_id__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -2936,19 +3623,15 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ScriptVersionCreate"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Script"];
+                    "application/json": components["schemas"]["Storyboard"];
                 };
             };
             /** @description Unauthorized */
@@ -2962,48 +3645,6 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    create_directing_plan_v1_artifacts_directing_plan_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DirectingPlanCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DirectingPlan"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3053,101 +3694,6 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    create_directing_plan_version_v1_artifacts_directing_plan__artifact_id__versions_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                artifact_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DirectingPlanVersionCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DirectingPlan"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    create_prompt_v1_artifacts_prompt_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PromptCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Prompt"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3218,7 +3764,10 @@ export interface operations {
     create_prompt_version_v1_artifacts_prompt__artifact_id__versions_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional stable write key scoped to customer/user/method/path. Reuse only with the same effective input. */
+                "Idempotency-Key"?: string | null;
+            };
             path: {
                 artifact_id: string;
             };
@@ -3241,6 +3790,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3418,7 +3976,10 @@ export interface operations {
     };
     get_skill_v1_skills__skill_id__get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The version to read; the latest when left out. */
+                version?: number | null;
+            };
             header?: never;
             path: {
                 skill_id: string;
@@ -3433,57 +3994,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SkillDetail"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    get_skill_version_v1_skills__skill_id__versions__version__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                skill_id: string;
-                version: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SkillVersionOut"];
+                    "application/json": components["schemas"]["SkillRead"];
                 };
             };
             /** @description Unauthorized */
@@ -3518,7 +4029,10 @@ export interface operations {
     generate_video_v1_generate_video_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional stable write key scoped to customer/user/method/path. Reuse only with the same effective input. */
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -3539,6 +4053,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3707,21 +4230,19 @@ export interface operations {
             };
         };
     };
-    create_ad_v1_ads_post: {
+    get_ad_v1_ads__ad_id__get: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                ad_id: string;
+            };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AdCreate"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3731,6 +4252,68 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    put_scope_v1_admin_scopes__external_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                external_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScopeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScopeOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3758,12 +4341,110 @@ export interface operations {
             };
         };
     };
-    get_ad_v1_ads__ad_id__get: {
+    archive_scope_v1_admin_scopes__external_id__delete: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                ad_id: string;
+                external_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_scopes_v1_admin_scopes_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description From `next_cursor`. */
+                cursor?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScopePage"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_memberships_v1_admin_users__external_user_id__memberships_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                external_user_id: string;
             };
             cookie?: never;
         };
@@ -3775,11 +4456,236 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AdOut"];
+                    "application/json": components["schemas"]["MembershipsOut"];
                 };
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    put_memberships_v1_admin_users__external_user_id__memberships_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                external_user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MembershipsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MembershipsOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_shares_v1_shares__kind___item_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharesOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    put_share_v1_shares__kind___item_id___scope__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+                item_id: string;
+                scope: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShareRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShareOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    delete_share_v1_shares__kind___item_id___scope__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+                item_id: string;
+                scope: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

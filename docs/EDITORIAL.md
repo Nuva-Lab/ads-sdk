@@ -28,6 +28,7 @@ API meaning comes from the SDK source and its exported declarations. When this g
 - Lead with integration and Agent interaction; put detailed references later. Use parallel sidebar entries for Client Agent, Client Store and Go Admin.
 - Preserve current page styling and useful examples/downloads. Let long types wrap without splitting identifiers across characters.
 - Keep examples beside the behavior they demonstrate. Do not introduce a table with a paragraph that repeats it.
+- The field reference (`api_reference.py`) is generated from the public contract, the zod schemas and `stores.ts`. When the contract changes, the build lists what to add: the method map, a note for a field without a description, or the Chinese in `reference_zh.json`. Never document the internal contract there.
 - Rebuild generated pages from their sources (`pnpm build`, then `pnpm check`); generated HTML and ZIPs stay git-ignored. Do not hand-edit `customer/`. Check affected links, examples and the file allowlist.
 - Keep customer publication separate from internal design and dev tools. Publication is a separate action; building does not deploy.
 - Do not restore retired review pages, diagram builders or tutorial-specific sections merely to preserve old presentation instructions.

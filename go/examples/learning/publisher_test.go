@@ -129,9 +129,6 @@ func TestPublicationReportsReturnedMainStatus(t *testing.T) {
 				if !errors.As(err, &api) || api.StatusCode != tc.activationStatus {
 					t.Fatalf("expected activation error, got %v", err)
 				}
-				if tc.activationStatus == http.StatusServiceUnavailable && api.Acceptance != "unknown" {
-					t.Fatalf("expected uncertain write, got %q", api.Acceptance)
-				}
 			} else if err != nil {
 				t.Fatal(err)
 			}

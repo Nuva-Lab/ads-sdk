@@ -154,8 +154,8 @@ export function scriptLines(script: Pick<ScriptGeneration, 'panels'>) {
 
 // ── Storyboard v1 ────────────────────────────────────────────────────────
 
-/** The Character's own voice file, as opposed to a described voice. */
-export const CHARACTER_VOICE = 'character';
+/** What Storyboards saved before `own_voice` wrote in `voice` for the Character's own voice file. */
+const LEGACY_OWN_VOICE = 'character';
 export const castEntrySchema = z
 	.object({
 		character: backendIdSchema.optional().describe('The Character who plays the role; its images and voice keep the person the same in every clip.'),
@@ -165,7 +165,11 @@ export const castEntrySchema = z
 			.min(1)
 			.max(2000)
 			.optional()
-			.describe('"character" uses the cast Character\'s voice file; any other text describes the voice (age, gender, pitch, timbre, accent).'),
+			.describe('A description of the voice: age, gender, pitch, timbre, accent.'),
+		own_voice: z
+			.literal(true)
+			.optional()
+			.describe('Speak with the cast Character\'s own voice file instead of a described voice; needs a `character` that has one.'),
 	})
 	.strict();
 export const storyboardClipSchema = z
@@ -307,7 +311,7 @@ export function clipReferences(storyboard: Pick<StoryboardContent, 'cast' | 'cli
 			} else if (LINE_ID.test(token.name)) {
 				const speaker = speakers.get(token.name);
 				const entry = speaker === undefined ? undefined : storyboard.cast[speaker];
-				if (entry?.voice === CHARACTER_VOICE && entry.character !== undefined) add(context.characters[entry.character]?.voice ?? undefined, 'audio');
+				if (entry?.own_voice === true && entry.character !== undefined) add(context.characters[entry.character]?.voice ?? undefined, 'audio');
 			} else {
 				const character = storyboard.cast[token.name]?.character;
 				const entry = character === undefined ? undefined : context.characters[character];
@@ -352,10 +356,12 @@ export function storyboardIssues(storyboard: StoryboardContent, context: Storybo
 			if (context.characters[entry.character] === undefined) say(at, `Character ${entry.character} is not available.`);
 		}
 		const speaks = key === NARRATOR || role!.speaks;
-		if (!speaks && entry.voice !== undefined) say(at, `Role ${key} does not speak; leave out the voice.`);
-		if (speaks && entry.voice === undefined) say(at, `${key} speaks and needs a voice.`);
-		if (entry.voice === CHARACTER_VOICE) {
-			if (entry.character === undefined) say(at, '"character" voice needs a cast Character.');
+		const voiced = entry.voice !== undefined || entry.own_voice === true;
+		if (!speaks && voiced) say(at, `Role ${key} does not speak; leave out the voice.`);
+		if (speaks && !voiced) say(at, `${key} speaks and needs a voice: a description, or own_voice for a cast Character's voice file.`);
+		if (entry.voice !== undefined && entry.own_voice === true) say(at, 'Give a voice description or own_voice, not both.');
+		if (entry.own_voice === true) {
+			if (entry.character === undefined) say(at, 'own_voice needs a cast Character.');
 			else if (context.characters[entry.character] !== undefined && context.characters[entry.character]!.voice === null)
 				say(at, `Character ${entry.character} has no voice file; describe the voice instead.`);
 		}
@@ -457,15 +463,45 @@ function decode<T>(envelope: z.ZodType<{ content: T }>, text: string, what: stri
 	} catch {
 		throw new TypeError(`This text is not an encoded ${what}.`);
 	}
-	const result = envelope.safeParse(value);
+	const result = envelope.safeParse(what === 'Storyboard' ? ownVoices(value) : value);
 	if (!result.success) throw new TypeError(`Unsupported or invalid ${what} content.`);
 	return result.data.content;
+}
+/** A stored Storyboard as it reads now: its stored `voice: "character"` (legacyVoices) is own_voice. */
+function ownVoices(value: unknown): unknown {
+	const cast = (value as { content?: { cast?: Record<string, Record<string, unknown>> } } | null)?.content?.cast;
+	if (cast === null || typeof cast !== 'object') return value;
+	const updated = Object.fromEntries(
+		Object.entries(cast).map(([role, entry]) => {
+			if (entry === null || typeof entry !== 'object' || entry.voice !== LEGACY_OWN_VOICE) return [role, entry];
+			const { voice: _, ...rest } = entry;
+			return [role, { ...rest, own_voice: true }];
+		}),
+	);
+	const content = (value as { content: Record<string, unknown> }).content;
+	return { ...(value as object), content: { ...content, cast: updated } };
 }
 /** A Script's `data.text`: `{ format: 'nuva.script', version: 3, content }`. v2 Scripts read with decodeScriptPackage. */
 export const encodeScript = (content: ScriptContent) => encode(scriptEnvelope, { format: 'nuva.script', version: 3, content }, 'Script');
 export const decodeScript = (text: string): ScriptContent => decode(scriptEnvelope, text, 'Script');
 /** A Storyboard's `data.text`: `{ format: 'nuva.storyboard', version: 1, content }`. */
-export const encodeStoryboard = (content: StoryboardContent) => encode(storyboardEnvelope, { format: 'nuva.storyboard', version: 1, content }, 'Storyboard');
+export const encodeStoryboard = (content: StoryboardContent) =>
+	legacyVoices(encode(storyboardEnvelope, { format: 'nuva.storyboard', version: 1, content }, 'Storyboard'));
+/**
+ * The stored form of `own_voice`: `voice: "character"`, as Storyboard version 1 has always stored it, so SDKs up to
+ * 0.1.0-preview.4 and an earlier Agent still read every saved Storyboard. `decodeStoryboard` reads it back as own_voice.
+ */
+function legacyVoices(text: string): string {
+	const value = JSON.parse(text) as { content: { cast: Record<string, Record<string, unknown>> } };
+	let changed = false;
+	for (const [role, entry] of Object.entries(value.content.cast)) {
+		if (entry.own_voice !== true) continue;
+		const { own_voice: _, ...rest } = entry;
+		value.content.cast[role] = { ...rest, voice: LEGACY_OWN_VOICE };
+		changed = true;
+	}
+	return changed ? JSON.stringify(value) : text;
+}
 export const decodeStoryboard = (text: string): StoryboardContent => decode(storyboardEnvelope, text, 'Storyboard');
 /** Which Script format a stored text is: 3, or 2 for a read-only legacy ScriptPackage. */
 export function scriptVersion(text: string): 2 | 3 | undefined {

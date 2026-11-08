@@ -22,11 +22,10 @@ const product = {
   ...record("product", 1),
   id: id(1),
   version: 5,
-  revision: id(1),
   brand_id: id(8),
   data: {
     name: "Morrow Travel Cup",
-    images: [id(2)],
+    image_asset_ids: [id(2)],
     target_audience: "Daily coffee drinkers",
     facts: ["350 ml"],
     attributes: {},
@@ -53,7 +52,7 @@ const script = {
   // A Script saved before Storyboards reads as a read-only legacy ScriptPackage.
   format: 2,
   legacy: content,
-  entities: { [id(1)]: { id: id(1) } },
+  relationships: [{ type: "based_on", target: { kind: "product", id: id(1), version: 5 } }],
   assets: {},
   skills: {},
 };
@@ -94,7 +93,7 @@ let job = {
   status: "queued",
   prompt: id(5),
   seed: 0,
-  checkpoint: null,
+  error_code: null,
   created_at: "2026-10-26T10:00:00Z",
   resolution: "768P",
   asset: null,
@@ -261,6 +260,10 @@ const sdk = {
         fn(job);
       }, 3500);
       return () => clearTimeout(timer);
+    },
+    cancel: async (value: string) => {
+      job = { ...job, status: "cancelled" };
+      return value === id(9) ? { ...job2, status: "cancelled" } : job;
     },
   },
   ads: { list: async () => ({ items: [], nextCursor: null }) },

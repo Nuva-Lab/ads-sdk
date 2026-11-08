@@ -81,6 +81,10 @@ code { font: 13px/1.65 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, mon
 .copy-button { display: flex; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--muted); font-size: 11px; border-radius: 5px; padding: 4px 7px; min-height: 28px; }
 .copy-button svg { width: 14px; height: 14px; }
 .code-body { display: flex; align-items: stretch; }
+.code-block.collapsible:not(.expanded) .code-body { position: relative; max-height: calc(16 * 22px + 16px); overflow: hidden; }
+.code-block.collapsible:not(.expanded) .code-body::after { content: ""; position: absolute; inset: auto 0 0 0; height: 66px; background: linear-gradient(to bottom, transparent, var(--code)); pointer-events: none; }
+.code-expand { display: block; width: 100%; min-height: 34px; border: 0; border-top: 1px solid var(--line); background: var(--code-top); color: var(--muted); font-size: 12px; cursor: pointer; }
+.code-expand:hover { color: var(--text); background: var(--hover); }
 .line-numbers { flex: 0 0 42px; padding: 16px 9px 16px 0; text-align: right; color: var(--comment); user-select: none; font: 12px/22px "SFMono-Regular", Consolas, monospace; opacity: .65; }
 .line-numbers span { display: block; }
 pre { margin: 0; min-width: 0; padding: 16px 18px 16px 6px; overflow: auto; flex: 1; tab-size: 2; font: 13px/22px "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; }
@@ -173,6 +177,8 @@ li { margin: 6px 0; }
   .docs-layout { display: block; padding: 0; max-width: none; }
   body { color: #000; background: #fff; }
   .code-block { break-inside: avoid; }
+  .code-block.collapsible .code-body { max-height: none !important; overflow: visible !important; }
+  .code-block.collapsible .code-body::after, .code-expand { display: none !important; }
   pre { white-space: pre-wrap; }
   pre code { white-space: pre-wrap; }
 }
@@ -186,3 +192,41 @@ article p, article li { overflow-wrap: break-word; }
   .header-version { display: none; }
   .language-toggle { font-size: 12px; min-width: 86px; }
 }
+
+/* API reference: signatures, HTTP routes and field lists, readable from 360px up. */
+.docs-sidebar nav a.nav-resource { padding-left: 22px; }
+.docs-sidebar nav a.nav-section { padding: 4px 12px 4px 34px; font-size: 12px; line-height: 1.5; }
+.markdown-link { margin-left: auto; font-size: 12px; color: var(--muted); text-decoration: none; border: 1px solid var(--line); border-radius: 6px; padding: 3px 9px; }
+.markdown-link:hover { color: var(--text); background: var(--hover); }
+.signature { margin: 4px 0 12px; padding: 12px 14px; background: var(--code); border: 1px solid var(--line); border-radius: 8px; }
+.signature code, .http code, .method-list code, .compact, .field-name, .field-type { background: none; padding: 0; border-radius: 0; }
+.signature code { line-height: 1.7; }
+.http { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 14px; }
+.http-verb { font: 600 11px/1 "SFMono-Regular", Consolas, monospace; letter-spacing: .3px; padding: 4px 6px; border-radius: 4px; background: var(--inline); }
+.http-get { color: #1d7348; }
+.http-post { color: #245b9d; }
+.http-put, .http-patch { color: #8a5300; }
+.http-delete { color: #b42318; }
+html[data-theme="dark"] .http-get { color: #8fd5ae; }
+html[data-theme="dark"] .http-post { color: #adc6ed; }
+html[data-theme="dark"] .http-put, html[data-theme="dark"] .http-patch { color: #e8c07a; }
+html[data-theme="dark"] .http-delete { color: #f2a59c; }
+.method-list, .page-list { list-style: none; padding: 0; margin: 18px 0; border-top: 1px solid var(--line); }
+.method-list li, .page-list li { margin: 0; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.method-list li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 16px; }
+.method-list a { text-decoration: none; }
+.http-inline { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+.http-inline code { font-size: 12px; }
+.fields { list-style: none; padding: 0; margin: 8px 0 20px; }
+.fields > li { margin: 0; padding: 11px 0; border-top: 1px solid var(--line); }
+.fields .fields { margin: 8px 0 0; padding-left: 14px; border-left: 1px solid var(--line); }
+.fields .fields > li { padding: 7px 0; border-top: 0; }
+.field-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; margin: 0; }
+.field-name { font-weight: 600; color: var(--heading); }
+.field-type { font-size: 12px; color: var(--muted); }
+.field-type a, .signature a, .compact a { text-decoration-color: var(--line); }
+.field-description { margin: 2px 0 0; }
+.field-meta { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
+.fields details { margin-top: 6px; }
+.fields summary { cursor: pointer; font-size: 12px; color: var(--muted); }
+h3 + .fields > li:first-child { border-top: 0; }

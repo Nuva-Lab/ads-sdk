@@ -1,13 +1,13 @@
 import { serverFrameSchema, stateEventSchema, sessionSchema, messageSchema, messagePageSchema } from '@nuva/protocol';
 import { z } from 'zod';
-import { NuvaError } from './errors.js';
+import { AdsError } from './errors.js';
 import type { StateEvent, ServerFrame, Session, MessageView, Page } from '@nuva/protocol';
 import type { SessionFile } from './types.js';
 function parse<T>(schema: { parse(v: unknown): unknown }, value: unknown): T {
 	try {
 		return schema.parse(value) as T;
 	} catch (e) {
-		throw new NuvaError({
+		throw new AdsError({
 			code: 'SERVICE_ERROR',
 			message: 'Malformed service response: ' + (e instanceof Error ? e.message : String(e)),
 			retryable: false,

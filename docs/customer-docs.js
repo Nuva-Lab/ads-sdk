@@ -43,6 +43,16 @@
   document.querySelectorAll('[data-copy-code]').forEach(button => {
     button.addEventListener('click', () => copy(button, button.closest('.code-block').querySelector('code').textContent, 'Code'));
   });
+  // A long JSON response shows its first lines; the button below it shows or hides the rest.
+  document.querySelectorAll('[data-expand-code]').forEach(button => {
+    button.addEventListener('click', () => {
+      const block = button.closest('.code-block');
+      const expanded = block.classList.toggle('expanded');
+      button.setAttribute('aria-expanded', String(expanded));
+      button.textContent = expanded ? button.dataset.less : button.dataset.more;
+      if (!expanded && block.getBoundingClientRect().top < 0) block.scrollIntoView({ block: 'start' });
+    });
+  });
   function inlineMarkdown(node) {
     if (node.nodeType === Node.TEXT_NODE) return node.textContent;
     if (node.classList.contains('heading-link')) return '';
@@ -67,9 +77,18 @@
     }
     return inlineMarkdown(node);
   }
-  document.querySelector('[data-copy-page]').addEventListener('click', event => {
-    const text = [`# ${document.querySelector('h1').textContent}`, ...[...document.querySelectorAll('article > section')].flatMap(section => [...section.children].map(blockMarkdown))].join('\n\n');
-    copy(event.currentTarget, text, 'Page');
+  document.querySelector('[data-copy-page]').addEventListener('click', async event => {
+    const button = event.currentTarget;
+    let text = [`# ${document.querySelector('h1').textContent}`, ...[...document.querySelectorAll('article > section')].flatMap(section => [...section.children].map(blockMarkdown))].join('\n\n');
+    // A reference page copies its Markdown twin when the page is served over HTTP.
+    const twin = document.querySelector('link[rel="alternate"][type="text/markdown"]');
+    if (twin && location.protocol.startsWith('http')) {
+      try {
+        const response = await fetch(twin.href);
+        if (response.ok) text = await response.text();
+      } catch { /* Keep the text read from the page. */ }
+    }
+    copy(button, text, 'Page');
   });
 
   const sections = [...document.querySelectorAll('article > section')];

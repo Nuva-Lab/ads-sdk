@@ -1,5 +1,5 @@
 import { backendIdSchema } from './backend-id.js';
-import { NuvaError } from './errors.js';
+import { AdsError } from './errors.js';
 import type { ShareableKind } from './stores.js';
 
 export const SHAREABLE_KINDS: readonly ShareableKind[] = ['brand', 'product', 'character', 'asset', 'script', 'storyboard', 'prompt'];
@@ -16,7 +16,7 @@ export function dataRequest(
 	const resourceId = (value: unknown) => {
 		const parsed = backendIdSchema.safeParse(value);
 		if (!parsed.success)
-			throw new NuvaError({
+			throw new AdsError({
 				code: 'INVALID_INPUT',
 				message: 'A canonical backend resource ID is required.',
 				retryable: false,
@@ -30,7 +30,7 @@ export function dataRequest(
 		['script', 'storyboard', 'prompt'].includes(kind) ? resourceId(value) : id(value);
 	const [collection, action] = method.split('.');
 	if (collection === 'shares') {
-		const invalid = (message: string) => new NuvaError({ code: 'INVALID_INPUT', message, retryable: false, acceptance: 'not_accepted' });
+		const invalid = (message: string) => new AdsError({ code: 'INVALID_INPUT', message, retryable: false, acceptance: 'not_accepted' });
 		const item = p.item as { kind?: unknown; id?: unknown } | undefined;
 		if (!SHAREABLE_KINDS.includes(item?.kind as ShareableKind)) throw invalid(`A share is for one of: ${SHAREABLE_KINDS.join(', ')}.`);
 		const base = `/v1/shares/${item!.kind as string}/${resourceId(typeof item!.id === 'string' ? item!.id.toLowerCase() : item!.id)}`;
@@ -48,16 +48,16 @@ export function dataRequest(
 	if (collection === 'artifacts') {
 		const ref = p.ref as { kind: string; id: string } | undefined;
 		if (action === 'get') return { method: 'GET', path: `/v1/artifacts/${id(ref!.kind)}/${artifactId(ref!.kind, ref!.id)}` };
-		if (action === 'update') {
-			const { ref: _, ...body } = p;
-			return { method: 'POST', path: `/v1/artifacts/${id(ref!.kind)}/${artifactId(ref!.kind, ref!.id)}/versions`, body };
-		}
 	}
+	if (method === 'prompts.createFrom') {
+		const { ref, ...body } = p as { ref: { id: string } };
+		return { method: 'POST', path: `/v1/artifacts/prompt/${resourceId(ref.id)}/versions`, body };
+	}
+	if (method === 'jobs.cancel') return { method: 'POST', path: `/v1/jobs/${resourceId(p.id)}/cancel` };
 	if (['scripts', 'storyboards', 'prompts', 'videos'].includes(collection!) && action === 'generate')
 		return { method: 'POST', path: '/v1/generate/' + collection!.slice(0, -1), body: p, generation: collection !== 'videos' };
 	if (method === 'assets.uploadIntent') return { method: 'POST', path: '/v1/assets/uploads', body: p };
 	if (method === 'assets.register') return { method: 'POST', path: '/v1/assets', body: p };
-	if (method === 'skills.version') return { method: 'GET', path: `/v1/skills/${resourceId(p.id)}/versions/${p.version}` };
 	if (['products', 'brands', 'characters', 'assets', 'jobs', 'ads', 'batches', 'skills', 'sessions'].includes(collection!)) {
 		const base = '/v1/' + collection;
 		if (action === 'get') {
@@ -71,13 +71,13 @@ export function dataRequest(
 		}
 		if (action === 'list') return { method: 'GET', path: base, query: p, ...(collection === 'sessions' ? { agent: true } : {}) };
 		if (action === 'create') return { method: 'POST', path: base, body: p, ...(collection === 'sessions' ? { agent: true } : {}) };
-		if (action === 'update' && ['products', 'brands', 'characters'].includes(collection!)) {
+		if (action === 'update' && ['products', 'brands', 'characters', 'assets'].includes(collection!)) {
 			const { id: rid, ...body } = p;
-			return { method: 'PUT', path: base + '/' + resourceId(rid), body };
+			return { method: 'PATCH', path: base + '/' + resourceId(rid), body };
 		}
 		if (action === 'delete' && collection === 'products') return { method: 'DELETE', path: base + '/' + resourceId(p.id) };
 	}
-	throw new NuvaError({
+	throw new AdsError({
 		code: 'UNSUPPORTED_OPERATION',
 		message: `No pinned backend operation: ${method}`,
 		retryable: false,

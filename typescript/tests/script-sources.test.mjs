@@ -2,29 +2,28 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createNuva } from '../dist/index.js';
-import { encodeScriptPackage, decodeScript } from '../dist/schemas.js';
+import { encodeScriptPackage, decodeScript } from '../dist/internal.js';
+import { acceptanceOf } from '../dist/internal.js';
 
 const content = JSON.parse(await readFile(new URL('./fixtures/script-v3.json', import.meta.url), 'utf8'));
 const legacy = JSON.parse(await readFile(new URL('./fixtures/script-response.json', import.meta.url), 'utf8'));
 const id = '01a175e0-31b3-da69-176e-0842e6f6602e';
-const relationships = [
-  { type: 'based_on', target: { kind: 'product', id } },
-  { type: 'based_on', target: { kind: 'skill', id: '01a175e0-2000-0000-ffff-abcdefabcdef' } },
-];
+// What a Script was made from, as a customer reads it.
+const madeFrom = { product: { id, version: 1 }, skill: { id: '01a175e0-2000-0000-ffff-abcdefabcdef', name: 'writer', version: 1 } };
 
 test('there is no scripts.create: a Script is written by the writer, and a version is checked before it is sent', async () => {
   const original = globalThis.fetch, requests = [];
   globalThis.fetch = async (url, init) => {
     requests.push([init.method ?? 'GET', String(url)]);
     return Response.json({ kind: 'script', id, lineage_id: id, base_id: null, schema_version: 1,
-      data: { text: JSON.stringify({ format: 'nuva.script', version: 3, content }) }, batch_id: null, relationships,
-      assets: {}, entities: {}, skills: {}, created_at: '2026-10-26T12:00:00Z' });
+      data: { text: JSON.stringify({ format: 'nuva.script', version: 3, content }) }, batch_id: null, ...madeFrom,
+      assets: {}, created_at: '2026-10-26T12:00:00Z' });
   };
   const sdk = createNuva({ getAccessToken: async () => 'fixture', storeBaseUrl: 'https://backend.invalid' });
   try {
     assert.equal(sdk.scripts.create, undefined);
-    await assert.rejects(sdk.scripts.update({ kind: 'script', id }, { content: { schema_version: 2, clips: [] } }), e => e.code === 'INVALID_INPUT');
-    await assert.rejects(sdk.scripts.update({ kind: 'script', id }, { content: legacy }), e => e.code === 'INVALID_INPUT', 'v2 ScriptPackages are read-only.');
+    await assert.rejects(sdk.scripts.createFrom({ kind: 'script', id }, { schema_version: 2, clips: [] }), e => e.code === 'INVALID_INPUT');
+    await assert.rejects(sdk.scripts.createFrom({ kind: 'script', id }, legacy), e => e.code === 'INVALID_INPUT', 'v2 ScriptPackages are read-only.');
     assert.ok(requests.every(([method]) => method === 'GET'), 'Schema-invalid versions fail before any write');
   } finally { sdk.close(); globalThis.fetch = original; }
 });
@@ -35,22 +34,22 @@ test('a backend rejection of a new version is returned without a second write', 
   globalThis.fetch = async (url, init) => {
     if ((init.method ?? 'GET') === 'GET')
       return Response.json({ kind: 'script', id, lineage_id: id, base_id: null, schema_version: 1,
-        data: { text: JSON.stringify({ format: 'nuva.script', version: 3, content }) }, batch_id: null, relationships,
-        assets: {}, entities: {}, skills: {}, created_at: '2026-10-26T12:00:00Z' });
+        data: { text: JSON.stringify({ format: 'nuva.script', version: 3, content }) }, batch_id: null, ...madeFrom,
+        assets: {}, created_at: '2026-10-26T12:00:00Z' });
     writes.push(String(url));
     return Response.json({ error: { code: 'FORBIDDEN', message: 'Not your Script.', retryable: false, acceptance: 'not_accepted' }, request_id: 'fixture-rejection' }, { status: 403 });
   };
   const sdk = createNuva({ getAccessToken: async () => 'fixture', storeBaseUrl: 'https://backend.invalid' });
   try {
-    await assert.rejects(sdk.scripts.update({ kind: 'script', id }, { content }), e => e.code === 'FORBIDDEN');
+    await assert.rejects(sdk.scripts.createFrom({ kind: 'script', id }, content), e => e.code === 'FORBIDDEN');
     assert.equal(writes.length, 1);
   } finally { sdk.close(); globalThis.fetch = original; }
 });
 
-test('a v2 ScriptPackage Script reads as read-only legacy; the Agent refuses an update of it', async () => {
+test('a v2 ScriptPackage Script reads as read-only legacy; createFrom refuses it', async () => {
   const original = globalThis.fetch, requests = [];
-  const saved = (data, extra = {}) => ({ kind: 'script', id, lineage_id: id, base_id: null, schema_version: 1, data, batch_id: null, relationships,
-    assets: {}, entities: {}, skills: {}, created_at: '2026-10-26T12:00:00Z', ...extra });
+  const saved = (data, extra = {}) => ({ kind: 'script', id, lineage_id: id, base_id: null, schema_version: 1, data, batch_id: null, ...madeFrom,
+    assets: {}, created_at: '2026-10-26T12:00:00Z', ...extra });
   globalThis.fetch = async (url, init) => {
     requests.push([init.method ?? 'GET', String(url)]);
     // As the Agent answers an edit of a v2 Script.
@@ -63,13 +62,13 @@ test('a v2 ScriptPackage Script reads as read-only legacy; the Agent refuses an 
     assert.equal(read.format, 2);
     assert.deepEqual(read.legacy, legacy);
     assert.equal(read.content, undefined);
-    await assert.rejects(sdk.scripts.update({ kind: 'script', id }, { content }), (e) => e.code === 'REJECTED' && e.acceptance === 'not_accepted' && e.message.includes('read-only'));
-    assert.equal(requests[2][0], 'POST');
-    assert.ok(requests[2][1].endsWith('/v1/generate/script'), 'The edit goes through the Agent, which refuses a v2 base.');
+    // A v2 Script is read-only: createFrom refuses it before anything is sent.
+    await assert.rejects(sdk.scripts.createFrom({ kind: 'script', id }, content), (e) => e.code === 'INVALID_INPUT' && acceptanceOf(e) === 'not_accepted' && e.message.includes('read-only'));
+    assert.ok(requests.every(([method]) => method === 'GET'));
   } finally { sdk.close(); globalThis.fetch = original; }
 });
 
-test('asset is reserved: update refuses it, and a stored Script with that role cannot get a new version', async () => {
+test('asset is reserved: createFrom refuses it, and a stored Script with that role cannot get a new version', async () => {
   const original = globalThis.fetch, requests = [];
   const withAsset = structuredClone(content);
   const role = withAsset.roles[0].id;
@@ -79,8 +78,8 @@ test('asset is reserved: update refuses it, and a stored Script with that role c
     for (const line of panel.lines) if (line.speaker === role) line.speaker = 'asset';
   }
   let stored = content;
-  const saved = (data, extra = {}) => ({ kind: 'script', id, lineage_id: id, base_id: null, schema_version: 1, data, batch_id: null, relationships,
-    assets: {}, entities: {}, skills: {}, created_at: '2026-10-26T12:00:00Z', ...extra });
+  const saved = (data, extra = {}) => ({ kind: 'script', id, lineage_id: id, base_id: null, schema_version: 1, data, batch_id: null, ...madeFrom,
+    assets: {}, created_at: '2026-10-26T12:00:00Z', ...extra });
   globalThis.fetch = async (url, init) => {
     requests.push(init.method ?? 'GET');
     if (init.method === 'POST') return Response.json(saved(JSON.parse(init.body).data, { id: '01a175e0-3000-cccc-1111-abcdefabcdef', base_id: id }), { status: 201 });
@@ -88,10 +87,10 @@ test('asset is reserved: update refuses it, and a stored Script with that role c
   };
   const sdk = createNuva({ getAccessToken: async () => 'fixture', storeBaseUrl: 'https://backend.invalid' });
   try {
-    await assert.rejects(sdk.scripts.update({ kind: 'script', id }, { content: withAsset }), (e) => e.code === 'INVALID_INPUT' && e.acceptance === 'not_accepted' && e.message.includes('asset are reserved'));
+    await assert.rejects(sdk.scripts.createFrom({ kind: 'script', id }, withAsset), (e) => e.code === 'INVALID_INPUT' && acceptanceOf(e) === 'not_accepted' && e.message.includes('asset are reserved'));
     assert.deepEqual(requests, ['GET']);
     stored = withAsset;
-    await assert.rejects(sdk.scripts.update({ kind: 'script', id }, { content }), (e) => e.code === 'INVALID_INPUT' && e.message.includes('generate a new Script'));
+    await assert.rejects(sdk.scripts.createFrom({ kind: 'script', id }, content), (e) => e.code === 'INVALID_INPUT' && e.message.includes('generate a new Script'));
     const read = await sdk.scripts.get({ kind: 'script', id });
     assert.equal(read.content.roles[0].id, 'asset');
     assert.ok(!requests.includes('POST'));

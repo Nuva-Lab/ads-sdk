@@ -1,58 +1,42 @@
-// Generated from ads_backend/openapi.json at 20c6fd9bf15f2f7dd335e0e192b58fd3ccc46d5d. Do not edit.
+// Generated from ads_backend/openapi.json at pending. Do not edit.
 import type { z } from "zod";
 export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.fromJSONSchema>[0], boolean>> = {
-  "AdCreate": {
-    "properties": {
-      "batch_id": {
-        "type": "string",
-        "format": "uuid",
-        "title": "Batch Id",
-        "description": "One of the caller's batches."
-      },
-      "schema_version": {
-        "type": "integer",
-        "title": "Schema Version",
-        "description": "Only 1 is accepted."
-      },
-      "composition": {
-        "$ref": "#/$defs/CompositionV1",
-        "description": "At most 100 clips and 20 audio assets; `editor` is at most 65536 bytes as JSON."
-      },
-      "asset_id": {
-        "type": "string",
-        "format": "uuid",
-        "title": "Asset Id",
-        "description": "The final video: a video asset."
-      }
-    },
-    "additionalProperties": false,
-    "type": "object",
-    "required": [
-      "batch_id",
-      "schema_version",
-      "composition",
-      "asset_id"
-    ],
-    "title": "AdCreate"
-  },
   "AdOut": {
     "properties": {
       "id": {
         "type": "string",
         "format": "uuid",
-        "title": "Id"
+        "title": "Id",
+        "description": "The Ad's id."
       },
       "batch_id": {
-        "type": "string",
-        "format": "uuid",
-        "title": "Batch Id"
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Batch Id",
+        "description": "The Batch it belongs to; null when none."
       },
       "schema_version": {
         "type": "integer",
-        "title": "Schema Version"
+        "title": "Schema Version",
+        "description": "The version of `composition`'s format."
       },
       "composition": {
-        "$ref": "#/$defs/CompositionV1"
+        "anyOf": [
+          {
+            "$ref": "#/$defs/CompositionReadV1"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "How the final video was put together: its clips in order and the audio under them; null when not known."
       },
       "asset": {
         "$ref": "#/$defs/AssetOut",
@@ -72,7 +56,8 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "created_at": {
         "type": "string",
         "format": "date-time",
-        "title": "Created At"
+        "title": "Created At",
+        "description": "When the Ad was created."
       }
     },
     "type": "object",
@@ -94,7 +79,8 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
           "$ref": "#/$defs/AdOut"
         },
         "type": "array",
-        "title": "Items"
+        "title": "Items",
+        "description": "The Ads on this page, newest first."
       },
       "next_cursor": {
         "anyOf": [
@@ -159,18 +145,82 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         ],
         "title": "Kind",
         "description": "Required with `url`."
+      },
+      "label": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Label",
+        "description": "A short name for what the file shows, e.g. which part of a product package."
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description",
+        "description": "A longer description of what the file shows."
       }
     },
     "additionalProperties": false,
     "type": "object",
     "title": "AssetCreate"
   },
+  "AssetEdit": {
+    "properties": {
+      "label": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Label",
+        "description": "A short name for what the file shows; null removes it."
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description",
+        "description": "A longer description of what the file shows; null removes it."
+      }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "title": "AssetEdit"
+  },
   "AssetOut": {
     "properties": {
       "id": {
         "type": "string",
         "format": "uuid",
-        "title": "Id"
+        "title": "Id",
+        "description": "The asset's id."
       },
       "kind": {
         "type": "string",
@@ -179,18 +229,22 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
           "video",
           "audio"
         ],
-        "title": "Kind"
+        "title": "Kind",
+        "description": "`image`, `video` or `audio`."
       },
       "mime": {
         "type": "string",
-        "title": "Mime"
+        "title": "Mime",
+        "description": "The file's MIME type, as detected from its content."
       },
       "source": {
-        "$ref": "#/$defs/AssetSource"
+        "$ref": "#/$defs/AssetSource",
+        "description": "`uploaded` (an upload or a URL you registered) or `generated` (a Job's clip)."
       },
       "size_bytes": {
         "type": "integer",
-        "title": "Size Bytes"
+        "title": "Size Bytes",
+        "description": "The file's size in bytes."
       },
       "metadata": {
         "additionalProperties": true,
@@ -198,19 +252,46 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "title": "Metadata",
         "description": "width and height for images; duration_ms otherwise."
       },
+      "label": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Label",
+        "description": "A short name for what the file shows, given at upload or edited since."
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description",
+        "description": "A longer description of what the file shows, given at upload or edited since."
+      },
       "created_at": {
         "type": "string",
         "format": "date-time",
-        "title": "Created At"
+        "title": "Created At",
+        "description": "When the asset was registered."
       },
       "download_url": {
         "type": "string",
-        "title": "Download Url"
+        "title": "Download Url",
+        "description": "A temporary URL to download the file, until `download_url_expires_at`."
       },
       "download_url_expires_at": {
         "type": "string",
         "format": "date-time",
-        "title": "Download Url Expires At"
+        "title": "Download Url Expires At",
+        "description": "When `download_url` stops working: an hour after this response."
       }
     },
     "type": "object",
@@ -240,7 +321,8 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "id": {
         "type": "string",
         "format": "uuid",
-        "title": "Id"
+        "title": "Id",
+        "description": "The Ad's id."
       },
       "asset_id": {
         "type": "string",
@@ -251,7 +333,8 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "created_at": {
         "type": "string",
         "format": "date-time",
-        "title": "Created At"
+        "title": "Created At",
+        "description": "When the Ad was created."
       }
     },
     "type": "object",
@@ -262,46 +345,85 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     ],
     "title": "BatchAd"
   },
-  "BatchCreate": {
+  "BatchListed": {
     "properties": {
+      "id": {
+        "type": "string",
+        "format": "uuid",
+        "title": "Id",
+        "description": "The Batch's id."
+      },
       "intent": {
         "type": "string",
-        "maxLength": 2000,
-        "minLength": 1,
         "title": "Intent",
         "description": "Its title and purpose: what it tries."
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At",
+        "description": "When the Batch was created."
+      },
+      "ads": {
+        "anyOf": [
+          {
+            "items": {
+              "$ref": "#/$defs/BatchAd"
+            },
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Ads",
+        "description": "Oldest first; read each with GET /v1/ads/{id}."
+      },
+      "jobs": {
+        "anyOf": [
+          {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Jobs",
+        "description": "How many of the batch's jobs are in each status."
       }
     },
-    "additionalProperties": false,
     "type": "object",
     "required": [
-      "intent"
+      "id",
+      "intent",
+      "created_at",
+      "ads",
+      "jobs"
     ],
-    "title": "BatchCreate"
+    "title": "BatchListed",
+    "description": "A Batch in a list: as GET /v1/batches/{id} reads it. SDKs before the version header read\nit without its Ads and Job counts (BatchSummary)."
   },
   "BatchOut": {
     "properties": {
       "id": {
         "type": "string",
         "format": "uuid",
-        "title": "Id"
+        "title": "Id",
+        "description": "The Batch's id."
       },
       "intent": {
         "type": "string",
-        "title": "Intent"
+        "title": "Intent",
+        "description": "Its title and purpose: what it tries."
       },
       "created_at": {
         "type": "string",
         "format": "date-time",
-        "title": "Created At"
-      },
-      "log": {
-        "items": {
-          "$ref": "#/$defs/LogEntry"
-        },
-        "type": "array",
-        "title": "Log",
-        "description": "Oldest first."
+        "title": "Created At",
+        "description": "When the Batch was created."
       },
       "ads": {
         "items": {
@@ -325,7 +447,6 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "id",
       "intent",
       "created_at",
-      "log",
       "ads",
       "jobs"
     ],
@@ -335,10 +456,11 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     "properties": {
       "items": {
         "items": {
-          "$ref": "#/$defs/BatchSummary"
+          "$ref": "#/$defs/BatchListed"
         },
         "type": "array",
-        "title": "Items"
+        "title": "Items",
+        "description": "The Batches on this page, newest first."
       },
       "next_cursor": {
         "anyOf": [
@@ -360,55 +482,27 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     ],
     "title": "BatchPage"
   },
-  "BatchSummary": {
-    "properties": {
-      "id": {
-        "type": "string",
-        "format": "uuid",
-        "title": "Id"
-      },
-      "intent": {
-        "type": "string",
-        "title": "Intent"
-      },
-      "created_at": {
-        "type": "string",
-        "format": "date-time",
-        "title": "Created At"
-      }
-    },
-    "type": "object",
-    "required": [
-      "id",
-      "intent",
-      "created_at"
-    ],
-    "title": "BatchSummary"
-  },
   "Brand": {
     "properties": {
       "id": {
         "type": "string",
         "format": "uuid",
         "title": "Id",
-        "description": "Stays the same across versions."
+        "description": "Its id: the same for every version. A reference to it is `{id, version?}`; without `version` it means the latest."
       },
       "version": {
         "type": "integer",
-        "title": "Version"
-      },
-      "revision": {
-        "type": "string",
-        "format": "uuid",
-        "title": "Revision",
-        "description": "This version's id; content made from it records this id."
+        "title": "Version",
+        "description": "1 for the first version, then one more per edit."
       },
       "schema_version": {
         "type": "integer",
-        "title": "Schema Version"
+        "title": "Schema Version",
+        "description": "The version of `data`'s format."
       },
       "data": {
-        "$ref": "#/$defs/BrandDataV1"
+        "$ref": "#/$defs/BrandDataV1",
+        "description": "The brand's details."
       },
       "created_at": {
         "type": "string",
@@ -432,7 +526,6 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     "required": [
       "id",
       "version",
-      "revision",
       "schema_version",
       "data",
       "created_at",
@@ -443,7 +536,8 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
   "BrandCreate": {
     "properties": {
       "data": {
-        "$ref": "#/$defs/BrandDataV1"
+        "$ref": "#/$defs/BrandDataV1",
+        "description": "The brand's details."
       }
     },
     "additionalProperties": false,
@@ -459,7 +553,29 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "type": "string",
         "maxLength": 200,
         "minLength": 1,
-        "title": "Name"
+        "title": "Name",
+        "description": "The brand's name."
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 5000
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description",
+        "description": "What the brand is and stands for, given to the Script writer as context."
+      },
+      "attributes": {
+        "additionalProperties": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "type": "object",
+        "title": "Attributes",
+        "description": "More about the brand as JSON, given to the Script writer as context. IDs here are not references: they grant no access to what they name."
       }
     },
     "additionalProperties": false,
@@ -469,6 +585,61 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     ],
     "title": "BrandDataV1"
   },
+  "BrandEdit": {
+    "properties": {
+      "version": {
+        "type": "integer",
+        "minimum": 1,
+        "title": "Version",
+        "description": "The version you read. If someone saved a newer one since, the edit is refused with 409 REVISION_CONFLICT: read the brand again."
+      },
+      "data": {
+        "$ref": "#/$defs/BrandEditData",
+        "description": "Only the fields to change; the rest keep their values. A list is replaced as a whole: `[]` empties it, and `null` clears an optional value."
+      }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+      "version"
+    ],
+    "title": "BrandEdit"
+  },
+  "BrandEditData": {
+    "properties": {
+      "name": {
+        "type": "string",
+        "maxLength": 200,
+        "minLength": 1,
+        "title": "Name",
+        "description": "The brand's name."
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 5000
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description",
+        "description": "What the brand is and stands for, given to the Script writer as context."
+      },
+      "attributes": {
+        "additionalProperties": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "type": "object",
+        "title": "Attributes",
+        "description": "More about the brand as JSON, given to the Script writer as context. IDs here are not references: they grant no access to what they name."
+      }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "title": "BrandEditData"
+  },
   "BrandPage": {
     "properties": {
       "items": {
@@ -476,7 +647,8 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
           "$ref": "#/$defs/Brand"
         },
         "type": "array",
-        "title": "Items"
+        "title": "Items",
+        "description": "The brands on this page, each at its current version, newest first."
       },
       "next_cursor": {
         "anyOf": [
@@ -498,31 +670,12 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     ],
     "title": "BrandPage"
   },
-  "BrandUpdate": {
-    "properties": {
-      "version": {
-        "type": "integer",
-        "minimum": 1,
-        "title": "Version",
-        "description": "The version this edit is based on."
-      },
-      "data": {
-        "$ref": "#/$defs/BrandDataV1"
-      }
-    },
-    "additionalProperties": false,
-    "type": "object",
-    "required": [
-      "version",
-      "data"
-    ],
-    "title": "BrandUpdate"
-  },
   "CallbackOut": {
     "properties": {
       "url": {
         "type": "string",
-        "title": "Url"
+        "title": "Url",
+        "description": "The `callback_url` the Job was started with."
       },
       "status": {
         "anyOf": [
@@ -532,7 +685,8 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
           {
             "type": "null"
           }
-        ]
+        ],
+        "description": "Null until the Job ends; then `pending` while the final status is being sent (failures are retried), `sent` once your URL answered 2xx, or `failed` after the last attempt."
       }
     },
     "type": "object",
@@ -557,24 +711,21 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "type": "string",
         "format": "uuid",
         "title": "Id",
-        "description": "Stays the same across versions."
+        "description": "Its id: the same for every version. A reference to it is `{id, version?}`; without `version` it means the latest."
       },
       "version": {
         "type": "integer",
-        "title": "Version"
-      },
-      "revision": {
-        "type": "string",
-        "format": "uuid",
-        "title": "Revision",
-        "description": "This version's id; content made from it records this id."
+        "title": "Version",
+        "description": "1 for the first version, then one more per edit."
       },
       "schema_version": {
         "type": "integer",
-        "title": "Schema Version"
+        "title": "Schema Version",
+        "description": "The version of `data`'s format."
       },
       "data": {
-        "$ref": "#/$defs/CharacterDataV1"
+        "$ref": "#/$defs/CharacterDataV1",
+        "description": "The character's details."
       },
       "created_at": {
         "type": "string",
@@ -598,7 +749,6 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     "required": [
       "id",
       "version",
-      "revision",
       "schema_version",
       "data",
       "created_at",
@@ -609,7 +759,8 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
   "CharacterCreate": {
     "properties": {
       "data": {
-        "$ref": "#/$defs/CharacterDataV1"
+        "$ref": "#/$defs/CharacterDataV1",
+        "description": "The character's details."
       }
     },
     "additionalProperties": false,
@@ -625,7 +776,8 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "type": "string",
         "maxLength": 200,
         "minLength": 1,
-        "title": "Name"
+        "title": "Name",
+        "description": "The character's name."
       },
       "description": {
         "anyOf": [
@@ -673,6 +825,77 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     ],
     "title": "CharacterDataV1"
   },
+  "CharacterEdit": {
+    "properties": {
+      "version": {
+        "type": "integer",
+        "minimum": 1,
+        "title": "Version",
+        "description": "The version you read. If someone saved a newer one since, the edit is refused with 409 REVISION_CONFLICT: read the character again."
+      },
+      "data": {
+        "$ref": "#/$defs/CharacterEditData",
+        "description": "Only the fields to change; the rest keep their values. A list is replaced as a whole: `[]` empties it, and `null` clears an optional value."
+      }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+      "version"
+    ],
+    "title": "CharacterEdit"
+  },
+  "CharacterEditData": {
+    "properties": {
+      "name": {
+        "type": "string",
+        "maxLength": 200,
+        "minLength": 1,
+        "title": "Name",
+        "description": "The character's name."
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 5000
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description",
+        "description": "Looks, persona, speaking style and language."
+      },
+      "image_asset_ids": {
+        "items": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": "array",
+        "maxItems": 10,
+        "minItems": 1,
+        "title": "Image Asset Ids",
+        "description": "Image asset ids; the first is the default."
+      },
+      "voice_asset_id": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Voice Asset Id",
+        "description": "An audio asset id."
+      }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "title": "CharacterEditData"
+  },
   "CharacterPage": {
     "properties": {
       "items": {
@@ -680,7 +903,8 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
           "$ref": "#/$defs/Character"
         },
         "type": "array",
-        "title": "Items"
+        "title": "Items",
+        "description": "The characters on this page, each at its current version, newest first."
       },
       "next_cursor": {
         "anyOf": [
@@ -701,26 +925,6 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "next_cursor"
     ],
     "title": "CharacterPage"
-  },
-  "CharacterUpdate": {
-    "properties": {
-      "version": {
-        "type": "integer",
-        "minimum": 1,
-        "title": "Version",
-        "description": "The version this edit is based on."
-      },
-      "data": {
-        "$ref": "#/$defs/CharacterDataV1"
-      }
-    },
-    "additionalProperties": false,
-    "type": "object",
-    "required": [
-      "version",
-      "data"
-    ],
-    "title": "CharacterUpdate"
   },
   "Clip": {
     "properties": {
@@ -764,7 +968,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     ],
     "title": "Clip"
   },
-  "CompositionV1": {
+  "CompositionReadV1": {
     "properties": {
       "clips": {
         "items": {
@@ -784,13 +988,6 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "title": "Audio Asset Ids",
         "description": "Music, voice-over...",
         "default": []
-      },
-      "editor": {
-        "additionalProperties": true,
-        "type": "object",
-        "title": "Editor",
-        "description": "The editor's own project data, stored and returned as given.",
-        "default": {}
       }
     },
     "additionalProperties": false,
@@ -798,14 +995,16 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     "required": [
       "clips"
     ],
-    "title": "CompositionV1"
+    "title": "CompositionReadV1",
+    "description": "A composition as it is read; the editor's project data is the Agent's."
   },
   "DirectingPlan": {
     "properties": {
       "kind": {
         "type": "string",
         "const": "directing_plan",
-        "title": "Kind"
+        "title": "Kind",
+        "description": "Always `directing_plan`."
       },
       "id": {
         "type": "string",
@@ -834,10 +1033,12 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       },
       "schema_version": {
         "type": "integer",
-        "title": "Schema Version"
+        "title": "Schema Version",
+        "description": "The version of `data`'s format."
       },
       "data": {
-        "$ref": "#/$defs/DirectingPlanDataV1"
+        "$ref": "#/$defs/DirectingPlanDataV1",
+        "description": "The directing plan's content."
       },
       "batch_id": {
         "anyOf": [
@@ -849,12 +1050,14 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
             "type": "null"
           }
         ],
-        "title": "Batch Id"
+        "title": "Batch Id",
+        "description": "The Batch it was made in; null when none."
       },
       "created_at": {
         "type": "string",
         "format": "date-time",
-        "title": "Created At"
+        "title": "Created At",
+        "description": "When this version was saved."
       },
       "assets": {
         "additionalProperties": {
@@ -865,29 +1068,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         },
         "type": "object",
         "title": "Assets",
-        "description": "The assets `data` refers to, with download URLs."
-      },
-      "entities": {
-        "additionalProperties": {
-          "$ref": "#/$defs/EntityRef"
-        },
-        "propertyNames": {
-          "format": "uuid"
-        },
-        "type": "object",
-        "title": "Entities",
-        "description": "The entity versions `data` refers to, by `revision`."
-      },
-      "skills": {
-        "additionalProperties": {
-          "$ref": "#/$defs/SkillRef"
-        },
-        "propertyNames": {
-          "format": "uuid"
-        },
-        "type": "object",
-        "title": "Skills",
-        "description": "The Skill versions `data` refers to, by version id."
+        "description": "The assets `data` or `relationships` refer to, with download URLs."
       }
     },
     "type": "object",
@@ -900,155 +1081,43 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "data",
       "batch_id",
       "created_at",
-      "assets",
-      "entities",
-      "skills"
+      "assets"
     ],
     "title": "DirectingPlan"
   },
-  "DirectingPlanCreate": {
-    "properties": {
-      "schema_version": {
-        "type": "integer",
-        "title": "Schema Version",
-        "description": "Only 1 is accepted."
-      },
-      "data": {
-        "$ref": "#/$defs/DirectingPlanDataV1"
-      },
-      "batch_id": {
-        "anyOf": [
-          {
-            "type": "string",
-            "format": "uuid"
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "title": "Batch Id",
-        "description": "The batch it is made in; one of the caller's."
-      }
-    },
-    "additionalProperties": false,
-    "type": "object",
-    "required": [
-      "schema_version",
-      "data"
-    ],
-    "title": "DirectingPlanCreate"
-  },
   "DirectingPlanDataV1": {
     "properties": {
-      "script": {
-        "anyOf": [
-          {
-            "type": "string",
-            "format": "uuid"
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "title": "Script",
-        "description": "The script it plans."
-      },
-      "specs": {
-        "items": {
-          "$ref": "#/$defs/Spec"
-        },
-        "type": "array",
-        "maxItems": 30,
-        "minItems": 1,
-        "title": "Specs",
-        "description": "One per clip."
-      },
-      "skill": {
-        "anyOf": [
-          {
-            "type": "string",
-            "format": "uuid"
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "title": "Skill",
-        "description": "The Skill version planned with."
+      "text": {
+        "type": "string",
+        "maxLength": 65536,
+        "minLength": 1,
+        "title": "Text",
+        "description": "The plan, in markdown: how the ad is shot and cut. It need not be one section per clip."
       }
     },
     "additionalProperties": false,
     "type": "object",
     "required": [
-      "specs"
+      "text"
     ],
-    "title": "DirectingPlanDataV1",
-    "x-based-on": "script"
-  },
-  "DirectingPlanVersionCreate": {
-    "properties": {
-      "data": {
-        "$ref": "#/$defs/DirectingPlanDataV1"
-      },
-      "batch_id": {
-        "anyOf": [
-          {
-            "type": "string",
-            "format": "uuid"
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "title": "Batch Id",
-        "description": "The batch it is made in; one of the caller's."
-      }
-    },
-    "additionalProperties": false,
-    "type": "object",
-    "required": [
-      "data"
-    ],
-    "title": "DirectingPlanVersionCreate"
-  },
-  "EntityRef": {
-    "properties": {
-      "kind": {
-        "type": "string",
-        "title": "Kind"
-      },
-      "id": {
-        "type": "string",
-        "format": "uuid",
-        "title": "Id"
-      },
-      "version": {
-        "type": "integer",
-        "title": "Version"
-      }
-    },
-    "type": "object",
-    "required": [
-      "kind",
-      "id",
-      "version"
-    ],
-    "title": "EntityRef",
-    "description": "An entity version a row refers to, to read it with GET /v1/{kind}s/{id}?version=."
+    "title": "DirectingPlanDataV1"
   },
   "Error": {
     "properties": {
       "code": {
         "type": "string",
-        "title": "Code"
+        "title": "Code",
+        "description": "A stable, machine-readable code, e.g. `NOT_FOUND` or `REVISION_CONFLICT`."
       },
       "message": {
         "type": "string",
-        "title": "Message"
+        "title": "Message",
+        "description": "An explanation for people to read; branch on `code`."
       },
       "retryable": {
         "type": "boolean",
-        "title": "Retryable"
+        "title": "Retryable",
+        "description": "Whether the same request may succeed if sent again later."
       },
       "details": {
         "anyOf": [
@@ -1062,7 +1131,8 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
             "type": "null"
           }
         ],
-        "title": "Details"
+        "title": "Details",
+        "description": "The problems with the request's fields, when the error is about them; left out otherwise."
       }
     },
     "type": "object",
@@ -1077,11 +1147,13 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     "properties": {
       "path": {
         "type": "string",
-        "title": "Path"
+        "title": "Path",
+        "description": "The request field the problem is in, as a dotted path, e.g. `data.prompt`."
       },
       "message": {
         "type": "string",
-        "title": "Message"
+        "title": "Message",
+        "description": "What is wrong with it."
       }
     },
     "type": "object",
@@ -1094,11 +1166,13 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
   "ErrorResponse": {
     "properties": {
       "error": {
-        "$ref": "#/$defs/Error"
+        "$ref": "#/$defs/Error",
+        "description": "What went wrong."
       },
       "request_id": {
         "type": "string",
-        "title": "Request Id"
+        "title": "Request Id",
+        "description": "This request's id, also sent as the `X-Request-ID` header; quote it when reporting a problem."
       }
     },
     "type": "object",
@@ -1109,19 +1183,63 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     "title": "ErrorResponse"
   },
   "GenerateVideo": {
+    "oneOf": [
+      {
+        "properties": {
+          "prompt": {
+            "type": "string"
+          },
+          "input": {
+            "type": "null"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt"
+        ]
+      },
+      {
+        "properties": {
+          "input": {
+            "type": "object"
+          },
+          "prompt": {
+            "type": "null"
+          }
+        },
+        "type": "object",
+        "required": [
+          "input"
+        ]
+      }
+    ],
     "properties": {
       "prompt": {
-        "type": "string",
-        "format": "uuid",
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "type": "null"
+          }
+        ],
         "title": "Prompt",
-        "description": "The prompt artifact to run."
+        "description": "An existing saved Prompt ID."
       },
       "seed": {
-        "type": "integer",
-        "maximum": 9007199254740991,
-        "minimum": 0,
+        "anyOf": [
+          {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0
+          },
+          {
+            "type": "null"
+          }
+        ],
         "title": "Seed",
-        "default": 0
+        "description": "The render's randomness. Omitted: a random seed, returned as `seed`; pass it again with the same Prompt to repeat the draw."
       },
       "resolution": {
         "anyOf": [
@@ -1137,7 +1255,18 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
           }
         ],
         "title": "Resolution",
-        "description": "Omitted: the model's default."
+        "description": "Omitted: 768P."
+      },
+      "input": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/RawPromptInput"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "A Prompt of your own, saved with this Job: the prompt text and the files it names. Characters and Products reach a clip only through a Storyboard; here, attach their pictures yourself."
       },
       "callback_url": {
         "anyOf": [
@@ -1163,14 +1292,11 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
           }
         ],
         "title": "Batch Id",
-        "description": "One of the caller's batches."
+        "description": "One of the caller's batches; when omitted, a saved Prompt's Job joins the Prompt's Batch."
       }
     },
     "additionalProperties": false,
     "type": "object",
-    "required": [
-      "prompt"
-    ],
     "title": "GenerateVideo"
   },
   "JobOut": {
@@ -1178,19 +1304,23 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "id": {
         "type": "string",
         "format": "uuid",
-        "title": "Id"
+        "title": "Id",
+        "description": "The Job's id."
       },
       "status": {
-        "$ref": "#/$defs/JobStatus"
+        "$ref": "#/$defs/JobStatus",
+        "description": "`queued` (waiting, also after a failed attempt that is retried), `running`, then `completed`, `failed` or `cancelled`, which are final."
       },
       "prompt": {
         "type": "string",
         "format": "uuid",
-        "title": "Prompt"
+        "title": "Prompt",
+        "description": "The Prompt it renders; with raw `input`, the Prompt saved for it."
       },
       "seed": {
         "type": "integer",
-        "title": "Seed"
+        "title": "Seed",
+        "description": "The seed it renders with; pass it again with the same Prompt to repeat the draw."
       },
       "resolution": {
         "anyOf": [
@@ -1201,7 +1331,8 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
             "type": "null"
           }
         ],
-        "title": "Resolution"
+        "title": "Resolution",
+        "description": "`480P` or `768P`; null when not chosen: 768P."
       },
       "batch_id": {
         "anyOf": [
@@ -1213,7 +1344,8 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
             "type": "null"
           }
         ],
-        "title": "Batch Id"
+        "title": "Batch Id",
+        "description": "The Batch it belongs to; null when none."
       },
       "asset": {
         "anyOf": [
@@ -1226,18 +1358,6 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         ],
         "description": "The generated clip, once completed."
       },
-      "checkpoint": {
-        "anyOf": [
-          {
-            "type": "string"
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "title": "Checkpoint",
-        "description": "The model weights that made the clip."
-      },
       "error": {
         "anyOf": [
           {
@@ -1247,7 +1367,20 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
             "type": "null"
           }
         ],
-        "title": "Error"
+        "title": "Error",
+        "description": "Why the Job failed, once it has; null otherwise. Read `error_code`."
+      },
+      "error_code": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Error Code",
+        "description": "`GENERATION_FAILED` when the Job failed; null otherwise."
       },
       "callback": {
         "anyOf": [
@@ -1257,12 +1390,14 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
           {
             "type": "null"
           }
-        ]
+        ],
+        "description": "Delivery of the final status to `callback_url`; null when none was given."
       },
       "created_at": {
         "type": "string",
         "format": "date-time",
-        "title": "Created At"
+        "title": "Created At",
+        "description": "When the Job was started."
       }
     },
     "type": "object",
@@ -1274,10 +1409,10 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "resolution",
       "batch_id",
       "asset",
-      "checkpoint",
       "error",
       "callback",
-      "created_at"
+      "created_at",
+      "error_code"
     ],
     "title": "JobOut"
   },
@@ -1292,54 +1427,77 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     ],
     "title": "JobStatus"
   },
-  "LogEntry": {
+  "JsonValue": {},
+  "MadeFromArtifact": {
     "properties": {
       "id": {
         "type": "string",
         "format": "uuid",
-        "title": "Id"
-      },
-      "text": {
+        "title": "Id",
+        "description": "The version's id."
+      }
+    },
+    "type": "object",
+    "required": [
+      "id"
+    ],
+    "title": "MadeFromArtifact"
+  },
+  "MadeFromEntity": {
+    "properties": {
+      "id": {
         "type": "string",
-        "title": "Text"
+        "format": "uuid",
+        "title": "Id",
+        "description": "The entity's id."
       },
-      "created_at": {
-        "type": "string",
-        "format": "date-time",
-        "title": "Created At"
+      "version": {
+        "type": "integer",
+        "title": "Version",
+        "description": "The version it was made from."
       }
     },
     "type": "object",
     "required": [
       "id",
-      "text",
-      "created_at"
+      "version"
     ],
-    "title": "LogEntry"
+    "title": "MadeFromEntity"
   },
-  "LogEntryCreate": {
+  "MadeWithSkill": {
     "properties": {
-      "text": {
+      "id": {
         "type": "string",
-        "maxLength": 10000,
-        "minLength": 1,
-        "title": "Text",
-        "description": "What was changed in the batch, and why."
+        "format": "uuid",
+        "title": "Id",
+        "description": "The Skill's id."
+      },
+      "name": {
+        "type": "string",
+        "title": "Name",
+        "description": "Its name."
+      },
+      "version": {
+        "type": "integer",
+        "title": "Version",
+        "description": "The version that wrote it."
       }
     },
-    "additionalProperties": false,
     "type": "object",
     "required": [
-      "text"
+      "id",
+      "name",
+      "version"
     ],
-    "title": "LogEntryCreate"
+    "title": "MadeWithSkill"
   },
   "MainRequest": {
     "properties": {
       "version": {
         "type": "integer",
         "minimum": 1,
-        "title": "Version"
+        "title": "Version",
+        "description": "The version to make main."
       }
     },
     "additionalProperties": false,
@@ -1349,30 +1507,126 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     ],
     "title": "MainRequest"
   },
+  "MembershipIn": {
+    "properties": {
+      "scope": {
+        "type": "string",
+        "maxLength": 255,
+        "minLength": 1,
+        "title": "Scope",
+        "description": "`customer` or an external id."
+      },
+      "role": {
+        "$ref": "#/$defs/MembershipRole",
+        "description": "`member`; `admin` (reads, writes, deletes and shares what users below the scope own); or `viewer` (reads what they own, and changes nothing of theirs)."
+      }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+      "scope",
+      "role"
+    ],
+    "title": "MembershipIn"
+  },
+  "MembershipOut": {
+    "properties": {
+      "scope": {
+        "type": "string",
+        "title": "Scope",
+        "description": "`customer` or the scope's external id."
+      },
+      "role": {
+        "$ref": "#/$defs/MembershipRole",
+        "description": "`member`, `admin` or `viewer`."
+      }
+    },
+    "type": "object",
+    "required": [
+      "scope",
+      "role"
+    ],
+    "title": "MembershipOut"
+  },
+  "MembershipRole": {
+    "type": "string",
+    "enum": [
+      "member",
+      "admin",
+      "viewer"
+    ],
+    "title": "MembershipRole"
+  },
+  "MembershipsOut": {
+    "properties": {
+      "user_id": {
+        "type": "string",
+        "format": "uuid",
+        "title": "User Id",
+        "description": "Nuva's id for the user, as in its user tokens."
+      },
+      "external_user_id": {
+        "type": "string",
+        "title": "External User Id",
+        "description": "The user's id in your system."
+      },
+      "memberships": {
+        "items": {
+          "$ref": "#/$defs/MembershipOut"
+        },
+        "type": "array",
+        "title": "Memberships",
+        "description": "The user's roles in scopes that aren't archived, oldest scope first."
+      }
+    },
+    "type": "object",
+    "required": [
+      "user_id",
+      "external_user_id",
+      "memberships"
+    ],
+    "title": "MembershipsOut"
+  },
+  "MembershipsRequest": {
+    "properties": {
+      "memberships": {
+        "items": {
+          "$ref": "#/$defs/MembershipIn"
+        },
+        "type": "array",
+        "maxItems": 100,
+        "title": "Memberships",
+        "description": "The user's whole set of scopes and roles, each scope once; it replaces the current set, and `[]` removes them all."
+      }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+      "memberships"
+    ],
+    "title": "MembershipsRequest"
+  },
   "Product": {
     "properties": {
       "id": {
         "type": "string",
         "format": "uuid",
         "title": "Id",
-        "description": "Stays the same across versions."
+        "description": "Its id: the same for every version. A reference to it is `{id, version?}`; without `version` it means the latest."
       },
       "version": {
         "type": "integer",
-        "title": "Version"
-      },
-      "revision": {
-        "type": "string",
-        "format": "uuid",
-        "title": "Revision",
-        "description": "This version's id; content made from it records this id."
+        "title": "Version",
+        "description": "1 for the first version, then one more per edit."
       },
       "schema_version": {
         "type": "integer",
-        "title": "Schema Version"
+        "title": "Schema Version",
+        "description": "The version of `data`'s format."
       },
       "data": {
-        "$ref": "#/$defs/ProductDataV1"
+        "$ref": "#/$defs/ProductDataV2",
+        "description": "The product's details."
       },
       "brand_id": {
         "type": "string",
@@ -1402,7 +1656,6 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     "required": [
       "id",
       "version",
-      "revision",
       "schema_version",
       "data",
       "brand_id",
@@ -1414,7 +1667,8 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
   "ProductCreate": {
     "properties": {
       "data": {
-        "$ref": "#/$defs/ProductDataV1"
+        "$ref": "#/$defs/ProductDataV2",
+        "description": "The product's details."
       },
       "brand_id": {
         "type": "string",
@@ -1431,23 +1685,56 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     ],
     "title": "ProductCreate"
   },
-  "ProductDataV1": {
+  "ProductDataV2": {
     "properties": {
       "name": {
         "type": "string",
         "maxLength": 200,
         "minLength": 1,
-        "title": "Name"
+        "title": "Name",
+        "description": "The product's name."
       },
-      "images": {
+      "description": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 5000
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description",
+        "description": "What the product is, given to the Script writer as context."
+      },
+      "attributes": {
+        "additionalProperties": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "type": "object",
+        "title": "Attributes",
+        "description": "More about the product as JSON, given to the Script writer as context. IDs here are not references: they grant no access to what they name."
+      },
+      "image_asset_ids": {
         "items": {
           "type": "string",
           "format": "uuid"
         },
         "type": "array",
         "maxItems": 20,
-        "title": "Images",
-        "description": "Image asset ids.",
+        "title": "Image Asset Ids",
+        "description": "Pictures of the product. The first is the default a Storyboard shows for `{{product}}`; `{{product:<asset id>}}` picks another.",
+        "default": []
+      },
+      "video_asset_ids": {
+        "items": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": "array",
+        "maxItems": 5,
+        "title": "Video Asset Ids",
+        "description": "Videos of the product, which a Storyboard shot can name as `{{product:<asset id>}}`.",
         "default": []
       },
       "selling_points": {
@@ -1459,6 +1746,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "type": "array",
         "maxItems": 20,
         "title": "Selling Points",
+        "description": "What to say about the product; Scripts cite them as facts.",
         "default": []
       },
       "target_audience": {
@@ -1471,7 +1759,8 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
             "type": "null"
           }
         ],
-        "title": "Target Audience"
+        "title": "Target Audience",
+        "description": "Who the ads are for."
       },
       "facts": {
         "items": {
@@ -1482,7 +1771,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "type": "array",
         "maxItems": 20,
         "title": "Facts",
-        "description": "Other facts about the product.",
+        "description": "Other facts the Script writer may use.",
         "default": []
       },
       "constraints": {
@@ -1494,7 +1783,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "type": "array",
         "maxItems": 20,
         "title": "Constraints",
-        "description": "Brand constraints on what ads may say.",
+        "description": "What ads may not say or show, as the brand requires.",
         "default": []
       }
     },
@@ -1503,7 +1792,142 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     "required": [
       "name"
     ],
-    "title": "ProductDataV1"
+    "title": "ProductDataV2",
+    "description": "A Product as writers read it. Its media fields are named like every other list of files\n(`image_asset_ids`, `video_asset_ids`); version 1 called them `images` and `videos`."
+  },
+  "ProductEdit": {
+    "properties": {
+      "version": {
+        "type": "integer",
+        "minimum": 1,
+        "title": "Version",
+        "description": "The version you read. If someone saved a newer one since, the edit is refused with 409 REVISION_CONFLICT: read the product again."
+      },
+      "data": {
+        "$ref": "#/$defs/ProductEditData",
+        "description": "Only the fields to change; the rest keep their values. A list is replaced as a whole: `[]` empties it, and `null` clears an optional value."
+      },
+      "brand_id": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Brand Id",
+        "description": "The Brand it belongs to (the Brand's id)."
+      }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+      "version"
+    ],
+    "title": "ProductEdit"
+  },
+  "ProductEditData": {
+    "properties": {
+      "name": {
+        "type": "string",
+        "maxLength": 200,
+        "minLength": 1,
+        "title": "Name",
+        "description": "The product's name."
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 5000
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description",
+        "description": "What the product is, given to the Script writer as context."
+      },
+      "attributes": {
+        "additionalProperties": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "type": "object",
+        "title": "Attributes",
+        "description": "More about the product as JSON, given to the Script writer as context. IDs here are not references: they grant no access to what they name."
+      },
+      "image_asset_ids": {
+        "items": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": "array",
+        "maxItems": 20,
+        "title": "Image Asset Ids",
+        "description": "Pictures of the product. The first is the default a Storyboard shows for `{{product}}`; `{{product:<asset id>}}` picks another."
+      },
+      "video_asset_ids": {
+        "items": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": "array",
+        "maxItems": 5,
+        "title": "Video Asset Ids",
+        "description": "Videos of the product, which a Storyboard shot can name as `{{product:<asset id>}}`."
+      },
+      "selling_points": {
+        "items": {
+          "type": "string",
+          "maxLength": 500,
+          "minLength": 1
+        },
+        "type": "array",
+        "maxItems": 20,
+        "title": "Selling Points",
+        "description": "What to say about the product; Scripts cite them as facts."
+      },
+      "target_audience": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 2000
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Target Audience",
+        "description": "Who the ads are for."
+      },
+      "facts": {
+        "items": {
+          "type": "string",
+          "maxLength": 500,
+          "minLength": 1
+        },
+        "type": "array",
+        "maxItems": 20,
+        "title": "Facts",
+        "description": "Other facts the Script writer may use."
+      },
+      "constraints": {
+        "items": {
+          "type": "string",
+          "maxLength": 500,
+          "minLength": 1
+        },
+        "type": "array",
+        "maxItems": 20,
+        "title": "Constraints",
+        "description": "What ads may not say or show, as the brand requires."
+      }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "title": "ProductEditData"
   },
   "ProductPage": {
     "properties": {
@@ -1512,7 +1936,8 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
           "$ref": "#/$defs/Product"
         },
         "type": "array",
-        "title": "Items"
+        "title": "Items",
+        "description": "The products on this page, each at its current version, newest first."
       },
       "next_cursor": {
         "anyOf": [
@@ -1534,39 +1959,13 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     ],
     "title": "ProductPage"
   },
-  "ProductUpdate": {
-    "properties": {
-      "version": {
-        "type": "integer",
-        "minimum": 1,
-        "title": "Version",
-        "description": "The version this edit is based on."
-      },
-      "data": {
-        "$ref": "#/$defs/ProductDataV1"
-      },
-      "brand_id": {
-        "type": "string",
-        "format": "uuid",
-        "title": "Brand Id",
-        "description": "The Brand it belongs to (the Brand's id)."
-      }
-    },
-    "additionalProperties": false,
-    "type": "object",
-    "required": [
-      "version",
-      "data",
-      "brand_id"
-    ],
-    "title": "ProductUpdate"
-  },
   "Prompt": {
     "properties": {
       "kind": {
         "type": "string",
         "const": "prompt",
-        "title": "Kind"
+        "title": "Kind",
+        "description": "Always `prompt`."
       },
       "id": {
         "type": "string",
@@ -1595,10 +1994,12 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       },
       "schema_version": {
         "type": "integer",
-        "title": "Schema Version"
+        "title": "Schema Version",
+        "description": "The version of `data`'s format."
       },
       "data": {
-        "$ref": "#/$defs/PromptDataV1"
+        "$ref": "#/$defs/PromptReadV1",
+        "description": "The prompt's content."
       },
       "batch_id": {
         "anyOf": [
@@ -1610,12 +2011,14 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
             "type": "null"
           }
         ],
-        "title": "Batch Id"
+        "title": "Batch Id",
+        "description": "The Batch it was made in; null when none."
       },
       "created_at": {
         "type": "string",
         "format": "date-time",
-        "title": "Created At"
+        "title": "Created At",
+        "description": "When this version was saved."
       },
       "assets": {
         "additionalProperties": {
@@ -1626,29 +2029,29 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         },
         "type": "object",
         "title": "Assets",
-        "description": "The assets `data` refers to, with download URLs."
+        "description": "The assets `data` or `relationships` refer to, with download URLs."
       },
-      "entities": {
-        "additionalProperties": {
-          "$ref": "#/$defs/EntityRef"
-        },
-        "propertyNames": {
-          "format": "uuid"
-        },
-        "type": "object",
-        "title": "Entities",
-        "description": "The entity versions `data` refers to, by `revision`."
+      "storyboard": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/MadeFromArtifact"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The Storyboard it was compiled from (its clip is `data.clip_id`); null for raw input."
       },
-      "skills": {
-        "additionalProperties": {
-          "$ref": "#/$defs/SkillRef"
-        },
-        "propertyNames": {
-          "format": "uuid"
-        },
-        "type": "object",
-        "title": "Skills",
-        "description": "The Skill versions `data` refers to, by version id."
+      "skill": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/MadeWithSkill"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The Skill version that wrote it; null when none."
       }
     },
     "type": "object",
@@ -1662,42 +2065,10 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "batch_id",
       "created_at",
       "assets",
-      "entities",
-      "skills"
+      "storyboard",
+      "skill"
     ],
     "title": "Prompt"
-  },
-  "PromptCreate": {
-    "properties": {
-      "schema_version": {
-        "type": "integer",
-        "title": "Schema Version",
-        "description": "Only 1 is accepted."
-      },
-      "data": {
-        "$ref": "#/$defs/PromptDataV1"
-      },
-      "batch_id": {
-        "anyOf": [
-          {
-            "type": "string",
-            "format": "uuid"
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "title": "Batch Id",
-        "description": "The batch it is made in; one of the caller's."
-      }
-    },
-    "additionalProperties": false,
-    "type": "object",
-    "required": [
-      "schema_version",
-      "data"
-    ],
-    "title": "PromptCreate"
   },
   "PromptDataV1": {
     "properties": {
@@ -1705,7 +2076,8 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "type": "string",
         "maxLength": 10000,
         "minLength": 1,
-        "title": "Prompt"
+        "title": "Prompt",
+        "description": "What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other."
       },
       "image_asset_ids": {
         "items": {
@@ -1715,6 +2087,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "type": "array",
         "maxItems": 9,
         "title": "Image Asset Ids",
+        "description": "Images the clip uses, as <Picture 1>, <Picture 2>, … in this order. A person or product looks like their picture only when it is attached here and named.",
         "default": []
       },
       "video_asset_ids": {
@@ -1725,6 +2098,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "type": "array",
         "maxItems": 3,
         "title": "Video Asset Ids",
+        "description": "Videos the clip uses, as <Video 1>, … in order.",
         "default": []
       },
       "audio_asset_ids": {
@@ -1735,6 +2109,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "type": "array",
         "maxItems": 3,
         "title": "Audio Asset Ids",
+        "description": "Audio the clip uses (a voice, music, sound), as <Audio 1>, … in order.",
         "default": []
       },
       "seconds": {
@@ -1748,7 +2123,8 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
             "type": "null"
           }
         ],
-        "title": "Seconds"
+        "title": "Seconds",
+        "description": "The clip's length. Omitted: 5 seconds."
       },
       "ratio": {
         "anyOf": [
@@ -1768,33 +2144,8 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
             "type": "null"
           }
         ],
-        "title": "Ratio"
-      },
-      "plan": {
-        "anyOf": [
-          {
-            "type": "string",
-            "format": "uuid"
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "title": "Plan",
-        "description": "The directing plan it comes from."
-      },
-      "clip_key": {
-        "anyOf": [
-          {
-            "type": "string",
-            "pattern": "^[A-Za-z0-9_-]{1,64}$"
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "title": "Clip Key",
-        "description": "Its spec in `plan`."
+        "title": "Ratio",
+        "description": "The frame. Omitted: 16:9. `adaptive` follows the first image or video."
       }
     },
     "additionalProperties": false,
@@ -1803,13 +2154,112 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "prompt"
     ],
     "title": "PromptDataV1",
-    "description": "What POST /v1/videos takes to describe a clip; seed, resolution and callback belong to the\nJob. Each list's order numbers its references in the prompt: <Picture 1>, <Video 1>, ...\nThe total number of references a model takes is checked when the prompt is used.",
-    "x-based-on": "plan"
+    "description": "A saved Prompt: what the clip is rendered from, and which Characters and Storyboard clip\nit came from, which the Agent records. Seed, resolution and callback belong to the Job. The\ntotal number of references the model takes (12) is checked when the prompt is used."
+  },
+  "PromptReadV1": {
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "maxLength": 10000,
+        "minLength": 1,
+        "title": "Prompt",
+        "description": "What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other."
+      },
+      "image_asset_ids": {
+        "items": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": "array",
+        "maxItems": 9,
+        "title": "Image Asset Ids",
+        "description": "Images the clip uses, as <Picture 1>, <Picture 2>, … in this order. A person or product looks like their picture only when it is attached here and named.",
+        "default": []
+      },
+      "video_asset_ids": {
+        "items": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": "array",
+        "maxItems": 3,
+        "title": "Video Asset Ids",
+        "description": "Videos the clip uses, as <Video 1>, … in order.",
+        "default": []
+      },
+      "audio_asset_ids": {
+        "items": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": "array",
+        "maxItems": 3,
+        "title": "Audio Asset Ids",
+        "description": "Audio the clip uses (a voice, music, sound), as <Audio 1>, … in order.",
+        "default": []
+      },
+      "seconds": {
+        "anyOf": [
+          {
+            "type": "number",
+            "maximum": 15,
+            "minimum": 5
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Seconds",
+        "description": "The clip's length. Omitted: 5 seconds."
+      },
+      "ratio": {
+        "anyOf": [
+          {
+            "type": "string",
+            "enum": [
+              "adaptive",
+              "21:9",
+              "16:9",
+              "4:3",
+              "1:1",
+              "3:4",
+              "9:16"
+            ]
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Ratio",
+        "description": "The frame. Omitted: 16:9. `adaptive` follows the first image or video."
+      },
+      "clip_id": {
+        "anyOf": [
+          {
+            "type": "string",
+            "pattern": "^C\\d{2}$"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Clip Id",
+        "description": "For a Prompt compiled from a Storyboard: the clip it renders (`C01`, …)."
+      }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+      "prompt"
+    ],
+    "title": "PromptReadV1",
+    "description": "A saved Prompt as it is read. Which Character versions it shows is the Agent's record."
   },
   "PromptVersionCreate": {
     "properties": {
       "data": {
-        "$ref": "#/$defs/PromptDataV1"
+        "$ref": "#/$defs/PromptDataV1",
+        "description": "The prompt's content."
       },
       "batch_id": {
         "anyOf": [
@@ -1832,13 +2282,122 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     ],
     "title": "PromptVersionCreate"
   },
+  "RawPromptDataV1": {
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "maxLength": 10000,
+        "minLength": 1,
+        "title": "Prompt",
+        "description": "What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other."
+      },
+      "image_asset_ids": {
+        "items": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": "array",
+        "maxItems": 9,
+        "title": "Image Asset Ids",
+        "description": "Images the clip uses, as <Picture 1>, <Picture 2>, … in this order. A person or product looks like their picture only when it is attached here and named.",
+        "default": []
+      },
+      "video_asset_ids": {
+        "items": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": "array",
+        "maxItems": 3,
+        "title": "Video Asset Ids",
+        "description": "Videos the clip uses, as <Video 1>, … in order.",
+        "default": []
+      },
+      "audio_asset_ids": {
+        "items": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": "array",
+        "maxItems": 3,
+        "title": "Audio Asset Ids",
+        "description": "Audio the clip uses (a voice, music, sound), as <Audio 1>, … in order.",
+        "default": []
+      },
+      "seconds": {
+        "anyOf": [
+          {
+            "type": "number",
+            "maximum": 15,
+            "minimum": 5
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Seconds",
+        "description": "The clip's length. Omitted: 5 seconds."
+      },
+      "ratio": {
+        "anyOf": [
+          {
+            "type": "string",
+            "enum": [
+              "adaptive",
+              "21:9",
+              "16:9",
+              "4:3",
+              "1:1",
+              "3:4",
+              "9:16"
+            ]
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Ratio",
+        "description": "The frame. Omitted: 16:9. `adaptive` follows the first image or video."
+      }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+      "prompt"
+    ],
+    "title": "RawPromptDataV1",
+    "description": "What a raw render takes: the prompt text and the files it names, the length and the frame,\nwhich is all the video model sees."
+  },
+  "RawPromptInput": {
+    "properties": {
+      "schema_version": {
+        "type": "integer",
+        "const": 1,
+        "title": "Schema Version",
+        "description": "The version of `data`'s format: 1."
+      },
+      "data": {
+        "$ref": "#/$defs/RawPromptDataV1",
+        "description": "What the clip is rendered from: the prompt text, the files it names, the length and the frame."
+      }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+      "schema_version",
+      "data"
+    ],
+    "title": "RawPromptInput"
+  },
   "RegisteredSkill": {
     "properties": {
       "skill": {
-        "$ref": "#/$defs/SkillOut"
+        "$ref": "#/$defs/SkillOut",
+        "description": "The Skill."
       },
       "version": {
-        "$ref": "#/$defs/SkillVersionOut"
+        "$ref": "#/$defs/SkillVersionOut",
+        "description": "The new version, or the latest one when its content was the same."
       }
     },
     "type": "object",
@@ -1848,12 +2407,145 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     ],
     "title": "RegisteredSkill"
   },
+  "ScopeOut": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "format": "uuid",
+        "title": "Id",
+        "description": "Nuva's id for the scope."
+      },
+      "external_id": {
+        "type": "string",
+        "title": "External Id",
+        "description": "Your id for the org or group, as in its path."
+      },
+      "kind": {
+        "type": "string",
+        "enum": [
+          "org",
+          "group"
+        ],
+        "title": "Kind",
+        "description": "`org` or `group`."
+      },
+      "parent": {
+        "type": "string",
+        "title": "Parent",
+        "description": "The parent's external id, or `customer` for the root."
+      },
+      "name": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Name",
+        "description": "Its display name; null when none was given."
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At",
+        "description": "When the scope was first put."
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "external_id",
+      "kind",
+      "parent",
+      "name",
+      "created_at"
+    ],
+    "title": "ScopeOut"
+  },
+  "ScopePage": {
+    "properties": {
+      "items": {
+        "items": {
+          "$ref": "#/$defs/ScopeOut"
+        },
+        "type": "array",
+        "title": "Items",
+        "description": "The orgs and groups on this page that aren't archived, newest first."
+      },
+      "next_cursor": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Next Cursor",
+        "description": "Pass as `cursor` for the next page; null on the last page."
+      }
+    },
+    "type": "object",
+    "required": [
+      "items",
+      "next_cursor"
+    ],
+    "title": "ScopePage"
+  },
+  "ScopeRequest": {
+    "properties": {
+      "kind": {
+        "type": "string",
+        "enum": [
+          "org",
+          "group"
+        ],
+        "title": "Kind",
+        "description": "`org` (under the customer) or `group` (under an org)."
+      },
+      "parent": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 255
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Parent",
+        "description": "A group's org, by its external id."
+      },
+      "name": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 200
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Name",
+        "description": "A display name. Every PUT sets it, so leaving it out clears it."
+      }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+      "kind"
+    ],
+    "title": "ScopeRequest"
+  },
   "Script": {
     "properties": {
       "kind": {
         "type": "string",
         "const": "script",
-        "title": "Kind"
+        "title": "Kind",
+        "description": "Always `script`."
       },
       "id": {
         "type": "string",
@@ -1882,10 +2574,12 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       },
       "schema_version": {
         "type": "integer",
-        "title": "Schema Version"
+        "title": "Schema Version",
+        "description": "The version of `data`'s format."
       },
       "data": {
-        "$ref": "#/$defs/ScriptDataV1"
+        "$ref": "#/$defs/ScriptDataV1",
+        "description": "The script's content."
       },
       "batch_id": {
         "anyOf": [
@@ -1897,12 +2591,14 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
             "type": "null"
           }
         ],
-        "title": "Batch Id"
+        "title": "Batch Id",
+        "description": "The Batch it was made in; null when none."
       },
       "created_at": {
         "type": "string",
         "format": "date-time",
-        "title": "Created At"
+        "title": "Created At",
+        "description": "When this version was saved."
       },
       "assets": {
         "additionalProperties": {
@@ -1913,29 +2609,29 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         },
         "type": "object",
         "title": "Assets",
-        "description": "The assets `data` refers to, with download URLs."
+        "description": "The assets `data` or `relationships` refer to, with download URLs."
       },
-      "entities": {
-        "additionalProperties": {
-          "$ref": "#/$defs/EntityRef"
-        },
-        "propertyNames": {
-          "format": "uuid"
-        },
-        "type": "object",
-        "title": "Entities",
-        "description": "The entity versions `data` refers to, by `revision`."
+      "product": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/MadeFromEntity"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The Product version it was written for."
       },
-      "skills": {
-        "additionalProperties": {
-          "$ref": "#/$defs/SkillRef"
-        },
-        "propertyNames": {
-          "format": "uuid"
-        },
-        "type": "object",
-        "title": "Skills",
-        "description": "The Skill versions `data` refers to, by version id."
+      "skill": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/MadeWithSkill"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The Skill version that wrote it; null when none."
       }
     },
     "type": "object",
@@ -1949,77 +2645,19 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "batch_id",
       "created_at",
       "assets",
-      "entities",
-      "skills"
+      "product",
+      "skill"
     ],
     "title": "Script"
   },
-  "ScriptCreate": {
-    "properties": {
-      "schema_version": {
-        "type": "integer",
-        "title": "Schema Version",
-        "description": "Only 1 is accepted."
-      },
-      "data": {
-        "$ref": "#/$defs/ScriptDataV1"
-      },
-      "batch_id": {
-        "anyOf": [
-          {
-            "type": "string",
-            "format": "uuid"
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "title": "Batch Id",
-        "description": "The batch it is made in; one of the caller's."
-      }
-    },
-    "additionalProperties": false,
-    "type": "object",
-    "required": [
-      "schema_version",
-      "data"
-    ],
-    "title": "ScriptCreate"
-  },
   "ScriptDataV1": {
     "properties": {
-      "product": {
-        "anyOf": [
-          {
-            "type": "string",
-            "format": "uuid"
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "title": "Product",
-        "description": "The Product version written for: its `revision`."
-      },
       "text": {
         "type": "string",
         "maxLength": 65536,
         "minLength": 1,
         "title": "Text",
-        "description": "The script, in markdown."
-      },
-      "skill": {
-        "anyOf": [
-          {
-            "type": "string",
-            "format": "uuid"
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "title": "Skill",
-        "description": "The Skill version written with."
+        "description": "The Script, encoded by the SDK (`nuva.script`); read it as the SDK's `content`."
       }
     },
     "additionalProperties": false,
@@ -2029,104 +2667,105 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     ],
     "title": "ScriptDataV1"
   },
-  "ScriptVersionCreate": {
+  "ShareAccess": {
+    "type": "string",
+    "enum": [
+      "read",
+      "write"
+    ],
+    "title": "ShareAccess"
+  },
+  "ShareOut": {
     "properties": {
-      "data": {
-        "$ref": "#/$defs/ScriptDataV1"
+      "kind": {
+        "type": "string",
+        "title": "Kind",
+        "description": "The item's kind, as in the path."
       },
-      "batch_id": {
-        "anyOf": [
-          {
-            "type": "string",
-            "format": "uuid"
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "title": "Batch Id",
-        "description": "The batch it is made in; one of the caller's."
+      "id": {
+        "type": "string",
+        "format": "uuid",
+        "title": "Id",
+        "description": "The shared item: an asset's id, an entity's id, or an Artifact's first version's id. A share covers every version."
+      },
+      "scope": {
+        "type": "string",
+        "title": "Scope",
+        "description": "The scope it is shared with: `customer` or an external id."
+      },
+      "access": {
+        "$ref": "#/$defs/ShareAccess",
+        "description": "`read` (see and use) or `write` (also edit)."
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At",
+        "description": "When the item was first shared with this scope."
+      }
+    },
+    "type": "object",
+    "required": [
+      "kind",
+      "id",
+      "scope",
+      "access",
+      "created_at"
+    ],
+    "title": "ShareOut"
+  },
+  "ShareRequest": {
+    "properties": {
+      "access": {
+        "$ref": "#/$defs/ShareAccess",
+        "description": "`read` (see and use) or `write` (also edit)."
       }
     },
     "additionalProperties": false,
     "type": "object",
     "required": [
-      "data"
+      "access"
     ],
-    "title": "ScriptVersionCreate"
+    "title": "ShareRequest"
   },
-  "SkillDetail": {
+  "SharesOut": {
     "properties": {
-      "id": {
-        "type": "string",
-        "format": "uuid",
-        "title": "Id"
-      },
-      "name": {
-        "type": "string",
-        "title": "Name"
-      },
-      "platform": {
-        "type": "boolean",
-        "title": "Platform",
-        "description": "Provided by Nuva to every customer."
-      },
-      "main_version": {
-        "anyOf": [
-          {
-            "type": "integer"
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "title": "Main Version",
-        "description": "The version new work uses by default."
-      },
-      "created_at": {
-        "type": "string",
-        "format": "date-time",
-        "title": "Created At"
-      },
-      "main": {
-        "anyOf": [
-          {
-            "$ref": "#/$defs/SkillVersionOut"
-          },
-          {
-            "type": "null"
-          }
-        ]
+      "items": {
+        "items": {
+          "$ref": "#/$defs/ShareOut"
+        },
+        "type": "array",
+        "title": "Items",
+        "description": "The item's shares with scopes that aren't archived, oldest first."
       }
     },
     "type": "object",
     "required": [
-      "id",
-      "name",
-      "platform",
-      "main_version",
-      "created_at",
-      "main"
+      "items"
     ],
-    "title": "SkillDetail"
+    "title": "SharesOut"
   },
   "SkillFile": {
     "properties": {
       "path": {
         "type": "string",
-        "title": "Path"
+        "title": "Path",
+        "description": "The file's path in the Skill, e.g. `SKILL.md`."
       },
       "bytes": {
         "type": "integer",
-        "title": "Bytes"
+        "title": "Bytes",
+        "description": "Its size in bytes."
       },
       "sha256": {
         "type": "string",
-        "title": "Sha256"
+        "title": "Sha256",
+        "description": "The SHA-256 of its content, in hex."
       },
       "download_url": {
         "type": "string",
-        "title": "Download Url"
+        "title": "Download Url",
+        "description": "A temporary URL for its content, until `download_url_expires_at`."
       }
     },
     "type": "object",
@@ -2138,16 +2777,18 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     ],
     "title": "SkillFile"
   },
-  "SkillOut": {
+  "SkillListed": {
     "properties": {
       "id": {
         "type": "string",
         "format": "uuid",
-        "title": "Id"
+        "title": "Id",
+        "description": "The Skill's id."
       },
       "name": {
         "type": "string",
-        "title": "Name"
+        "title": "Name",
+        "description": "Its name, as registered."
       },
       "platform": {
         "type": "boolean",
@@ -2169,7 +2810,139 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "created_at": {
         "type": "string",
         "format": "date-time",
-        "title": "Created At"
+        "title": "Created At",
+        "description": "When its first version was registered."
+      },
+      "version": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Version",
+        "description": "The version shown here: the latest."
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description",
+        "description": "Its description, as registered."
+      },
+      "note": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Note",
+        "description": "What this version changes."
+      },
+      "attributes": {
+        "anyOf": [
+          {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Attributes",
+        "description": "The fields for the Agent's loader, as registered."
+      },
+      "files": {
+        "anyOf": [
+          {
+            "items": {
+              "$ref": "#/$defs/SkillFile"
+            },
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Files",
+        "description": "Its files, by path, each with a download URL."
+      },
+      "download_url_expires_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Download Url Expires At",
+        "description": "When the files' download URLs stop working: in an hour."
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "name",
+      "platform",
+      "main_version",
+      "created_at",
+      "version",
+      "description",
+      "note",
+      "attributes",
+      "files",
+      "download_url_expires_at"
+    ],
+    "title": "SkillListed",
+    "description": "A Skill in a list, at its latest version; SDKs before the version header read it without\none (SkillOut)."
+  },
+  "SkillOut": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "format": "uuid",
+        "title": "Id",
+        "description": "The Skill's id."
+      },
+      "name": {
+        "type": "string",
+        "title": "Name",
+        "description": "Its name, as in PUT /v1/admin/skills/{name}."
+      },
+      "platform": {
+        "type": "boolean",
+        "title": "Platform",
+        "description": "Provided by Nuva to every customer."
+      },
+      "main_version": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Main Version",
+        "description": "The version new work uses by default."
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At",
+        "description": "When its first version was registered."
       }
     },
     "type": "object",
@@ -2186,10 +2959,11 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     "properties": {
       "items": {
         "items": {
-          "$ref": "#/$defs/SkillOut"
+          "$ref": "#/$defs/SkillListed"
         },
         "type": "array",
-        "title": "Items"
+        "title": "Items",
+        "description": "The Skills on this page, newest first, each at its latest version."
       },
       "next_cursor": {
         "anyOf": [
@@ -2211,30 +2985,136 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     ],
     "title": "SkillPage"
   },
-  "SkillRef": {
+  "SkillRead": {
     "properties": {
-      "skill_id": {
+      "id": {
         "type": "string",
         "format": "uuid",
-        "title": "Skill Id"
+        "title": "Id",
+        "description": "The Skill's id."
       },
       "name": {
         "type": "string",
-        "title": "Name"
+        "title": "Name",
+        "description": "Its name, as registered."
+      },
+      "platform": {
+        "type": "boolean",
+        "title": "Platform",
+        "description": "Provided by Nuva to every customer."
+      },
+      "main_version": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Main Version",
+        "description": "The version new work uses by default."
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At",
+        "description": "When its first version was registered."
       },
       "version": {
-        "type": "integer",
-        "title": "Version"
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Version",
+        "description": "The version shown here."
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description",
+        "description": "Its description, as registered."
+      },
+      "note": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Note",
+        "description": "What this version changes."
+      },
+      "attributes": {
+        "anyOf": [
+          {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Attributes",
+        "description": "The fields for the Agent's loader, as registered."
+      },
+      "files": {
+        "anyOf": [
+          {
+            "items": {
+              "$ref": "#/$defs/SkillFile"
+            },
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Files",
+        "description": "Its files, by path, each with a download URL."
+      },
+      "download_url_expires_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Download Url Expires At",
+        "description": "When the files' download URLs stop working: in an hour."
       }
     },
     "type": "object",
     "required": [
-      "skill_id",
+      "id",
       "name",
-      "version"
+      "platform",
+      "main_version",
+      "created_at",
+      "version",
+      "description",
+      "note",
+      "attributes",
+      "files",
+      "download_url_expires_at"
     ],
-    "title": "SkillRef",
-    "description": "A Skill version a row refers to, to read it with GET /v1/skills/{id}/versions/{version}."
+    "title": "SkillRead",
+    "description": "A Skill at one version: the latest, or the one asked for. SDKs before the version header\nread the Skill with its `main` version (SkillDetail)."
   },
   "SkillRegistration": {
     "properties": {
@@ -2263,7 +3143,8 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
             "type": "null"
           }
         ],
-        "title": "Description"
+        "title": "Description",
+        "description": "What the Skill is for, kept with this version."
       },
       "note": {
         "anyOf": [
@@ -2309,7 +3190,8 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "commit": {
         "type": "string",
         "pattern": "^[0-9a-f]{7,64}$",
-        "title": "Commit"
+        "title": "Commit",
+        "description": "The commit, in hex."
       },
       "path": {
         "anyOf": [
@@ -2344,11 +3226,13 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "skill_id": {
         "type": "string",
         "format": "uuid",
-        "title": "Skill Id"
+        "title": "Skill Id",
+        "description": "The Skill it is a version of."
       },
       "version": {
         "type": "integer",
-        "title": "Version"
+        "title": "Version",
+        "description": "1 for the first version, then one more per new version."
       },
       "description": {
         "anyOf": [
@@ -2359,7 +3243,8 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
             "type": "null"
           }
         ],
-        "title": "Description"
+        "title": "Description",
+        "description": "The description registered with it."
       },
       "note": {
         "anyOf": [
@@ -2370,39 +3255,34 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
             "type": "null"
           }
         ],
-        "title": "Note"
-      },
-      "source": {
-        "anyOf": [
-          {
-            "$ref": "#/$defs/SkillSource"
-          },
-          {
-            "type": "null"
-          }
-        ]
+        "title": "Note",
+        "description": "What this version changes, as registered."
       },
       "attributes": {
         "additionalProperties": true,
         "type": "object",
-        "title": "Attributes"
+        "title": "Attributes",
+        "description": "The fields for the Agent's loader registered with it, as given."
       },
       "files": {
         "items": {
           "$ref": "#/$defs/SkillFile"
         },
         "type": "array",
-        "title": "Files"
+        "title": "Files",
+        "description": "Its files, by path, each with a download URL."
       },
       "download_url_expires_at": {
         "type": "string",
         "format": "date-time",
-        "title": "Download Url Expires At"
+        "title": "Download Url Expires At",
+        "description": "When the files' download URLs stop working: an hour after this response."
       },
       "created_at": {
         "type": "string",
         "format": "date-time",
-        "title": "Created At"
+        "title": "Created At",
+        "description": "When this version was registered."
       }
     },
     "type": "object",
@@ -2412,7 +3292,6 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "version",
       "description",
       "note",
-      "source",
       "attributes",
       "files",
       "download_url_expires_at",
@@ -2420,40 +3299,155 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
     ],
     "title": "SkillVersionOut"
   },
-  "Spec": {
+  "Storyboard": {
     "properties": {
-      "clip_key": {
+      "kind": {
         "type": "string",
-        "pattern": "^[A-Za-z0-9_-]{1,64}$",
-        "title": "Clip Key",
-        "description": "Lines the clip's prompt up with this spec."
+        "const": "storyboard",
+        "title": "Kind",
+        "description": "Always `storyboard`."
       },
-      "text": {
+      "id": {
         "type": "string",
-        "maxLength": 16000,
-        "minLength": 1,
-        "title": "Text",
-        "description": "Picture, shots and lines, in markdown."
+        "format": "uuid",
+        "title": "Id",
+        "description": "This version's id."
+      },
+      "lineage_id": {
+        "type": "string",
+        "format": "uuid",
+        "title": "Lineage Id",
+        "description": "The first version's id."
+      },
+      "base_id": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Base Id",
+        "description": "The version this one was edited from."
+      },
+      "schema_version": {
+        "type": "integer",
+        "title": "Schema Version",
+        "description": "The version of `data`'s format."
+      },
+      "data": {
+        "$ref": "#/$defs/StoryboardDataV1",
+        "description": "The storyboard's content."
+      },
+      "batch_id": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Batch Id",
+        "description": "The Batch it was made in; null when none."
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At",
+        "description": "When this version was saved."
+      },
+      "assets": {
+        "additionalProperties": {
+          "$ref": "#/$defs/AssetOut"
+        },
+        "propertyNames": {
+          "format": "uuid"
+        },
+        "type": "object",
+        "title": "Assets",
+        "description": "The assets `data` or `relationships` refer to, with download URLs."
+      },
+      "script": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/MadeFromArtifact"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The Script it shoots."
+      },
+      "product": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/MadeFromEntity"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The Product version it shows."
       },
       "characters": {
         "items": {
-          "type": "string",
-          "format": "uuid"
+          "$ref": "#/$defs/MadeFromEntity"
         },
         "type": "array",
-        "maxItems": 10,
         "title": "Characters",
-        "description": "Character versions that appear: `revision`s.",
+        "description": "The Character versions it casts.",
         "default": []
+      },
+      "skill": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/MadeWithSkill"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The Skill version that wrote it; null when none."
+      }
+    },
+    "type": "object",
+    "required": [
+      "kind",
+      "id",
+      "lineage_id",
+      "base_id",
+      "schema_version",
+      "data",
+      "batch_id",
+      "created_at",
+      "assets",
+      "script",
+      "product",
+      "characters",
+      "skill"
+    ],
+    "title": "Storyboard"
+  },
+  "StoryboardDataV1": {
+    "properties": {
+      "text": {
+        "type": "string",
+        "maxLength": 65536,
+        "minLength": 1,
+        "title": "Text",
+        "description": "How a Script is shot: casting, locations, timed shots and each clip's references, encoded by the SDK (`nuva.storyboard`). It is `based_on` its Script and the Characters it casts."
       }
     },
     "additionalProperties": false,
     "type": "object",
     "required": [
-      "clip_key",
       "text"
     ],
-    "title": "Spec"
+    "title": "StoryboardDataV1"
   },
   "TokenRequest": {
     "properties": {
@@ -2483,6 +3477,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "token_type": {
         "type": "string",
         "title": "Token Type",
+        "description": "Always `Bearer`.",
         "default": "Bearer"
       },
       "expires_at": {
@@ -2492,7 +3487,8 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "description": "Request a new token before this time."
       },
       "user": {
-        "$ref": "#/$defs/TokenUser"
+        "$ref": "#/$defs/TokenUser",
+        "description": "The user the token is for."
       }
     },
     "type": "object",
@@ -2513,7 +3509,8 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       },
       "external_user_id": {
         "type": "string",
-        "title": "External User Id"
+        "title": "External User Id",
+        "description": "The user's id in your system, as you sent it."
       }
     },
     "type": "object",
@@ -2538,11 +3535,13 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "expires_at": {
         "type": "string",
         "format": "date-time",
-        "title": "Expires At"
+        "title": "Expires At",
+        "description": "When `upload_url` and `upload_token` stop working: an hour after the request."
       },
       "max_bytes": {
         "type": "integer",
-        "title": "Max Bytes"
+        "title": "Max Bytes",
+        "description": "The largest file of this kind, in bytes; a larger one is refused when registered (413 ASSET_TOO_LARGE)."
       }
     },
     "type": "object",
@@ -2563,7 +3562,8 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
           "video",
           "audio"
         ],
-        "title": "Kind"
+        "title": "Kind",
+        "description": "What you will upload: `image` (JPEG, PNG or WebP), `video` (MP4) or `audio` (MP3, WAV or MP4)."
       }
     },
     "additionalProperties": false,

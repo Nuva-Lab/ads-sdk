@@ -159,7 +159,7 @@ test("Render clip compiles the clip's Prompt, then renders that Prompt", async (
     videos: {
       generate: async (input, options) => {
         calls.push(["videos.generate", input, typeof options.idempotencyKey]);
-        return { id: "job-1", status: "queued", prompt: input.prompt };
+        return { id: "job-1", status: "queued", prompt: input.prompt.id };
       },
     },
   });
@@ -169,8 +169,8 @@ test("Render clip compiles the clip's Prompt, then renders that Prompt", async (
   [...root.querySelectorAll('[data-clip="C01"] button')].find((button) => button.textContent.includes("Render clip")).click();
   for (let i = 0; i < 5; i++) await settle();
   assert.deepEqual(calls, [
-    ["prompts.generate", { storyboard: ids.storyboard, clip: "C01" }, "string"],
-    ["videos.generate", { prompt: "prompt-c01" }, "string"],
+    ["prompts.generate", { storyboard: { id: ids.storyboard }, clip: "C01" }, "string"],
+    ["videos.generate", { prompt: { id: "prompt-c01" } }, "string"],
   ]);
   assert.deepEqual(remembered.map((record) => record.ref), [{ kind: "job", id: "job-1" }]);
 });
@@ -194,12 +194,12 @@ test("each clip keeps its own request records; an unknown video submission is re
     },
     videos: {
       generate: async (input, options) => {
-        calls.push(["videos.generate", input.prompt, options.idempotencyKey]);
-        if (input.prompt.startsWith("prompt-C02") && failVideo) {
+        calls.push(["videos.generate", input.prompt.id, options.idempotencyKey]);
+        if (input.prompt.id.startsWith("prompt-C02") && failVideo) {
           failVideo = false;
-          throw Object.assign(new Error("Lost response"), { code: "CONNECTION_ERROR", acceptance: "unknown" });
+          throw Object.assign(new Error("Lost response"), { code: "CONNECTION_ERROR", retryable: true });
         }
-        return { id: "job-" + input.prompt, status: "queued", prompt: input.prompt };
+        return { id: "job-" + input.prompt.id, status: "queued", prompt: input.prompt.id };
       },
     },
   });
@@ -324,7 +324,7 @@ test("the cast selector writes the Character, look and voice each role's entry n
   // A Character without a voice file: its voice must be described.
   choose(select("host"), ids.leo);
   assert.deepEqual(handle.content().cast.host, { character: ids.leo });
-  assert.deepEqual(issuesAt(root, "cast.host"), ["host speaks and needs a voice."]);
+  assert.deepEqual(issuesAt(root, "cast.host"), ["host speaks and needs a voice: a description, or own_voice for a cast Character's voice file."]);
   assert.ok(issuesAt(root, "C01 shot 1").some((issue) => issue.includes("that file is not one of host's Character's")));
   type(root.querySelector('input[name="voice-host"]'), "Bright young voice");
   assert.deepEqual(handle.content().cast.host, { character: ids.leo, voice: "Bright young voice" });
@@ -332,7 +332,7 @@ test("the cast selector writes the Character, look and voice each role's entry n
   choose(select("host"), ids.mia);
   assert.deepEqual(handle.content().cast.host, { character: ids.mia, voice: "Bright young voice" });
   choose(root.querySelector('select[name="voice-mode-host"]'), "character");
-  assert.deepEqual(handle.content().cast.host, { character: ids.mia, voice: "character" });
+  assert.deepEqual(handle.content().cast.host, { character: ids.mia, own_voice: true });
   // A silent role takes a Character and no voice; a described person keeps a look.
   choose(select("friend"), ids.leo);
   assert.deepEqual(handle.content().cast.friend, { character: ids.leo });
@@ -350,7 +350,7 @@ test("save sends the edited Storyboard and shows the service's rejection beside 
     sent.push(content);
     throw Object.assign(new Error("C01: The lines need 12 s at a natural pace; the clip is 10 s."), {
       code: "INVALID_INPUT",
-      acceptance: "not_accepted",
+      retryable: false,
       details: [{ path: "content.clips[0]", message: "Too much speech." }],
     });
   });

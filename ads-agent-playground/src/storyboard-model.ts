@@ -3,7 +3,6 @@
  * edits the editor makes. No DOM here; the views live in storyboard.ts.
  */
 import {
-  CHARACTER_VOICE,
   LINE_ID,
   MAX_CLIPS,
   MAX_CLIP_MS,
@@ -44,7 +43,7 @@ type AssetLike = {
 export interface StoryboardMaterial {
   scriptId: string;
   script: ScriptContent;
-  /** The Script's Product at the revision it was written from, when the Script is linked to one. */
+  /** The Script's Product at the version it was written from, when the Script is linked to one. */
   product?: Pick<Product, "id" | "version"> & { name: string };
   /** The Product's files in order (its images, then its videos); its first image is the default. */
   productMedia: string[];
@@ -81,19 +80,11 @@ function addMedia(
     };
   }
 }
-/** The Product a Script was written from: its `based_on` Product revision, as the service reads it. */
+/** The Product a Script was written from, at the version it was written from. */
 export function scriptProduct(
-  script: Pick<Script, "relationships" | "entities">,
+  script: Pick<Script, "product">,
 ): { id: string; version: number } | undefined {
-  const link = script.relationships.find(
-    (relationship) =>
-      relationship.type === "based_on" &&
-      relationship.target.kind === "product",
-  );
-  const entity = link ? script.entities[link.target.id] : undefined;
-  return entity && entity.kind === "product"
-    ? { id: entity.id, version: entity.version }
-    : undefined;
+  return script.product ?? undefined;
 }
 /** The Characters a Storyboard's cast names. */
 export function castCharacters(content: Pick<StoryboardContent, "cast">) {
@@ -156,7 +147,7 @@ export function withCharacter(
 }
 /**
  * Reads what a Storyboard of `script` is checked against, as the service does: the Script's linked Product at its
- * revision (or, for a Script without a Product link, the images it saved), each Character named, and each Asset
+ * version (or, for a Script without a Product link, the images it saved), each Character named, and each Asset
  * named with `{{asset:<id>}}`. A Character or Asset that cannot be read is left out, so the checks report it.
  */
 export async function loadMaterial(
@@ -183,7 +174,7 @@ export async function loadMaterial(
     material = {
       ...material,
       product: { id: product.id, version: product.version, name: product.data.name },
-      productMedia: [...(product.data.images ?? []), ...(product.data.videos ?? [])],
+      productMedia: [...(product.data.image_asset_ids ?? []), ...(product.data.video_asset_ids ?? [])],
     };
   }
   const characters = await Promise.all(
@@ -309,8 +300,8 @@ export function castChoice(entry: CastEntry | undefined): CastChoice {
   return {
     ...(entry?.character === undefined ? {} : { character: entry.character }),
     look: entry?.look ?? "",
-    characterVoice: entry?.voice === CHARACTER_VOICE,
-    voice: entry?.voice === undefined || entry.voice === CHARACTER_VOICE ? "" : entry.voice,
+    characterVoice: entry?.own_voice === true,
+    voice: entry?.voice ?? "",
   };
 }
 /**
@@ -326,7 +317,7 @@ export function castEntry(
   else if (!role.narrator && choice.look.trim()) entry.look = choice.look.trim();
   if (role.speaks) {
     if (choice.characterVoice && choice.character !== undefined && role.characterHasVoice)
-      entry.voice = CHARACTER_VOICE;
+      entry.own_voice = true;
     else if (choice.voice.trim()) entry.voice = choice.voice.trim();
   }
   return entry;

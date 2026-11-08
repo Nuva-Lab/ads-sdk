@@ -278,6 +278,10 @@ func TestBridgeCORSAndSessionREST(t *testing.T) {
 		if response.Header.Get("Access-Control-Allow-Credentials") != "" {
 			t.Fatal("cookie credentials enabled")
 		}
+		// The SDK sends its API version on every call; a preflight that omits it blocks every request.
+		if method == "OPTIONS" && !strings.Contains(response.Header.Get("Access-Control-Allow-Headers"), "Nuva-Api-Version") {
+			t.Fatal("preflight does not allow Nuva-Api-Version")
+		}
 	}
 	if calls.Load() != 1 {
 		t.Fatal("preflight reached upstream")

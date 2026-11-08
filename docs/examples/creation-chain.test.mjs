@@ -17,19 +17,19 @@ function fixture() {
 	let loseSubmission = false, failWait;
 	const nuva = {
 		brands: { create: async () => ({ id: `brand-${++counts.brands}` }) },
-		products: {
-			create: async () => ({ id: 'product' }),
-			uploadImage: async () => ({ productId: 'product', assetId: 'image' }),
-		},
+		products: { create: async input => {
+			assert.deepEqual(input.data.image_asset_ids, ['image']);
+			return { id: 'product' };
+		} },
 		scripts: { generate: async () => ({ id: 'script', batch_id: 'batch' }) },
 		storyboards: { generate: async (input, options) => {
 			assert.ok(snapshots.some(snapshot => snapshot.storyboardKey === options.idempotencyKey), 'Persist the Storyboard key before requesting it.');
-			assert.deepEqual(input, { script: 'script' });
+			assert.deepEqual(input, { script: { id: 'script' } });
 			return { id: 'storyboard', batch_id: 'batch', content: { clips: [{ id: 'C01' }, { id: 'C02' }] } };
 		} },
 		prompts: { generate: async (input, options) => {
 			assert.ok(snapshots.some(snapshot => snapshot.promptsKey === options.idempotencyKey), 'Persist the Prompt key before requesting it.');
-			assert.deepEqual(input, { storyboard: 'storyboard', ratio: '9:16' });
+			assert.deepEqual(input, { storyboard: { id: 'storyboard' }, ratio: '9:16' });
 			return { prompts: [{ id: 'prompt-1', data: { clip_id: 'C01' } }, { id: 'prompt-2', data: { clip_id: 'C02' } }] };
 		} },
 		videos: { generate: async (input, options) => {
@@ -45,7 +45,10 @@ function fixture() {
 			if (failWait === id) { failWait = undefined; return { id, status: 'running', asset: null, error: null }; }
 			return { id, status: 'completed', asset: { id: `asset-${id}` }, error: null };
 		} },
-		assets: { get: async id => { counts.reads.push(id); return { id }; } },
+		assets: {
+			upload: async () => ({ id: 'image' }),
+			get: async id => { counts.reads.push(id); return { id }; },
+		},
 	};
 	return { nuva, counts, accepted, snapshots, save: async value => snapshots.push(structuredClone(value)), loseNextSubmission: () => { loseSubmission = true; }, failNextWait: id => { failWait = id; } };
 }
@@ -74,7 +77,7 @@ test('an uncertain submission retries only its saved key/input and preserves ear
 	assert.equal(progress.imageAssetId, 'image');
 	assert.deepEqual(progress.scriptIds, ['script']);
 	assert.equal(progress.storyboardId, 'storyboard');
-	assert.deepEqual(progress.videos.map(item => [item.clip, item.input]), [['C01', { prompt: 'prompt-1' }], ['C02', { prompt: 'prompt-2' }]]);
+	assert.deepEqual(progress.videos.map(item => [item.clip, item.input]), [['C01', { prompt: { id: 'prompt-1' } }], ['C02', { prompt: { id: 'prompt-2' } }]]);
 	await example.submitPendingVideos(f.nuva, progress, f.save);
 	assert.equal(progress.videos[0].idempotencyKey, key);
 	assert.equal(progress.videos[0].jobId, 'job-1');

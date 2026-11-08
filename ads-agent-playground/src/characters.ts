@@ -29,7 +29,7 @@ export async function listCharacters(sdk: Pick<NuvaClient, "characters">): Promi
   for (let page = 0; page < 5; page++) {
     const result = await sdk.characters.list({ limit: 100, ...(cursor ? { cursor } : {}) });
     items.push(...result.items);
-    cursor = result.next_cursor;
+    cursor = result.nextCursor;
     if (!cursor) break;
   }
   return items;
@@ -59,7 +59,7 @@ export async function renderCharacters(
   const first = await sdk.characters.list({ limit: 100 });
   if (!container.isConnected) return;
   let characters = first.items.slice(),
-    cursor = first.next_cursor;
+    cursor = first.nextCursor;
   container.replaceChildren();
   const toolbar = node("div", "", "gallery-toolbar");
   const create = button(msg("New Character"), () => edit(), "secondary", "plus");
@@ -74,7 +74,7 @@ export async function renderCharacters(
         const next = await sdk.characters.list({ cursor, limit: 100 });
         for (const character of next.items)
           characters = [...characters.filter((c) => c.id !== character.id), character];
-        cursor = next.next_cursor;
+        cursor = next.nextCursor;
         draw();
       } finally {
         more.disabled = false;
@@ -169,7 +169,7 @@ export async function renderCharacters(
         audio.src = voice.download_url;
         body.append(audio);
       } else body.append(node("p", voiceId ? msg("Voice access unavailable") : msg("No voice file. Storyboards describe this Character's voice instead."), "muted"));
-      body.append(details(msg("Character details"), { id: character.id, version: character.version, revision: character.revision }));
+      body.append(details(msg("Character details"), { id: character.id, version: character.version }));
     } catch (error) {
       close();
       throw error;
@@ -373,7 +373,13 @@ export function characterForm(
           image_asset_ids: ids,
           voice_asset_id: voiceId,
         };
-        const saved = base ? await sdk.characters.update({ base, data }) : await sdk.characters.create({ data });
+        let saved: Character;
+        if (!base) saved = await sdk.characters.create({ data });
+        else {
+          // An edit sends only what changed, from the version read; nothing changed saves nothing.
+          const changes = characterChanges(base, data);
+          saved = Object.keys(changes).length ? await sdk.characters.update(base, { data: changes }) : base;
+        }
         await options.saved(saved);
       } catch (error) {
         showError(failure, error);
@@ -385,4 +391,15 @@ export function characterForm(
     });
   };
   return form;
+}
+
+type CharacterData = Character["data"];
+/** Only the fields that differ from `base`; `update` keeps the rest as saved. The image list is sent whole. */
+export function characterChanges(base: Character, data: CharacterData): Partial<CharacterData> {
+  const changes: Partial<CharacterData> = {};
+  if (data.name !== base.data.name) changes.name = data.name;
+  if ((data.description ?? null) !== (base.data.description ?? null)) changes.description = data.description ?? null;
+  if (data.image_asset_ids.join("\n") !== base.data.image_asset_ids.join("\n")) changes.image_asset_ids = data.image_asset_ids;
+  if ((data.voice_asset_id ?? null) !== (base.data.voice_asset_id ?? null)) changes.voice_asset_id = data.voice_asset_id ?? null;
+  return changes;
 }

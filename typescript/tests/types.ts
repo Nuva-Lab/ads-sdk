@@ -1,21 +1,12 @@
-import { createNuva, ScriptSchema, PerformanceSnapshotSchema, Message, type ScriptPackage } from '@nuva/sdk';
+import { createNuva, Message, type ScriptPackage } from '@nuva/sdk';
+import { withServices } from '@nuva/sdk/internal';
 import type { StopReceipt } from '@nuva/sdk';
-const client = createNuva({ baseUrl: 'http://127.0.0.1:8940/api', getAccessToken: async () => 'mock-user:alex' });
-const scripts = client.artifacts.forSchema(ScriptSchema);
-const snapshots = client.artifacts.forSchema(PerformanceSnapshotSchema);
+const client = createNuva(withServices({ getAccessToken: async () => 'mock-user:alex' }, { baseUrl: 'http://127.0.0.1:8940/api' }));
 declare const script: ScriptPackage;
-void scripts.get({ kind: 'script', id: 'a' }).then((read) => read.data.text);
-void snapshots.get({ kind: 'performance_snapshot', id: 'b' });
-// @ts-expect-error The generic Artifact client only reads; Scripts, Storyboards and Prompts are written through their own clients.
-scripts.update({ kind: 'script', id: 'a' }, { data: { text: 'plain text' } });
-// @ts-expect-error The generic Artifact client cannot create an Artifact.
-void client.artifacts.create({ kind: 'storyboard', schema_version: 1, data: { text: '' } });
-// @ts-expect-error A typed reference cannot silently select another kind.
-void scripts.get({ kind: 'prompt', id: 'a' });
-// @ts-expect-error Full kind/id references are required.
-void client.artifacts.get('a');
+// @ts-expect-error There is no generic Artifact client: Scripts, Storyboards and Prompts have their own.
+void client.artifacts;
 // Saved Prompt IDs remain a valid backend video request.
-void client.videos.generate({ prompt: '00000000-0000-4000-8000-000000000001' });
+void client.videos.generate({ prompt: { id: '00000000-0000-4000-8000-000000000001' } });
 void Message.create().mention({ ref: { kind: 'script', id: 'a' }, label: 'Script' });
 const stopResult: Promise<StopReceipt> = client.agent({ sessionId: 'work-session' }).stop({ requestId: 'stop-request' });
 void stopResult;
@@ -24,42 +15,50 @@ void client.agent({ sessionId: 'work-session' }).stop();
 void client.agent({ sessionId: 'work-session' }).stop({ cutoff: 10 });
 client.close();
 
-import { PartialCreationError } from '@nuva/sdk';
-declare const creationFailure: unknown;
-if (creationFailure instanceof PartialCreationError) {
-	const code: 'PARTIAL_CREATION' = creationFailure.code;
-	// @ts-expect-error A Prompt receipt has no Plan.
-	creationFailure.saved.plan;
-	const savedPromptIds: string[] = creationFailure.saved.prompts.map((prompt) => prompt.id);
-	void [code, savedPromptIds];
-}
-
 // @ts-expect-error A Storyboard is not compiled when it is written; the ratio belongs to its Prompts.
-void client.storyboards.generate({ script: '00000000-0000-4000-8000-000000000001', ratio: '9:16' });
+void client.storyboards.generate({ script: { id: '00000000-0000-4000-8000-000000000001' }, ratio: '9:16' });
 // @ts-expect-error Prompts are compiled from a Storyboard, not a Script.
 void client.prompts.generate({ script: '00000000-0000-4000-8000-000000000001' });
 // @ts-expect-error The generation service accepts omission, not an explicit null ratio.
-void client.prompts.generate({ storyboard: '00000000-0000-4000-8000-000000000001', ratio: null });
-// @ts-expect-error A revision is storyboards.revise(ref, { instruction }).
+void client.prompts.generate({ storyboard: { id: '00000000-0000-4000-8000-000000000001' }, ratio: null });
+// @ts-expect-error Starting from a Storyboard is storyboards.generateFrom(base, { instruction }).
 void client.storyboards.generate({ base: '00000000-0000-4000-8000-000000000001', instruction: 'Shorter' });
-// @ts-expect-error There is no Storyboard from scratch: an edit is storyboards.update(ref, { content }).
+// @ts-expect-error There is no Storyboard from scratch: your changes are storyboards.createFrom(base, changes).
 void client.storyboards.generate({ content: {} as import('@nuva/sdk/schemas').StoryboardContent });
-// @ts-expect-error A revision is scripts.revise(ref, { instruction }).
+// @ts-expect-error Starting from a Script is scripts.generateFrom(base, { instruction }).
 void client.scripts.generate({ product: '00000000-0000-4000-8000-000000000001', base: '00000000-0000-4000-8000-000000000002', acceptable_duration_ms: { min: 5000, max: 9000 } });
-void client.scripts.revise({ kind: 'script', id: '00000000-0000-4000-8000-000000000002' }, { instruction: 'Warmer', acceptable_duration_ms: { min: 8000, max: 12000 } });
+void client.scripts.generateFrom({ kind: 'script', id: '00000000-0000-4000-8000-000000000002' }, { instruction: 'Warmer', acceptable_duration_ms: { min: 8000, max: 12000 } });
+void client.scripts.createFrom({ kind: 'script', id: '00000000-0000-4000-8000-000000000002' }, { roles: [] });
 declare const editedBoard: import('@nuva/sdk/schemas').StoryboardContent;
-void client.storyboards.update({ kind: 'storyboard', id: '00000000-0000-4000-8000-000000000001' }, { content: editedBoard });
-const storyboard: Promise<import('@nuva/sdk').Storyboard> = client.storyboards.revise({ kind: 'storyboard', id: '00000000-0000-4000-8000-000000000001' }, { instruction: 'Shorter' });
+void client.storyboards.createFrom({ kind: 'storyboard', id: '00000000-0000-4000-8000-000000000001' }, { direction: editedBoard.direction });
+// @ts-expect-error Scripts, Storyboards and Prompts never change in place: there is no update.
+void client.storyboards.update;
+const storyboard: Promise<import('@nuva/sdk').Storyboard> = client.storyboards.generateFrom({ kind: 'storyboard', id: '00000000-0000-4000-8000-000000000001' }, { instruction: 'Shorter' });
 void storyboard.then(async (board) => {
 	const shots: string[] = board.content.clips[0]!.shots;
-	const { prompts } = await client.prompts.generate({ storyboard: board.id, clip: 'C01', ratio: '9:16' });
-	void client.videos.generate({ prompt: prompts[0]!.id });
+	const { prompts } = await client.prompts.generate({ storyboard: { id: board.id }, clip: 'C01', ratio: '9:16' });
+	void client.videos.generate({ prompt: { id: prompts[0]!.id } });
 	// @ts-expect-error Video generation takes a saved Prompt ID or raw input, not a Storyboard clip.
 	void client.videos.generate({ storyboard: { id: board.id, clip: 'C01' } });
 	void shots;
 });
 declare const upload: File;
 void client.assets.upload(upload, { kind: 'image', label: 'Box front', description: 'The front of the gift box' });
+void client.assets.upload({ url: 'https://example.com/box.png' }, { kind: 'image', idempotencyKey: 'box-front' });
+// @ts-expect-error One way to add a file: upload (a File or a URL).
+void client.assets.register;
+// Entities change in place: update sends only the changed fields, with the version you read.
+declare const product: import('@nuva/sdk').Product;
+void client.products.update(product, { data: { selling_points: ['Keeps tea hot'] } }, { idempotencyKey: 'tea' });
+void client.characters.update({ id: 'c', version: 3 }, { data: { voice_asset_id: null } });
+// @ts-expect-error The version you read is required.
+void client.products.update({ id: 'p' }, { data: { name: 'Cup' } });
+// @ts-expect-error Product pictures are image_asset_ids, like every list of files.
+void client.products.create({ brand_id: 'b', data: { name: 'Cup', images: [] } });
+// @ts-expect-error Upload the image, then update the Product's image_asset_ids.
+void client.products.uploadImage;
+// @ts-expect-error A version's own id is the Agent's: references are { id, version? }.
+void product.revision;
 
 // @ts-expect-error Batch creation is Agent-only.
 client.batches.create({ intent: 'forbidden' });
@@ -75,31 +74,39 @@ client.workflowRuns;
 
 void createNuva({ getAccessToken: async () => 'customer-token' });
 
-// @ts-expect-error Job cancellation is an internal Agent capability, not a customer SDK operation.
-client.jobs.cancel('00000000-0000-4000-8000-000000000001');
+const cancelled: Promise<import('@nuva/sdk').JobState> = client.jobs.cancel('00000000-0000-4000-8000-000000000001');
+void cancelled;
 
 // Raw video input uses Prompt v1 data and Asset IDs, with an exclusive source.
 import type { GenerateVideoInput, RawPromptInput, Job, Asset, Prompt } from '@nuva/sdk';
 const rawVideoPrompt: RawPromptInput = {
 	schema_version: 1,
-	data: { prompt: '<Picture 1> stays still.', image_asset_ids: ['id'], video_asset_ids: [], audio_asset_ids: [], characters: ['revision'], seconds: 5, ratio: '9:16' },
+	data: { prompt: '<Picture 1> stays still.', image_asset_ids: ['id'], video_asset_ids: [], audio_asset_ids: [], seconds: 5, ratio: '9:16' },
 };
+// @ts-expect-error A raw render names no Characters: attach their pictures and name them <Picture N>.
+const withCharacters: RawPromptInput = { schema_version: 1, data: { prompt: '<Picture 1>', image_asset_ids: ['id'], characters: ['c'] } };
 const rawVideoRequest: GenerateVideoInput = { input: rawVideoPrompt, prompt: null, resolution: '768P', seed: 7 };
 const rawVideoJob: Promise<Job<Asset>> = client.videos.generate(rawVideoRequest, { idempotencyKey: 'stable-key' });
-void client.videos.generate({ prompt: 'saved-id', input: null });
+void client.videos.generate({ prompt: { id: 'saved-id' }, input: null });
 void rawVideoJob.then(async (job) => {
 	const promptId: string = job.prompt;
-	const saved: Prompt = await client.prompts.get({ kind: 'prompt', id: promptId });
-	const sourceKind: string | undefined = saved.relationships[0]?.target.kind;
-	const characters: string[] | undefined = saved.data.characters;
-	void [sourceKind, characters];
+	const saved: Prompt = await client.prompts.get({ id: promptId });
+	// What it was made from reads as named fields.
+	const fromStoryboard: string | undefined = saved.storyboard?.id;
+	const writtenWith: string | undefined = saved.skill?.name;
+	// @ts-expect-error The raw relationships are the Agent's.
+	void saved.relationships;
+	const clip: string | null | undefined = saved.data.clip_id;
+	// @ts-expect-error Which Character versions a Prompt shows is the Agent's record.
+	void saved.data.characters;
+	void [fromStoryboard, writtenWith, clip];
 });
 // @ts-expect-error Exactly one non-null source is required.
 void client.videos.generate({});
 // @ts-expect-error Null does not select a source.
 void client.videos.generate({ prompt: null, input: null });
 // @ts-expect-error Saved ID and raw input cannot both be supplied.
-void client.videos.generate({ prompt: 'saved-id', input: rawVideoPrompt });
+void client.videos.generate({ prompt: { id: 'saved-id' }, input: rawVideoPrompt });
 // @ts-expect-error Raw content requires the versioned data envelope.
 void client.videos.generate({ input: { prompt: 'raw text' } });
 // @ts-expect-error Only Prompt v1 is supported.
@@ -109,30 +116,31 @@ void client.videos.generate({ input: { schema_version: 1, data: { prompt: 'raw t
 // @ts-expect-error Run options belong to the Job envelope.
 void client.videos.generate({ input: { schema_version: 1, data: { prompt: 'raw text', seed: 7 } } });
 
-// PR target Ad reads require a metadata version and preserve unknown composition/membership.
+// Ad reads: membership and composition may be missing; the metadata version and editor data are the Agent's.
 import type { Ad, Batch } from '@nuva/sdk';
 import type { BackendSchemas } from '@nuva/sdk/schemas';
 declare const targetAd: Ad;
-const adVersion: number = targetAd.version;
+// @ts-expect-error An Ad's metadata version is the Agent's.
+void targetAd.version;
 const adBatch: string | null = targetAd.batch_id;
-const adComposition: BackendSchemas['CompositionV1'] | null = targetAd.composition;
+const adComposition: BackendSchemas['CompositionReadV1'] | null = targetAd.composition;
 // @ts-expect-error Unknown composition requires an explicit null check.
-const definiteComposition: BackendSchemas['CompositionV1'] = targetAd.composition;
+const definiteComposition: BackendSchemas['CompositionReadV1'] = targetAd.composition;
 // @ts-expect-error Raw Ads may have no Batch membership.
 const definiteBatch: string = targetAd.batch_id;
 declare const legacyBatchRead: Batch;
 // @ts-expect-error Public Batch logs are not part of the customer DTO.
 legacyBatchRead.log;
-const minimalAd: BackendSchemas['AdCreate'] = { schema_version: 1, asset_id: 'id' };
-const nullableAd: BackendSchemas['AdCreate'] = { ...minimalAd, batch_id: null, composition: null };
-const privateLogBatch: BackendSchemas['BatchCreate'] = { intent: 'Create', log_uri: 'r2://agent-logs/batches/log.jsonl' };
-void [adVersion, adBatch, adComposition, nullableAd, privateLogBatch];
+// @ts-expect-error Ads and Batches are written by the Agent: their write bodies aren't in the public contract.
+type NoAdCreate = BackendSchemas['AdCreate'];
+void [adBatch, adComposition];
 
-const artifactSources: BackendSchemas['ArtifactRelationship'][] = [{ type: 'based_on', target: { kind: 'product', id: 'revision' } }];
+const artifactSources = [{ type: 'based_on', target: { kind: 'product', id: 'revision' } }] as const;
 // @ts-expect-error Prompts are compiled from a Storyboard or saved by raw videos.generate({ input }); there is no prompts.create.
 void client.prompts.create({ data: { prompt: 'Clip', image_asset_ids: ['asset'] } });
-// @ts-expect-error Relationship writes belong to the Agent.
-void client.prompts.update({ kind: 'prompt', id: 'a' }, { data: { prompt: '<Picture 1>', image_asset_ids: ['asset'] }, relationships: artifactSources });
+void client.prompts.createFrom({ kind: 'prompt', id: 'a' }, { prompt: '<Picture 1> turns.' });
+// @ts-expect-error createFrom changes render fields only.
+void client.prompts.createFrom({ kind: 'prompt', id: 'a' }, { clip_id: 'C02' });
 // @ts-expect-error Script data no longer carries source identities.
 const oldScriptData: BackendSchemas['ScriptDataV1'] = { text: 'Draft', product: 'revision' };
 // @ts-expect-error Plan v1 now requires text content.
@@ -140,7 +148,7 @@ const oldPlanData: BackendSchemas['DirectingPlanDataV1'] = { script: 'id', specs
 // @ts-expect-error Scripts are written by the writer (scripts.generate); there is no scripts.create.
 void client.scripts.create({ content: {} as import('@nuva/sdk/schemas').ScriptContent });
 // @ts-expect-error v2 ScriptPackages are read-only; Scripts are written as v3.
-void client.scripts.update({ kind: 'script', id: 'a' }, { content: script });
+void client.scripts.createFrom({ kind: 'script', id: 'a' }, script);
 declare const readScript: import('@nuva/sdk').Script;
 if (readScript.format === 3) void readScript.content.panels;
 else void readScript.legacy.clips;
@@ -168,3 +176,17 @@ export function SessionFileName(): string {
 // An Asset is attached and quoted as is: its own `label` may be missing or null.
 declare const uploaded: Asset;
 void Message.create().attach(uploaded).quote(uploaded);
+
+// An AdsError says what failed and where: no acceptance (retry with the same idempotencyKey) and no partial result.
+declare const failure: import('@nuva/sdk').AdsError;
+const reported: [string, string | undefined, string | undefined, boolean] = [failure.code, failure.requestId, failure.method, failure.retryable];
+// @ts-expect-error Whether a write was taken is the SDK's own business.
+void failure.acceptance;
+void reported;
+// @ts-expect-error The trace hooks are not public options.
+createNuva({ getAccessToken: async () => 'token', onTrace: () => {} });
+// @ts-expect-error The trace hooks are not public options.
+createNuva({ getAccessToken: async () => 'token', onWireTrace: () => {} });
+
+// @ts-expect-error Service origins are set with withServices (workspace-only); customers choose an environment.
+createNuva({ getAccessToken: async () => 'token', baseUrl: 'http://127.0.0.1:1' });

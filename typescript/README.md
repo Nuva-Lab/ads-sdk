@@ -26,7 +26,7 @@ const nuva = createNuva({
 
 Keep the customer Admin API key on your backend. The SDK accepts only user credentials. Use one client per authenticated user and call `nuva.close()` on logout. Tokens with expiry are cached/coalesced and renewed proactively; an active socket reauthenticates the same verified identity before new commands proceed. String-only token providers have no proactive expiry guarantee.
 
-A validated read rejection may cause one bounded authentication refresh/retry. Writes require an explicit backend `acceptance: "not_accepted"` marker before a 401 can be retried. Unknown acceptance, malformed responses, lost acknowledgements and postdispatch 5xx/408 never authorize automatic replay. Agent commands are not resubmitted merely because credentials changed.
+Every write that takes an idempotency key sends one (yours, or one the SDK makes). A request that is safe to repeat is sent again, with the same key, after a dropped connection or `SERVICE_BUSY` (twice at most), and after a 401 once the token is renewed; a timed-out request is not. To retry a write yourself, pass your own `idempotencyKey`. An `AdsError` carries `code`, `message`, `retryable`, `requestId`, `method` and, for validation errors, `details`: quote `requestId` and `method` when you report a problem.
 
 ## Product to saved video
 
@@ -52,10 +52,10 @@ const character = await nuva.characters.create({
   data: {name: 'Mia', description: 'Late twenties, warm.', image_asset_ids: [photo.id], voice_asset_id: voice.id},
 });
 // `host` is a role ID from revised.content.roles.
-const storyboard = await nuva.storyboards.generate({script: revised.id, cast: {host: character.id}});
+const storyboard = await nuva.storyboards.generate({script: revised, cast: {host: {id: character.id}}});
 // One saved Prompt per clip, in clip order.
-const {prompts} = await nuva.prompts.generate({storyboard: storyboard.id, ratio: '9:16'});
-const job = await nuva.videos.generate({prompt: prompts[0]!.id});
+const {prompts} = await nuva.prompts.generate({storyboard, ratio: '9:16'});
+const job = await nuva.videos.generate({prompt: prompts[0]!});
 const state = await nuva.jobs.get(job.id);
 // Acceptance is not completion. Poll/subscribe or await job.result({timeoutMs}).
 ```
@@ -68,7 +68,7 @@ Scripts use `script@1`; `data.text` holds a version-3 Script (`{format: 'nuva.sc
 
 Use these for direct requests, or ask the Agent to write and revise within a conversation.
 
-A Storyboard (`storyboard@1`, `{format: 'nuva.storyboard', version: 1, content}`) is how a Script is shot: `{script, cast: {role: {character?, look?, voice?}}, direction, clips: [{id: 'C01', duration_ms, shots: [text]}]}`. Clips are 5–15 s. Shots are text with tokens: `{{role}}`, `{{role:<image asset id>}}`, `{{product}}`, `{{product:<image asset id>}}` and `{{L01}}`. Each clip's references are worked out from its tokens by the service: the cast Character's default or named image, the Product's image, and the Character's voice file when `voice: 'character'`. A cast Character therefore keeps the same person in every clip. `storyboardIssues` runs the same checks the service runs.
+A Storyboard (`storyboard@1`, `{format: 'nuva.storyboard', version: 1, content}`) is how a Script is shot: `{script, cast: {role: {character?, look?, voice?, own_voice?}}, direction, clips: [{id: 'C01', duration_ms, shots: [text]}]}`. Clips are 5–15 s. Shots are text with tokens: `{{role}}`, `{{role:<image asset id>}}`, `{{product}}`, `{{product:<image asset id>}}` and `{{L01}}`. Each clip's references are worked out from its tokens by the service: the cast Character's default or named image, the Product's image, and the Character's voice file when `voice: 'character'`. A cast Character therefore keeps the same person in every clip. `storyboardIssues` runs the same checks the service runs.
 
 Storyboards are always written by the writer, or edited from one:
 
@@ -84,7 +84,7 @@ The Storyboard is where variety comes from: it decides who is cast and how each 
 
 Assets have optional `label` and `description` saying what the file shows. Set them at upload, `assets.upload(file, {kind, label, description})` or `assets.register({upload_token | url, label?, description?})`; registering the same file again replaces them. Writers read them to tell a Product's images apart. An Asset's `label` is null when none was given.
 
-`videos.generate({prompt: promptId})` renders a saved Prompt, such as one from `prompts.generate`. `input: {schema_version: 1, data: {prompt, image_asset_ids, ...}}` renders a raw prompt you wrote and saves its Prompt with the Job. Supply exactly one of `prompt` or `input`; the returned `job.prompt` identifies the Prompt rendered. Without `batch_id` (`batch_id: null` means the same, not "no Batch"), a saved Prompt's Job joins the Prompt's Batch, so Batches follow the chain Script → Storyboard → Prompt → Job; raw `input` has no implicit Batch. Reuse the same idempotency key only for retries of that operation. Jobs expose status, error and an eventual Asset. `jobs.get`, `jobs.subscribe` and `job.result` keep submission separate from completion. Stopping chat or unsubscribing does not cancel a Job. To request best-effort cancellation, ask the Agent; cancellation is only confirmed by the backend Job status.
+`videos.generate({prompt: {id}})` (or the Prompt you read) renders a saved Prompt, such as one from `prompts.generate`. `input: {schema_version: 1, data: {prompt, image_asset_ids, ...}}` renders a raw prompt you wrote and saves its Prompt with the Job. Supply exactly one of `prompt` or `input`; the returned `job.prompt` identifies the Prompt rendered. Without `batch_id` (`batch_id: null` means the same, not "no Batch"), a saved Prompt's Job joins the Prompt's Batch, so Batches follow the chain Script → Storyboard → Prompt → Job; raw `input` has no implicit Batch. Reuse the same idempotency key only for retries of that operation. Jobs expose status, error and an eventual Asset. `jobs.get`, `jobs.subscribe` and `job.result` keep submission separate from completion. Stopping chat or unsubscribing does not cancel a Job. To request best-effort cancellation, ask the Agent; cancellation is only confirmed by the backend Job status.
 
 Edit and postprocess clips in your own editor. Upload the finished video and attach its Asset reference to the same Agent Session, with any optional editing notes or structured details. The Agent handles Ad registration and returns the Ad ID. Include the source clips, trim ranges and editing settings needed to describe the final composition.
 
@@ -117,4 +117,4 @@ await agent.stop(); // Current loop only; does not cancel existing Jobs.
 
 Use `sessions.create/get/list/history`, `loadEarlierMessages` and `refresh` for Session state. `respond` sends output for a registered pending client call; `fail` reports inability to obtain the result. Keep drafts when an acknowledgement is lost and retry with the original request ID only when appropriate. Clients cannot submit trusted author metadata or internal tool calls.
 
-`@nuva/sdk/react` exports `NuvaProvider` and `useAgent`. It uses the same client and state contract; it does not introduce a second conversation owner. Opt-in `onWireTrace` observes transport bodies; treat them as sensitive application data and redact before storing or sharing.
+`@nuva/sdk/react` exports `NuvaProvider` and `useAgent`. It uses the same client and state contract; it does not introduce a second conversation owner.

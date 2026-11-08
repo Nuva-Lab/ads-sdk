@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { encodeScriptPackage, decodeScriptPackage, backendSchema } from '../dist/schemas.js';
+import { encodeScriptPackage, decodeScriptPackage, backendSchema } from '../dist/internal.js';
 
 const content = JSON.parse(await readFile(new URL('./fixtures/script-response.json', import.meta.url), 'utf8'));
 test('the marked ScriptPackage round-trips through the existing backend text field', () => {

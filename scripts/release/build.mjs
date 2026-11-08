@@ -22,7 +22,7 @@ export async function buildRelease({ output = DIST, origins } = {}) {
 				// `internal` is the workspace entry the Agent, mock server and playground share: the npm package leaves it out (the source archive keeps its source for the playground).
 				...(await files(resolve(source, 'dist'))).filter((name) => !/^internal\./.test(name)).map((name) => `dist/${name}`),
 				'README.md',
-				...(directory === 'typescript' ? ['schema/backend.source.json', 'schema/backend-video.source.json'] : []),
+				...(directory === 'typescript' ? ['schema/backend.source.json'] : []),
 			])
 				await copy(resolve(source, path), resolve(target, path));
 			if (directory === 'typescript') {
@@ -37,7 +37,9 @@ export async function buildRelease({ output = DIST, origins } = {}) {
 					);
 			}
 			// Only distribution fields: no maintainer build commands, development dependencies or workspace-only entries.
-			if (manifest.exports) delete manifest.exports['./internal'];
+			if (manifest.exports) {
+				delete manifest.exports['./internal'];
+			}
 			delete manifest.scripts;
 			delete manifest.devDependencies;
 			delete manifest.packageManager;
@@ -57,8 +59,6 @@ export async function buildRelease({ output = DIST, origins } = {}) {
 					? [
 							'schema/backend.source.json',
 							'schema/backend.openapi.json',
-							'schema/backend-video.source.json',
-							'schema/backend-video.openapi.json',
 							...(await files(resolve(source, 'scripts'))).map((name) => `scripts/${name}`),
 						]
 					: []),

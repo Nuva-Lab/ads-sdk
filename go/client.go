@@ -31,7 +31,6 @@ type APIError struct {
 	Retryable  bool
 	RequestID  string
 	Details    []ErrorDetail
-	Acceptance string
 	cause      error
 }
 
@@ -40,7 +39,7 @@ func (e *APIError) Error() string {
 }
 func (e *APIError) Unwrap() error { return e.cause }
 func invalid(message string) error {
-	return &APIError{Code: "INVALID_INPUT", Message: message, Acceptance: "not_accepted"}
+	return &APIError{Code: "INVALID_INPUT", Message: message}
 }
 
 type Option func(*http.Client)
@@ -102,13 +101,8 @@ func (c *connection) scrub(value string) string {
 	return strings.ReplaceAll(value, c.secret, "[redacted]")
 }
 func (c *connection) request(ctx context.Context, method, path string, query url.Values, input any, output any, required ...string) error {
-	write := method != "GET"
-	acceptance := ""
-	if write {
-		acceptance = "not_accepted"
-	}
 	if err := ctx.Err(); err != nil {
-		return &APIError{Code: "CANCELLED", Message: "Request context ended before dispatch.", Acceptance: acceptance, cause: err}
+		return &APIError{Code: "CANCELLED", Message: "Request context ended before dispatch.", cause: err}
 	}
 	var body []byte
 	var err error
@@ -130,9 +124,6 @@ func (c *connection) request(ctx context.Context, method, path string, query url
 	if input != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	if write {
-		acceptance = "unknown"
-	}
 	response, err := c.http.Do(req)
 	if err != nil {
 		code := "CONNECTION_ERROR"
@@ -140,12 +131,12 @@ func (c *connection) request(ctx context.Context, method, path string, query url
 		if cause != nil {
 			code = "CANCELLED"
 		}
-		return &APIError{Code: code, Message: "Backend request did not complete; inspect state before retrying writes.", Retryable: true, Acceptance: acceptance, cause: cause}
+		return &APIError{Code: code, Message: "Backend request did not complete; it is safe to send again.", Retryable: true, cause: cause}
 	}
 	defer response.Body.Close()
 	raw, err := io.ReadAll(io.LimitReader(response.Body, maxResponseBytes+1))
 	if err != nil || len(raw) > maxResponseBytes {
-		return &APIError{Code: "SERVICE_ERROR", Message: "Backend response was unreadable or too large.", StatusCode: response.StatusCode, Acceptance: acceptance}
+		return &APIError{Code: "SERVICE_ERROR", Message: "Backend response was unreadable or too large.", StatusCode: response.StatusCode}
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		var wire struct {
@@ -158,17 +149,14 @@ func (c *connection) request(ctx context.Context, method, path string, query url
 			RequestID string `json:"request_id"`
 		}
 		if json.Unmarshal(raw, &wire) != nil || wire.Error.Code == "" || wire.Error.Message == "" || wire.Error.Retryable == nil || wire.RequestID == "" {
-			return &APIError{Code: "SERVICE_ERROR", Message: "Malformed backend error response.", StatusCode: response.StatusCode, Acceptance: acceptance}
-		}
-		if response.StatusCode < 500 && response.StatusCode != 408 {
-			acceptance = ""
+			return &APIError{Code: "SERVICE_ERROR", Message: "Malformed backend error response.", StatusCode: response.StatusCode}
 		}
 		details := wire.Error.Details
 		for i := range details {
 			details[i].Path = c.scrub(details[i].Path)
 			details[i].Message = c.scrub(details[i].Message)
 		}
-		return &APIError{Code: c.scrub(wire.Error.Code), Message: c.scrub(wire.Error.Message), Retryable: *wire.Error.Retryable, RequestID: c.scrub(wire.RequestID), Details: details, StatusCode: response.StatusCode, Acceptance: acceptance}
+		return &APIError{Code: c.scrub(wire.Error.Code), Message: c.scrub(wire.Error.Message), Retryable: *wire.Error.Retryable, RequestID: c.scrub(wire.RequestID), Details: details, StatusCode: response.StatusCode}
 	}
 	if output == nil {
 		// A route that answers with no content (204), such as a delete.
@@ -176,24 +164,24 @@ func (c *connection) request(ctx context.Context, method, path string, query url
 	}
 	var fields map[string]json.RawMessage
 	if json.Unmarshal(raw, &fields) != nil {
-		return malformed(acceptance)
+		return malformed()
 	}
 	for _, key := range required {
 		value, ok := fields[key]
 		nullable := key == "main" || key == "main_version" || key == "description" || key == "note" || key == "source" || key == "next_cursor"
 		if !ok || bytes.Equal(bytes.TrimSpace(value), []byte("null")) && !nullable {
-			return malformed(acceptance)
+			return malformed()
 		}
 	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.UseNumber()
 	if decoder.Decode(output) != nil {
-		return malformed(acceptance)
+		return malformed()
 	}
 	return nil
 }
-func malformed(acceptance string) error {
-	return &APIError{Code: "SERVICE_ERROR", Message: "Backend returned a malformed or mismatched resource.", Acceptance: acceptance}
+func malformed() error {
+	return &APIError{Code: "SERVICE_ERROR", Message: "Backend returned a malformed or mismatched resource."}
 }
 func validText(s string, max int) bool {
 	return utf8.ValidString(s) && utf8.RuneCountInString(s) <= max
@@ -207,7 +195,7 @@ func (c *AdminClient) IssueUserToken(ctx context.Context, externalUserID string)
 		ID string `json:"external_user_id"`
 	}{externalUserID}, &out, "access_token", "expires_at", "user")
 	if err == nil && (out.AccessToken == "" || out.ExpiresAt.IsZero() || !uuidPattern.MatchString(out.User.ID) || out.User.ExternalUserID != externalUserID) {
-		err = malformed("unknown")
+		err = malformed()
 	}
 	return out, err
 }
@@ -263,7 +251,7 @@ func (c *AdminClient) RegisterSkill(ctx context.Context, name string, input Skil
 	}
 	err := c.connection.request(ctx, "PUT", "/v1/admin/skills/"+name, nil, input, &out, "skill", "version")
 	if err == nil && (!validateSkill(out.Skill) || !validateVersion(out.Version) || out.Skill.Name != name || out.Version.SkillID != out.Skill.ID) {
-		err = malformed("unknown")
+		err = malformed()
 	}
 	return out, err
 }
@@ -276,7 +264,7 @@ func (c *AdminClient) SetSkillMain(ctx context.Context, name string, version int
 		Version int `json:"version"`
 	}{version}, &out, "id", "name", "platform", "main_version", "created_at")
 	if err == nil && (!validateSkill(out) || out.Name != name || out.MainVersion == nil || *out.MainVersion != version) {
-		err = malformed("unknown")
+		err = malformed()
 	}
 	return out, err
 }
@@ -287,7 +275,7 @@ func (c *UserClient) GetSkill(ctx context.Context, id string) (SkillDetail, erro
 	}
 	err := c.connection.request(ctx, "GET", "/v1/skills/"+id, nil, nil, &out, "id", "name", "platform", "main_version", "created_at", "main")
 	if err == nil && (!validateSkill(out.Skill) || out.ID != id || ((out.Main == nil) != (out.MainVersion == nil)) || out.Main != nil && (!validateVersion(*out.Main) || out.Main.SkillID != id || out.MainVersion == nil || out.Main.Version != *out.MainVersion)) {
-		err = malformed("")
+		err = malformed()
 	}
 	return out, err
 }
@@ -298,7 +286,7 @@ func (c *UserClient) GetSkillVersion(ctx context.Context, id string, version int
 	}
 	err := c.connection.request(ctx, "GET", "/v1/skills/"+id+"/versions/"+strconv.Itoa(version), nil, nil, &out, "id", "skill_id", "version", "description", "note", "source", "attributes", "files", "download_url_expires_at", "created_at")
 	if err == nil && (!validateVersion(out) || out.SkillID != id || out.Version != version) {
-		err = malformed("")
+		err = malformed()
 	}
 	return out, err
 }
@@ -317,11 +305,11 @@ func (c *UserClient) ListSkills(ctx context.Context, options ListOptions) (Skill
 	err := c.connection.request(ctx, "GET", "/v1/skills", query, nil, &out, "items", "next_cursor")
 	if err == nil {
 		if out.Items == nil {
-			err = malformed("")
+			err = malformed()
 		} else {
 			for _, item := range out.Items {
 				if !validateSkill(item) {
-					err = malformed("")
+					err = malformed()
 					break
 				}
 			}

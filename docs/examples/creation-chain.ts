@@ -2,7 +2,7 @@ import type { NuvaClient, Asset } from '@nuva/sdk';
 
 export interface VideoSubmission {
 	clip: string;
-	input: { prompt: string };
+	input: { prompt: { id: string } };
 	idempotencyKey: string;
 	jobId?: string;
 	assetId?: string;
@@ -42,24 +42,29 @@ export async function createProductVideo(
 	const brand = await nuva.brands.create({ data: { name: 'Example Brand' } });
 	progress.brandId = brand.id;
 	await saveProgress(structuredClone(progress));
+	const image = await nuva.assets.upload(file, { kind: 'image', label: 'Cup, front' });
+	progress.imageAssetId = image.id;
+	await saveProgress(structuredClone(progress));
 	const product = await nuva.products.create({
 		brand_id: brand.id,
-		data: { name: 'Travel cup', facts: ['350 ml capacity'], attributes: { catalog: { color: 'ocean blue', capacityMl: 350 } } },
+		data: {
+			name: 'Travel cup',
+			facts: ['350 ml capacity'],
+			attributes: { catalog: { color: 'ocean blue', capacityMl: 350 } },
+			image_asset_ids: [image.id],
+		},
 	});
 	progress.productId = product.id;
 	await saveProgress(structuredClone(progress));
-	const uploaded = await nuva.products.uploadImage({ base: product, file });
-	progress.imageAssetId = uploaded.assetId;
-	await saveProgress(structuredClone(progress));
 	let script = await nuva.scripts.generate({
-		product: uploaded.productId,
+		product: { id: product.id },
 		acceptable_duration_ms: { min: 8000, max: 15000 },
 		instruction: 'Use supplied product facts.',
 	});
 	progress.scriptIds.push(script.id);
 	await saveProgress(structuredClone(progress));
 	if (revisionInstruction !== undefined) {
-		script = await nuva.scripts.revise(script.ref, { instruction: revisionInstruction });
+		script = await nuva.scripts.generateFrom(script.ref, { instruction: revisionInstruction });
 		progress.scriptIds.push(script.id);
 		await saveProgress(structuredClone(progress));
 	}
@@ -70,14 +75,14 @@ export async function createProductVideo(
 	// Keep each key: a retry with the same key and input reuses the accepted request.
 	progress.storyboardKey = crypto.randomUUID();
 	await saveProgress(structuredClone(progress));
-	const storyboard = await nuva.storyboards.generate({ script: script.id }, { idempotencyKey: progress.storyboardKey });
+	const storyboard = await nuva.storyboards.generate({ script: { id: script.id } }, { idempotencyKey: progress.storyboardKey });
 	progress.storyboardId = storyboard.id;
-	// If some clips are compiled and a later one fails (PartialCreationError), retry with this key to finish them.
+	// If a clip fails, call again: the clips already compiled are reused, so only the failed ones are compiled again.
 	progress.promptsKey = crypto.randomUUID();
 	await saveProgress(structuredClone(progress));
-	const { prompts } = await nuva.prompts.generate({ storyboard: storyboard.id, ratio: '9:16' }, { idempotencyKey: progress.promptsKey });
+	const { prompts } = await nuva.prompts.generate({ storyboard: { id: storyboard.id }, ratio: '9:16' }, { idempotencyKey: progress.promptsKey });
 	// One Prompt per clip, in clip order; each clip's Prompt joins the Storyboard's Batch.
-	progress.videos = prompts.map(prompt => ({ clip: prompt.data.clip_id, input: { prompt: prompt.id }, idempotencyKey: crypto.randomUUID() }));
+	progress.videos = prompts.map(prompt => ({ clip: prompt.data.clip_id, input: { prompt: { id: prompt.id } }, idempotencyKey: crypto.randomUUID() }));
 	// Persist exact submission inputs and keys BEFORE contacting the video service.
 	await saveProgress(structuredClone(progress));
 	await submitPendingVideos(nuva, progress, saveProgress);

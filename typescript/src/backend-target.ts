@@ -1,29 +1,31 @@
-/** Explicit target overlays; observed/deployed definitions stay pinned separately. */
-import type { BackendSchemas as Deployed } from './backend-types.js';
-import type { BackendSchemas as VideoTarget } from './backend-video-types.js';
+/** The backend contract's types (API version 2026-11-07), with the overlays openapi-typescript can't express. */
+import type { BackendSchemas as Public } from './backend-types.js';
 import type { JsonObject } from './types.js';
-/** Source-verified PR target; recursive JSON attributes use the SDK JsonObject type. */
-export type ProductData = VideoTarget['ProductDataV1'] & { attributes?: JsonObject };
-type WithData<T> = Omit<T, 'data'> & { data: ProductData };
-// Verified ads_backend source at 47b9f5fa0844fa1ccfd78d5c98e7ed7853fd8007 (PR #2374).
-// openapi-typescript renders the bare oneOf input object as Record<string, never>;
-// express the source's exactly-one constraint explicitly without narrowing raw data.
-export type RawPromptInput = VideoTarget['RawPromptInput'];
-export type GenerateVideoInput = Omit<VideoTarget['GenerateVideo'], 'prompt' | 'input'> & (
-	| { prompt: string; input?: null }
-	| { input: RawPromptInput; prompt?: null }
-);
-type VideoOverlay = Pick<VideoTarget,
-	'RawPromptInput' | 'PromptDataV1' | 'Prompt' | 'PromptCreate' | 'PromptVersionCreate' | 'ArtifactRelationship' | 'ArtifactTarget' | 'AdOut' | 'AdCreate' | 'AdUpdate' | 'AdPage' | 'BatchCreate' | 'Script' | 'ScriptCreate' | 'ScriptVersionCreate' | 'ScriptDataV1' | 'DirectingPlan' | 'DirectingPlanCreate' | 'DirectingPlanVersionCreate' | 'DirectingPlanDataV1' | 'Error' | 'ErrorResponse' | 'Storyboard' | 'StoryboardCreate' | 'StoryboardVersionCreate' | 'StoryboardDataV1' | 'AssetOut' | 'AssetCreate'
-> & {
-	GenerateVideo: GenerateVideoInput;
-	BatchOut: VideoTarget['BatchOut'];
+
+/** Product data as it is written; `attributes` holds JSON, typed with the SDK's JsonObject. */
+export type ProductData = Public['ProductDataV2'] & { attributes?: JsonObject };
+/** Product data as it is read: the backend always returns every list, empty or not. */
+export type ProductReadData = Omit<ProductData, 'image_asset_ids' | 'video_asset_ids' | 'selling_points' | 'facts' | 'constraints' | 'attributes'> &
+	Required<Pick<ProductData, 'image_asset_ids' | 'video_asset_ids' | 'selling_points' | 'facts' | 'constraints'>> & { attributes: JsonObject };
+type WithData<T, D> = Omit<T, 'data'> & { data: D };
+type ProductEditData = Public['ProductEditData'] & { attributes?: JsonObject };
+
+// openapi-typescript renders the bare oneOf input object as Record<string, never>; express the
+// backend's exactly-one constraint explicitly.
+export type RawPromptInput = Public['RawPromptInput'];
+type Video<S extends { GenerateVideo: unknown; RawPromptInput: unknown }> = Omit<S['GenerateVideo'], 'prompt' | 'input'> &
+	({ prompt: string; input?: null } | { input: S['RawPromptInput']; prompt?: null });
+export type GenerateVideoInput = Video<Public>;
+
+/** The overlays, for either contract's schemas (WhatIf's packages/internal-contract types the internal one with them). */
+export type Overlay<S extends Pick<Public, 'GenerateVideo' | 'RawPromptInput' | 'Product' | 'ProductCreate' | 'ProductEdit' | 'ProductPage'>> = {
+	GenerateVideo: Video<S>;
+	ProductDataV2: ProductData;
+	Product: WithData<S['Product'], ProductReadData>;
+	ProductCreate: WithData<S['ProductCreate'], ProductData>;
+	ProductEdit: Omit<S['ProductEdit'], 'data'> & { data?: ProductEditData };
+	ProductEditData: ProductEditData;
+	ProductPage: Omit<S['ProductPage'], 'items'> & { items: WithData<S['Product'], ProductReadData>[] };
 };
-export type BackendSchemas = Omit<Deployed, keyof VideoOverlay | 'ProductDataV1' | 'Product' | 'ProductCreate' | 'ProductUpdate' | 'ProductPage'> & VideoOverlay & {
-	ProductDataV1: ProductData;
-	Product: WithData<Deployed['Product']>;
-	ProductCreate: WithData<Deployed['ProductCreate']>;
-	ProductUpdate: WithData<Deployed['ProductUpdate']>;
-	ProductPage: Omit<Deployed['ProductPage'], 'items'> & { items: WithData<Deployed['Product']>[] };
-};
-export type DeployedBackendSchemas = Deployed;
+/** The public contract's schemas: what customers send and read. */
+export type BackendSchemas = Omit<Public, keyof Overlay<Public>> & Overlay<Public>;

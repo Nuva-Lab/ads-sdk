@@ -41,9 +41,9 @@ function sdk() {
         calls.created.push(input);
         return { id: "character-new", version: 1, data: input.data, assets: {} };
       },
-      update: async (input) => {
-        calls.updated.push(input);
-        return { ...input.base, version: input.base.version + 1, data: input.data };
+      update: async (ref, changes) => {
+        calls.updated.push([ref, changes]);
+        return { ...ref, version: ref.version + 1, data: { ...ref.data, ...changes.data } };
       },
     },
   };
@@ -114,51 +114,65 @@ test("editing a Character keeps its base, reorders its images (the first is the 
   await result.done;
   assert.equal(client.calls.uploads.length, 0);
   assert.equal(client.calls.updated.length, 1);
-  assert.equal(client.calls.updated[0].base, mia);
-  assert.deepEqual(client.calls.updated[0].data, {
-    name: "Mia",
-    description: mia.data.description,
-    image_asset_ids: [ids.miaSide, ids.miaFront],
-    voice_asset_id: null,
-  });
+  const [ref, changes] = client.calls.updated[0];
+  assert.equal(ref, mia, "The update names the version that was read.");
+  // Only the changed fields are sent; the name and description keep their saved values.
+  assert.deepEqual(changes, { data: { image_asset_ids: [ids.miaSide, ids.miaFront], voice_asset_id: null } });
 });
 
-test("a Product image with a label uploads with it and is attached to the Product's images", async () => {
+test("saving a Character with no changes saves nothing", async () => {
+  const client = sdk();
+  const result = saved();
+  const body = env.window.document.getElementById("root");
+  const form = characterForm(body, { sdk: client, base: mia, saved: result.saved });
+  form.dispatchEvent(new env.window.Event("submit", { cancelable: true }));
+  assert.equal(await result.done, mia);
+  assert.equal(client.calls.updated.length, 0);
+});
+
+test("a Product image uploads as an Asset with its label, then is added to the Product's images", async () => {
   const calls = [];
   const client = {
     assets: { upload: async (file, options) => (calls.push(["upload", file.name, options]), { id: "asset-label", kind: "image" }) },
-    products: {
-      uploadImage: async () => assert.fail("uploadImage cannot pass a label."),
-      update: async (input) => (calls.push(["update", input]), { ...input.base, data: input.data }),
-    },
+    products: { update: async (ref, changes) => (calls.push(["update", ref, changes]), { ...ref, data: { ...ref.data, ...changes.data } }) },
   };
   const file = new env.window.File(["box"], "box.png", { type: "image/png" });
+  const images = [...product.data.image_asset_ids, "asset-label"];
   const updated = await uploadProductImage(client, product, file, { label: "Back of the box", description: "" });
   assert.deepEqual(calls, [
     ["upload", "box.png", { kind: "image", label: "Back of the box" }],
-    ["update", { base: product, data: { ...product.data, images: [...product.data.images, "asset-label"] }, brand_id: product.brand_id }],
+    ["update", product, { data: { image_asset_ids: images } }],
   ]);
-  assert.deepEqual(updated.data.images, [...product.data.images, "asset-label"]);
-  let plain = 0;
-  await uploadProductImage({ products: { uploadImage: async () => (plain++, { product }) } }, product, file, { label: "", description: "" });
-  assert.equal(plain, 1, "Without a label the SDK's own upload is used.");
+  assert.deepEqual(updated.data.image_asset_ids, images);
+  calls.length = 0;
+  await uploadProductImage(client, product, file, { label: "", description: "" });
+  assert.deepEqual(calls[0], ["upload", "box.png", { kind: "image" }], "Without a label the upload sends none.");
+  // The same file again is the same Asset: nothing is added.
+  calls.length = 0;
+  assert.equal(await uploadProductImage(client, updated, file, { label: "", description: "" }), updated);
+  assert.deepEqual(calls.map((call) => call[0]), ["upload"]);
+  const full = { ...product, data: { ...product.data, image_asset_ids: Array.from({ length: 20 }, (_, i) => `i${i}`) } };
+  calls.length = 0;
+  await assert.rejects(uploadProductImage(client, full, file, { label: "", description: "" }), /already has 20 images/);
+  assert.equal(calls.length, 0, "A full Product uploads nothing.");
 });
 
-test("a Product video uploads with its label, is attached to the Product's videos, and can be removed", async () => {
+test("a Product video uploads with its label, is added to the Product's videos, and can be removed", async () => {
   const calls = [];
   const client = {
     assets: { upload: async (file, options) => (calls.push(["upload", file.name, options]), { id: "asset-video", kind: "video" }) },
-    products: { update: async (input) => (calls.push(["update", input]), { ...input.base, data: input.data }) },
+    products: { update: async (ref, changes) => (calls.push(["update", ref, changes]), { ...ref, data: { ...ref.data, ...changes.data } }) },
   };
   const file = new env.window.File(["clip"], "demo.mp4", { type: "video/mp4" });
   const updated = await uploadProductVideo(client, product, file, { label: "Unboxing", description: "" });
   assert.deepEqual(calls, [
     ["upload", "demo.mp4", { kind: "video", label: "Unboxing" }],
-    ["update", { base: product, data: { ...product.data, videos: ["asset-video"] }, brand_id: product.brand_id }],
+    ["update", product, { data: { video_asset_ids: ["asset-video"] } }],
   ]);
-  assert.deepEqual(updated.data.videos, ["asset-video"]);
+  assert.deepEqual(updated.data.video_asset_ids, ["asset-video"]);
   const removed = await removeProductVideo(client, updated, "asset-video");
-  assert.deepEqual(removed.data.videos, []);
-  const full = { ...product, data: { ...product.data, videos: ["a", "b", "c", "d", "e"] } };
+  assert.deepEqual(calls.at(-1), ["update", updated, { data: { video_asset_ids: [] } }]);
+  assert.deepEqual(removed.data.video_asset_ids, []);
+  const full = { ...product, data: { ...product.data, video_asset_ids: ["a", "b", "c", "d", "e"] } };
   await assert.rejects(uploadProductVideo(client, full, file, { label: "", description: "" }), /already has 5 videos/);
 });
