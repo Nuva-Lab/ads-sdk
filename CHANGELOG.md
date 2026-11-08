@@ -2,86 +2,78 @@
 
 Each entry describes the change from the previous released version.
 
-## Unreleased
+## 0.1.0-preview.5
 
-- **Who sees what.** Brands, Products and Characters now belong to the user who made them, as Assets and Artifacts already did. Each is private to that user and the admins above them until it is shared. Batches, Jobs and Ads are never shared.
-  - Your organization is a tree of scopes: `customer` (everyone), orgs, and groups inside an org. Each user is a `member`, `admin` or `viewer` of any number of scopes, and every user is a member of `customer`.
-  - An admin reads, writes, deletes and shares what users at or below their scope own. A viewer only reads it. A member reads what is shared with them.
-  - A share gives everyone at or below a scope `read` (see and use) or `write` (also edit) access to one item. It never allows deleting the item or sharing it on.
-  - **Name your admins.** Until you do, users see only their own work and what is shared with them. Use the Go Admin SDK (`SetMemberships` with `Scope: "customer", Role: RoleAdmin` for an admin of everyone).
-  - **Existing data.** Organizations that existed before this release keep sharing every new Brand, Product and Character with everyone. Brands, Products and Characters saved before it have no owner: everyone in your organization can still read, use and edit them, as before. Deleting them or sharing them takes an admin of `customer`.
-- **Go Admin SDK.** `PutScope`, `ListScopes`, `ArchiveScope`, `SetMemberships`, `GetMemberships`, `ListShares`, `SetShare` and `RemoveShare` on `AdminClient`, with the `ScopeOrg`/`ScopeGroup`, `RoleMember`/`RoleAdmin`/`RoleViewer` and `AccessRead`/`AccessWrite` constants.
-- **Client Store.** `shares.list(item)`, `shares.set(item, scope, access)` and `shares.remove(item, scope)`, for an admin sharing an item from your app.
-- **Sessions.** An admin opens and continues the Sessions of users below them; the Agent then acts as the Session's owner, within what both of them may do. `sessions.list({owner})` lists one such user's Sessions (`owner` is `session.owner.userId`). The Agent follows membership changes within a minute.
-- **Steering.** While the Agent works, `agent.send` no longer gets `AGENT_BUSY`: the message is in `messages` at once with `unread: true`, and at the Agent's next step (after its current tool results) it joins the conversation as its own user message and loses `unread`. When no loop is running before that (it finished, failed or was stopped), it starts the next one. A message sent while the Agent recovers from an interruption joins that work instead of replacing it. The Agent's reply continues in a new assistant message after messages that join it. Every send steers, from every client (the Go Admin SDK included); `mode: 'steer'` is still accepted and changes nothing. Sending again with the same `requestId` answers with the first receipt. Needs an Agent deployment where every send steers; on an Agent with steering from before that, only a send with `mode: 'steer'` steers, and older Agents reject `mode` as `INVALID_INPUT`.
-- **Deleting Products.** `nuva.products.delete(id)` deletes a Product for everyone in your organization. It disappears from `products.list`, `products.get` returns `NOT_FOUND` for every version, and it can't be edited or used for new Scripts. What was already made from it stays but can't be revised: Scripts, Storyboards, Prompts, video Jobs and Ads remain readable, and saved Prompts still render with `videos.generate({prompt})`. Revising a Script or Storyboard based on it, or compiling such a Storyboard with `prompts.generate`, fails. Its images stay with whoever uploaded them; other members can no longer use them, including in their own Prompts, unless another Product or Character does. These failures say why: `NOT_FOUND` with "The product was deleted.", or `INVALID_REFERENCE` whose message names the deleted Product. Deleting can't be undone through the API, and deleting again succeeds. Needs a backend with Product deletion; an older one answers `METHOD_NOT_ALLOWED`.
-- **Playground.** Send stays available while the Agent works and steers the message; user messages show one check until the Agent reads them and two after.
-- **File tokens.** Shots and `instruction` can name any file: `{{asset:<asset id>}}` for any image, video or audio Asset you may use (an upload, a registered Session file, a finished video), `{{role:<asset id>}}` and `{{product:<asset id>}}` for any file that Character or Product has. The file's own kind decides how it is used; the compiled Prompt names it as `<Picture N>`, `<Video N>` or `<Audio N>`. Per clip: at least one image or video, at most 9 images, 3 videos, 3 audio files and 12 references. A file token in `direction` is rejected; one you may not use, a Session file ID or a malformed token in `instruction` is `422` before anything is written. `storyboardIssues` and `StoryboardContext` (`product: {media}`, `characters[id]: {media, voice}`, `assets` with each file's kind) follow the same rules (breaking for code that builds a `StoryboardContext`).
-- **Product videos.** `image_asset_ids` sits beside a new `video_asset_ids`: up to 5 video Asset IDs, shared like the images.
-- **Prompts must name every file** (breaking, every SDK version). A new Prompt (`videos.generate({input})`, `prompts.createFrom`) must name each attached file as `<Picture N>`, `<Video N>` or `<Audio N>` (N its position in `image_asset_ids`, `video_asset_ids`, `audio_asset_ids`) and no number past its list's end; otherwise `422 INVALID_PROMPT` with `acceptance: 'not_accepted'`. Prompts saved before are not checked again.
-- **`Message.attach` and `Message.quote`** take an Asset as is under strict TypeScript (its `label` is optional).
-- **Grace period.** Organizations we have told are on the grace list keep their preview.4 calls (`prompts.create`, `scripts.create`, direct `scripts.update`, `storyboards.generate({content})`, Prompts that leave a file unnamed) for now; those responses carry `Deprecation: true` and a `Link` to the migration guide. It ends after notice.
-- **API version 2026-11-07.** The SDK sends `Nuva-Api-Version: 2026-11-07` on every call; you don't set it. The backend answers it with the shapes below. Calls without it (SDKs up to preview.4) keep the shapes they read, for the transition only.
-- **Scripts, Storyboards and Prompts never change; each method returns a new one** (breaking). `generate` has the writer make one from scratch, `generateFrom(base, {instruction, …})` has the writer make one from an existing one, and `createFrom(base, changes)` saves your own changes to the top-level fields (the rest is copied from `base`), after the same checks as the writer's. `scripts.revise` is now `scripts.generateFrom`, `scripts.update(ref, {content})` is `scripts.createFrom(base, changes)`, `storyboards.revise` is `storyboards.generateFrom`, `storyboards.update(ref, {content})` is `storyboards.createFrom(base, changes)`, and `prompts.update` is `prompts.createFrom(base, changes)`, which changes render fields only (`prompt`, the file lists, `seconds`, `ratio`). A Storyboard made with `createFrom` keeps its base's Product and Character versions; one made with `generateFrom` uses the latest. Pass the record you hold as `base` to skip reading it again.
-- **Brands, Products and Characters change in place: `update(ref, changes)`** (breaking). It sends only the fields you change (`PATCH`); a list you send replaces the whole list, `[]` empties it, `null` clears an optional value, and what you leave out keeps its value. `ref` is the record you read or `{id, version}`; if someone saved a newer version since, it fails with `REVISION_CONFLICT`. `create` and `update` take an `idempotencyKey`.
-- **Product media are `image_asset_ids` and `video_asset_ids`** (breaking), like every other list of files (Product data version 2; `images`/`videos` before). `products.uploadImage` is removed: `assets.upload(file, {kind: 'image', label})`, then `products.update(product, {data: {image_asset_ids: [...]}})`.
-- **References are an id and a version.** Records no longer carry `revision`, and Artifact reads no longer carry `entities`: what a Script or Storyboard was made from reads as `{kind, id, version}`. A Prompt's Characters are no longer shown.
-- **Raw `videos.generate({input})` takes what the model renders from, and nothing else** (breaking): `prompt`, `image_asset_ids`, `video_asset_ids`, `audio_asset_ids`, `seconds`, `ratio`. `characters`, `clip_id` and `relationships` are refused: only attached files reach the model, so attach a Character's or Product's picture and name it `<Picture N>`. An omitted `seed` is random and returned as `job.seed`; pass it again to repeat a draw. Omitted `seconds` is 5, `ratio` 16:9, `resolution` 768P.
-- **Jobs.** `jobs.cancel(id)` stops a queued or running Job. A failed Job reads `error_code: "GENERATION_FAILED"` with a fixed `error` message, and `error` stays null until the Job is final. `checkpoint` is gone. Callbacks carry the same shape.
-- **Assets.** `assets.upload(source, options)` takes a File or `{url}` for a public HTTPS URL; `assets.register` and `assets.uploadIntent` are removed.
-- **Errors.** The backend's `UNAUTHORIZED` and `INVALID_REQUEST` are `UNAUTHENTICATED` and `INVALID_INPUT`, as the SDK names them, and every error's `details[].path` is the request's own field path.
-- **`AdsError`** (breaking; was `NuvaError`, with `AdsErrorInfo` and `AdsErrorCode`). It carries `code`, `message`, `retryable`, `requestId`, `method` (the SDK method that failed, e.g. `products.update`) and, for validation errors only, `details`. Send us `requestId` and `method` when you report a problem. `acceptance` is gone: when `retryable` is true, retry; a write with the same `idempotencyKey`, which is always safe.
-- **Retries.** Every write that takes an idempotency key sends one: yours, or one the SDK makes. The SDK sends a request that is safe to repeat again by itself, with the same key, after a dropped connection or `SERVICE_BUSY` (twice at most) and after a 401 once the token is renewed; never after a timeout. To retry a write yourself, pass your own key.
-- **`prompts.generate` returns every clip's Prompt or an error** (breaking). `PartialCreationError` and `PARTIAL_CREATION` are gone. A call after a failure reuses the clips already compiled and compiles only the rest; to get the clips that work while one keeps failing, compile one at a time with `clip`.
-- **Lists return `Page<T>`: `{items, nextCursor}`** (breaking; was `BackendPage<T>`, which also carried `next_cursor`), as the Agent's lists already did.
-- **One `Skill` type** (breaking): a Skill at one version, with its files. `skills.get(id)` reads the latest version and `skills.get(id, {version})` another; `main_version` says which one new work uses; `skills.list` returns `Page<Skill>`, each at its latest version. `skills.version`, `SkillOut`, `SkillDetail` (and its `main`) and `SkillVersionOut` are removed.
-- **One `Batch` type** (breaking): `batches.list` returns `Page<Batch>`, each with its Ads and Job counts as `batches.get` reads it; `BatchSummary` is removed.
-- **What an Artifact was made from reads as named fields** (breaking): a Script's `product` (`{id, version}`) and `skill` (`{id, name, version}`); a Storyboard's `script` (`{id}`), `product`, `characters` and `skill`; a Prompt's `storyboard` (with `data.clip_id`) and `skill`. `relationships` and the `skills` map are gone.
-- **`schemaVersion` is removed**; read `schema_version`.
-- **Every reference is `{id}` (an entity's `{id, version?}`), or the record you read** (breaking): `scripts.get({id})`, `storyboards.generate({script: {id}})`, `prompts.generate({storyboard: {id}})`, `videos.generate({prompt: {id}})`, and every `generateFrom`/`createFrom` base. `kind` is implied by the method. Shares keep `{kind, id}`, since one method covers every kind.
-- **Service origins are not client options** (breaking): `baseUrl`, `storeBaseUrl` and `generationBaseUrl` are gone; choose an `environment`.
-- **Brands take a `description` and `attributes`, and Products a `description`**, which the Script writer reads as context. `PATCH` them like the other fields.
-- **Removed:** `onTrace` and `onWireTrace` from the client options (quote an error's `requestId` and `method` instead), and the `TraceEntry` and `WireTraceEntry` types.
-- **Removed:** the generic `artifacts` client (read with `scripts.get`, `storyboards.get`, `prompts.get`), `ScriptSchema`, `PromptSchema`, `PerformanceSnapshotSchema`, `defineArtifactSchema`, `ProductImageUploadError`, and from `@nuva/sdk/schemas` the generation-service schemas, the generate-input schemas, `encodeScriptPackage`/`decodeScriptPackage` and `storyboardIssues`. Ads and Batches are written by the Agent only, and their write types are no longer exported.
-- **Scripts, Storyboards and Prompts are created by the writers only** (breaking). `scripts.create`, `prompts.create`, `artifacts.create` and `artifacts.update` are removed. A Storyboard can no longer be saved from scratch.
-- **The `directing_plan` Artifact kind is gone** from the SDK types (`ArtifactKind`, `DirectingPlan`, `ShareableKind`, Go `ItemRef`).
+Changes since `0.1.0-preview.4`. This SDK needs the services released with it. Your preview.4 integration keeps working until you upgrade; the services answer it as before.
 
-**Migrating**
+The full upgrade guide, with before-and-after code, is the docs page **Upgrade to preview.5** (`migration.html`). It also covers upgrading from preview.3.
+
+### What changed
+
+- **Scripts, Storyboards and Prompts never change; each method returns a new one** (breaking).
+  - `generate` has the writer make one from scratch.
+  - `generateFrom(base, {instruction, …})` has the writer change one (a Script keeps its length without a range).
+  - `createFrom(base, changes)` saves your own edit, with only the fields you change; a Storyboard edit gets the same checks as a written one.
+  - `prompts.createFrom(base, changes)` takes render fields only.
+- **Scripts, Storyboards and Prompts are created by the writers only** (breaking). `scripts.create`, `prompts.create` and the `artifacts` client are removed. To render text of your own, use `videos.generate({input})`.
+- **Brands, Products and Characters change in place: `update(record, changes)`** (breaking). Send only the fields you change; a list replaces the whole list and `null` clears a value. Pass the record you read (or `{id, version}`): if someone saved a newer version, it fails with `REVISION_CONFLICT`.
+- **Product media are `image_asset_ids` and `video_asset_ids`** (breaking; were `images` and `videos`). Products take up to 5 videos. `products.uploadImage` is removed: upload with `assets.upload`, then `update`.
+- **Assets.** `assets.upload(file)` or `assets.upload({url})`, with a `label` and `description` the writers read; `assets.update(id, {label, description})` changes them. Adding a file you already have with different text fails with `ASSET_EXISTS`.
+- **References are `{id, version?}`**: `scripts.generate({product: {id}})` and Storyboard `cast`. Leave `version` out for the current one. Records no longer carry `revision`.
+- **Raw `videos.generate({input})` takes what the model renders from**: `prompt`, the file lists, `seconds`, `ratio`. `characters` is gone: attach the picture and name it in the text. An omitted `seed` is random, and the Job returns it.
+- **Prompts must name every file** (breaking, every SDK version). A new Prompt's text names each attached file as `<Picture N>`, `<Video N>` or `<Audio N>`, by its position in its list; otherwise `422 INVALID_PROMPT`, and nothing is saved or charged.
+- **`prompts.generate` returns every clip's Prompt or an error** (breaking). Calling again after a failure reuses the clips already compiled; `clip` compiles one at a time.
+- **Errors: `AdsError`** (breaking; was `NuvaError`). It carries `code`, `message`, `retryable`, `requestId`, `method` and, for validation errors, `details`. Send us `requestId` and `method` when you report a problem. When `retryable` is true, retry; a write with the same `idempotencyKey`, which is always safe. `acceptance`, `PartialCreationError`, `onTrace` and `onWireTrace` are gone.
+- **Retries.** The SDK makes an idempotency key for every write that takes one, and sends a request that is safe to repeat again by itself after a dropped connection or `SERVICE_BUSY`. To retry a write yourself, pass your own key.
+- **Lists return `Page<T>`**: `{items, nextCursor}` (was `BackendPage`, which also had `next_cursor`).
+- **One type per resource.** A `Skill` is one version (`skills.get(id, {version?})`; `skills.version` is gone); `batches.list` returns full `Batch`es.
+- **What an Artifact was made from reads as named fields**: `product`, `skill`, `script`, `storyboard`, `characters`, instead of `relationships`. `schemaVersion` is gone; read `schema_version`.
+- **Brands take a `description` and `attributes`, and Products a `description`**, which the Script writer reads as context.
+- **One reference shape.** Every reference is `{id}` (an entity's `{id, version?}`), or the record you read; the method implies the kind.
+- **Jobs.** `jobs.cancel(id)`. A failed Job reads `error_code: "GENERATION_FAILED"` with a fixed message.
+- **Use any file in a shot.** `{{asset:<id>}}`, `{{role:<id>}}` and `{{product:<id>}}`, in shots and in `instruction`.
+- **Steering.** While the Agent works, `agent.send` no longer gets `AGENT_BUSY`: the message shows at once (`unread: true`) and joins at the Agent's next step.
+- **Deleting Products.** `products.delete(id)`. What was made from the Product stays readable, and its saved Prompts still render.
+- **Who sees what.** New Brands, Products and Characters belong to the user who made them; ones saved before this release stay editable by everyone in your organization. Admins share items with `shares.set` and the Go Admin SDK's scope, membership and share methods.
+
+### Grace period
+
+If we've told you your organization is on the grace list, these preview.4 calls keep working for now, while you upgrade: `prompts.create`, `scripts.create`, direct `scripts.update`, `storyboards.generate({content})`, and Prompts that leave a file unnamed (saved as before). Those responses carry `Deprecation: true` and a `Link` to the upgrade guide. The grace period ends after we tell you.
+
+### Upgrading from 0.1.0-preview.4
 
 | Before | Now |
 | --- | --- |
-| `scripts.revise(ref, {instruction, acceptable_duration_ms?})` | `scripts.generateFrom(base, {instruction, acceptable_duration_ms?})` |
-| `scripts.update(ref, {content})` | `scripts.createFrom(base, changes)` (only the fields you change) |
-| `storyboards.revise(ref, {instruction, cast?})` | `storyboards.generateFrom(base, {instruction, cast?})` |
-| `storyboards.update(ref, {content})` | `storyboards.createFrom(base, changes)` |
-| `prompts.update(ref, {data})` | `prompts.createFrom(base, changes)` (render fields only) |
-| `scripts.generate({product, base, …})`, `storyboards.generate({base, …})` | `generateFrom(base, …)` |
-| `storyboards.generate({content})` (no base) | `storyboards.generate({script})`, then `storyboards.createFrom` |
-| `scripts.create` / `prompts.create` / `artifacts.create` / `artifacts.update` | the writers (`generate`), then `createFrom` |
-| `artifacts.get(ref)` / `artifacts.forSchema(schema)` | `scripts.get`, `storyboards.get`, `prompts.get` |
-| `products.update({base, data, brand_id})` | `products.update(product, {data: {only changed fields}, brand_id?})` (same for Brands and Characters) |
-| `data.images` / `data.videos` on a Product | `data.image_asset_ids` / `data.video_asset_ids` |
-| `products.uploadImage({base, file})` | `assets.upload(file, {kind: 'image'})`, then `products.update` |
-| `assets.uploadIntent` + `assets.register` | `assets.upload(file)` or `assets.upload({url})` |
-| `record.revision`, `artifact.entities` | `{id, version}`; relationships read `{kind, id, version}` |
-| raw input `characters`, `clip_id`, `relationships` | attach the picture and name it `<Picture N>` |
-| `job.checkpoint`, parsing `job.error` | `job.error_code` |
-| `NuvaError`, `NuvaErrorInfo`, `NuvaErrorCode` | `AdsError`, `AdsErrorInfo`, `AdsErrorCode` |
-| `error.acceptance` | `error.retryable`; retry a write with the same `idempotencyKey` |
-| Go `APIError.Acceptance` | `APIError.Retryable`: every Admin write repeats to the same result |
-| `PartialCreationError`, `error.saved.prompts` | call `prompts.generate` again (finished clips are reused), or one `clip` at a time |
-| `onTrace`, `onWireTrace` | `error.requestId` and `error.method` when you report a problem |
+| `scripts.generate({product, base, …, instruction})` | `scripts.generateFrom(base, {instruction})` |
+| `scripts.update(ref, {content})` | `scripts.createFrom(base, changes)` |
+| `storyboards.generate({base, instruction})` | `storyboards.generateFrom(base, {instruction})` |
+| `storyboards.generate({base, content})` | `storyboards.createFrom(base, changes)` |
+| `storyboards.generate({content})` | `storyboards.generate({script})`, then `storyboards.createFrom` |
+| `prompts.create({data})` | `videos.generate({input: {schema_version: 1, data}})` |
+| `prompts.update(ref, {data})` | `prompts.createFrom(base, changes)` |
+| `products.update({base, brand_id, data})` | `products.update(product, {data: {changed fields}})` (also Brands, Characters) |
+| `data.images` / `data.videos` | `data.image_asset_ids` / `data.video_asset_ids` |
+| `products.uploadImage`, `assets.uploadIntent` + `assets.register` | `assets.upload(file)`, then `update` |
+| `scripts.generate({product: id})`, `cast: {role: id}` | `{product: {id}}`, `cast: {role: {id}}` |
+| raw input `characters`, `clip_id` | attach the picture and name it `<Picture N>` |
+| `NuvaError` | `AdsError` |
+| `error.acceptance` | `error.retryable`, and the same `idempotencyKey` |
+| Go `APIError.Acceptance` | `APIError.Retryable` |
+| `PartialCreationError` | call `prompts.generate` again |
 | `BackendPage<T>`, `page.next_cursor` | `Page<T>`, `page.nextCursor` |
-| `skills.version(id, n)`, `SkillDetail.main`, `SkillOut`, `SkillVersionOut` | `skills.get(id, {version: n})`; a `Skill` is one version, `main_version` names the one new work uses |
-| `BatchSummary` from `batches.list` | `Batch`, with `ads` and `jobs` |
-| `artifact.relationships`, `artifact.skills` | `script.product`, `storyboard.script` / `product` / `characters`, `prompt.storyboard`, and `skill` |
-| `artifact.schemaVersion` | `artifact.schema_version` |
-| `scripts.get({kind: 'script', id})`, `storyboards.generate({script: id})`, `prompts.generate({storyboard: id})`, `videos.generate({prompt: id})` | `{id}` (or the record you read) for each |
+| `skills.version(id, n)` | `skills.get(id, {version: n})` |
+| `artifact.relationships` | `product`, `skill`, `script`, `storyboard`, `characters` |
+| `job.checkpoint`, parsing `job.error` | `job.error_code` |
+| `scripts.get({kind, id})`, `{script: id}`, `{storyboard: id}`, `{prompt: id}` | `{id}`, or the record you read |
 | `baseUrl`, `storeBaseUrl`, `generationBaseUrl` | `environment` |
 
-The full guide, from preview.4 and from preview.3, with before-and-after code, is the docs page **Upgrade to preview.5** (`migration.html`).
+Checklist:
+1. Install the preview.5 archive, and Go `v0.1.0-preview.5` if you use the Go Admin SDK.
+2. Replace the calls in the table; TypeScript flags most of them.
+3. Make raw Prompt text name every attached file, and handle `422 INVALID_PROMPT`.
+4. If you're on the grace list, log `Deprecation` response headers until none are left.
 
-To change what gets rendered, change its source (`storyboards.createFrom` or `generateFrom`, or update the Product and `generateFrom` the Storyboard) and run `prompts.generate` again. Don't edit a compiled Prompt's text by hand: it names each attached file by position (`<Picture 1>` is the first image), and a file the text doesn't name is ignored by the video model.
+To change what gets rendered, change the Storyboard or the Product and run `prompts.generate` again. Don't edit a compiled Prompt's text.
 
 ## 0.1.0-preview.4
 

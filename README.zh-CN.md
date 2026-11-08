@@ -4,7 +4,7 @@
 
 在你的应用中接入广告创作：Agent 对话、商品与素材管理、脚本与分镜生成，以及视频任务。
 
-**预览版本：`0.1.0-preview.4`**
+**预览版本：`0.1.0-preview.5`**
 
 - **TypeScript 客户端：** 让前端连接 Ads Agent 并使用已保存的资源，包含 React hooks。
 - **Go Admin SDK：** 在后端签发用户令牌并管理 Skills。
@@ -60,7 +60,7 @@ pnpm playground
 从 SDK 包安装：
 
 ```sh
-pnpm add /path/to/nuva-sdk-0.1.0-preview.4.tgz
+pnpm add /path/to/nuva-sdk-0.1.0-preview.5.tgz
 ```
 
 创建客户端时提供 `getAccessToken` 回调，由它调用你自己的已认证后端。预览版默认使用 staging 服务。返回 `{token, expiresAt}`，SDK 会在需要时刷新访问令牌。
@@ -70,7 +70,7 @@ pnpm add /path/to/nuva-sdk-0.1.0-preview.4.tgz
 ### Go
 
 ```sh
-go get github.com/Nuva-Lab/ads-sdk/go@v0.1.0-preview.4
+go get github.com/Nuva-Lab/ads-sdk/go@v0.1.0-preview.5
 ```
 
 用 [Go Admin SDK](go/README.md) 签发用户令牌并注册 Skills。Admin API key 保存在你的后端，后端把用户令牌返回给已登录用户的前端。
