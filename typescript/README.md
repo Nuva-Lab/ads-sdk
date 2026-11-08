@@ -29,9 +29,9 @@ const nuva = createNuva({
 
 ## Errors and retries
 
-Every failure is an `AdsError` with `code`, `message`, `retryable`, `requestId`, `method` (the SDK method that failed, e.g. `products.update`) and, for validation errors only, `details` (`{path, message}`, the request's own field paths). Send us `requestId` and `method` when you report a problem.
+Every SDK failure is an `AdsError` (a `job.result` wait you abort rejects with your signal's reason instead), with `code`, `message`, `retryable`, `requestId`, `method` (the SDK method that failed, e.g. `products.update`) and, for validation errors only, `details` (`{path, message}`, the request's own field paths). Send us `requestId` and `method` when you report a problem.
 
-Every write that takes an idempotency key sends one: yours, or one the SDK makes. The SDK sends a request that is safe to repeat again by itself, with the same key, after a dropped connection or `SERVICE_BUSY` (twice at most) and after a `401` once the token is renewed, never after a timeout. When `retryable` is true, retry the write yourself with the same `idempotencyKey`; pass your own key for any write you may need to retry.
+Every write that takes an idempotency key sends one: yours, or one the SDK makes. The SDK sends a request that is safe to repeat again by itself, with the same key, after a dropped connection or `SERVICE_BUSY` (twice at most) and after a `401` once the token is renewed, never after a timeout. When a write fails with `retryable: true`, retry it yourself with the same `idempotencyKey`; pass your own key for any write you may need to retry. A wait that times out (`job.result`) is also `retryable`: wait again, don't submit again.
 
 ```ts
 import { AdsError } from '@nuva/sdk';
@@ -77,18 +77,22 @@ const clip = await job.result({ timeoutMs: 10 * 60_000 });
 They never change: each method returns a new one, and the one you started from stays as it was.
 
 - `generate` has the writer make one from scratch.
-- `generateFrom(base, {instruction, …})` has the writer make one from an existing one. A Script keeps its length unless you pass `acceptable_duration_ms`; a Storyboard made this way uses the latest Product and Character versions.
+- `generateFrom(base, {instruction, …})` has the writer make one from an existing one. A Script keeps its length unless you pass `acceptable_duration_ms`; a Storyboard made this way uses the latest Product and Character versions, unless a `cast` entry's `version` pins one.
 - `createFrom(base, changes)` saves your own changes to the top-level fields, after the same checks as the writer's; the rest is copied from `base`. A Storyboard made this way keeps its base's Product and Character versions. `prompts.createFrom` changes render fields only: `prompt`, the file lists, `seconds`, `ratio`.
 
 Pass the record you hold as `base` to skip reading it again, or `{id}`. Calling a `…From` method twice on the same base gives two alternatives side by side. Only the writers create these: there is no `scripts.create` or `prompts.create`.
 
 A Script (`format: 3`, decoded `.content`) is the idea: concept, `duration_ms`, roles and panels, each with its exact lines (`L01`, …). Scripts saved before Storyboards read as `format: 2` with `.legacy` and are read-only.
 
-A Storyboard is how a Script is shot: `cast` (by role), `direction`, and clips of 5–15 s whose shots are text with tokens: `{{role}}`, `{{product}}`, `{{L01}}`, and any file you may use: `{{asset:<asset id>}}`, `{{role:<asset id>}}` (a file of that role's Character), `{{product:<asset id>}}`. The file's own kind decides how it is used. Per clip: at least one image or video, at most 9 images, 3 videos, 3 audio files and 12 references. The service checks every Storyboard it saves; `@nuva/sdk/schemas` exports the Script and Storyboard schemas and their encode/decode functions.
+A Storyboard is how a Script is shot: `cast` (by role), `direction`, and clips of 5–15 s whose shots are text with tokens: `{{role}}`, `{{product}}`, `{{L01}}`, and any file you may use: `{{asset:<asset id>}}`, `{{role:<asset id>}}` (a file of that role's Character), `{{product:<asset id>}}`. The file tokens also work in `instruction`, and the file's own kind decides how it is used. Per clip: at least one image or video, at most 9 images, 3 videos, 3 audio files and 12 references. The service checks every Storyboard it saves; `@nuva/sdk/schemas` exports the Script and Storyboard schemas and their encode/decode functions.
 
 `prompts.generate({storyboard, clip?, ratio?})` compiles every clip, or one (`clip: 'C01'`), and returns `{prompts}`: every clip's Prompt, or an error. Calling it again after a failure reuses the clips already compiled, and a clip compiled before from the same inputs returns its saved Prompt. A Prompt names each attached file by position: `<Picture N>` for `image_asset_ids`, `<Video N>` for `video_asset_ids`, `<Audio N>` for `audio_asset_ids`. A new Prompt that leaves a file unnamed is refused with `422 INVALID_PROMPT`, and nothing is saved or charged.
 
 **Change what gets rendered** in its source, then compile again: change the Storyboard (`generateFrom` or `createFrom`), or update the Product or Character and make a new Storyboard from it, then call `prompts.generate`. Don't edit a compiled Prompt's text.
+
+## Who sees what
+
+Brands, Products and Characters belong to the user who made them, as Assets and Artifacts do. Each is private to that user and the admins above them until it is shared with a scope (`customer` for everyone, or an org or group): `shares.set(item, scope, 'read' | 'write')`, `shares.list`, `shares.remove`. Organizations that existed before preview.5 keep sharing every new Brand, Product and Character with everyone; items saved before it can be edited by everyone, but deleting or sharing them takes an admin of `customer`. Admins and scopes are set from your backend with the Go Admin SDK.
 
 ## Brands, Products and Characters
 
@@ -107,22 +111,22 @@ Brands take a `description` and `attributes`, and Products a `description`; the 
 
 ## Assets
 
-`assets.upload(source, {kind, label?, description?, idempotencyKey?})` takes a `File` or `{url}` for a public HTTPS URL. The writers read `label` and `description` to tell files apart; `assets.update(id, {label, description})` changes them. Adding a file you already have returns the same Asset, so retrying an upload is safe; adding it again with different text fails with `ASSET_EXISTS`. Download URLs expire (`download_url_expires_at`): read the Asset again for a fresh one.
+`assets.upload(source, {kind?, label?, description?})` takes a `File` (its MIME type gives the `kind` unless you pass one) or `{url}` for a public HTTPS URL (pass `kind`, and an `idempotencyKey` to retry the fetch safely). The writers read `label` and `description` to tell files apart; `assets.update(id, {label, description})` changes them. Adding a file you already have returns the same Asset, so retrying a file upload is safe; adding it again with different text fails with `ASSET_EXISTS`. Download URLs expire (`download_url_expires_at`): read the Asset again for a fresh one.
 
 ## Videos and Jobs
 
 `videos.generate({prompt})` renders a saved Prompt, such as one from `prompts.generate`; its Job joins the Prompt's Batch. To render text of your own, pass `input: {schema_version: 1, data}` instead, with only what the model renders from: `prompt`, `image_asset_ids`, `video_asset_ids`, `audio_asset_ids`, `seconds` (default 5) and `ratio` (default 16:9). Beside `input` or `prompt` go `seed`, `resolution` (default 768P), `batch_id` and `callback_url`. An omitted `seed` is random and returned as `job.seed`; pass it again to repeat a draw. The same naming rule applies to the text.
 
-`jobs.get(id)`, `jobs.subscribe(id, listener)` and `job.result({timeoutMs})` read progress without submitting again; unsubscribing or a wait timing out doesn't stop the Job. `jobs.cancel(id)` stops a queued or running Job. A failed Job reads `error_code: "GENERATION_FAILED"`.
+`jobs.get(id)`, `jobs.subscribe(id, listener)` and `job.result({timeoutMs})` read progress without submitting again; unsubscribing or a wait timing out doesn't stop the Job. `jobs.cancel(id)` stops a queued or running Job. A failed Job reads `error_code: "GENERATION_FAILED"` through `jobs.get`; `job.result` then rejects with `SERVICE_ERROR` (or `JOB_CANCELLED`), and with `CONNECTION_ERROR`, `retryable: true`, when `timeoutMs` passes first.
 
 ## Reads and lists
 
-Lists return `Page<T>`: `{items, nextCursor}`; pass `cursor` and `limit` for the next page. Every reference is `{id}` (an entity's `{id, version?}`), or the record you read; the method implies the kind. What an Artifact was made from reads as named fields: `product`, `skill`, `script`, `storyboard`, `characters`. Also: `ads.get/list`, `batches.get/list`, `skills.get(id, {version?})/list`, and `shares.list/set/remove` for an admin sharing an item from your app.
+Lists return `Page<T>`: `{items, nextCursor}`; pass `cursor` and `limit` for the next page. Every reference is `{id}` (an entity's `{id, version?}`), or the record you read; the method implies the kind. What an Artifact was made from reads as named fields: `product`, `skill`, `script`, `storyboard`, `characters`. Also: `ads.get/list`, `batches.get/list`, `skills.get(id, {version?})/list`.
 
 | Requests | Default deadline |
 | --- | --- |
 | `storyboards.generate`, `generateFrom`, `createFrom`, and `prompts.generate` | 300 s |
-| `scripts.generate`, `generateFrom`, `createFrom`, and `assets.upload` | 180 s |
+| `scripts.generate`, `generateFrom`, `createFrom`; an `assets.upload` transfer and its registration, each | 180 s |
 | Every other request | 8 s |
 
 `requestTimeoutMs` overrides these. A timed-out write may still complete: retry it with the same `idempotencyKey`, or read before deciding.
