@@ -2,6 +2,15 @@
 
 Each entry describes the change from the previous released version.
 
+## Unreleased
+
+### Fixed
+
+- **A failed token refresh no longer stops the Agent connection for good** ([#28](https://github.com/Nuva-Lab/ads-sdk/issues/28)).
+  - If `getAccessToken` fails while the current token is still valid, the SDK keeps using that token and tries again before it expires; the connection stays open.
+  - If the connection does stop on an authentication error, the same client recovers once `getAccessToken` returns a valid token for the same user: the next Agent call (or any request) fetches one, and the client reconnects and subscribes to its Sessions again.
+  - A token the service refuses is not used again.
+
 ## 0.1.0-preview.5
 
 Changes since `0.1.0-preview.4`. This SDK needs the services released with it. Your preview.4 integration keeps working until you upgrade; the services answer it as before.

@@ -130,6 +130,12 @@ export class Transport {
 		this.credentials = new Credentials(
 			options,
 			(credential) => {
+				if (this.authFailed) {
+					// A new token for the same account (Credentials refuses a different one) lifts a socket auth failure.
+					this.authFailed = false;
+					if (this.watches.size && !this.closed) void this.connect().catch(() => {});
+					return;
+				}
 				if (this.ready && this.socketToken !== credential.token) {
 					const socket = this.ws,
 						epoch = this.epoch;
@@ -521,7 +527,7 @@ export class Transport {
 		if (this.authFailed)
 			throw new AdsError({
 				code: 'UNAUTHENTICATED',
-				message: 'Socket authentication failed; create a new client after signing in.',
+				message: 'Socket authentication failed; it reconnects once getAccessToken returns a valid token.',
 				retryable: false,
 				acceptance: 'not_accepted',
 			});
@@ -533,7 +539,6 @@ export class Transport {
 		const ws = new WebSocket(url);
 		let protocolFailure: AdsErrorInit | undefined;
 		this.ws = ws;
-		this.authFailed = false;
 		const epoch = ++this.epoch;
 		let ended = false;
 		const current = () => !ended && !this.closed && this.ws === ws && this.epoch === epoch;
@@ -642,6 +647,7 @@ export class Transport {
 				return;
 			}
 			if (frame.type === 'error' && this.renewal?.id === frame.id) {
+				this.credentials.reject(this.renewal.token);
 				this.authenticationFailed(new AdsError({ ...frame.error, acceptance: 'not_accepted' }));
 				return;
 			}
@@ -664,6 +670,7 @@ export class Transport {
 				return;
 			}
 			if (frame.type === 'error' && frame.id === 'auth') {
+				if (this.socketToken) this.credentials.reject(this.socketToken);
 				this.authenticationFailed(new AdsError(frame.error));
 				return;
 			}
@@ -731,6 +738,8 @@ export class Transport {
 		this.assertOpen();
 		const started = Date.now();
 		try {
+			// After an auth failure, an explicit call fetches a token; a new one lifts the failure.
+			if (this.authFailed) await this.token();
 			await this.connect();
 			await this.reauthenticate(await this.token());
 		} catch (error) {
