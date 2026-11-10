@@ -10,7 +10,7 @@ export interface Credential {
  * request checks the clock again, including after browser sleep.
  *
  * A failed early refresh keeps the current token while it is unexpired and the
- * service has not rejected it, and retries with backoff before it expires. */
+ * service has not rejected it, and retries with backoff (at least 1 s apart) until it expires. */
 export class Credentials {
 	private cached: Credential | undefined;
 	private principal: AccessToken['principal'];
@@ -119,9 +119,9 @@ export class Credentials {
 				!this.identityFailed &&
 				generation === this.generation
 			) {
-				// Early refresh failed but the token still works: keep it and retry before it expires.
-				const delay = Math.min(1000 * 2 ** this.failures++, 30_000, (current.expiresAt - now) / 2);
-				this.cached = { ...current, refreshAt: now + delay };
+				// Early refresh failed but the token still works: keep it and retry, at least 1 s apart, until it expires.
+				const delay = Math.max(1000, Math.min(1000 * 2 ** this.failures++, 30_000, (current.expiresAt - now) / 2));
+				this.cached = { ...current, refreshAt: Math.min(now + delay, current.expiresAt) };
 				this.schedule(this.cached);
 				return this.cached;
 			}

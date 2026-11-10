@@ -110,7 +110,8 @@ export class Transport {
 	private reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 	private retries = 0;
 	private epoch = 0;
-	private authFailed = false;
+	/** Set by an authentication failure; a new token lifts it. `refused` is the token the service refused. */
+	private authFailure: { refused?: string } | undefined;
 	private pending = new Map<string, Pending>();
 	private watches = new Map<string, Watch>();
 	private httpControllers = new Set<AbortController>();
@@ -130,10 +131,13 @@ export class Transport {
 		this.credentials = new Credentials(
 			options,
 			(credential) => {
-				if (this.authFailed) {
-					// A new token for the same account (Credentials refuses a different one) lifts a socket auth failure.
-					this.authFailed = false;
-					if (this.watches.size && !this.closed) void this.connect().catch(() => {});
+				const failure = this.authFailure;
+				if (failure) {
+					// A new token for the same account (Credentials refuses a different one) lifts the failure.
+					if (credential.token === failure.refused) return;
+					this.authFailure = undefined;
+					// After a refusal only an explicit call reconnects, so traffic cannot loop on a service that keeps refusing.
+					if (failure.refused === undefined && this.watches.size && !this.closed) void this.connect().catch(() => {});
 					return;
 				}
 				if (this.ready && this.socketToken !== credential.token) {
@@ -165,9 +169,11 @@ export class Transport {
 		this.assertOpen();
 		return (await this.credentials.get()).token;
 	}
-	private authenticationFailed(error: AdsError) {
+	/** `refused`: the token the service refused; it is dropped and never used to reconnect. */
+	private authenticationFailed(error: AdsError, refused?: string) {
 		const socket = this.ws;
-		this.authFailed = true;
+		this.authFailure = refused === undefined ? {} : { refused };
+		if (refused !== undefined) this.credentials.reject(refused);
 		this.renewal?.reject(error);
 		if (this.renewal) clearTimeout(this.renewal.timer);
 		this.renewal = undefined;
@@ -199,18 +205,16 @@ export class Transport {
 			resolve = yes;
 			reject = no;
 		});
-		const timer = setTimeout(
-			() =>
-				this.authenticationFailed(
-					new AdsError({
-						code: 'UNAUTHENTICATED',
-						message: 'Socket reauthentication was not acknowledged.',
-						retryable: false,
-						acceptance: 'not_accepted',
-					}),
-				),
-			this.timeout,
-		);
+		// No acknowledgement is a connection failure, not a refusal: reconnect and authenticate afresh.
+		const timer = setTimeout(() => {
+			if (this.ws !== ws) return;
+			this.disconnectCurrent?.({ code: 'CONNECTION_ERROR', message: 'Socket reauthentication was not acknowledged.', retryable: true });
+			try {
+				ws.close();
+			} catch {
+				/* Failure is already reported. */
+			}
+		}, this.timeout);
 		this.renewal = { id, token, promise, resolve, reject, timer };
 		this.wire({
 			transport: 'websocket',
@@ -522,15 +526,21 @@ export class Transport {
 			watch.fail(errorInfo(error)),
 		);
 	}
+	/** Never throws: callers chain on the promise, including timers. */
 	private connect(): Promise<void> {
-		this.assertOpen();
-		if (this.authFailed)
-			throw new AdsError({
-				code: 'UNAUTHENTICATED',
-				message: 'Socket authentication failed; it reconnects once getAccessToken returns a valid token.',
-				retryable: false,
-				acceptance: 'not_accepted',
-			});
+		if (this.closed)
+			return Promise.reject(
+				new AdsError({ code: 'CONNECTION_ERROR', message: 'This client is closed.', retryable: false, acceptance: 'not_accepted' }),
+			);
+		if (this.authFailure)
+			return Promise.reject(
+				new AdsError({
+					code: 'UNAUTHENTICATED',
+					message: 'Socket authentication failed; the client reconnects once getAccessToken returns a new valid token.',
+					retryable: false,
+					acceptance: 'not_accepted',
+				}),
+			);
 		if (this.ready && this.ws?.readyState === WebSocket.OPEN) return Promise.resolve();
 		if (this.connecting) return this.connecting;
 		clearTimeout(this.reconnectTimer);
@@ -560,7 +570,7 @@ export class Transport {
 				this.renewal.reject(new AdsError({ ...error, acceptance: 'not_accepted' }));
 				this.renewal = undefined;
 			}
-			if ((!this.authFailed && !protocolFailure) || this.connecting !== undefined) this.failConnection(error);
+			if ((!this.authFailure && !protocolFailure) || this.connecting !== undefined) this.failConnection(error);
 			for (const [id, pending] of this.pending) {
 				clearTimeout(pending.timer);
 				const failure = new AdsError({
@@ -571,7 +581,7 @@ export class Transport {
 				pending.reject(failure);
 			}
 			this.pending.clear();
-			if (!this.closed && !this.authFailed && !protocolFailure && this.watches.size && this.epoch === epoch)
+			if (!this.closed && !this.authFailure && !protocolFailure && this.watches.size && this.epoch === epoch)
 				this.reconnectTimer = setTimeout(
 					() => {
 						if (!this.closed && this.epoch === epoch && this.ws === undefined) void this.connect().catch(() => {});
@@ -630,14 +640,10 @@ export class Transport {
 			if (frame.type === 'reauthenticated') {
 				const renewal = this.renewal;
 				if (!renewal || renewal.id !== frame.id) {
-					this.authenticationFailed(
-						new AdsError({
-							code: 'UNAUTHENTICATED',
-							message: 'Unexpected socket authentication acknowledgement.',
-							retryable: false,
-							acceptance: 'not_accepted',
-						}),
-					);
+					protocolFailure = { code: 'UNSUPPORTED_CONTENT', message: 'Unexpected socket authentication acknowledgement.', retryable: false };
+					this.failConnection(protocolFailure);
+					terminate(protocolFailure);
+					closeSocket();
 					return;
 				}
 				clearTimeout(renewal.timer);
@@ -647,8 +653,7 @@ export class Transport {
 				return;
 			}
 			if (frame.type === 'error' && this.renewal?.id === frame.id) {
-				this.credentials.reject(this.renewal.token);
-				this.authenticationFailed(new AdsError({ ...frame.error, acceptance: 'not_accepted' }));
+				this.authenticationFailed(new AdsError({ ...frame.error, acceptance: 'not_accepted' }), this.renewal.token);
 				return;
 			}
 			if (frame.type === 'ready') {
@@ -670,8 +675,7 @@ export class Transport {
 				return;
 			}
 			if (frame.type === 'error' && frame.id === 'auth') {
-				if (this.socketToken) this.credentials.reject(this.socketToken);
-				this.authenticationFailed(new AdsError(frame.error));
+				this.authenticationFailed(new AdsError(frame.error), this.socketToken);
 				return;
 			}
 			if (frame.type !== 'result' && frame.type !== 'error') {
@@ -739,7 +743,7 @@ export class Transport {
 		const started = Date.now();
 		try {
 			// After an auth failure, an explicit call fetches a token; a new one lifts the failure.
-			if (this.authFailed) await this.token();
+			if (this.authFailure) await this.token();
 			await this.connect();
 			await this.reauthenticate(await this.token());
 		} catch (error) {

@@ -24,7 +24,12 @@ const state = {
 	},
 	hostCalls: [],
 };
-function browserBoundary(mode, { rejectedTokens = new Set() } = {}) {
+const stateFor = (sessionId) => ({
+	...state,
+	sessionId,
+	state: { ...state.state, session: { ...state.state.session, id: sessionId } },
+});
+function browserBoundary(mode, { rejectedTokens = new Set(), reauth = 'ack' } = {}) {
 	const original = globalThis.WebSocket,
 		instances = [];
 	let listening = false;
@@ -62,12 +67,15 @@ function browserBoundary(mode, { rejectedTokens = new Set() } = {}) {
 						}),
 					});
 				else if (frame.type === 'auth') this.onmessage?.({ data: JSON.stringify({ version: 1, type: 'ready' }) });
-				else if (frame.type === 'reauth') this.onmessage?.({ data: JSON.stringify({ version: 1, type: 'reauthenticated', id: frame.id }) });
-				else if (frame.method === 'agent.subscribe') {
+				else if (frame.type === 'reauth') {
+					if (reauth === 'ack') this.onmessage?.({ data: JSON.stringify({ version: 1, type: 'reauthenticated', id: frame.id }) });
+				} else if (frame.method === 'agent.subscribe') {
 					this.onmessage?.({ data: JSON.stringify({ version: 1, type: 'result', id: frame.id, result: { subscribed: true } }) });
-					this.onmessage?.({ data: JSON.stringify(state) });
+					this.onmessage?.({ data: JSON.stringify(stateFor(frame.params.sessionId)) });
 				} else if (frame.method === 'agent.snapshot')
-					this.onmessage?.({ data: JSON.stringify({ version: 1, type: 'result', id: frame.id, result: state }) });
+					this.onmessage?.({
+						data: JSON.stringify({ version: 1, type: 'result', id: frame.id, result: stateFor(frame.params.sessionId) }),
+					});
 			});
 		}
 		// Some failed handshake implementations do not produce onclose at all.
@@ -250,7 +258,7 @@ test('after the token expires without a refresh, the next agent call fetches a t
 	);
 	await agent.refresh();
 });
-test('a socket token the service rejects is not reused; a token fetched over HTTP reconnects the watch', async (t) => {
+test('a refused socket token is dropped; HTTP traffic does not reconnect, the next agent call does with the new token', async (t) => {
 	const boundary = browserBoundary(undefined, { rejectedTokens: new Set(['token-1']) });
 	boundary.listen();
 	failingHttp(t);
@@ -270,13 +278,124 @@ test('a socket token the service rejects is not reused; a token fetched over HTT
 		current = value;
 	});
 	assert.equal((await rejectedWithin(agent.refresh())).code, 'UNAUTHENTICATED');
-	await client.sessions.list({ limit: 1 }).catch(() => {});
-	assert.equal(calls, 2, 'The rejected token must be dropped from the cache.');
-	await until(
-		() => current,
-		(value) => value?.status === 'idle',
-	);
+	for (let index = 0; index < 3; index++) await client.sessions.list({ limit: 1 }).catch(() => {});
+	assert.equal(calls, 2, 'The refused token is dropped from the cache; the new one is reused.');
+	await pause(50);
+	assert.equal(boundary.instances.length, 1, 'HTTP traffic must not reopen a socket after a refusal.');
+	await agent.refresh();
 	assert.equal(boundary.instances.length, 2);
 	assert.equal(boundary.instances[1].sent[0].token, 'token-2');
+	await until(
+		() => current,
+		(value) => value?.status === 'idle' && value.error === undefined,
+	);
+});
+test('a provider that returns the refused token again does not reconnect with it', async (t) => {
+	const boundary = browserBoundary(undefined, { rejectedTokens: new Set(['same']) });
+	boundary.listen();
+	let calls = 0;
+	const client = createNuva({
+		baseUrl: 'http://socket.invalid/api',
+		requestTimeoutMs: 200,
+		getAccessToken: async () => (calls++, { token: 'same', ...lifetime(3_600_000) }),
+	});
+	t.after(() => {
+		client.close();
+		boundary.restore();
+	});
+	const agent = client.agent({ sessionId: 'socket-fixture' });
+	assert.equal((await rejectedWithin(agent.refresh())).code, 'UNAUTHENTICATED');
+	for (let index = 0; index < 3; index++) assert.equal((await rejectedWithin(agent.refresh())).code, 'UNAUTHENTICATED');
+	assert.equal(boundary.instances.length, 1);
+	assert.equal(calls, 2, 'One fetch after the refusal; the same token is then cached, not refetched per call.');
+});
+test('an agent opened after an auth failure recovers through its own call', async (t) => {
+	const boundary = browserBoundary();
+	boundary.listen();
+	let calls = 0,
+		failing = false;
+	const client = createNuva({
+		baseUrl: 'http://socket.invalid/api',
+		requestTimeoutMs: 200,
+		tokenRefreshSkewMs: 300,
+		getAccessToken: async () => {
+			calls++;
+			if (failing) throw new Error('HTTP 503');
+			failing = calls === 1;
+			return { token: 'token-' + calls, ...lifetime(calls === 1 ? 400 : 60_000) };
+		},
+	});
+	t.after(() => {
+		client.close();
+		boundary.restore();
+	});
+	const first = client.agent({ sessionId: 'socket-fixture' });
+	let current;
+	first.subscribe((value) => {
+		current = value;
+	});
+	await first.refresh();
+	await until(
+		() => current,
+		(value) => value?.error?.code === 'UNAUTHENTICATED',
+	);
+	failing = false;
+	await client.agent({ sessionId: 'second-session' }).refresh();
+	assert.deepEqual(
+		boundary.instances[1].sent.filter((frame) => frame.method === 'agent.subscribe').map((frame) => frame.params.sessionId).sort(),
+		['second-session', 'socket-fixture'],
+	);
+});
+test('an unacknowledged reauth reconnects with a full authentication instead of failing auth', async (t) => {
+	const boundary = browserBoundary(undefined, { reauth: 'silent' });
+	boundary.listen();
+	let calls = 0;
+	const client = createNuva({
+		baseUrl: 'http://socket.invalid/api',
+		requestTimeoutMs: 100,
+		tokenRefreshSkewMs: 300,
+		getAccessToken: async () => (calls++, { token: 'token-' + calls, ...lifetime(calls === 1 ? 500 : 60_000) }),
+	});
+	t.after(() => {
+		client.close();
+		boundary.restore();
+	});
+	const agent = client.agent({ sessionId: 'socket-fixture' });
+	agent.subscribe(() => {});
 	await agent.refresh();
+	await until(
+		() => boundary.instances[1]?.sent[0],
+		(frame) => frame?.type === 'auth',
+	);
+	assert.equal(boundary.instances[1].sent[0].token, 'token-2');
+	await agent.refresh();
+});
+test('a reconnect timer that fires after an auth failure does not throw', async (t) => {
+	const boundary = browserBoundary();
+	boundary.listen();
+	const uncaught = [];
+	const record = (error) => uncaught.push(error);
+	process.on('uncaughtException', record);
+	let calls = 0;
+	const client = createNuva({
+		baseUrl: 'http://socket.invalid/api',
+		requestTimeoutMs: 200,
+		tokenRefreshSkewMs: 300,
+		getAccessToken: async () => {
+			if (++calls > 1) throw new Error('HTTP 503');
+			return { token: 'token-1', ...lifetime(400) };
+		},
+	});
+	t.after(() => {
+		process.off('uncaughtException', record);
+		client.close();
+		boundary.restore();
+	});
+	const agent = client.agent({ sessionId: 'socket-fixture' });
+	agent.subscribe(() => {});
+	await agent.refresh();
+	await pause(380);
+	boundary.instances[0].onclose?.({ code: 1006, reason: 'drop', wasClean: false }); // reconnect timer pending
+	await pause(300);
+	assert.deepEqual(uncaught, []);
 });

@@ -7,9 +7,10 @@ Each entry describes the change from the previous released version.
 ### Fixed
 
 - **A failed token refresh no longer stops the Agent connection for good** ([#28](https://github.com/Nuva-Lab/ads-sdk/issues/28)).
-  - If `getAccessToken` fails while the current token is still valid, the SDK keeps using that token and tries again before it expires; the connection stays open.
-  - If the connection does stop on an authentication error, the same client recovers once `getAccessToken` returns a valid token for the same user: the next Agent call (or any request) fetches one, and the client reconnects and subscribes to its Sessions again.
-  - A token the service refuses is not used again.
+  - If `getAccessToken` fails while the current token is still valid, the SDK keeps using that token and tries again, at least a second apart, until it expires; the connection stays open. Throwing from `getAccessToken` therefore no longer ends access at once: to sign a user out, call `client.close()`.
+  - If the token expires before a refresh succeeds, the connection stops; it comes back on its own once `getAccessToken` returns a valid token for the same user (fetched by any request), and subscribes to its Sessions again.
+  - If the service refuses a token on the connection, the SDK drops it and never reconnects with it. It reconnects on your next Agent call (such as `agent.refresh()`) once `getAccessToken` returns a different token; other requests don't reconnect it.
+  - An Agent opened after such a failure recovers through its own calls, and a token change the service doesn't acknowledge reconnects instead of failing.
 
 ## 0.1.0-preview.5
 
