@@ -1,4 +1,4 @@
-# TypeScript SDK (0.1.0-preview.5)
+# TypeScript SDK (0.1.0-preview.6)
 
 `@nuva/sdk` provides Agent chat, resource management and ad-creation APIs for TypeScript applications. The full guide and API reference are at [developers.nuvalab.ai](https://developers.nuvalab.ai/api/doc); upgrading from preview.4 or preview.3 is covered on its **Upgrade to preview.5** page.
 
@@ -7,7 +7,7 @@
 Install the SDK package supplied with your integration:
 
 ```sh
-pnpm add /path/to/release/nuva-sdk-0.1.0-preview.5.tgz
+pnpm add /path/to/release/nuva-sdk-0.1.0-preview.6.tgz
 ```
 
 ## Connect and authenticate

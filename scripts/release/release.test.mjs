@@ -44,7 +44,8 @@ test('release routing accepts only an explicit complete HTTPS configuration', ()
 	}
 });
 test('CHANGELOG.md has a release-notes entry for this version', async () => {
-	assert.match(await releaseNotes(VERSION), /Migrating from/);
+	// Every entry starts by naming the version it is measured against.
+	assert.match(await releaseNotes(VERSION), /^Changes since `/);
 	const text = '# Changelog\n\n## 2.0.0\n\nNew.\n\n## 1.0.0\n\nOld.\n';
 	assert.equal(await releaseNotes('2.0.0', text), 'New.');
 	assert.equal(await releaseNotes('1.0.0', text), 'Old.');

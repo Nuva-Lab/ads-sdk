@@ -183,7 +183,7 @@ def markdown_page(page_id, title, sections, locale):
 def llms_txt(pages, blurbs, guides):
     """llms.txt: the reference pages' Markdown twins with one line each, in English then Chinese, then the guides."""
     lines = ['# Ads SDK', '',
-             '> The Nuva Ads SDK for TypeScript (0.1.0-preview.5), API version 2026-11-07: the Ads Agent, Brands, Products, Characters, Scripts, Storyboards, Prompts, video Jobs, Ads, Skills and shares. One Markdown page per resource.', '']
+             '> The Nuva Ads SDK for TypeScript (0.1.0-preview.6), API version 2026-11-07: the Ads Agent, Brands, Products, Characters, Scripts, Storyboards, Prompts, video Jobs, Ads, Skills and shares. One Markdown page per resource.', '']
     for heading, locale in (('API reference', 'en'), ('API reference (中文)', 'zh')):
         lines.append(f'## {heading}')
         lines.append('')
