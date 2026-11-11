@@ -412,3 +412,69 @@ func TestBridgeForwardsPromptGenerationToTheGenerationService(t *testing.T) {
 		t.Fatal("GET prompt generation exposed", status)
 	}
 }
+
+func TestFixedBridgePortServesOneConnectionAtATime(t *testing.T) {
+	free, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := free.Addr().(*net.TCPAddr).Port
+	free.Close()
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, 200, map[string]any{"items": []string{}, "nextCursor": nil})
+	}))
+	defer upstream.Close()
+	broker := newTokenBroker(func(context.Context, string) (admin.TokenResponse, error) {
+		return grant("token", "user", time.Now().Add(time.Hour)), nil
+	}, "alice")
+	cfg := configuration{Endpoints: endpoints{Agent: upstream.URL + "/api", API: upstream.URL}, BridgePort: port}
+	ui, app := testApp(t, cfg, broker)
+	body, _ := json.Marshal(cfg.Endpoints)
+	want := fmt.Sprintf("http://127.0.0.1:%d", port)
+	sessions := func() int {
+		req, _ := http.NewRequest("GET", want+"/v1/sessions", nil)
+		req.Header.Set("Origin", ui.URL)
+		response, err := ui.Client().Do(req)
+		if err != nil {
+			return 0
+		}
+		response.Body.Close()
+		return response.StatusCode
+	}
+	status, first := fetchJSON(t, ui.Client(), "POST", ui.URL+"/playground/connect", string(body))
+	if status != 200 || first["agent"] != want+"/api" || first["api"] != want+"/data" {
+		t.Fatalf("connection not on the fixed port: %d %v", status, first)
+	}
+	if sessions() != 200 {
+		t.Fatal("fixed-port bridge does not proxy")
+	}
+	// A reload or another tab connects again: it takes over the port instead of failing to bind it.
+	status, second := fetchJSON(t, ui.Client(), "POST", ui.URL+"/playground/connect", string(body))
+	if status != 200 || second["agent"] != want+"/api" || second["id"] == first["id"] {
+		t.Fatalf("second connection did not take over the port: %d %v", status, second)
+	}
+	app.mu.RLock()
+	count := len(app.connections)
+	app.mu.RUnlock()
+	if count != 1 {
+		t.Fatalf("%d connections kept on one port", count)
+	}
+	// The page closes its previous connection after the new one works; that must not close the new bridge.
+	if status, _ = fetchJSON(t, ui.Client(), "DELETE", ui.URL+"/playground/connections/"+first["id"].(string), ""); status != 204 {
+		t.Fatal("closing the replaced connection failed")
+	}
+	if sessions() != 200 {
+		t.Fatal("closing the replaced connection closed the current bridge")
+	}
+	// A port another program holds is reported by name.
+	app.closeBridges()
+	busy, err := net.Listen("tcp", want[len("http://"):])
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer busy.Close()
+	status, failed := fetchJSON(t, ui.Client(), "POST", ui.URL+"/playground/connect", string(body))
+	if status != 503 || !strings.Contains(failed["error"].(string), "NUVA_PLAYGROUND_BRIDGE_PORT") {
+		t.Fatalf("busy bridge port not reported: %d %v", status, failed)
+	}
+}

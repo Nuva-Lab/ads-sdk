@@ -21,6 +21,9 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	if cfg.BridgePort == *port {
+		return fmt.Errorf("NUVA_PLAYGROUND_BRIDGE_PORT must differ from the playground port %d", *port)
+	}
 	client, err := admin.NewAdminClient(cfg.Endpoints.API, cfg.APIKey)
 	if err != nil {
 		return fmt.Errorf("invalid playground configuration: %w", err)
@@ -50,6 +53,9 @@ func run() error {
 		_ = server.Shutdown(ctx)
 	}()
 	fmt.Println("Ads Agent Playground:", origin)
+	if cfg.BridgePort != 0 {
+		fmt.Printf("Service connection: http://127.0.0.1:%d (NUVA_PLAYGROUND_BRIDGE_PORT; one browser tab at a time)\n", cfg.BridgePort)
+	}
 	if err = server.Serve(listener); err != http.ErrServerClosed {
 		return err
 	}

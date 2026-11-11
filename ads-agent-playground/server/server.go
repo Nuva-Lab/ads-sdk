@@ -142,15 +142,27 @@ func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		id := hex.EncodeToString(random)
 		a.mu.Lock()
+		// On a fixed bridge port there is one connection at a time: a new one (a reload, new settings or another
+		// tab) replaces the one before it.
+		if a.cfg.BridgePort != 0 {
+			for previous, b := range a.connections {
+				b.close()
+				delete(a.connections, previous)
+			}
+		}
 		if len(a.connections) >= 64 {
 			a.mu.Unlock()
 			failure(w, 429, "Close unused connections before adding another.")
 			return
 		}
-		bridge, err := openBridge(a.origin, input)
+		bridge, err := openBridge(a.origin, input, a.cfg.BridgePort)
 		if err != nil {
 			a.mu.Unlock()
-			failure(w, 503, "Could not open the local API connection.")
+			if a.cfg.BridgePort != 0 {
+				failure(w, 503, fmt.Sprintf("Could not open the local API connection on port %d (NUVA_PLAYGROUND_BRIDGE_PORT). Check that no other program uses it.", a.cfg.BridgePort))
+			} else {
+				failure(w, 503, "Could not open the local API connection.")
+			}
 			return
 		}
 		a.connections[id] = bridge
