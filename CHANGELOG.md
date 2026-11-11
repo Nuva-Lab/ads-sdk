@@ -2,7 +2,9 @@
 
 Each entry describes the change from the previous released version.
 
-## Unreleased
+## 0.1.0-preview.6
+
+Changes since `0.1.0-preview.5`. This SDK works with the services already live; it needs no service release, and the API version is unchanged (`2026-11-07`). Upgrading from preview.5 needs no code change, except if you relied on a throwing `getAccessToken` to sign a user out (see below). Coming from an earlier preview, follow **Upgrade to preview.5** (`migration.html`) and install this version.
 
 ### Fixed
 
@@ -10,8 +12,13 @@ Each entry describes the change from the previous released version.
   - If `getAccessToken` fails while the current token is still valid, the SDK keeps using that token and tries again, at least a second apart, until it expires; the connection stays open. Throwing from `getAccessToken` therefore no longer ends access at once: to sign a user out, call `client.close()`.
   - If the token expires before a refresh succeeds, the connection stops; it comes back on its own once `getAccessToken` returns a valid token for the same user (fetched by any request), and subscribes to its Sessions again.
   - If the service refuses a token on the connection (`UNAUTHENTICATED`, or `FORBIDDEN` for a token of another user), the SDK drops it and never reconnects with it. It reconnects on your next Agent call (such as `agent.refresh()`) once `getAccessToken` returns a different token; other requests don't reconnect it.
-  - If the service cannot check a token right now (`SERVICE_BUSY`, for example while its signing keys reload), the token is kept and the connection reconnects with it.
+  - Any other failure, such as the service being unable to check a token right now (for example while its signing keys reload), keeps the token, and the connection reconnects with it.
   - An Agent opened after such a failure recovers through its own calls, and a token change the service doesn't acknowledge reconnects instead of failing.
+
+### Playground
+
+- **Reference files.** Chat has **Upload reference files** beside **@**: images (PNG, JPEG, WebP), MP4 videos or audio (MP3, WAV, M4A), each with an optional label and description, attached to your next message. In the Storyboard editor, **Insert… › Upload a file…** uploads one and names it with `{{asset:<id>}}` at the cursor ([#29](https://github.com/Nuva-Lab/ads-sdk/issues/29)).
+- **Remote machines.** `NUVA_PLAYGROUND_BRIDGE_PORT` fixes the local port the page uses to reach the services, so a playground on a remote machine works when you forward that port with the playground port.
 
 ## 0.1.0-preview.5
 

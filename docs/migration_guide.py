@@ -18,7 +18,7 @@ def migration_sections(locale='zh'):
                 'preview.5 让脚本、分镜和提示词只由编写服务生成，因此所有修改都经过相同检查；镜头还可以使用任意图片、视频或音频文件。从 <code>0.1.0-preview.4</code> 升级请按以下步骤操作；从 <code>0.1.0-preview.3</code> 升级请先完成<a href="#from-preview3">升级到 preview.4 的步骤</a>。')
             + p('The new SDK needs the new services: use it once they are released. It sends <code>Nuva-Api-Version: 2026-11-07</code> with every request (you do not set it) and reads the new Product fields, which older services do not have.',
                 '新 SDK 需要新版服务，请在服务发布后使用。它在每个请求中发送 <code>Nuva-Api-Version: 2026-11-07</code>（无需自行设置），并读取旧版服务没有的新产品字段。')
-            + c('pnpm add /path/to/nuva-sdk-0.1.0-preview.5.tgz', 'sh')),
+            + c('pnpm add /path/to/nuva-sdk-0.1.0-preview.6.tgz', 'sh')),
         section('removed', 'Removed and changed calls', '移除和变更的调用',
             p('Change each call in the left column. TypeScript flags the removed methods after the upgrade; the old <code>scripts.generate({base})</code> and <code>storyboards.generate({base})</code> / <code>({content})</code> forms throw <code>INVALID_INPUT</code> naming the new method before anything is sent.',
                 '逐一修改左列中的调用。升级后 TypeScript 会标出已移除的方法；旧的 <code>scripts.generate({base})</code> 和 <code>storyboards.generate({base})</code> / <code>({content})</code> 写法会在发送前抛出 <code>INVALID_INPUT</code>，并给出新方法名。')
@@ -109,7 +109,7 @@ def migration_sections(locale='zh'):
             + '</ol>'),
         section('checklist', 'Checklist', '检查清单',
             '<ul>'
-            + '<li>' + t('Install the preview.5 archive (and Go <code>v0.1.0-preview.5</code> if you use the Go Admin SDK).', '安装 preview.5 包（使用 Go Admin SDK 时同时升级到 <code>v0.1.0-preview.5</code>）。') + '</li>'
+            + '<li>' + t('Install the preview.6 archive (and Go <code>v0.1.0-preview.6</code> if you use the Go Admin SDK).', '安装 preview.6 包（使用 Go Admin SDK 时同时升级到 <code>v0.1.0-preview.6</code>）。') + '</li>'
             + '<li>' + t('Replace <code>prompts.create</code>, <code>prompts.update</code>, <code>scripts.create</code> and the <code>artifacts</code> client.', '替换 <code>prompts.create</code>、<code>prompts.update</code>、<code>scripts.create</code> 和 <code>artifacts</code> 客户端。') + '</li>'
             + '<li>' + t('Use <code>generateFrom</code> and <code>createFrom</code> on <code>scripts</code> and <code>storyboards</code> for changes.', '修改时使用 <code>scripts</code> 和 <code>storyboards</code> 的 <code>generateFrom</code> 与 <code>createFrom</code>。') + '</li>'
             + '<li>' + t('Send only changed fields to Brand, Product and Character <code>update</code>; rename <code>images</code>/<code>videos</code> to <code>image_asset_ids</code>/<code>video_asset_ids</code>; replace <code>uploadImage</code> with <code>assets.upload</code> and <code>update</code>.', '品牌、产品和人物的 <code>update</code> 只传修改的字段；将 <code>images</code>/<code>videos</code> 改为 <code>image_asset_ids</code>/<code>video_asset_ids</code>；用 <code>assets.upload</code> 加 <code>update</code> 替换 <code>uploadImage</code>。') + '</li>'

@@ -1401,7 +1401,7 @@ def intro_sections(locale='zh'):
          + heading('Page') + rows('Page')),
         ('versions', t('Versions', '版本'),
          table([t('Value', '值'), t('Meaning', '含义')], [
-             ['<code>0.1.0-preview.5</code>', t('SDK package version.', 'SDK 包版本。')],
+             ['<code>0.1.0-preview.6</code>', t('SDK package version.', 'SDK 包版本。')],
              [f'<code>Nuva-Api-Version: {API_VERSION}</code>', t('The API version the SDK sends with every request.', 'SDK 在每个请求中发送的 API 版本。')],
              ['<code>/v1/…</code>', t('Public HTTP API version.', '公开 HTTP API 版本。')],
              ['<code>version: 1</code>', t('Agent message-envelope protocol revision; omission also means v1.', 'Agent 消息封装协议版本；省略时同样按 v1 处理。')],
