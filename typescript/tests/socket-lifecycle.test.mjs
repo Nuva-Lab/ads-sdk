@@ -29,7 +29,7 @@ const stateFor = (sessionId) => ({
 	sessionId,
 	state: { ...state.state, session: { ...state.state.session, id: sessionId } },
 });
-function browserBoundary(mode, { rejectedTokens = new Set(), reauth = 'ack' } = {}) {
+function browserBoundary(mode, { rejectedTokens = new Set(), reauth = 'ack', busyAuths = 0 } = {}) {
 	const original = globalThis.WebSocket,
 		instances = [];
 	let listening = false;
@@ -57,7 +57,17 @@ function browserBoundary(mode, { rejectedTokens = new Set(), reauth = 'ack' } = 
 			const frame = JSON.parse(raw);
 			this.sent.push(frame);
 			queueMicrotask(() => {
-				if (frame.type === 'auth' && rejectedTokens.has(frame.token))
+				if (frame.type === 'auth' && busyAuths > 0) {
+					busyAuths--;
+					this.onmessage?.({
+						data: JSON.stringify({
+							version: 1,
+							type: 'error',
+							id: 'auth',
+							error: { code: 'SERVICE_BUSY', message: 'Sign-in could not be checked right now; try again.', retryable: true },
+						}),
+					});
+				} else if (frame.type === 'auth' && rejectedTokens.has(frame.token))
 					this.onmessage?.({
 						data: JSON.stringify({
 							version: 1,
@@ -69,6 +79,15 @@ function browserBoundary(mode, { rejectedTokens = new Set(), reauth = 'ack' } = 
 				else if (frame.type === 'auth') this.onmessage?.({ data: JSON.stringify({ version: 1, type: 'ready' }) });
 				else if (frame.type === 'reauth') {
 					if (reauth === 'ack') this.onmessage?.({ data: JSON.stringify({ version: 1, type: 'reauthenticated', id: frame.id }) });
+					else if (reauth === 'busy')
+						this.onmessage?.({
+							data: JSON.stringify({
+								version: 1,
+								type: 'error',
+								id: frame.id,
+								error: { code: 'SERVICE_BUSY', message: 'Sign-in could not be checked right now; try again.', retryable: true },
+							}),
+						});
 				} else if (frame.method === 'agent.subscribe') {
 					this.onmessage?.({ data: JSON.stringify({ version: 1, type: 'result', id: frame.id, result: { subscribed: true } }) });
 					this.onmessage?.({ data: JSON.stringify(stateFor(frame.params.sessionId)) });
@@ -346,8 +365,9 @@ test('an agent opened after an auth failure recovers through its own call', asyn
 		['second-session', 'socket-fixture'],
 	);
 });
-test('an unacknowledged reauth reconnects with a full authentication instead of failing auth', async (t) => {
-	const boundary = browserBoundary(undefined, { reauth: 'silent' });
+for (const reauth of ['silent', 'busy'])
+test(`a reauth that is ${reauth === 'silent' ? 'not acknowledged' : 'answered SERVICE_BUSY'} reconnects with a full authentication instead of failing auth`, async (t) => {
+	const boundary = browserBoundary(undefined, { reauth });
 	boundary.listen();
 	let calls = 0;
 	const client = createNuva({
@@ -398,4 +418,37 @@ test('a reconnect timer that fires after an auth failure does not throw', async 
 	boundary.instances[0].onclose?.({ code: 1006, reason: 'drop', wasClean: false }); // reconnect timer pending
 	await pause(300);
 	assert.deepEqual(uncaught, []);
+});
+test('a token the gateway could not check (SERVICE_BUSY) is kept and the socket reconnects with it', async (t) => {
+	const boundary = browserBoundary(undefined, { busyAuths: 2 });
+	boundary.listen();
+	let calls = 0;
+	const client = createNuva({
+		baseUrl: 'http://socket.invalid/api',
+		requestTimeoutMs: 200,
+		getAccessToken: async () => (calls++, { token: 'token-1', ...lifetime(3_600_000) }),
+	});
+	t.after(() => {
+		client.close();
+		boundary.restore();
+	});
+	const agent = client.agent({ sessionId: 'socket-fixture' });
+	let current;
+	agent.subscribe((value) => {
+		current = value;
+	});
+	const error = await rejectedWithin(agent.refresh());
+	assert.equal(error.code, 'SERVICE_BUSY');
+	assert.equal(error.retryable, true);
+	await until(
+		() => current,
+		(value) => value?.status === 'idle' && value.error === undefined,
+	);
+	assert.equal(boundary.instances.length, 3);
+	assert.deepEqual(
+		boundary.instances.map((socket) => socket.sent[0].token),
+		['token-1', 'token-1', 'token-1'],
+	);
+	assert.equal(calls, 1, 'A token that could not be checked is not refused.');
+	await agent.refresh();
 });

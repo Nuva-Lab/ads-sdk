@@ -10,6 +10,8 @@ import type { NuvaClientOptions } from './types.js';
 import { dataRequest } from './data-routes.js';
 import { backendSchema } from './backend-schema.js';
 
+/** Socket auth codes that refuse the token itself (SDK-CONTRACT › Authentication); any other failure is transient. */
+const refusal = (code: string, reauth: boolean) => code === 'UNAUTHENTICATED' || (reauth && code === 'FORBIDDEN');
 /** The API version this SDK is written for; every HTTP call sends it (Nuva-Api-Version). */
 export const API_VERSION = '2026-11-07';
 /** Writes the backend can make safe to retry with an Idempotency-Key. */
@@ -653,7 +655,12 @@ export class Transport {
 				return;
 			}
 			if (frame.type === 'error' && this.renewal?.id === frame.id) {
-				this.authenticationFailed(new AdsError({ ...frame.error, acceptance: 'not_accepted' }), this.renewal.token);
+				if (refusal(frame.error.code, true))
+					this.authenticationFailed(new AdsError({ ...frame.error, acceptance: 'not_accepted' }), this.renewal.token);
+				else {
+					terminate(frame.error);
+					closeSocket();
+				}
 				return;
 			}
 			if (frame.type === 'ready') {
@@ -675,7 +682,12 @@ export class Transport {
 				return;
 			}
 			if (frame.type === 'error' && frame.id === 'auth') {
-				this.authenticationFailed(new AdsError(frame.error), this.socketToken);
+				if (refusal(frame.error.code, false)) this.authenticationFailed(new AdsError(frame.error), this.socketToken);
+				else {
+					// The token could not be checked (`SERVICE_BUSY`) or the gateway failed: reconnect with backoff, same token.
+					terminate(frame.error);
+					closeSocket();
+				}
 				return;
 			}
 			if (frame.type !== 'result' && frame.type !== 'error') {
