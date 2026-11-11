@@ -10,6 +10,8 @@ import type { NuvaClientOptions } from './types.js';
 import { dataRequest } from './data-routes.js';
 import { backendSchema } from './backend-schema.js';
 
+/** Socket auth codes that refuse the token itself (SDK-CONTRACT › Authentication); any other failure is transient. */
+const refusal = (code: string, reauth: boolean) => code === 'UNAUTHENTICATED' || (reauth && code === 'FORBIDDEN');
 /** The API version this SDK is written for; every HTTP call sends it (Nuva-Api-Version). */
 export const API_VERSION = '2026-11-07';
 /** Writes the backend can make safe to retry with an Idempotency-Key. */
@@ -110,7 +112,8 @@ export class Transport {
 	private reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 	private retries = 0;
 	private epoch = 0;
-	private authFailed = false;
+	/** Set by an authentication failure; a new token lifts it. `refused` is the token the service refused. */
+	private authFailure: { refused?: string } | undefined;
 	private pending = new Map<string, Pending>();
 	private watches = new Map<string, Watch>();
 	private httpControllers = new Set<AbortController>();
@@ -130,6 +133,15 @@ export class Transport {
 		this.credentials = new Credentials(
 			options,
 			(credential) => {
+				const failure = this.authFailure;
+				if (failure) {
+					// A new token for the same account (Credentials refuses a different one) lifts the failure.
+					if (credential.token === failure.refused) return;
+					this.authFailure = undefined;
+					// After a refusal only an explicit call reconnects, so traffic cannot loop on a service that keeps refusing.
+					if (failure.refused === undefined && this.watches.size && !this.closed) void this.connect().catch(() => {});
+					return;
+				}
 				if (this.ready && this.socketToken !== credential.token) {
 					const socket = this.ws,
 						epoch = this.epoch;
@@ -159,9 +171,11 @@ export class Transport {
 		this.assertOpen();
 		return (await this.credentials.get()).token;
 	}
-	private authenticationFailed(error: AdsError) {
+	/** `refused`: the token the service refused; it is dropped and never used to reconnect. */
+	private authenticationFailed(error: AdsError, refused?: string) {
 		const socket = this.ws;
-		this.authFailed = true;
+		this.authFailure = refused === undefined ? {} : { refused };
+		if (refused !== undefined) this.credentials.reject(refused);
 		this.renewal?.reject(error);
 		if (this.renewal) clearTimeout(this.renewal.timer);
 		this.renewal = undefined;
@@ -193,18 +207,16 @@ export class Transport {
 			resolve = yes;
 			reject = no;
 		});
-		const timer = setTimeout(
-			() =>
-				this.authenticationFailed(
-					new AdsError({
-						code: 'UNAUTHENTICATED',
-						message: 'Socket reauthentication was not acknowledged.',
-						retryable: false,
-						acceptance: 'not_accepted',
-					}),
-				),
-			this.timeout,
-		);
+		// No acknowledgement is a connection failure, not a refusal: reconnect and authenticate afresh.
+		const timer = setTimeout(() => {
+			if (this.ws !== ws) return;
+			this.disconnectCurrent?.({ code: 'CONNECTION_ERROR', message: 'Socket reauthentication was not acknowledged.', retryable: true });
+			try {
+				ws.close();
+			} catch {
+				/* Failure is already reported. */
+			}
+		}, this.timeout);
 		this.renewal = { id, token, promise, resolve, reject, timer };
 		this.wire({
 			transport: 'websocket',
@@ -516,15 +528,21 @@ export class Transport {
 			watch.fail(errorInfo(error)),
 		);
 	}
+	/** Never throws: callers chain on the promise, including timers. */
 	private connect(): Promise<void> {
-		this.assertOpen();
-		if (this.authFailed)
-			throw new AdsError({
-				code: 'UNAUTHENTICATED',
-				message: 'Socket authentication failed; create a new client after signing in.',
-				retryable: false,
-				acceptance: 'not_accepted',
-			});
+		if (this.closed)
+			return Promise.reject(
+				new AdsError({ code: 'CONNECTION_ERROR', message: 'This client is closed.', retryable: false, acceptance: 'not_accepted' }),
+			);
+		if (this.authFailure)
+			return Promise.reject(
+				new AdsError({
+					code: 'UNAUTHENTICATED',
+					message: 'Socket authentication failed; the client reconnects once getAccessToken returns a new valid token.',
+					retryable: false,
+					acceptance: 'not_accepted',
+				}),
+			);
 		if (this.ready && this.ws?.readyState === WebSocket.OPEN) return Promise.resolve();
 		if (this.connecting) return this.connecting;
 		clearTimeout(this.reconnectTimer);
@@ -533,7 +551,6 @@ export class Transport {
 		const ws = new WebSocket(url);
 		let protocolFailure: AdsErrorInit | undefined;
 		this.ws = ws;
-		this.authFailed = false;
 		const epoch = ++this.epoch;
 		let ended = false;
 		const current = () => !ended && !this.closed && this.ws === ws && this.epoch === epoch;
@@ -555,7 +572,7 @@ export class Transport {
 				this.renewal.reject(new AdsError({ ...error, acceptance: 'not_accepted' }));
 				this.renewal = undefined;
 			}
-			if ((!this.authFailed && !protocolFailure) || this.connecting !== undefined) this.failConnection(error);
+			if ((!this.authFailure && !protocolFailure) || this.connecting !== undefined) this.failConnection(error);
 			for (const [id, pending] of this.pending) {
 				clearTimeout(pending.timer);
 				const failure = new AdsError({
@@ -566,7 +583,7 @@ export class Transport {
 				pending.reject(failure);
 			}
 			this.pending.clear();
-			if (!this.closed && !this.authFailed && !protocolFailure && this.watches.size && this.epoch === epoch)
+			if (!this.closed && !this.authFailure && !protocolFailure && this.watches.size && this.epoch === epoch)
 				this.reconnectTimer = setTimeout(
 					() => {
 						if (!this.closed && this.epoch === epoch && this.ws === undefined) void this.connect().catch(() => {});
@@ -625,14 +642,10 @@ export class Transport {
 			if (frame.type === 'reauthenticated') {
 				const renewal = this.renewal;
 				if (!renewal || renewal.id !== frame.id) {
-					this.authenticationFailed(
-						new AdsError({
-							code: 'UNAUTHENTICATED',
-							message: 'Unexpected socket authentication acknowledgement.',
-							retryable: false,
-							acceptance: 'not_accepted',
-						}),
-					);
+					protocolFailure = { code: 'UNSUPPORTED_CONTENT', message: 'Unexpected socket authentication acknowledgement.', retryable: false };
+					this.failConnection(protocolFailure);
+					terminate(protocolFailure);
+					closeSocket();
 					return;
 				}
 				clearTimeout(renewal.timer);
@@ -642,7 +655,12 @@ export class Transport {
 				return;
 			}
 			if (frame.type === 'error' && this.renewal?.id === frame.id) {
-				this.authenticationFailed(new AdsError({ ...frame.error, acceptance: 'not_accepted' }));
+				if (refusal(frame.error.code, true))
+					this.authenticationFailed(new AdsError({ ...frame.error, acceptance: 'not_accepted' }), this.renewal.token);
+				else {
+					terminate(frame.error);
+					closeSocket();
+				}
 				return;
 			}
 			if (frame.type === 'ready') {
@@ -664,7 +682,12 @@ export class Transport {
 				return;
 			}
 			if (frame.type === 'error' && frame.id === 'auth') {
-				this.authenticationFailed(new AdsError(frame.error));
+				if (refusal(frame.error.code, false)) this.authenticationFailed(new AdsError(frame.error), this.socketToken);
+				else {
+					// The token could not be checked (`SERVICE_BUSY`) or the gateway failed: reconnect with backoff, same token.
+					terminate(frame.error);
+					closeSocket();
+				}
 				return;
 			}
 			if (frame.type !== 'result' && frame.type !== 'error') {
@@ -731,6 +754,8 @@ export class Transport {
 		this.assertOpen();
 		const started = Date.now();
 		try {
+			// After an auth failure, an explicit call fetches a token; a new one lifts the failure.
+			if (this.authFailure) await this.token();
 			await this.connect();
 			await this.reauthenticate(await this.token());
 		} catch (error) {

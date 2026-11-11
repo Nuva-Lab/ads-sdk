@@ -485,8 +485,8 @@ AGENT_METHODS = {
 
 # Descriptions for members whose declaration has no TSDoc; TSDoc is used (and translated) otherwise.
 TS_NOTES = {
-    'NuvaClientOptions.getAccessToken': ('Your callback that fetches a user token from your backend: `{token, expiresAt}` (or a bare token string, which has no expiry). The SDK caches it and calls this again before it expires; concurrent refreshes share one call.',
-                                         '由你实现的回调，从你的后端获取用户令牌：<code>{token, expiresAt}</code>（或仅令牌字符串，此时没有过期时间）。SDK 会缓存令牌并在过期前再次调用；并发刷新共用一次调用。'),
+    'NuvaClientOptions.getAccessToken': ('Your callback that fetches a user token from your backend: `{token, expiresAt}` (or a bare token string, which has no expiry). The SDK caches it and calls this again before it expires; concurrent refreshes share one call. If that call fails while the token is still valid, the SDK keeps using the token and tries again until it expires, so throwing here does not sign the user out: call <code>close()</code> for that. After a failure the Agent connection comes back once this returns a valid token for the same user.',
+                                         '由你实现的回调，从你的后端获取用户令牌：<code>{token, expiresAt}</code>（或仅令牌字符串，此时没有过期时间）。SDK 会缓存令牌并在过期前再次调用；并发刷新共用一次调用。如果这次调用失败而令牌仍然有效，SDK 会继续使用该令牌并在过期前重试，因此在这里抛错不会让用户退出登录：请调用 <code>close()</code>。失败之后，只要这里重新返回同一用户的有效令牌，Agent 连接就会恢复。'),
     'NuvaClientOptions.jobPollIntervalMs': ('How often `subscribe` and `result` poll a Job\'s status, at least 10 ms.', '<code>subscribe</code> 和 <code>result</code> 轮询任务状态的间隔，至少 10 毫秒。'),
     'NuvaClientOptions.tokenRefreshSkewMs': ('How long before a token\'s `expiresAt` the SDK fetches a new one.', 'SDK 在令牌 <code>expiresAt</code> 之前多久获取新令牌。'),
     'AccessToken.token': ('The user token your backend issued with the Go Admin SDK.', '你的后端通过 Go Admin SDK 签发的用户令牌。'),

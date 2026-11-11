@@ -7,7 +7,10 @@ export interface Credential {
 	readonly refreshAt?: number;
 }
 /** One provider invocation per refresh wave. Timers are an optimization; every
- * request checks the clock again, including after browser sleep. */
+ * request checks the clock again, including after browser sleep.
+ *
+ * A failed early refresh keeps the current token while it is unexpired and the
+ * service has not rejected it, and retries with backoff (at least 1 s apart) until it expires. */
 export class Credentials {
 	private cached: Credential | undefined;
 	private principal: AccessToken['principal'];
@@ -16,6 +19,7 @@ export class Credentials {
 	private timer: ReturnType<typeof setTimeout> | undefined;
 	private closed = false;
 	private generation = 0;
+	private failures = 0;
 	private readonly skew: number;
 	constructor(
 		private options: NuvaClientOptions,
@@ -99,13 +103,29 @@ export class Credentials {
 				credential = { token: value.token, expiresAt: expiry, refreshAt: expiry - margin };
 			}
 			this.cached = credential;
+			this.failures = 0;
 			clearTimeout(this.timer);
 			this.schedule(credential);
 			this.changed(credential);
 			return credential;
 		} catch {
-			this.cached = undefined;
 			clearTimeout(this.timer);
+			const current = this.cached,
+				now = Date.now();
+			if (
+				current?.expiresAt !== undefined &&
+				now < current.expiresAt &&
+				!this.closed &&
+				!this.identityFailed &&
+				generation === this.generation
+			) {
+				// Early refresh failed but the token still works: keep it and retry, at least 1 s apart, until it expires.
+				const delay = Math.max(1000, Math.min(1000 * 2 ** this.failures++, 30_000, (current.expiresAt - now) / 2));
+				this.cached = { ...current, refreshAt: Math.min(now + delay, current.expiresAt) };
+				this.schedule(this.cached);
+				return this.cached;
+			}
+			this.cached = undefined;
 			const error = new AdsError({
 				code: 'UNAUTHENTICATED',
 				message: this.identityFailed
