@@ -21,7 +21,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	if cfg.BridgePort == *port {
+	if cfg.BridgePort != 0 && cfg.BridgePort == *port {
 		return fmt.Errorf("NUVA_PLAYGROUND_BRIDGE_PORT must differ from the playground port %d", *port)
 	}
 	client, err := admin.NewAdminClient(cfg.Endpoints.API, cfg.APIKey)
