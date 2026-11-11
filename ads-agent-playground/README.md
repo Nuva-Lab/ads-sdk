@@ -72,10 +72,10 @@ With a fixed port, one browser tab is connected at a time: reloading, applying *
 
 1. Open **Products**, choose **New product**, select or create a Brand, and enter the product details. Upload reference images from the Product edit view, each with an optional label and description (for example which side of the package it shows).
 2. Optionally open **Characters** and create the people who will appear: a name, a description, one or more images (the first is the default; each can have a label and description) and an optional voice file.
-3. Type **@** in chat to reference the Product. Ask Ads Agent to write a Script, including your audience, duration and creative requirements.
+3. Type **@** in chat to reference the Product. Ask Ads Agent to write a Script, including your audience, duration and creative requirements. To show it something that is not a Product or Character file (a scene, a motion reference, background music), choose **Upload reference files** (📎) beside **@**: give each file an optional label and description, and the uploaded files are attached to your next message.
 4. Open the returned Script in the workspace: its concept, length, beats, roles and panels with their lines. Ask for revisions in chat or use **Revise script**.
 5. Choose **New Storyboard** on the Script, pick a Character for any role (or leave it to the writer), and add an optional instruction. The written Storyboard opens: its cast, direction and clips, with each shot's people, images and lines shown as chips.
-6. **Edit** a Storyboard to change its cast, direction, clip lengths and shots. Shots are text with tokens (`{{role}}`, `{{role:<image id>}}`, `{{product}}`, `{{product:<image id>}}`, `{{L01}}`); **Insert…** adds one at the cursor. Problems show beside the clip or shot they name; **Save Storyboard** saves a new revision.
+6. **Edit** a Storyboard to change its cast, direction, clip lengths and shots. Shots are text with tokens (`{{role}}`, `{{role:<image id>}}`, `{{product}}`, `{{product:<image id>}}`, `{{asset:<id>}}`, `{{L01}}`); **Insert…** adds one at the cursor. **Insert… › Upload a file…** uploads an image, video or audio file and names it with `{{asset:<id>}}`; the clip then renders with it, and **Files** in the menu offers it for other shots. Problems show beside the clip or shot they name; **Save Storyboard** saves a new revision.
 7. Choose **Render clip** on a clip. The clip is compiled into its video Prompt (a clip compiled before keeps its Prompt), then its video Job appears under **Clips**; open it to see its status and play the video when it is ready.
 8. Ask Ads Agent to assemble selected clips. Registered final videos appear under **Finals**.
 
@@ -91,6 +91,7 @@ Generation creates work in the connected services. Closing the page or stopping 
 | **Scripts / Storyboards / Clips / Finals** | Review saved work from the selected conversation. |
 | **Characters** | Browse, create and edit the Characters a Storyboard can cast. |
 | **@** | Insert a reference to a Product or saved resource into your message. |
+| **Upload reference files** (📎) | Upload images (PNG, JPEG, WebP), MP4 videos or audio (MP3, WAV, M4A), each with an optional label and description, and attach them to your next message. |
 | **Attach to chat** | Add the open resource as an attachment. |
 | **Refresh** in the workspace tab bar | Reload the current gallery or resource. |
 | **Watch status** on a clip | Refresh its Job status until it finishes. Pausing updates leaves generation running. |
@@ -110,7 +111,7 @@ The interface defaults to Chinese and remembers your **中文 / English** select
 | Startup reports a missing setting | Set `NUVA_CUSTOMER_API_KEY` and `NUVA_EXTERNAL_USER_ID` in `.env` or your environment. |
 | Connection fails | Check the configured Agent and API URLs and whether those services are reachable. On a remote machine, set `NUVA_PLAYGROUND_BRIDGE_PORT` and forward that port too (see **Run on a remote machine**). |
 | Token issuance fails | Check that the Admin key matches the environment selected by `NUVA_ENVIRONMENT` or the explicit `NUVA_API_URL` override, then restart the playground. |
-| An image upload fails in the browser | Check the upload service's CORS settings for the playground origin. |
+| An image or reference file upload fails in the browser | Check the upload service's CORS settings for the playground origin. The upload dialog shows the service's error, such as a file over the size limit; **Upload** again retries only the files not yet uploaded. |
 | An old media preview has expired | Refresh the resource to obtain current media access. |
 
 ## Local checks

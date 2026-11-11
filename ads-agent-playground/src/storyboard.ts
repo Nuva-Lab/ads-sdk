@@ -4,7 +4,8 @@
  */
 import { NARRATOR, clipReferences } from "@nuva/sdk/internal";
 import type { ScriptContent, StoryboardContent } from "@nuva/sdk/schemas";
-import type { Character, ResourceLink, Script, Storyboard } from "@nuva/sdk";
+import type { Character, NuvaClient, ResourceLink, Script, Storyboard } from "@nuva/sdk";
+import { referencePicker } from "./reference-upload.js";
 import { msg, resolveLabel, setText, translate, UiError, type UiLabel } from "./i18n.js";
 import { icon, type IconName } from "./icons.js";
 import { keyed, pendingInput } from "./requests.js";
@@ -562,6 +563,7 @@ export async function renderStoryboard(
             material,
             characters,
             loadAssets: (ids) => Promise.all(ids.map((id) => readNamedAsset(host.sdk, id))),
+            uploads: host.sdk,
             cancel: view,
             save: async (content) => {
               const input = { base: storyboard.id, content };
@@ -639,6 +641,9 @@ export async function renderStoryboard(
 
 // ── Storyboard editor ───────────────────────────────────────────────────
 
+/** The Insert menu's value for uploading a file. Tokens start with `{{`, so it is never one. */
+const UPLOAD = "upload";
+
 export interface StoryboardEditor {
   /** The edited Storyboard as it would be saved. */
   content(): StoryboardContent;
@@ -658,6 +663,8 @@ export function storyboardEditor(
     characters: readonly Character[];
     /** Reads Assets a shot newly names with `{{asset:<id>}}`; one the user may not use comes back undefined. */
     loadAssets?(ids: string[]): Promise<unknown[]>;
+    /** Uploads a new file for the Insert menu's **Upload a file…**; without it the menu offers no upload. */
+    uploads?: Pick<NuvaClient, "assets">;
     save(content: StoryboardContent): Promise<void>;
     cancel(): void;
   },
@@ -681,6 +688,11 @@ export function storyboardEditor(
     slots.set(where, list);
     parent.append(list);
   };
+  // Files uploaded here: the Insert menu keeps offering them after the shot naming one changes.
+  const uploaded: string[] = [];
+  const picker = options.uploads
+    ? referencePicker({ sdk: options.uploads, container: () => editor, multiple: false, title: msg("Upload a reference file") })
+    : undefined;
   const characterById = (id: string) =>
     options.characters.find((character) => character.id === id) ?? material.characters[id];
 
@@ -936,26 +948,38 @@ export function storyboardEditor(
     insert.setAttribute("aria-label", translate("Insert into {p0} shot {p1}", { p0: id, p1: shot + 1 }));
     const fill = () => {
       insert.replaceChildren(option(msg("Insert…"), ""));
-      for (const group of insertGroups(draft, material)) {
+      for (const group of insertGroups(draft, material, uploaded)) {
         const element = node("optgroup");
         element.label = resolveLabel(group.label);
         for (const entry of group.options) element.append(option(entry.label, entry.token));
         insert.append(element);
       }
+      if (picker) insert.append(option(msg("Upload a file…"), UPLOAD));
     };
     fill();
     insert.onfocus = fill;
-    insert.onchange = () => {
-      const token = insert.value;
-      if (!token) return;
-      const start = text.selectionStart ?? text.value.length;
-      const end = text.selectionEnd ?? start;
+    const write = (token: string, start: number, end: number) => {
       const next = insertToken(text.value, start, end, token);
       text.value = next.value;
-      insert.value = "";
       text.focus();
       text.setSelectionRange(next.caret, next.caret);
       text.dispatchEvent(new Event("input"));
+    };
+    insert.onchange = () => {
+      const token = insert.value;
+      insert.value = "";
+      if (!token) return;
+      const start = text.selectionStart ?? text.value.length;
+      const end = text.selectionEnd ?? start;
+      if (token !== UPLOAD) return write(token, start, end);
+      // The uploaded file is read into the material, so it is checked and previewed by its own kind at once.
+      picker!.open(([file]) => {
+        if (!file || !text.isConnected) return;
+        material = withAssets(material, [file.asset]);
+        requested.add(file.asset.id);
+        if (!uploaded.includes(file.asset.id)) uploaded.push(file.asset.id);
+        write(`{{asset:${file.asset.id}}}`, start, end);
+      });
     };
     const shots = draft.clips[clip]!.shots;
     const restructureShots = (next: string[]) => {

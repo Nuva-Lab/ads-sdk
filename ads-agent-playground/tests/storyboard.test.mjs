@@ -317,6 +317,54 @@ test("{{asset:<id>}} files read as chips and references by their own kind, and a
   await assert.rejects(loadMaterial({ ...sdk, assets: { get: async () => { throw Object.assign(new Error("down"), { code: "SERVICE_UNAVAILABLE" }); } } }, script, [ids.mia], [music.id]), /could not be read/);
 });
 
+test("Insert › Upload a file… uploads a file, names it with {{asset:<id>}} at the cursor, and offers it again under Files", async () => {
+  const scene = { id: "00000905-2222-4222-8222-222222222222", kind: "image", mime: "image/png", label: "Store interior", description: "Warm light", download_url: "https://media.playground.test/scene" };
+  const calls = [];
+  const reads = [];
+  const sdk = {
+    assets: {
+      upload: async (file, options) => (calls.push([file.name, options]), { ...scene, ref: { kind: "asset", id: scene.id } }),
+      get: async (id) => (reads.push(id), scene),
+    },
+  };
+  const root = fresh();
+  const handle = storyboardEditor(root, { content: storyboardContent, material: await material(), characters: [mia, leo], loadAssets: (list) => Promise.all(list.map((id) => readNamedAsset(sdk, id))), uploads: sdk, save: async () => {}, cancel() {} });
+  const first = root.querySelector('textarea[name="shot-C01-1"]');
+  const before = first.value;
+  first.setSelectionRange(0, 0);
+  const insert = root.querySelector('select[name="insert-C01-1"]');
+  assert.ok(texts(insert, "option").includes("Upload a file…"));
+  assert.ok(![...insert.querySelectorAll("optgroup")].some((group) => group.label === "Files"), "No files yet.");
+  choose(insert, "upload");
+  assert.equal(insert.value, "", "The menu resets at once.");
+  const input = root.querySelector('input[name="reference-files"]');
+  assert.equal(input.multiple, false);
+  Object.defineProperty(input, "files", { value: [new env.window.File(["png"], "store.png", { type: "image/png" })], configurable: true });
+  input.dispatchEvent(new env.window.Event("change"));
+  const dialog = root.querySelector("dialog.reference-upload");
+  type(dialog.querySelector('input[name="reference-label-0"]'), "Store interior");
+  dialog.querySelector("form").dispatchEvent(new env.window.Event("submit", { cancelable: true }));
+  await settle();
+  assert.deepEqual(calls, [["store.png", { kind: "image", label: "Store interior" }]]);
+  assert.equal(first.value, `{{asset:${scene.id}}}${before}`);
+  await settle();
+  assert.deepEqual(reads, [], "The uploaded file is not read again.");
+  assert.deepEqual(handle.issues(), []);
+  assert.ok(texts(root, '[data-clip="C01"] .reference-chip').includes("Store interior"));
+  // Another shot can name the same file from the menu, even after the first shot stops naming it.
+  type(first, before);
+  const second = root.querySelector('select[name="insert-C01-2"]');
+  second.dispatchEvent(new env.window.Event("focus"));
+  const files = [...second.querySelectorAll("optgroup")].find((group) => group.label === "Files");
+  assert.deepEqual([...files.querySelectorAll("option")].map((item) => [item.textContent, item.value]), [["Store interior", `{{asset:${scene.id}}}`]]);
+});
+
+test("without an uploader the Insert menu offers no upload", async () => {
+  const root = fresh();
+  editor(root, await material());
+  assert.ok(!texts(root.querySelector('select[name="insert-C01-1"]'), "option").includes("Upload a file…"));
+});
+
 test("the cast selector writes the Character, look and voice each role's entry needs", async () => {
   const root = fresh();
   const handle = editor(root, await material());

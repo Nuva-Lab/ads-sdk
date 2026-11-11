@@ -1394,6 +1394,43 @@ button.gallery-card:hover,
 .workspace-dialog h3 {
   margin-top: 20px;
 }
+/* Reference file upload (chat and the Storyboard editor) */
+.reference-upload-list {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0 16px;
+}
+.reference-upload-row {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #e0e7d7;
+  border-radius: 8px;
+}
+.reference-upload-refused {
+  color: #9a3b2e;
+  font-size: 13px;
+}
+.reference-upload-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.reference-upload-head .resource-id {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.reference-upload-head .icon-button {
+  width: 25px;
+  height: 25px;
+}
+#upload-reference .ui-icon {
+  width: 15px;
+  height: 15px;
+}
 .product-review-images {
   display: flex;
   gap: 12px;

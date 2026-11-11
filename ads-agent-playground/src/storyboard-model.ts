@@ -450,11 +450,17 @@ export interface InsertGroup {
   label: UiLabel;
   options: { token: string; label: string }[];
 }
+const FILE_LABELS: Record<string, string> = { image: "Image", video: "Video", audio: "Audio" };
 const excerpt = (text: string, length = 48) =>
   text.length > length ? text.slice(0, length).trimEnd() + "…" : text;
+/**
+ * The Insert menu's groups: people, their images, the Product's files, other files (each one the Storyboard names
+ * with `{{asset:<id>}}`, then each in `uploaded`, as far as the material has read them) and the Script's lines.
+ */
 export function insertGroups(
-  content: Pick<StoryboardContent, "cast">,
+  content: Pick<StoryboardContent, "cast" | "direction" | "clips">,
   material: StoryboardMaterial,
+  uploaded: readonly string[] = [],
 ): InsertGroup[] {
   const groups: InsertGroup[] = [];
   const roles = material.script.roles;
@@ -493,6 +499,18 @@ export function insertGroups(
       ],
     });
   }
+  const files = [...new Set([...assetTokenIds(content, material.script), ...uploaded])].flatMap((id) => {
+    const file = material.media[id];
+    return file === undefined ? [] : [file];
+  });
+  if (files.length)
+    groups.push({
+      label: msg("Files"),
+      options: files.map((file) => ({
+        token: `{{asset:${file.id}}}`,
+        label: file.label ?? `${translate(FILE_LABELS[file.kind ?? ""] ?? "Media")} ${file.id.slice(0, 8)}`,
+      })),
+    });
   const lines = scriptLines(material.script);
   if (lines.length)
     groups.push({

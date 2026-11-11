@@ -239,6 +239,7 @@ const read = async (value: unknown, delay = 0) => {
   await new Promise((resolve) => setTimeout(resolve, delay));
   return value;
 };
+const uploads = new Map<string, unknown>();
 const sdk = {
   sessions: {
     list: async () => ({ items: [session], nextCursor: null }),
@@ -250,7 +251,24 @@ const sdk = {
   prompts: {
     get: (ref: { id: string }) => read(ref.id === id(7) ? prompt2 : prompt, 50),
   },
-  assets: { get: () => read(image, 80) },
+  assets: {
+    get: (value: string) => read(uploads.get(value) ?? image, 80),
+    // Reference files chosen in the composer: each upload is a new image, video or audio Asset.
+    upload: (file: File, options: { kind: string; label?: string; description?: string }) => {
+      const n = 20 + uploads.size;
+      const asset = {
+        ...record("asset", n),
+        id: id(n),
+        kind: options.kind,
+        label: options.label ?? null,
+        description: options.description ?? null,
+        download_url: location.origin + "/cup.svg",
+        metadata: { filename: file.name },
+      };
+      uploads.set(asset.id, asset);
+      return read(asset, 50);
+    },
+  },
   batches: { get: () => read(batch, 120) },
   jobs: {
     get: (value: string) => read(value === id(9) ? job2 : job, 30),
