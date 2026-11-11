@@ -83,15 +83,23 @@ export function referencePicker(options: {
   function describe(files: File[], done: (uploaded: UploadedReference[]) => void) {
     const accepted = files.filter((file) => referenceKind(file) !== undefined);
     const refused = files.filter((file) => referenceKind(file) === undefined);
-    if (refused.length)
-      notice(msg("Not a supported file: {p0}. Use PNG, JPEG or WebP images, MP4 videos, or MP3, WAV or M4A audio.", { p0: refused.map((file) => file.name).join(", ") }), true);
-    if (!accepted.length) return;
+    const refusal = refused.length
+      ? msg("Not a supported file: {p0}. Use PNG, JPEG or WebP images, MP4 videos, or MP3, WAV or M4A audio.", { p0: refused.map((file) => file.name).join(", ") })
+      : undefined;
+    // With nothing to upload there is no dialog, so the page's notice says it; otherwise the dialog does, since an
+    // open dialog covers the notice.
+    if (!accepted.length) {
+      if (refusal) notice(refusal, true);
+      return;
+    }
     const popup = modal(options.container(), options.title);
     popup.dialog.classList.add("reference-upload");
     // Closed by the user: an upload still running finishes, but nothing is attached or inserted.
     let dismissed = false;
     popup.dialog.addEventListener("close", () => (dismissed = true), { once: true });
     const rows: Row[] = [];
+    // While files upload the list is fixed: no file is removed and no text changes under the running upload.
+    let uploading = false;
     const list = node("div", "", "reference-upload-list");
     const draw = () => {
       list.replaceChildren(
@@ -101,15 +109,17 @@ export function referencePicker(options: {
           const head = node("div", "", "reference-upload-head");
           head.append(node("span", kindLabel(row.kind), "badge"), node("span", row.file.name, "resource-id"));
           if (row.uploaded) head.append(node("span", msg("Uploaded"), "muted"));
-          else
-            head.append(
-              button(msg("Remove {p0}", { p0: row.file.name }), () => {
-                rows.splice(index, 1);
-                if (!rows.length) popup.close();
-                else draw();
-              }, "icon-button", "close", true),
-            );
-          row.label.disabled = row.description.disabled = !!row.uploaded;
+          else {
+            const remove = button(msg("Remove {p0}", { p0: row.file.name }), () => {
+              if (uploading) return;
+              rows.splice(index, 1);
+              if (!rows.length) popup.close();
+              else draw();
+            }, "icon-button", "close", true);
+            remove.disabled = uploading;
+            head.append(remove);
+          }
+          row.label.disabled = row.description.disabled = uploading || !!row.uploaded;
           item.append(head, row.label.parentElement!, row.description.parentElement!);
           return item;
         }),
@@ -133,6 +143,7 @@ export function referencePicker(options: {
     const form = node("form", "", "reference-upload-form");
     form.append(
       node("p", msg("Ads Agent and the writers read each file's label and description to know what it shows."), "muted"),
+      ...(refusal ? [node("p", refusal, "reference-upload-refused")] : []),
       list,
       failure,
       actions,
@@ -143,11 +154,14 @@ export function referencePicker(options: {
     };
     popup.body.append(form);
     async function send() {
+      if (uploading) return;
+      uploading = true;
       upload.disabled = true;
       failure.hidden = true;
+      draw();
       try {
         // Each file uploads once: a retry after a failure continues with the rest.
-        for (const row of rows) {
+        for (const row of [...rows]) {
           if (row.uploaded) continue;
           const label = row.label.value.trim(),
             description = row.description.value.trim();
@@ -162,10 +176,14 @@ export function referencePicker(options: {
         showError(failure, error);
         upload.disabled = false;
         return;
+      } finally {
+        uploading = false;
+        draw();
       }
-      if (dismissed) return;
+      if (dismissed || rows.some((row) => !row.uploaded)) return;
       popup.close();
-      done(rows.map((row) => ({ asset: row.uploaded!, file: row.file, label: row.label.value.trim() || row.file.name })));
+      // The Asset's own label: the one just given, or, for a file uploaded before with none given now, its earlier one.
+      done(rows.map((row) => ({ asset: row.uploaded!, file: row.file, label: row.uploaded!.label?.trim() || row.file.name })));
     }
   }
   return {

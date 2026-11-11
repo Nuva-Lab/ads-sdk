@@ -1407,6 +1407,10 @@ button.gallery-card:hover,
   border: 1px solid #e0e7d7;
   border-radius: 8px;
 }
+.reference-upload-refused {
+  color: #9a3b2e;
+  font-size: 13px;
+}
 .reference-upload-head {
   display: flex;
   align-items: center;

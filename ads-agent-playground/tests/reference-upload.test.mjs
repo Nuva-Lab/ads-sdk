@@ -27,7 +27,7 @@ function type(input, value) {
   input.dispatchEvent(new env.window.Event("input"));
 }
 const submit = (dialog) => dialog.querySelector("form").dispatchEvent(new env.window.Event("submit", { cancelable: true }));
-function uploads(fail = () => false) {
+function uploads(fail = () => false, known = {}) {
   const calls = [];
   let next = 1;
   return {
@@ -36,9 +36,26 @@ function uploads(fail = () => false) {
       upload: async (value, options) => {
         calls.push([value.name, options]);
         if (fail(value)) throw Object.assign(new Error("The file is larger than 10000000 bytes."), { code: "INVALID_INPUT" });
+        // Like the service: a file uploaded before is the same Asset, and omitted text keeps its earlier text.
+        if (known[value.name]) return { ...known[value.name], label: options.label ?? known[value.name].label };
         const id = `asset-${next++}`;
-        return { id, kind: options.kind, ref: { kind: "asset", id } };
+        return { id, kind: options.kind, label: options.label ?? null, ref: { kind: "asset", id } };
       },
+    },
+  };
+}
+function deferredUploads() {
+  const calls = [];
+  const pending = [];
+  return {
+    calls,
+    release: () => pending.shift()(),
+    assets: {
+      upload: (value, options) =>
+        new Promise((resolve) => {
+          calls.push(value.name);
+          pending.push(() => resolve({ id: `asset-${value.name}`, kind: options.kind, label: options.label ?? null, ref: { kind: "asset", id: `asset-${value.name}` } }));
+        }),
     },
   };
 }
@@ -88,14 +105,17 @@ test("chosen files upload in order with their own kind, label and description, t
   assert.equal(dialog.isConnected, false, "The dialog closes after uploading.");
 });
 
-test("an unsupported file is refused with a notice; the rest can be removed before uploading", async () => {
+test("an unsupported file is refused inside the dialog; the rest can be removed before uploading", async () => {
   const sdk = uploads();
   const pick = picker(sdk);
   let result;
+  env.window.document.getElementById("notice").textContent = "";
   pick.open((uploaded) => (result = uploaded));
   choose(pick.input, [file("look.gif", "image/gif"), file("a.png", "image/png"), file("b.png", "image/png")]);
-  assert.match(env.window.document.getElementById("notice").textContent, /Not a supported file: look\.gif/);
   const dialog = env.root.querySelector("dialog.reference-upload");
+  // An open dialog covers the page's notice, so the dialog says it.
+  assert.match(dialog.querySelector(".reference-upload-refused").textContent, /Not a supported file: look\.gif/);
+  assert.equal(env.window.document.getElementById("notice").textContent, "");
   dialog.querySelector('button[aria-label="Remove a.png"]').click();
   assert.equal(dialog.querySelectorAll(".reference-upload-row").length, 1);
   submit(dialog);
@@ -103,10 +123,11 @@ test("an unsupported file is refused with a notice; the rest can be removed befo
   assert.deepEqual(sdk.calls.map((call) => call[0]), ["b.png"]);
   assert.deepEqual(result.map((item) => item.file.name), ["b.png"]);
 
-  // Only unsupported files: nothing to describe.
+  // Only unsupported files: no dialog, so the page's notice says it.
   pick.open(() => assert.fail("Nothing was uploaded."));
   choose(pick.input, [file("clip.mov", "video/quicktime")]);
   assert.equal(env.root.querySelector("dialog.reference-upload"), null);
+  assert.match(env.window.document.getElementById("notice").textContent, /Not a supported file: clip\.mov/);
 });
 
 test("a failed upload shows the service's error; retrying uploads only the files not yet uploaded", async () => {
@@ -145,4 +166,44 @@ test("closing the dialog hands nothing back, even when an upload was still runni
   release();
   await settle();
   assert.equal(dialog.isConnected, false);
+});
+
+test("while files upload, none can be removed and no text changes; every chosen file is uploaded and handed back", async () => {
+  const sdk = deferredUploads();
+  const pick = picker(sdk);
+  let result;
+  pick.open((uploaded) => (result = uploaded));
+  choose(pick.input, [file("a.png", "image/png"), file("b.png", "image/png")]);
+  const dialog = env.root.querySelector("dialog.reference-upload");
+  type(dialog.querySelector('input[name="reference-label-0"]'), "Front");
+  submit(dialog);
+  assert.deepEqual(sdk.calls, ["a.png"]);
+  const remove = dialog.querySelector('button[aria-label="Remove a.png"]');
+  assert.equal(remove.disabled, true, "The file being uploaded can't be removed.");
+  assert.equal(dialog.querySelector('button[aria-label="Remove b.png"]').disabled, true, "Nor can one waiting its turn.");
+  assert.equal(dialog.querySelector('input[name="reference-label-0"]').disabled, true);
+  assert.equal(dialog.querySelector('input[name="reference-label-1"]').disabled, true);
+  remove.click();
+  submit(dialog);
+  assert.equal(dialog.querySelectorAll(".reference-upload-row").length, 2);
+  assert.deepEqual(sdk.calls, ["a.png"], "A second submit does not start another upload.");
+  sdk.release();
+  await settle();
+  assert.deepEqual(sdk.calls, ["a.png", "b.png"]);
+  sdk.release();
+  await settle();
+  assert.deepEqual(result.map((item) => [item.asset.id, item.label]), [["asset-a.png", "Front"], ["asset-b.png", "b.png"]]);
+});
+
+test("a file uploaded before with no new text comes back as its Asset, labelled as the Asset is", async () => {
+  const earlier = { id: "asset-earlier", kind: "image", label: "Store interior", ref: { kind: "asset", id: "asset-earlier" } };
+  const sdk = uploads(() => false, { "store.png": earlier });
+  const pick = picker(sdk);
+  let result;
+  pick.open((uploaded) => (result = uploaded));
+  choose(pick.input, [file("store.png", "image/png")]);
+  submit(env.root.querySelector("dialog.reference-upload"));
+  await settle();
+  assert.deepEqual(sdk.calls, [["store.png", { kind: "image" }]], "No text is sent, so the Asset keeps its own.");
+  assert.deepEqual(result.map((item) => [item.asset.id, item.label]), [["asset-earlier", "Store interior"]]);
 });
