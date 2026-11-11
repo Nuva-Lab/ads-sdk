@@ -20,6 +20,7 @@ import { WaitingBar } from "./waiting.js";
 import { readResource } from "./resources.js";
 import { usefulLabel, resourcePresentation } from "./resource-presentation.js";
 import { Composer, buildDraft } from "./composer.js";
+import { referencePicker } from "./reference-upload.js";
 import { action, button, byId, node, notice, dismissNotice, report, showPane, modal } from "./ui.js";
 export interface ChatHost {
   sdk: NuvaClient;
@@ -74,6 +75,7 @@ export class ChatController {
   private viewEvents = new AbortController();
   readonly composer: Composer;
   private messageReferences: ChatReferences;
+  private references: ReturnType<typeof referencePicker>;
   sessionId = "";
   constructor(private host: ChatHost) {
     this.olderSessions.id = "load-older-sessions";
@@ -111,6 +113,20 @@ export class ChatController {
       focus: () => { showPane("chat"); this.composer.focus(); },
       open: ref => void action(() => this.openMessage(ref)),
     });
+    // Reference files upload as Assets when chosen and are attached to the next message, like any other resource.
+    const references = (this.references = referencePicker({
+      sdk: host.sdk,
+      container: () => document.body,
+      multiple: true,
+      title: msg("Upload reference files"),
+    }));
+    const upload = byId<HTMLButtonElement>("upload-reference");
+    upload.replaceChildren(icon("attach"));
+    upload.onclick = () =>
+      references.open((uploaded) => {
+        if (this.closed) return;
+        for (const item of uploaded) this.attach({ ref: item.asset.ref, label: item.label });
+      });
     this.composer.onSend = () => void this.send();
     this.composer.onChange = () => this.controls();
     byId("new-session").onclick = () => void action(() => this.create());
@@ -327,6 +343,7 @@ export class ChatController {
     this.sessionsEpoch++;
     this.connectionEpoch++;
     this.olderSessions.remove();
+    this.references.input.remove();
     this.epoch++;
     this.viewEvents.abort();
     this.waitingBar?.dispose();
