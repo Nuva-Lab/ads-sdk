@@ -53,3 +53,25 @@ func TestEnvironmentAllowsExplicitDevelopmentEndpoints(t *testing.T) {
 		t.Fatalf("development overrides were ignored: %+v", cfg.Endpoints)
 	}
 }
+
+func TestBridgePortIsOptionalAndChecked(t *testing.T) {
+	base := map[string]string{"NUVA_CUSTOMER_API_KEY": "dummy-admin", "NUVA_EXTERNAL_USER_ID": "user"}
+	read := func(value string) (configuration, error) {
+		env := map[string]string{"NUVA_PLAYGROUND_BRIDGE_PORT": value}
+		for k, v := range base {
+			env[k] = v
+		}
+		return readConfig(func(key string) string { return env[key] })
+	}
+	if cfg, err := read(""); err != nil || cfg.BridgePort != 0 {
+		t.Fatalf("an unset bridge port must pick free ports: %d %v", cfg.BridgePort, err)
+	}
+	if cfg, err := read(" 8996 "); err != nil || cfg.BridgePort != 8996 {
+		t.Fatalf("bridge port not read: %d %v", cfg.BridgePort, err)
+	}
+	for _, value := range []string{"0", "65536", "-1", "port", "8996.5"} {
+		if _, err := read(value); err == nil || !strings.Contains(err.Error(), "NUVA_PLAYGROUND_BRIDGE_PORT must be a port number") {
+			t.Fatalf("bridge port %q was not rejected: %v", value, err)
+		}
+	}
+}

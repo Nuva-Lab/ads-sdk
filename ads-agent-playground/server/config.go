@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -34,6 +35,9 @@ type configuration struct {
 	Endpoints      endpoints
 	APIKey         string
 	ExternalUserID string
+	// BridgePort, when set, is the one local port browser connections use (NUVA_PLAYGROUND_BRIDGE_PORT); 0 picks
+	// a free port for each connection.
+	BridgePort int
 }
 
 func endpoint(value string) (string, error) {
@@ -78,6 +82,13 @@ func readConfig(getenv func(string) string) (configuration, error) {
 			return cfg, fmt.Errorf("invalid %s: %w", setting.Name, err)
 		}
 		*setting.Target = normalized
+	}
+	if v := strings.TrimSpace(getenv("NUVA_PLAYGROUND_BRIDGE_PORT")); v != "" {
+		port, err := strconv.Atoi(v)
+		if err != nil || port < 1 || port > 65535 {
+			return cfg, errors.New("NUVA_PLAYGROUND_BRIDGE_PORT must be a port number from 1 to 65535")
+		}
+		cfg.BridgePort = port
 	}
 	issuer, _ := url.Parse(cfg.Endpoints.API)
 	if issuer.Scheme != "https" && issuer.Hostname() != "localhost" && issuer.Hostname() != "127.0.0.1" && issuer.Hostname() != "::1" {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -24,8 +25,9 @@ type apiBridge struct {
 	sockets   map[net.Conn]struct{}
 }
 
-func openBridge(uiOrigin string, settings endpoints) (*apiBridge, error) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+// Port 0 picks a free port.
+func openBridge(uiOrigin string, settings endpoints, port int) (*apiBridge, error) {
+	listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	if err != nil {
 		return nil, err
 	}

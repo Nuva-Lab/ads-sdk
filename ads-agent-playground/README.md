@@ -54,6 +54,20 @@ Explicit `NUVA_AGENT_URL` and `NUVA_API_URL` settings override the selected envi
 
 The API URL handles Products, artifacts, media, Script and Storyboard writing, video Jobs and token issuance. **Connection settings** changes the Agent and API URLs for the current browser connection only; it does not change the local server's token issuer. Keep the browser's services and the server's token issuer in the same environment. After changing the environment, server URL overrides, Admin key or `NUVA_EXTERNAL_USER_ID`, restart `pnpm playground` and reload the page.
 
+## Run on a remote machine
+
+The page reaches the services through a second local port that the Go server opens for each connection; by default it is a free port chosen at random. When the playground runs on a remote machine (a dev box over SSH), fix that port in `.env` and forward it together with the playground port:
+
+```dotenv
+NUVA_PLAYGROUND_BRIDGE_PORT=8996
+```
+
+```sh
+ssh -L 8995:127.0.0.1:8995 -L 8996:127.0.0.1:8996 <remote machine>
+```
+
+With a fixed port, one browser tab is connected at a time: reloading, applying **Connection settings** or opening another tab takes the port over from the tab before it. Without `NUVA_PLAYGROUND_BRIDGE_PORT`, a remote page shows **Failed to fetch**, because the browser cannot reach the random port.
+
 ## Try a creation flow
 
 1. Open **Products**, choose **New product**, select or create a Brand, and enter the product details. Upload reference images from the Product edit view, each with an optional label and description (for example which side of the package it shows).
@@ -94,7 +108,7 @@ The interface defaults to Chinese and remembers your **中文 / English** select
 | Symptom | Check |
 | --- | --- |
 | Startup reports a missing setting | Set `NUVA_CUSTOMER_API_KEY` and `NUVA_EXTERNAL_USER_ID` in `.env` or your environment. |
-| Connection fails | Check the configured Agent and API URLs and whether those services are reachable. |
+| Connection fails | Check the configured Agent and API URLs and whether those services are reachable. On a remote machine, set `NUVA_PLAYGROUND_BRIDGE_PORT` and forward that port too (see **Run on a remote machine**). |
 | Token issuance fails | Check that the Admin key matches the environment selected by `NUVA_ENVIRONMENT` or the explicit `NUVA_API_URL` override, then restart the playground. |
 | An image upload fails in the browser | Check the upload service's CORS settings for the playground origin. |
 | An old media preview has expired | Refresh the resource to obtain current media access. |
