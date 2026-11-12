@@ -298,7 +298,6 @@ export class Composer {
     this.editor.contentEditable = String(!value);
     this.editor.setAttribute("aria-disabled", String(value));
     byId<HTMLButtonElement>("mention-button").disabled = value;
-    byId<HTMLButtonElement>("upload-reference").disabled = value;
     if (value) this.close();
   }
   destroy() {
