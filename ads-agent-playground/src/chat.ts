@@ -354,6 +354,7 @@ export class ChatController {
     this.drawAttachments();
     this.composer.clear();
     this.composer.setLocked(true);
+    byId<HTMLButtonElement>("upload-reference").disabled = true;
     this.composer.destroy();
     this.messageReferences.destroy();
     this.status = "offline";
@@ -515,10 +516,11 @@ export class ChatController {
       this.status === "loading" ||
       this.status === "error" ||
       (this.composer.empty() && !this.attached.length && !this.messageReferences.hasQuotes() && !this.retry);
-    this.composer.setLocked(
-      this.sending || !!this.retry || !this.agent || this.status === "loading",
-    );
-    this.messageReferences.setLocked(this.sending || !!this.retry || !this.agent || this.status === "loading");
+    const locked = this.sending || !!this.retry || !this.agent || this.status === "loading";
+    this.composer.setLocked(locked);
+    // The upload button is the playground's own; the composer is shared with the Agent admin page, which has none.
+    byId<HTMLButtonElement>("upload-reference").disabled = locked;
+    this.messageReferences.setLocked(locked);
     const stop = byId<HTMLButtonElement>("stop");
     stop.hidden = !busy;
     stop.disabled = !busy;
