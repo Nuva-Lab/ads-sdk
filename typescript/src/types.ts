@@ -118,10 +118,19 @@ export interface SessionsClient {
 	create(input: { title: string }): Promise<Session>;
 	get(sessionId: string): Promise<Session>;
 	/**
-	 * Your own Sessions. With `owner` (a user's ID, as in `session.owner.userId`), an admin lists the Sessions of a user
-	 * below them instead. For anyone else the page is empty.
+	 * Your own Sessions, newest first. With `owner` (a user's ID, as in `session.owner.userId`), an admin lists the
+	 * Sessions of a user below them instead. For anyone else the page is empty. Archived Sessions are left out; with
+	 * `archived: true`, only they are listed.
 	 */
-	list(query?: PaginationQuery & { owner?: string }): Promise<Page<Session>>;
+	list(query?: PaginationQuery & { owner?: string; archived?: boolean }): Promise<Page<Session>>;
+	/**
+	 * Archives a Session: it leaves the default list and gets `archivedAt`. Nothing in it is deleted: its messages, files,
+	 * Memory and the Scripts, Assets, Jobs and Ads made in it stay, and it can still be opened and continued. The owner and
+	 * the admins above them may archive it. Archiving an archived Session changes nothing.
+	 */
+	archive(sessionId: string): Promise<Session>;
+	/** Restores an archived Session to the default list. Restoring one that is not archived changes nothing. */
+	unarchive(sessionId: string): Promise<Session>;
 	getMessage(ref: MessageRef): Promise<MessageView>;
 	/** Read saved history without opening a live Agent handle. */
 	history(sessionId: string, query?: PaginationQuery): Promise<Page<MessageView>>;

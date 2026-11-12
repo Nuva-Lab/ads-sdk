@@ -146,4 +146,4 @@ await agent.send(Message.create().text('Write an ad for this product.').attach(p
 await agent.stop(); // stops the current loop only; Jobs keep running
 ```
 
-A message sent while the Agent works steers it: it appears at once with `unread: true` and joins the conversation at the Agent's next step. Use `sessions.get/list/history`, `loadEarlierMessages` and `refresh` for Session state; an admin lists a user's Sessions with `sessions.list({owner})`. `@nuva/sdk/react` exports `NuvaProvider` and `useAgent`, on the same client and state.
+A message sent while the Agent works steers it: it appears at once with `unread: true` and joins the conversation at the Agent's next step. Use `sessions.get/list/history`, `loadEarlierMessages` and `refresh` for Session state; an admin lists a user's Sessions with `sessions.list({owner})`. `sessions.archive(id)` takes a Session out of `sessions.list` without deleting anything (it can still be opened and continued; `sessions.list({archived: true})` lists archived ones, `sessions.unarchive(id)` restores one). `@nuva/sdk/react` exports `NuvaProvider` and `useAgent`, on the same client and state.

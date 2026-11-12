@@ -47,6 +47,8 @@ export interface Session {
 	readonly title: string;
 	readonly owner: UserIdentity;
 	readonly createdAt: Timestamp;
+	/** When the Session was archived (`sessions.archive`): it is left out of the default list. Absent while it is not. */
+	readonly archivedAt?: Timestamp | undefined;
 }
 
 interface PartBase {
@@ -255,6 +257,7 @@ export const sessionSchema = z.object({
 	title: z.string(),
 	owner: identitySchema,
 	createdAt: z.string(),
+	archivedAt: z.string().optional(),
 });
 const toolBase = z.object({
 	type: z.literal('dynamic-tool'),

@@ -54,6 +54,8 @@ export function dataRequest(
 		return { method: 'POST', path: `/v1/artifacts/prompt/${resourceId(ref.id)}/versions`, body };
 	}
 	if (method === 'jobs.cancel') return { method: 'POST', path: `/v1/jobs/${resourceId(p.id)}/cancel` };
+	if (method === 'sessions.archive' || method === 'sessions.unarchive')
+		return { method: 'POST', path: `/v1/sessions/${id(p.sessionId)}/${action}`, agent: true };
 	if (['scripts', 'storyboards', 'prompts', 'videos'].includes(collection!) && action === 'generate')
 		return { method: 'POST', path: '/v1/generate/' + collection!.slice(0, -1), body: p, generation: collection !== 'videos' };
 	if (method === 'assets.uploadIntent') return { method: 'POST', path: '/v1/assets/uploads', body: p };

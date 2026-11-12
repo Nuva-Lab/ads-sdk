@@ -2,6 +2,12 @@
 
 Each entry describes the change from the previous released version.
 
+## Unreleased
+
+### Added
+
+- **Archive Sessions** ([#35](https://github.com/Nuva-Lab/ads-sdk/issues/35)). `sessions.archive(sessionId)` takes a Session, such as a test conversation, out of `sessions.list`; `sessions.unarchive(sessionId)` puts it back, and `sessions.list({ archived: true })` lists only archived Sessions. Archiving deletes nothing: messages, files, Agent memory and everything made in the Session stay, and the Session can still be opened and continued. An archived Session has `archivedAt`. The owner and the admins above them may archive it. Needs the Agent service release with archiving.
+
 ## 0.1.0-preview.6
 
 Changes since `0.1.0-preview.5`. This SDK works with the services already live; it needs no service release, and the API version is unchanged (`2026-11-07`). Upgrading from preview.5 needs no code change, except if you relied on a throwing `getAccessToken` to sign a user out (see below). Coming from an earlier preview, follow **Upgrade to preview.5** (`migration.html`) and install this version.

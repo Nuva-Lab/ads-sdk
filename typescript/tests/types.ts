@@ -76,6 +76,9 @@ void createNuva({ getAccessToken: async () => 'customer-token' });
 
 const cancelled: Promise<import('@nuva/sdk').JobState> = client.jobs.cancel('00000000-0000-4000-8000-000000000001');
 void cancelled;
+const archived: Promise<import('@nuva/sdk').Session> = client.sessions.archive('session-id');
+const archivedAt: Promise<string | undefined> = client.sessions.list({ archived: true }).then((page) => page.items[0]?.archivedAt);
+void archived, archivedAt, client.sessions.unarchive('session-id');
 
 // Raw video input uses Prompt v1 data and Asset IDs, with an exclusive source.
 import type { GenerateVideoInput, RawPromptInput, Job, Asset, Prompt } from '@nuva/sdk';

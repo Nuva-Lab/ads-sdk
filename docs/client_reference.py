@@ -143,7 +143,11 @@ def guide_pages(locale='zh'):
                 'Stop 结束当前 Agent 循环，并让 Agent 在所关注的任务完成后不再自动继续（参见 <code>state.waiting</code>）；Session 空闲时也可以调用。Stop 不删除消息，也不取消已提交的视频任务；取消任务请调用 <code>client.jobs.cancel(jobId)</code>。<code>loadEarlierMessages()</code> 将更早的消息加入订阅状态；<code>refresh()</code> 重新同步状态，不会开启新回合。')
             + c("const saved = await client.sessions.history(sessionId, { limit: 50 });\nconst nextCursor = saved.nextCursor;")
             + p('Use <code>sessions.history</code> for a saved-history view without opening a live Agent handle. Pass <code>nextCursor</code> as <code>cursor</code> for the next page.',
-                '仅展示已保存的历史时，可使用 <code>sessions.history</code>，无需打开实时 Agent handle。将 <code>nextCursor</code> 作为 <code>cursor</code> 传入以获取下一页。') + download),
+                '仅展示已保存的历史时，可使用 <code>sessions.history</code>，无需打开实时 Agent handle。将 <code>nextCursor</code> 作为 <code>cursor</code> 传入以获取下一页。')
+            + '<h3 id="archive">' + t('Archive a Session', '归档 Session') + '</h3>'
+            + c("await client.sessions.archive(sessionId);\nconst archived = await client.sessions.list({ archived: true });\nawait client.sessions.unarchive(sessionId);")
+            + p('Archive Sessions you no longer need, such as test conversations, to keep them out of <code>sessions.list</code>. Archiving deletes nothing: the messages, files and Agent memory stay, and so do the Products, Assets, Scripts, Jobs and Ads made in the Session. An archived Session has <code>archivedAt</code> and can still be opened and continued; <code>sessions.list({ archived: true })</code> lists only archived Sessions, and <code>unarchive</code> restores one. The Session\'s owner and the admins above them may archive it.',
+                '不再需要的 Session（例如测试对话）可以归档，使其不再出现在 <code>sessions.list</code> 中。归档不删除任何内容：消息、文件和 Agent 记忆都会保留，在该 Session 中生成的产品、素材、脚本、任务和广告也会保留。已归档的 Session 带有 <code>archivedAt</code>，仍可打开并继续对话；<code>sessions.list({ archived: true })</code> 只列出已归档的 Session，<code>unarchive</code> 可将其恢复。Session 的所有者及其上级管理员可以归档它。') + download),
     ]
 
     resources = [

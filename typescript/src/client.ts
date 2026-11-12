@@ -314,6 +314,8 @@ export function createNuva(options: NuvaClientOptions): NuvaClient {
 			create: async (input) => parseSession(await transport.data('sessions.create', input)),
 			get: async (sessionId) => parseSession(await transport.data('sessions.get', { sessionId })),
 			list: async (query = {}) => parseSessions(await transport.data('sessions.list', query)),
+			archive: async (sessionId) => parseSession(await transport.data('sessions.archive', { sessionId })),
+			unarchive: async (sessionId) => parseSession(await transport.data('sessions.unarchive', { sessionId })),
 			history: (sessionId, query = {}) => transport.http('sessions.history', { sessionId, ...query }),
 			getMessage: (ref) => transport.http('sessions.getMessage', { ref }),
 		},
