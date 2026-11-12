@@ -53,6 +53,8 @@ Handle every error in application code; the abbreviated example omits applicatio
 
 Registration validates the required `SKILL.md`, path/name rules, UTF-8, file count and size limits, attributes and source provenance before dispatch. For Skills used by the writer, every file must use one of its supported extensions: `.md`, `.txt`, `.json`, `.yaml` or `.yml`. The writer checks every file in the version, including files outside `attributes.preload`; registration alone does not establish writer compatibility.
 
+Every Skill of yours with a main version is available to the Agent in new Sessions, beside Nuva's; a running Session keeps the Skills and versions it started with. The direct writers use Nuva's Skills.
+
 Responses retain nullable description/note/source/main fields, file hashes, download URLs, expiry and arbitrary attributes. Attribute numbers use `json.Number` so generic JSON does not lose integer precision. The first registered version becomes `main`; later registrations do not implicitly move `main`.
 
 ## Orgs, groups, admins and shares
