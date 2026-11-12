@@ -126,7 +126,8 @@ export interface SessionsClient {
 	/**
 	 * Archives a Session: it leaves the default list and gets `archivedAt`. Nothing in it is deleted: its messages, files,
 	 * Memory and the Scripts, Assets, Jobs and Ads made in it stay, and it can still be opened and continued. The owner and
-	 * the admins above them may archive it. Archiving an archived Session changes nothing.
+	 * the admins above them may archive it. Archiving an archived Session changes nothing. An Agent handle already open
+	 * on the Session shows the new `archivedAt` after `refresh()`.
 	 */
 	archive(sessionId: string): Promise<Session>;
 	/** Restores an archived Session to the default list. Restoring one that is not archived changes nothing. */
