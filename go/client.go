@@ -268,6 +268,33 @@ func (c *AdminClient) SetSkillMain(ctx context.Context, name string, version int
 	}
 	return out, err
 }
+
+// ArchiveSkill archives the Skill: it is left out of ListSkills and reaches no new Agent Session. Nothing is deleted:
+// its versions stay readable, what was made with them keeps referring to them, and Sessions that froze it when they
+// started keep it. Registering a version or moving main keeps it archived. Archiving it again changes nothing.
+func (c *AdminClient) ArchiveSkill(ctx context.Context, name string) (Skill, error) {
+	return c.setSkillArchived(ctx, name, true)
+}
+
+// UnarchiveSkill brings an archived Skill back into ListSkills and new Agent Sessions.
+func (c *AdminClient) UnarchiveSkill(ctx context.Context, name string) (Skill, error) {
+	return c.setSkillArchived(ctx, name, false)
+}
+func (c *AdminClient) setSkillArchived(ctx context.Context, name string, archived bool) (Skill, error) {
+	var out Skill
+	if !namePattern.MatchString(name) {
+		return out, invalid("Skill name required.")
+	}
+	action := "unarchive"
+	if archived {
+		action = "archive"
+	}
+	err := c.connection.request(ctx, "POST", "/v1/admin/skills/"+name+"/"+action, nil, nil, &out, "id", "name", "platform", "main_version", "created_at")
+	if err == nil && (!validateSkill(out) || out.Name != name || (out.ArchivedAt != nil) != archived) {
+		err = malformed()
+	}
+	return out, err
+}
 func (c *UserClient) GetSkill(ctx context.Context, id string) (SkillDetail, error) {
 	var out SkillDetail
 	if !uuidPattern.MatchString(id) {
@@ -290,9 +317,22 @@ func (c *UserClient) GetSkillVersion(ctx context.Context, id string, version int
 	}
 	return out, err
 }
+
+// ListSkills pages through the customer's Skills and Nuva's platform Skills, leaving archived ones out.
 func (c *UserClient) ListSkills(ctx context.Context, options ListOptions) (SkillPage, error) {
+	return c.listSkills(ctx, options, false)
+}
+
+// ListArchivedSkills pages through the customer's archived Skills only.
+func (c *UserClient) ListArchivedSkills(ctx context.Context, options ListOptions) (SkillPage, error) {
+	return c.listSkills(ctx, options, true)
+}
+func (c *UserClient) listSkills(ctx context.Context, options ListOptions, archived bool) (SkillPage, error) {
 	var out SkillPage
 	query := url.Values{}
+	if archived {
+		query.Set("archived", "true")
+	}
 	if options.Limit != 0 {
 		if options.Limit < 1 || options.Limit > 100 {
 			return out, invalid("Limit must be 1–100.")

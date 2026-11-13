@@ -77,6 +77,14 @@ func ActivateProductSkill(
 
 // #endregion activate-skill
 
+// #region archive-skill
+func RetireProductSkill(ctx context.Context, admin *nuva.AdminClient) (nuva.Skill, error) {
+	// Leaves it out of new Agent Sessions; UnarchiveSkill brings it back.
+	return admin.ArchiveSkill(ctx, "product-writer")
+}
+
+// #endregion archive-skill
+
 // #region read-skill
 func ReadSkillVersion(
 	ctx context.Context,

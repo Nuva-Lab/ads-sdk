@@ -2294,13 +2294,151 @@
         }
       }
     },
+    "/v1/admin/skills/{name}/archive": {
+      "post": {
+        "tags": [
+          "skills"
+        ],
+        "summary": "Archive a Skill",
+        "description": "Leaves the Skill out of Skill lists, and so out of the Agent's new Sessions. Nothing is deleted: its versions stay readable by id, what was made with them keeps referring to them, and Agent Sessions that froze it when they started keep it. Registering a version or moving main keeps it archived. Archiving it again changes nothing. Nuva's platform Skills cannot be archived (422).",
+        "operationId": "archive_skill_v1_admin_skills__name__archive_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/admin/skills/{name}/unarchive": {
+      "post": {
+        "tags": [
+          "skills"
+        ],
+        "summary": "Unarchive a Skill",
+        "description": "Brings an archived Skill back into Skill lists and the Agent's new Sessions. Unarchiving a Skill that is not archived changes nothing.",
+        "operationId": "unarchive_skill_v1_admin_skills__name__unarchive_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/v1/skills": {
       "get": {
         "tags": [
           "skills"
         ],
         "summary": "List Skills",
-        "description": "The customer's Skills and Nuva's platform Skills, newest first.",
+        "description": "The customer's Skills and Nuva's platform Skills, newest first. Archived Skills are left out; `archived=true` lists only them.",
         "operationId": "list_skills_v1_skills_get",
         "security": [
           {
@@ -2337,6 +2475,18 @@
               "title": "Cursor"
             },
             "description": "From `next_cursor`."
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "List only archived Skills instead of the others.",
+              "default": false,
+              "title": "Archived"
+            },
+            "description": "List only archived Skills instead of the others."
           }
         ],
         "responses": {
@@ -6348,6 +6498,19 @@
             "title": "Created At",
             "description": "When its first version was registered."
           },
+          "archived_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived At",
+            "description": "When it was archived: it is then left out of Skill lists and new Sessions, and still readable here. Null when it is not archived."
+          },
           "version": {
             "anyOf": [
               {
@@ -6433,6 +6596,7 @@
           "platform",
           "main_version",
           "created_at",
+          "archived_at",
           "version",
           "description",
           "note",
@@ -6478,6 +6642,19 @@
             "format": "date-time",
             "title": "Created At",
             "description": "When its first version was registered."
+          },
+          "archived_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived At",
+            "description": "When it was archived; null when it is not."
           }
         },
         "type": "object",
@@ -6555,6 +6732,19 @@
             "format": "date-time",
             "title": "Created At",
             "description": "When its first version was registered."
+          },
+          "archived_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived At",
+            "description": "When it was archived: it is then left out of Skill lists and new Sessions, and still readable here. Null when it is not archived."
           },
           "version": {
             "anyOf": [
@@ -6641,6 +6831,7 @@
           "platform",
           "main_version",
           "created_at",
+          "archived_at",
           "version",
           "description",
           "note",

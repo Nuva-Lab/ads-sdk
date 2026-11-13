@@ -6,11 +6,13 @@ Each entry describes the change from the previous released version.
 
 ### Added
 
+- **Archive Skills.** `AdminClient.ArchiveSkill(ctx, name)` takes a Skill out of `ListSkills` and the Agent's new Sessions, and `UnarchiveSkill` brings it back; `UserClient.ListArchivedSkills` and `skills.list({ archived: true })` list archived ones. Archiving deletes nothing: the Skill's versions stay readable, what was made with them keeps naming them, and Sessions that started with it keep it. A `Skill` has `archived_at` (`ArchivedAt` in Go admin responses). Nuva's Skills cannot be archived. Needs the services released with Skill archiving (live since 2026-11-13).
+
 - **Archive Sessions** ([#35](https://github.com/Nuva-Lab/ads-sdk/issues/35)). `sessions.archive(sessionId)` takes a Session, such as a test conversation, out of `sessions.list`; `sessions.unarchive(sessionId)` puts it back, and `sessions.list({ archived: true })` lists only archived Sessions. Archiving deletes nothing: messages, files, Agent memory and everything made in the Session stay, and the Session can still be opened and continued. An archived Session has `archivedAt`. The owner and the admins above them may archive it. Needs the Agent service release with archiving.
 
 ### Fixed
 
-- **Skills you register are used in Agent conversations** ([#36](https://github.com/Nuva-Lab/ads-sdk/issues/36)). Every Skill of yours that has a main version (`AdminClient.RegisterSkill`, then `SetSkillMain` for later versions) is available to the Agent in new Sessions, beside Nuva's; you no longer need Nuva to enable it. A Session keeps the Skills and versions it started with, so a new main or a newly registered Skill reaches only Sessions started afterwards. This is a service change: it needs no SDK upgrade or code change, and works once the Agent release that adds it is live. The docs now also say that the direct writers (`scripts.generate`, `storyboards.generate`, `prompts.generate`) use Nuva's writing Skills.
+- **Skills you register are used in Agent conversations** ([#36](https://github.com/Nuva-Lab/ads-sdk/issues/36)). Every Skill of yours that has a main version (`AdminClient.RegisterSkill`, then `SetSkillMain` for later versions) is available to the Agent in new Sessions, beside Nuva's; you no longer need Nuva to enable it. A Session keeps the Skills and versions it started with, so a new main or a newly registered Skill reaches only Sessions started afterwards. This is a service change, live since 2026-11-13: it needs no SDK upgrade or code change. The docs now also say that the direct writers (`scripts.generate`, `storyboards.generate`, `prompts.generate`) use Nuva's writing Skills.
 
 ## 0.1.0-preview.6
 

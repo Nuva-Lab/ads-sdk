@@ -1,4 +1,4 @@
-// Generated from ads_backend/openapi.json at e0010bbf73f523d646f86adeb0da308652476eb0. Do not edit.
+// Generated from ads_backend/openapi.json at 0a6b21ccb1214322463b545f2d2f9442d2b0fd0a. Do not edit.
 import type { z } from "zod";
 export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.fromJSONSchema>[0], boolean>> = {
   "AdOut": {
@@ -2813,6 +2813,19 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "title": "Created At",
         "description": "When its first version was registered."
       },
+      "archived_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Archived At",
+        "description": "When it was archived: it is then left out of Skill lists and new Sessions, and still readable here. Null when it is not archived."
+      },
       "version": {
         "anyOf": [
           {
@@ -2898,6 +2911,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "platform",
       "main_version",
       "created_at",
+      "archived_at",
       "version",
       "description",
       "note",
@@ -2943,6 +2957,19 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "format": "date-time",
         "title": "Created At",
         "description": "When its first version was registered."
+      },
+      "archived_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Archived At",
+        "description": "When it was archived; null when it is not."
       }
     },
     "type": "object",
@@ -3020,6 +3047,19 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "format": "date-time",
         "title": "Created At",
         "description": "When its first version was registered."
+      },
+      "archived_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Archived At",
+        "description": "When it was archived: it is then left out of Skill lists and new Sessions, and still readable here. Null when it is not archived."
       },
       "version": {
         "anyOf": [
@@ -3106,6 +3146,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "platform",
       "main_version",
       "created_at",
+      "archived_at",
       "version",
       "description",
       "note",

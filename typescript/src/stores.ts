@@ -4,7 +4,14 @@ import type { CommandOptions, JsonObject, JsonValue, ResourceRef, ResourceLink, 
 import type { BackendSchemas as B } from './backend-target.js';
 import type { ScriptPackage } from './service-schemas.js';
 export type { ScriptPackage } from './service-schemas.js';
-export type StoreQuery = { limit?: number; cursor?: string | null; brand_id?: string; batch_id?: string };
+export type StoreQuery = {
+	limit?: number;
+	cursor?: string | null;
+	brand_id?: string;
+	batch_id?: string;
+	/** `skills.list`: list only archived Skills instead of the others. */
+	archived?: boolean;
+};
 export type Product = B['Product'] & ResourceLink<'product'>;
 export type Brand = B['Brand'] & ResourceLink<'brand'>;
 export type Character = B['Character'] & ResourceLink<'character'>;
@@ -13,8 +20,11 @@ export type MutableResource = Product | Brand | Character;
 export type Asset = B['AssetOut'] & Omit<ResourceLink<'asset'>, 'label'>;
 export type Ad = B['AdOut'] & ResourceLink<'ad'>;
 export type Batch = B['BatchOut'] & ResourceLink<'batch'>;
-/** A Skill at one version: the latest, or the one you asked for. `main_version` is the version new work uses. */
-export type Skill = Pick<B['SkillRead'], 'id' | 'name' | 'platform' | 'main_version' | 'created_at'> & {
+/**
+ * A Skill at one version: the latest, or the one you asked for. `main_version` is the version new work uses;
+ * `archived_at` is set while the Skill is archived (it then reaches no new Agent Session).
+ */
+export type Skill = Pick<B['SkillRead'], 'id' | 'name' | 'platform' | 'main_version' | 'created_at' | 'archived_at'> & {
 	readonly version: number;
 	readonly description: string | null;
 	readonly note: string | null;
@@ -213,7 +223,10 @@ export interface StoreClients {
 	readonly skills: {
 		/** The latest version, or `version`. */
 		get(id: string, options?: { version?: number }): Promise<Skill>;
-		/** Each Skill at its latest version. */
+		/**
+		 * Each Skill at its latest version. Archived Skills (`archived_at` set) are left out; `archived: true` lists only
+		 * them. Your backend archives a Skill with the Go Admin SDK; an archived Skill reaches no new Agent Session.
+		 */
 		list(query?: StoreQuery): Promise<Page<Skill>>;
 	};
 }
