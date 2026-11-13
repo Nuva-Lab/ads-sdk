@@ -1,4 +1,4 @@
-// Generated from ads_backend/openapi.json at e0010bbf73f523d646f86adeb0da308652476eb0. Do not edit.
+// Generated from ads_backend/openapi.json at 0a6b21ccb1214322463b545f2d2f9442d2b0fd0a. Do not edit.
 export interface paths {
     "/v1/admin/tokens": {
         parameters: {
@@ -412,6 +412,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/skills/{name}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Archive a Skill
+         * @description Leaves the Skill out of Skill lists, and so out of the Agent's new Sessions. Nothing is deleted: its versions stay readable by id, what was made with them keeps referring to them, and Agent Sessions that froze it when they started keep it. Registering a version or moving main keeps it archived. Archiving it again changes nothing. Nuva's platform Skills cannot be archived (422).
+         */
+        post: operations["archive_skill_v1_admin_skills__name__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/skills/{name}/unarchive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unarchive a Skill
+         * @description Brings an archived Skill back into Skill lists and the Agent's new Sessions. Unarchiving a Skill that is not archived changes nothing.
+         */
+        post: operations["unarchive_skill_v1_admin_skills__name__unarchive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/skills": {
         parameters: {
             query?: never;
@@ -421,7 +461,7 @@ export interface paths {
         };
         /**
          * List Skills
-         * @description The customer's Skills and Nuva's platform Skills, newest first.
+         * @description The customer's Skills and Nuva's platform Skills, newest first. Archived Skills are left out; `archived=true` lists only them.
          */
         get: operations["list_skills_v1_skills_get"];
         put?: never;
@@ -2117,6 +2157,11 @@ export interface components {
              */
             created_at: string;
             /**
+             * Archived At
+             * @description When it was archived: it is then left out of Skill lists and new Sessions, and still readable here. Null when it is not archived.
+             */
+            archived_at: string | null;
+            /**
              * Version
              * @description The version shown here: the latest.
              */
@@ -2178,6 +2223,11 @@ export interface components {
              * @description When its first version was registered.
              */
             created_at: string;
+            /**
+             * Archived At
+             * @description When it was archived; null when it is not.
+             */
+            archived_at?: string | null;
         };
         /** SkillPage */
         SkillPage: {
@@ -2225,6 +2275,11 @@ export interface components {
              * @description When its first version was registered.
              */
             created_at: string;
+            /**
+             * Archived At
+             * @description When it was archived: it is then left out of Skill lists and new Sessions, and still readable here. Null when it is not archived.
+             */
+            archived_at: string | null;
             /**
              * Version
              * @description The version shown here.
@@ -3932,12 +3987,112 @@ export interface operations {
             };
         };
     };
+    archive_skill_v1_admin_skills__name__archive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    unarchive_skill_v1_admin_skills__name__unarchive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     list_skills_v1_skills_get: {
         parameters: {
             query?: {
                 limit?: number;
                 /** @description From `next_cursor`. */
                 cursor?: string | null;
+                /** @description List only archived Skills instead of the others. */
+                archived?: boolean;
             };
             header?: never;
             path?: never;

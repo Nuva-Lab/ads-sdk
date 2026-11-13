@@ -166,5 +166,7 @@
   "Speak with the cast Character's own voice file instead of a described voice; needs a `character` that has one.": "使用所选人物自己的声音文件，而不是描述的声音；需要一个有声音文件的 `character`。",
   "The Script to shoot: { id }, or the Script you read.": "要拍摄的脚本：{ id }，或已读取的脚本。",
   "Its id.": "其 ID。",
-  "The Storyboard to compile: { id }, or the Storyboard you read.": "要编译的分镜：{ id }，或已读取的分镜。"
+  "The Storyboard to compile: { id }, or the Storyboard you read.": "要编译的分镜：{ id }，或已读取的分镜。",
+  "When it was archived: it is then left out of Skill lists and new Sessions, and still readable here. Null when it is not archived.": "归档时间：归档后它不再出现在 Skill 列表和新建的 Session 中，但仍可在这里读取。未归档时为 null。",
+  "List only archived Skills instead of the others.": "只列出已归档的 Skill，不列其他的。"
 }

@@ -401,6 +401,7 @@ const skillRead: B['SkillRead'] = {
 	platform: false,
 	main_version: 3,
 	created_at: at('00:30:00'),
+	archived_at: null,
 	version: 3,
 	description: '短视频广告脚本的写法',
 	note: '开场三秒内给出卖点',
