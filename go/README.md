@@ -39,6 +39,7 @@ Handle every error in application code; the abbreviated example omits applicatio
 | `AdminClient.IssueUserToken(ctx, externalUserID)` | POST `/v1/admin/tokens` | Customer API key as Bearer |
 | `AdminClient.RegisterSkill(ctx, name, input)` | PUT `/v1/admin/skills/{name}` | Customer API key |
 | `AdminClient.SetSkillMain(ctx, name, version)` | PUT `/v1/admin/skills/{name}/main` | Customer API key |
+| `AdminClient.ArchiveSkill(ctx, name)` / `UnarchiveSkill(ctx, name)` | POST `/v1/admin/skills/{name}/archive` / `/unarchive` | Customer API key |
 | `AdminClient.PutScope(ctx, externalID, ScopeInput)` | PUT `/v1/admin/scopes/{external_id}` | Customer API key |
 | `AdminClient.ListScopes(ctx, ListOptions)` | GET `/v1/admin/scopes` | Customer API key |
 | `AdminClient.ArchiveScope(ctx, externalID)` | DELETE `/v1/admin/scopes/{external_id}` | Customer API key |
@@ -48,10 +49,13 @@ Handle every error in application code; the abbreviated example omits applicatio
 | `AdminClient.SetShare(ctx, ItemRef, scope, access)` | PUT `/v1/shares/{kind}/{id}/{scope}` | Customer API key |
 | `AdminClient.RemoveShare(ctx, ItemRef, scope)` | DELETE `/v1/shares/{kind}/{id}/{scope}` | Customer API key |
 | `UserClient.ListSkills(ctx, ListOptions)` | GET `/v1/skills` | Issued user token |
+| `UserClient.ListArchivedSkills(ctx, ListOptions)` | GET `/v1/skills?archived=true` | Issued user token |
 | `UserClient.GetSkill(ctx, id)` | GET `/v1/skills/{id}` | Issued user token |
 | `UserClient.GetSkillVersion(ctx, id, version)` | GET `/v1/skills/{id}/versions/{version}` | Issued user token |
 
 Registration validates the required `SKILL.md`, path/name rules, UTF-8, file count and size limits, attributes and source provenance before dispatch. For Skills used by the writer, every file must use one of its supported extensions: `.md`, `.txt`, `.json`, `.yaml` or `.yml`. The writer checks every file in the version, including files outside `attributes.preload`; registration alone does not establish writer compatibility.
+
+Every Skill of yours with a main version is available to the Agent in new Sessions, beside Nuva's; a running Session keeps the Skills and versions it started with. The direct writers use Nuva's Skills. `ArchiveSkill` takes a Skill out of new Sessions and `ListSkills` without deleting anything (its versions stay readable); `UnarchiveSkill` brings it back.
 
 Responses retain nullable description/note/source/main fields, file hashes, download URLs, expiry and arbitrary attributes. Attribute numbers use `json.Number` so generic JSON does not lose integer precision. The first registered version becomes `main`; later registrations do not implicitly move `main`.
 

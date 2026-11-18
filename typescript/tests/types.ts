@@ -79,6 +79,8 @@ void cancelled;
 const archived: Promise<import('@nuva/sdk').Session> = client.sessions.archive('session-id');
 const archivedAt: Promise<string | undefined> = client.sessions.list({ archived: true }).then((page) => page.items[0]?.archivedAt);
 void archived, archivedAt, client.sessions.unarchive('session-id');
+const skillArchivedAt: Promise<string | null | undefined> = client.skills.list({ archived: true }).then((page) => page.items[0]?.archived_at);
+void skillArchivedAt;
 
 // Raw video input uses Prompt v1 data and Asset IDs, with an exclusive source.
 import type { GenerateVideoInput, RawPromptInput, Job, Asset, Prompt } from '@nuva/sdk';

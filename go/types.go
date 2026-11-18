@@ -32,6 +32,9 @@ type Skill struct {
 	Platform    bool      `json:"platform"`
 	MainVersion *int      `json:"main_version"`
 	CreatedAt   time.Time `json:"created_at"`
+	// ArchivedAt is when the Skill was archived, in AdminClient responses (nil when it is not archived). An archived
+	// Skill is left out of ListSkills and reaches no new Agent Session; its versions stay readable.
+	ArchivedAt *time.Time `json:"archived_at,omitempty"`
 }
 type SkillFile struct {
 	Path        string `json:"path"`
