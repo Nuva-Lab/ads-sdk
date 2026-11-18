@@ -4,6 +4,13 @@ Each entry describes the change from the previous released version.
 
 ## Unreleased
 
+### Playground
+
+- **A Prompt opens to its text again.** Opening a Prompt showed only its title: its text, settings, **View raw prompt**, **Copy prompt** and its clips were missing.
+- **A clip opens its Prompt.** A clip's page has **Open Prompt**, which opens the Prompt it renders.
+- **A playing video keeps playing when new work arrives.** A new Script, Storyboard, Prompt, clip or final joins its tab without redrawing the cards already shown; a clip still rendering is read again when the conversation reports it.
+- **Generate video**, **Revise script** and **Write script** are marked as writing controls, so a read-only host (the staff admin page) hides them.
+
 ### Added
 
 - **Archive Skills.** `AdminClient.ArchiveSkill(ctx, name)` takes a Skill out of `ListSkills` and the Agent's new Sessions, and `UnarchiveSkill` brings it back; `UserClient.ListArchivedSkills` and `skills.list({ archived: true })` list archived ones. Archiving deletes nothing: the Skill's versions stay readable, what was made with them keeps naming them, and Sessions that started with it keep it. A `Skill` has `archived_at` (`ArchivedAt` in Go admin responses). Nuva's Skills cannot be archived. Needs the services released with Skill archiving (live since 2026-11-13).

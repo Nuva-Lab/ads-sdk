@@ -173,9 +173,238 @@ const galleryLabels: Record<ResourceTab, string> = {
   job: "Clips",
   asset: "Finals",
 };
+/** A gallery card and what it shows. A refresh keeps it while its record is unchanged, so its video keeps playing. */
+interface CardView {
+  key: string;
+  record: KnownResource;
+  host: ResourceHost;
+  card: HTMLElement;
+  preview: HTMLElement;
+  title: HTMLElement;
+  summary: HTMLElement;
+  indexLabel: string | undefined;
+  indexTag: HTMLElement;
+  state: "pending" | "loading" | "done";
+  /** Whether what it shows can no longer change: anything but a Job still queued or running. */
+  final: boolean;
+}
+const cardViews = new WeakMap<Element, CardView>();
+const cardKey = (record: KnownResource, host: ResourceHost) =>
+  JSON.stringify([host.sessionId, record.ref.kind, record.ref.id, record.label]);
+function createCard(
+  container: HTMLElement,
+  record: KnownResource,
+  host: ResourceHost,
+): CardView {
+  const view = { host } as CardView;
+  const card = node(
+    "article",
+    "",
+    `gallery-card${record.ref.kind === "prompt" ? " prompt-gallery-card" : ""}`,
+  );
+  card.dataset.resourceId = record.ref.id;
+  // The whole card opens the resource, as the Product and Character tiles do. A video or audio preview inside keeps
+  // its own controls: a click on them plays, it does not open.
+  const open = () => void action(() => openResource(container, record, view.host));
+  card.tabIndex = 0;
+  card.setAttribute("role", "button");
+  card.onclick = (event) => {
+    if ((event.target as Element).closest("video, audio, a, button, input, select, textarea")) return;
+    open();
+  };
+  card.onkeydown = (event) => {
+    if (event.target !== card || (event.key !== "Enter" && event.key !== " ")) return;
+    event.preventDefault();
+    open();
+  };
+  const preview = node(
+    "div",
+    "",
+    record.ref.kind === "prompt"
+      ? "prompt-card-excerpt"
+      : "gallery-visual resource-preview",
+  );
+  preview.append(node("span", msg("Loading…"), "muted"));
+  const info = node("div", "", "gallery-info");
+  const generic =
+    record.label === `${record.ref.kind} ${record.ref.id}` ||
+    record.label === `Video Job ${record.ref.id}`;
+  const label = generic
+    ? (
+        {
+          script: "Script",
+          storyboard: "Storyboard",
+          prompt: "Prompt",
+          job: "Video clip",
+          asset: "Video",
+          ad: "Final ad",
+        } as Record<string, string>
+      )[record.ref.kind]
+    : record.label;
+  const indexLabel = host.indexLabel?.(record);
+  const title = node(
+    "h3",
+    generic
+      ? msg("{title}", {
+          title: () =>
+            indexedTitle(
+              record.ref.kind,
+              translate(label),
+              host.indexLabel?.(record),
+            ),
+        })
+      : label,
+  );
+  const indexTag = node(
+    "span",
+    msg("{index}", { index: () => host.indexLabel?.(record) ?? "" }),
+    "resource-index-label",
+  );
+  indexTag.hidden = !indexLabel || title.textContent === indexLabel;
+  const summary = node("p", msg(record.ref.kind), "muted");
+  setAttribute(
+    card,
+    "aria-label",
+    msg("Open {p0}", {
+      p0: () => host.indexLabel?.(record) ?? title.textContent ?? label,
+    }),
+  );
+  info.append(indexTag, title, summary);
+  if (record.ref.kind === "prompt") card.append(info, preview);
+  else card.append(preview, info);
+  Object.assign(view, {
+    key: cardKey(record, host),
+    record,
+    card,
+    preview,
+    title,
+    summary,
+    indexLabel,
+    indexTag,
+    state: "pending",
+    final: true,
+  });
+  cardViews.set(card, view);
+  return view;
+}
+/** Shows what `view`'s resource is (`value`, as read) in its card. */
+function fill(view: CardView, value: unknown) {
+  view.preview.replaceChildren();
+  const kind = view.record.ref.kind;
+  if (kind === "script") {
+    const script = value as Script;
+    const concept = script.format === 3 ? script.content.concept : script.legacy.concept;
+    view.title.textContent = indexedTitle(
+      kind,
+      concept.name,
+      view.indexLabel,
+    );
+    view.indexTag.hidden =
+      !view.indexLabel || view.title.textContent === view.indexLabel;
+    view.preview.append(
+      node("p", concept.proposition, "preview-text"),
+    );
+    setText(
+      view.summary,
+      script.format === 3
+        ? msg("{count} panels · {seconds}s", {
+            count: script.content.panels.length,
+            seconds: script.content.duration_ms / 1000,
+          })
+        : msg("Legacy Script · {count} clips", {
+            count: script.legacy.clips.length,
+          }),
+    );
+  } else if (kind === "storyboard") {
+    const storyboard = value as Storyboard;
+    view.title.textContent = indexedTitle(
+      kind,
+      translate("Storyboard"),
+      view.indexLabel,
+    );
+    view.indexTag.hidden =
+      !view.indexLabel || view.title.textContent === view.indexLabel;
+    view.preview.append(
+      node(
+        "p",
+        storyboard.content.direction.trim() ||
+          storyboard.content.clips[0]?.shots[0] ||
+          "",
+        "preview-text",
+      ),
+    );
+    setText(
+      view.summary,
+      msg("{count} clips · {seconds}s", {
+        count: storyboard.content.clips.length,
+        seconds:
+          storyboard.content.clips.reduce(
+            (ms, clip) => ms + clip.duration_ms,
+            0,
+          ) / 1000,
+      }),
+    );
+  } else if (kind === "prompt") {
+    const prompt = value as Awaited<
+      ReturnType<NuvaClient["prompts"]["get"]>
+    >;
+    view.preview.append(
+      node("p", promptExcerpt(prompt.data.prompt), "preview-text"),
+    );
+    setText(
+      view.summary,
+      msg("{duration}{separator}{ratio}", {
+        duration:
+          prompt.data.seconds == null
+            ? ""
+            : msg("{seconds}s", { seconds: prompt.data.seconds }),
+        separator:
+          prompt.data.seconds != null && prompt.data.ratio ? " · " : "",
+        ratio: prompt.data.ratio ?? "",
+      }),
+    );
+  } else if (kind === "job") {
+    const job = value as Awaited<ReturnType<NuvaClient["jobs"]["get"]>>;
+    view.title.textContent = indexedTitle(
+      kind,
+      view.title.textContent ?? "Video clip",
+      view.indexLabel,
+    );
+    setText(view.summary, msg(job.status));
+    view.summary.dataset.state = job.status;
+    if (job.asset)
+      view.preview.append(media(job.asset.download_url, "video"));
+    else view.preview.append(node("span", msg(job.status), "badge"));
+  } else if (kind === "ad") {
+    const ad = value as Awaited<ReturnType<NuvaClient["ads"]["get"]>>;
+    view.preview.append(media(ad.asset.download_url, "video"));
+    setText(view.summary, msg("Final video"));
+    view.host.remember(view.record, { finalAssetId: ad.asset.id });
+  } else {
+    const asset = value as Asset;
+    if (asset.kind === "audio") {
+      const audio = node("audio");
+      audio.controls = true;
+      audio.src = asset.download_url;
+      view.preview.append(audio);
+    } else
+      view.preview.append(
+        media(
+          asset.download_url,
+          asset.kind === "image" ? "image" : "video",
+        ),
+      );
+    setText(view.summary, msg(asset.kind));
+  }
+}
+/**
+ * Lists the tab's resources. Cards already shown stay as they are (a playing video goes on): only new or relabelled
+ * resources get a card, read once. `reload` reads a Job's card again while it may still change.
+ */
 export function refreshResourceList(
   container: HTMLElement,
   host: ResourceHost,
+  options: { reload?: ResourceLink["ref"] } = {},
 ) {
   const list = container.querySelector<HTMLElement>(".known-resources");
   if (!list) return;
@@ -186,97 +415,37 @@ export function refreshResourceList(
   const limit = Number(list.dataset.limit || 24),
     request = crypto.randomUUID();
   list.dataset.request = request;
-  list.replaceChildren();
-  if (!records.length)
-    list.append(
-      node(
-        "p",
-        msg("No {p0} in this conversation.", {
-          p0: msg(galleryLabels[list.dataset.tab as ResourceTab]),
-        }),
-        "empty",
-      ),
-    );
-  const selected = records.slice(0, limit);
-  const cards = selected.map((record) => {
-    const card = node(
-      "article",
-      "",
-      `gallery-card${record.ref.kind === "prompt" ? " prompt-gallery-card" : ""}`,
-    );
-    card.dataset.resourceId = record.ref.id;
-    // The whole card opens the resource, as the Product and Character tiles do. A video or audio preview inside keeps
-    // its own controls: a click on them plays, it does not open.
-    const open = () => void action(() => openResource(container, record, host));
-    card.tabIndex = 0;
-    card.setAttribute("role", "button");
-    card.onclick = (event) => {
-      if ((event.target as Element).closest("video, audio, a, button, input, select, textarea")) return;
-      open();
-    };
-    card.onkeydown = (event) => {
-      if (event.target !== card || (event.key !== "Enter" && event.key !== " ")) return;
-      event.preventDefault();
-      open();
-    };
-    const preview = node(
-      "div",
-      "",
-      record.ref.kind === "prompt"
-        ? "prompt-card-excerpt"
-        : "gallery-visual resource-preview",
-    );
-    preview.append(node("span", msg("Loading…"), "muted"));
-    const info = node("div", "", "gallery-info");
-    const generic =
-      record.label === `${record.ref.kind} ${record.ref.id}` ||
-      record.label === `Video Job ${record.ref.id}`;
-    const label = generic
-      ? (
-          {
-            script: "Script",
-            storyboard: "Storyboard",
-            prompt: "Prompt",
-            job: "Video clip",
-            asset: "Video",
-            ad: "Final ad",
-          } as Record<string, string>
-        )[record.ref.kind]
-      : record.label;
-    const indexLabel = host.indexLabel?.(record);
-    const title = node(
-      "h3",
-      generic
-        ? msg("{title}", {
-            title: () =>
-              indexedTitle(
-                record.ref.kind,
-                translate(label),
-                host.indexLabel?.(record),
-              ),
-          })
-        : label,
-    );
-    const indexTag = node(
-      "span",
-      msg("{index}", { index: () => host.indexLabel?.(record) ?? "" }),
-      "resource-index-label",
-    );
-    indexTag.hidden = !indexLabel || title.textContent === indexLabel;
-    const summary = node("p", msg(record.ref.kind), "muted");
-    setAttribute(
-      card,
-      "aria-label",
-      msg("Open {p0}", {
-        p0: () => host.indexLabel?.(record) ?? title.textContent ?? label,
-      }),
-    );
-    info.append(indexTag, title, summary);
-    if (record.ref.kind === "prompt") card.append(info, preview);
-    else card.append(preview, info);
-    list.append(card);
-    return { record, card, preview, title, summary, indexLabel, indexTag };
+  const shown = new Map<string, CardView>();
+  for (const child of Array.from(list.children)) {
+    const view = cardViews.get(child);
+    if (view) shown.set(view.key, view);
+  }
+  const { reload } = options;
+  const views = records.slice(0, limit).map((record) => {
+    const kept = shown.get(cardKey(record, host));
+    if (!kept || (reload && !kept.final && kept.record.ref.kind === reload.kind && kept.record.ref.id === reload.id))
+      return createCard(container, record, host);
+    kept.record = record;
+    kept.host = host;
+    return kept;
   });
+  const wanted = views.length
+    ? views.map((view) => view.card)
+    : [
+        node(
+          "p",
+          msg("No {p0} in this conversation.", {
+            p0: msg(galleryLabels[list.dataset.tab as ResourceTab]),
+          }),
+          "empty",
+        ),
+      ];
+  // In order, moving only what is out of place: a card that stays is never taken out of the page.
+  wanted.forEach((element, index) => {
+    const at = list.children[index];
+    if (at !== element) list.insertBefore(element, at ?? null);
+  });
+  while (list.children.length > wanted.length) list.lastElementChild!.remove();
   const more = container.querySelector<HTMLButtonElement>(".gallery-more");
   if (more) {
     more.hidden = records.length <= limit;
@@ -285,131 +454,32 @@ export function refreshResourceList(
       refreshResourceList(container, host);
     };
   }
+  // A card being read from an earlier refresh finishes on its own; these are the ones not read yet.
+  const pending = views.filter((view) => view.state === "pending");
   let next = 0;
   const worker = async () => {
-    while (next < cards.length) {
-      const view = cards[next++];
+    while (next < pending.length) {
       if (!list.isConnected || list.dataset.request !== request) return;
+      const view = pending[next++]!;
+      view.state = "loading";
       try {
-        const value = await readResource(host.sdk, view.record, host.sessionId);
-        if (!list.isConnected || list.dataset.request !== request) return;
-        view.preview.replaceChildren();
-        const kind = view.record.ref.kind;
-        if (kind === "script") {
-          const script = value as Script;
-          const concept = script.format === 3 ? script.content.concept : script.legacy.concept;
-          view.title.textContent = indexedTitle(
-            kind,
-            concept.name,
-            view.indexLabel,
-          );
-          view.indexTag.hidden =
-            !view.indexLabel || view.title.textContent === view.indexLabel;
-          view.preview.append(
-            node("p", concept.proposition, "preview-text"),
-          );
-          setText(
-            view.summary,
-            script.format === 3
-              ? msg("{count} panels · {seconds}s", {
-                  count: script.content.panels.length,
-                  seconds: script.content.duration_ms / 1000,
-                })
-              : msg("Legacy Script · {count} clips", {
-                  count: script.legacy.clips.length,
-                }),
-          );
-        } else if (kind === "storyboard") {
-          const storyboard = value as Storyboard;
-          view.title.textContent = indexedTitle(
-            kind,
-            translate("Storyboard"),
-            view.indexLabel,
-          );
-          view.indexTag.hidden =
-            !view.indexLabel || view.title.textContent === view.indexLabel;
-          view.preview.append(
-            node(
-              "p",
-              storyboard.content.direction.trim() ||
-                storyboard.content.clips[0]?.shots[0] ||
-                "",
-              "preview-text",
-            ),
-          );
-          setText(
-            view.summary,
-            msg("{count} clips · {seconds}s", {
-              count: storyboard.content.clips.length,
-              seconds:
-                storyboard.content.clips.reduce(
-                  (ms, clip) => ms + clip.duration_ms,
-                  0,
-                ) / 1000,
-            }),
-          );
-        } else if (kind === "prompt") {
-          const prompt = value as Awaited<
-            ReturnType<NuvaClient["prompts"]["get"]>
-          >;
-          view.preview.append(
-            node("p", promptExcerpt(prompt.data.prompt), "preview-text"),
-          );
-          setText(
-            view.summary,
-            msg("{duration}{separator}{ratio}", {
-              duration:
-                prompt.data.seconds == null
-                  ? ""
-                  : msg("{seconds}s", { seconds: prompt.data.seconds }),
-              separator:
-                prompt.data.seconds != null && prompt.data.ratio ? " · " : "",
-              ratio: prompt.data.ratio ?? "",
-            }),
-          );
-        } else if (kind === "job") {
-          const job = value as Awaited<ReturnType<NuvaClient["jobs"]["get"]>>;
-          view.title.textContent = indexedTitle(
-            kind,
-            view.title.textContent ?? "Video clip",
-            view.indexLabel,
-          );
-          setText(view.summary, msg(job.status));
-          view.summary.dataset.state = job.status;
-          if (job.asset)
-            view.preview.append(media(job.asset.download_url, "video"));
-          else view.preview.append(node("span", msg(job.status), "badge"));
-        } else if (kind === "ad") {
-          const ad = value as Awaited<ReturnType<NuvaClient["ads"]["get"]>>;
-          view.preview.append(media(ad.asset.download_url, "video"));
-          setText(view.summary, msg("Final video"));
-          host.remember(view.record, { finalAssetId: ad.asset.id });
-        } else {
-          const asset = value as Asset;
-          if (asset.kind === "audio") {
-            const audio = node("audio");
-            audio.controls = true;
-            audio.src = asset.download_url;
-            view.preview.append(audio);
-          } else
-            view.preview.append(
-              media(
-                asset.download_url,
-                asset.kind === "image" ? "image" : "video",
-              ),
-            );
-          setText(view.summary, msg(asset.kind));
-        }
+        const value = await readResource(view.host.sdk, view.record, view.host.sessionId);
+        if (!view.card.isConnected) continue;
+        fill(view, value);
+        const status = (value as { status?: unknown }).status;
+        view.final = view.record.ref.kind !== "job" || !["queued", "running"].includes(String(status));
       } catch (error) {
-        if (!list.isConnected || list.dataset.request !== request) return;
+        if (!view.card.isConnected) continue;
         view.preview.replaceChildren(
           node("p", msg("Preview unavailable"), "muted"),
         );
         view.summary.textContent = (error as Error).message;
+      } finally {
+        view.state = "done";
       }
     }
   };
-  for (let i = 0; i < Math.min(4, cards.length); i++) void worker();
+  for (let i = 0; i < Math.min(4, pending.length); i++) void worker();
 }
 export async function renderResources(
   container: HTMLElement,
@@ -523,6 +593,8 @@ export function agentWorkButton(
       submit.disabled = false;
     }
   }), className, work === "clip" ? "video" : work === "revise" ? "edit" : "spark");
+  // It asks the Agent for work: a read-only host hides it.
+  submit.dataset.write = "";
   return submit;
 }
 export async function openResource(
@@ -703,7 +775,6 @@ async function renderResourceDetail(
       show: (next) => renderResourceDetail(container, next, host),
     });
   } else if (record.ref.kind === "prompt") {
-  } else if (record.ref.kind === "prompt") {
     const prompt = value as Awaited<ReturnType<NuvaClient["prompts"]["get"]>>;
     const promptView = renderPromptViewer(card, prompt);
     controls.append(
@@ -752,6 +823,18 @@ async function renderResourceDetail(
     const phase = node("p", msg(job.status), "badge"),
       output = node("div");
     card.append(phase, output);
+    // The Prompt the clip renders, by the label the conversation knows it by.
+    const prompt =
+      host.records.find((item) => item.ref.kind === "prompt" && item.ref.id === job.prompt) ??
+      reference("prompt", job.prompt, `prompt ${job.prompt}`);
+    controls.append(
+      button(
+        msg("Open Prompt"),
+        () => void action(() => (host.open ? host.open(prompt) : renderResourceDetail(container, prompt, host))),
+        "",
+        "document",
+      ),
+    );
     const render = (state: typeof job) => {
       setText(phase, msg(state.status));
       output.replaceChildren();

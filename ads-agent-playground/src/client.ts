@@ -89,8 +89,9 @@ export function bootWorkspace(sdk: NuvaClient, scope: string) {
     if (JSON.stringify(next) === JSON.stringify(records)) {
       if (owner === sessionId && !destroyed && record.ref.kind === "product")
         void action(() => refreshProductGallery(content, sdk, record.ref.id));
+      // A Job heard of again may have moved on: its card is read again while it was still rendering.
       else if (owner === sessionId && !destroyed && record.ref.kind === "job")
-        refreshResourceList(content, host());
+        refreshResourceList(content, host(), { reload: record.ref });
       return;
     }
     records = next;
