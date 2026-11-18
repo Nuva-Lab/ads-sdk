@@ -3937,7 +3937,7 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Metadata",
-            "description": "width and height for images; duration_ms for video and audio; empty for documents."
+            "description": "width and height for images; duration_ms for video and audio; page_count for documents."
           },
           "label": {
             "anyOf": [

@@ -1,4 +1,4 @@
-// Generated from ads_backend/openapi.json at ba8023983bc6ff37c1cd7db1ea11589e42d131c6. Do not edit.
+// Generated from ads_backend/openapi.json at d425dd336c9af00fb8c378ff0b0042201d5d17eb. Do not edit.
 export interface paths {
     "/v1/admin/tokens": {
         parameters: {
@@ -826,7 +826,7 @@ export interface components {
             size_bytes: number;
             /**
              * Metadata
-             * @description width and height for images; duration_ms for video and audio; empty for documents.
+             * @description width and height for images; duration_ms for video and audio; page_count for documents.
              */
             metadata: {
                 [key: string]: unknown;
