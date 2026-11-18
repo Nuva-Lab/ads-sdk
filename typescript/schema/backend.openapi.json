@@ -3821,7 +3821,8 @@
                 "enum": [
                   "image",
                   "video",
-                  "audio"
+                  "audio",
+                  "document"
                 ]
               },
               {
@@ -3912,10 +3913,11 @@
             "enum": [
               "image",
               "video",
-              "audio"
+              "audio",
+              "document"
             ],
             "title": "Kind",
-            "description": "`image`, `video` or `audio`."
+            "description": "`image`, `video`, `audio` or `document` (a PDF)."
           },
           "mime": {
             "type": "string",
@@ -3935,7 +3937,7 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Metadata",
-            "description": "width and height for images; duration_ms otherwise."
+            "description": "width and height for images; duration_ms for video and audio; empty for documents."
           },
           "label": {
             "anyOf": [
@@ -7286,10 +7288,11 @@
             "enum": [
               "image",
               "video",
-              "audio"
+              "audio",
+              "document"
             ],
             "title": "Kind",
-            "description": "What you will upload: `image` (JPEG, PNG or WebP), `video` (MP4) or `audio` (MP3, WAV or MP4)."
+            "description": "What you will upload: `image` (JPEG, PNG or WebP), `video` (MP4), `audio` (MP3, WAV or MP4) or `document` (PDF, for the Agent to read)."
           }
         },
         "additionalProperties": false,

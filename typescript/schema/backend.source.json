@@ -1,9 +1,9 @@
 {
   "repository": "Nuva-Lab/WhatIf",
-  "commit": "0a6b21ccb1214322463b545f2d2f9442d2b0fd0a",
+  "commit": "ba8023983bc6ff37c1cd7db1ea11589e42d131c6",
   "path": "ads_backend/openapi.json",
-  "sha256": "03879d7e1213d0f479e57a918cac69091af4fbdccb8d1c3d8fcb73c081d41e07",
-  "note": "The API version 2026-11-07 contract with Skill archiving (archived_at, ?archived=true).",
-  "pullRequest": "https://github.com/Nuva-Lab/WhatIf/pull/2534",
-  "verifiedAt": "2026-11-13"
+  "sha256": "90c8f4876d63dcf0846448fcb68fcc39863a4357e5dada62a471acb99ba46b97",
+  "note": "The API version 2026-11-07 contract with Skill archiving and document (PDF) Assets.",
+  "pullRequest": "https://github.com/Nuva-Lab/WhatIf/pull/PENDING",
+  "verifiedAt": "2026-11-18"
 }

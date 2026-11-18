@@ -1,13 +1,13 @@
 /**
- * Uploads reference files (images, videos, audio) as Assets, each with an optional label and description: the Agent
- * and the writers read those to know what a file shows. Chat attaches the uploaded Assets to the next message; the
- * Storyboard editor names one in a shot with `{{asset:<id>}}`.
+ * Uploads reference files (images, videos, audio, and in chat PDFs) as Assets, each with an optional label and
+ * description: the Agent and the writers read those to know what a file shows. Chat attaches the uploaded Assets to the
+ * next message; the Storyboard editor names one in a shot with `{{asset:<id>}}`, which takes no PDF.
  */
 import type { Asset, NuvaClient } from "@nuva/sdk";
 import { msg, setAttribute, type UiLabel } from "./i18n.js";
 import { button, field, modal, node, notice, showError } from "./ui.js";
 
-export type ReferenceKind = "image" | "video" | "audio";
+export type ReferenceKind = "image" | "video" | "audio" | "document";
 /** The types the service accepts, by MIME type and, for files the browser gives no type, by extension. */
 const TYPES: Readonly<Record<string, ReferenceKind>> = {
   "image/png": "image",
@@ -21,6 +21,7 @@ const TYPES: Readonly<Record<string, ReferenceKind>> = {
   "audio/wave": "audio",
   "audio/mp4": "audio",
   "audio/x-m4a": "audio",
+  "application/pdf": "document",
 };
 const EXTENSIONS: Readonly<Record<string, ReferenceKind>> = {
   png: "image",
@@ -31,8 +32,14 @@ const EXTENSIONS: Readonly<Record<string, ReferenceKind>> = {
   mp3: "audio",
   wav: "audio",
   m4a: "audio",
+  pdf: "document",
 };
-export const REFERENCE_ACCEPT = [...Object.keys(TYPES), ...Object.keys(EXTENSIONS).map((extension) => `.${extension}`)].join(",");
+/** The file chooser's types; PDFs only where `documents` (chat). */
+export const referenceAccept = (documents: boolean) =>
+  [...Object.entries(TYPES), ...Object.entries(EXTENSIONS).map(([extension, kind]) => [`.${extension}`, kind] as const)]
+    .filter(([, kind]) => documents || kind !== "document")
+    .map(([type]) => type)
+    .join(",");
 /** A file's kind: by its MIME type, else by its extension; undefined when the service does not accept it. */
 export function referenceKind(file: Pick<File, "name" | "type">): ReferenceKind | undefined {
   const type = file.type.toLowerCase();
@@ -43,7 +50,7 @@ const byExtension = (name: string) => {
   const dot = name.lastIndexOf(".");
   return dot < 0 ? undefined : EXTENSIONS[name.slice(dot + 1).toLowerCase()];
 };
-const KIND_LABELS: Record<ReferenceKind, string> = { image: "Image", video: "Video", audio: "Audio" };
+const KIND_LABELS: Record<ReferenceKind, string> = { image: "Image", video: "Video", audio: "Audio", document: "PDF" };
 export const kindLabel = (kind: ReferenceKind) => msg(KIND_LABELS[kind]);
 
 export interface UploadedReference {
@@ -64,10 +71,17 @@ export function referencePicker(options: {
   container: () => HTMLElement;
   multiple: boolean;
   title: UiLabel;
+  /** PDFs too, for the Agent to read (chat); a shot cannot use one. */
+  documents?: boolean;
 }) {
+  const documents = options.documents ?? false;
+  const kindOf = (file: File) => {
+    const kind = referenceKind(file);
+    return kind === "document" && !documents ? undefined : kind;
+  };
   const input = node("input");
   input.type = "file";
-  input.accept = REFERENCE_ACCEPT;
+  input.accept = referenceAccept(documents);
   input.multiple = options.multiple;
   input.hidden = true;
   input.name = "reference-files";
@@ -81,11 +95,14 @@ export function referencePicker(options: {
     if (done && files.length) describe(files, done);
   };
   function describe(files: File[], done: (uploaded: UploadedReference[]) => void) {
-    const accepted = files.filter((file) => referenceKind(file) !== undefined);
-    const refused = files.filter((file) => referenceKind(file) === undefined);
-    const refusal = refused.length
-      ? msg("Not a supported file: {p0}. Use PNG, JPEG or WebP images, MP4 videos, or MP3, WAV or M4A audio.", { p0: refused.map((file) => file.name).join(", ") })
-      : undefined;
+    const accepted = files.filter((file) => kindOf(file) !== undefined);
+    const refused = files.filter((file) => kindOf(file) === undefined);
+    const names = refused.map((file) => file.name).join(", ");
+    const refusal = !refused.length
+      ? undefined
+      : documents
+        ? msg("Not a supported file: {p0}. Use PNG, JPEG or WebP images, MP4 videos, MP3, WAV or M4A audio, or PDFs.", { p0: names })
+        : msg("Not a supported file: {p0}. Use PNG, JPEG or WebP images, MP4 videos, or MP3, WAV or M4A audio.", { p0: names });
     // With nothing to upload there is no dialog, so the page's notice says it; otherwise the dialog does, since an
     // open dialog covers the notice.
     if (!accepted.length) {
@@ -131,7 +148,7 @@ export function referencePicker(options: {
       label.input.name = `reference-label-${index}`;
       description.input.name = `reference-description-${index}`;
       (description.input as HTMLTextAreaElement).rows = 2;
-      rows.push({ file, kind: referenceKind(file)!, label: label.input as HTMLInputElement, description: description.input as HTMLTextAreaElement });
+      rows.push({ file, kind: kindOf(file)!, label: label.input as HTMLInputElement, description: description.input as HTMLTextAreaElement });
     });
     draw();
     const failure = node("div", "", "storyboard-error");

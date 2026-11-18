@@ -1,11 +1,11 @@
 {
   "A short name for what the file shows, e.g. which part of a product package.": "说明文件内容的简短名称，例如产品包装的哪一部分。",
   "The asset's id.": "Asset 的 ID。",
-  "`image`, `video` or `audio`.": "`image`、`video` 或 `audio`。",
+  "`image`, `video`, `audio` or `document` (a PDF).": "`image`、`video`、`audio` 或 `document`（PDF）。",
   "The file's MIME type, as detected from its content.": "根据文件内容检测出的 MIME 类型。",
   "`uploaded` (an upload or a URL you registered) or `generated` (a Job's clip).": "`uploaded`（上传的文件或你登记的地址）或 `generated`（任务生成的片段）。",
   "The file's size in bytes.": "文件大小（字节）。",
-  "width and height for images; duration_ms otherwise.": "图片为 width 和 height，其他类型为 duration_ms。",
+  "width and height for images; duration_ms for video and audio; empty for documents.": "图片为 width 和 height，视频和音频为 duration_ms，文档为空。",
   "When the asset was registered.": "Asset 的登记时间。",
   "A temporary URL to download the file, until `download_url_expires_at`.": "临时下载地址，在 `download_url_expires_at` 之前有效。",
   "When `download_url` stops working: an hour after this response.": "`download_url` 失效的时间：本次响应后一小时。",
