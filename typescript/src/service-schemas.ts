@@ -1,13 +1,10 @@
 import { z } from 'zod';
 import { isPublicUrl } from './public-url.js';
-export const factId = z.enum([
-	'fact_product_brand',
-	'fact_product_name',
-	'fact_product_tags',
-	'fact_product_selling_points',
-	'fact_product_target_audience',
-	'fact_product_video_requirements',
-]);
+/**
+ * The facts a Script may cite: one per field the service supplies (its Brand's name, and the Product's name, selling
+ * points and target audience), present when that field has a value.
+ */
+export const factId = z.enum(['fact_product_brand', 'fact_product_name', 'fact_product_selling_points', 'fact_product_target_audience']);
 const id = z.string().min(1).max(160),
 	text = z.string().max(32000),
 	ms = z.number().int().nonnegative();
