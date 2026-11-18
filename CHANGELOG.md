@@ -8,6 +8,7 @@ Each entry describes the change from the previous released version.
 
 - **A Prompt opens to its text again.** Opening a Prompt showed only its title: its text, settings, **View raw prompt**, **Copy prompt** and its clips were missing.
 - **A clip opens its Prompt.** A clip's page has **Open Prompt**, which opens the Prompt it renders.
+- **A playing video keeps playing when new work arrives.** A new Script, Storyboard, Prompt, clip or final joins its tab without redrawing the cards already shown; a clip still rendering is read again when the conversation reports it.
 - **Generate video**, **Revise script** and **Write script** are marked as writing controls, so a read-only host (the staff admin page) hides them.
 
 ### Added

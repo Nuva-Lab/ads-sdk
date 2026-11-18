@@ -3,13 +3,14 @@ import assert from "node:assert/strict";
 import { browser, bundle } from "./storyboard-fixture.mjs";
 
 // The detail views of a Prompt and a clip: a Prompt shows its text and settings; a clip opens the Prompt it renders.
+// The gallery: a refresh keeps the cards it shows, so a playing video goes on.
 const built = await bundle(
   "resource-detail-",
-  `export { openResource } from './src/resources.ts';
+  `export { openResource, refreshResourceList, renderResources } from './src/resources.ts';
    export { setLocale } from './src/i18n.ts';`,
 );
 after(built.cleanup);
-const { openResource, setLocale } = built.module;
+const { openResource, refreshResourceList, renderResources, setLocale } = built.module;
 let env;
 before(() => {
   env = browser();
@@ -80,4 +81,42 @@ test("a clip opens the Prompt it renders, by the label the conversation knows it
   buttons(other).find((button) => button.textContent.trim() === "Open Prompt").click();
   await settle();
   assert.deepEqual(opened.map((record) => record.ref), [{ kind: "prompt", id: PROMPT }]);
+});
+
+test("a refresh keeps the clip cards shown, adds new ones, and reads again only a clip still rendering", async () => {
+  const ids = ["88888888-8888-4888-8888-888888888891", "88888888-8888-4888-8888-888888888892", "88888888-8888-4888-8888-888888888893"];
+  const status = { [ids[0]]: "completed", [ids[1]]: "completed", [ids[2]]: "running" };
+  const reads = [];
+  const record = (id) => ({ ref: { kind: "job", id }, label: `job ${id}`, sessionId: "session" });
+  const gallery = (records) => ({
+    ...host(records),
+    sdk: {
+      jobs: {
+        get: async (id) => (reads.push(id), { ...job, id, status: status[id], asset: status[id] === "completed" ? { ...asset, download_url: `https://cdn.example/${id}.mp4` } : null }),
+      },
+    },
+  });
+  const root = fresh();
+  await renderResources(root, "job", gallery([record(ids[0])]));
+  await settle();
+  const card = (id) => root.querySelector(`.gallery-card[data-resource-id="${id}"]`);
+  const playing = card(ids[0]).querySelector("video");
+  assert.ok(playing, "The first clip shows its video.");
+
+  refreshResourceList(root, gallery([record(ids[0]), record(ids[1]), record(ids[2])]));
+  await settle();
+  assert.equal(card(ids[0]).querySelector("video"), playing, "The first clip keeps its video element.");
+  assert.ok(card(ids[1]).querySelector("video"), "A new clip gets a card.");
+  assert.deepEqual(reads, [ids[0], ids[1], ids[2]], "Each clip is read once.");
+
+  // A clip heard of again is read again while it was still rendering; a finished one is left playing.
+  const before = card(ids[0]);
+  status[ids[2]] = "completed";
+  refreshResourceList(root, gallery([record(ids[0]), record(ids[1]), record(ids[2])]), { reload: record(ids[0]).ref });
+  refreshResourceList(root, gallery([record(ids[0]), record(ids[1]), record(ids[2])]), { reload: record(ids[2]).ref });
+  await settle();
+  assert.equal(card(ids[0]), before, "A finished clip is not read again.");
+  assert.ok(card(ids[2]).querySelector("video"), "The clip that was rendering now shows its video.");
+  assert.deepEqual(reads, [ids[0], ids[1], ids[2], ids[2]]);
+  assert.equal(root.querySelectorAll(".gallery-card").length, 3);
 });
