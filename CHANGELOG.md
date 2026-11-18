@@ -4,6 +4,12 @@ Each entry describes the change from the previous released version.
 
 ## Unreleased
 
+### Playground
+
+- **A Prompt opens to its text again.** Opening a Prompt showed only its title: its text, settings, **View raw prompt**, **Copy prompt** and its clips were missing.
+- **A clip opens its Prompt.** A clip's page has **Open Prompt**, which opens the Prompt it renders.
+- **Generate video**, **Revise script** and **Write script** are marked as writing controls, so a read-only host (the staff admin page) hides them.
+
 ### Added
 
 - **Archive Sessions** ([#35](https://github.com/Nuva-Lab/ads-sdk/issues/35)). `sessions.archive(sessionId)` takes a Session, such as a test conversation, out of `sessions.list`; `sessions.unarchive(sessionId)` puts it back, and `sessions.list({ archived: true })` lists only archived Sessions. Archiving deletes nothing: messages, files, Agent memory and everything made in the Session stay, and the Session can still be opened and continued. An archived Session has `archivedAt`. The owner and the admins above them may archive it. Needs the Agent service release with archiving.

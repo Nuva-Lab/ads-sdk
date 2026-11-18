@@ -523,6 +523,8 @@ export function agentWorkButton(
       submit.disabled = false;
     }
   }), className, work === "clip" ? "video" : work === "revise" ? "edit" : "spark");
+  // It asks the Agent for work: a read-only host hides it.
+  submit.dataset.write = "";
   return submit;
 }
 export async function openResource(
@@ -703,7 +705,6 @@ async function renderResourceDetail(
       show: (next) => renderResourceDetail(container, next, host),
     });
   } else if (record.ref.kind === "prompt") {
-  } else if (record.ref.kind === "prompt") {
     const prompt = value as Awaited<ReturnType<NuvaClient["prompts"]["get"]>>;
     const promptView = renderPromptViewer(card, prompt);
     controls.append(
@@ -752,6 +753,18 @@ async function renderResourceDetail(
     const phase = node("p", msg(job.status), "badge"),
       output = node("div");
     card.append(phase, output);
+    // The Prompt the clip renders, by the label the conversation knows it by.
+    const prompt =
+      host.records.find((item) => item.ref.kind === "prompt" && item.ref.id === job.prompt) ??
+      reference("prompt", job.prompt, `prompt ${job.prompt}`);
+    controls.append(
+      button(
+        msg("Open Prompt"),
+        () => void action(() => (host.open ? host.open(prompt) : renderResourceDetail(container, prompt, host))),
+        "",
+        "document",
+      ),
+    );
     const render = (state: typeof job) => {
       setText(phase, msg(state.status));
       output.replaceChildren();
