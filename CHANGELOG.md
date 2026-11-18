@@ -10,6 +10,10 @@ Each entry describes the change from the previous released version.
 
 - **Archive Sessions** ([#35](https://github.com/Nuva-Lab/ads-sdk/issues/35)). `sessions.archive(sessionId)` takes a Session, such as a test conversation, out of `sessions.list`; `sessions.unarchive(sessionId)` puts it back, and `sessions.list({ archived: true })` lists only archived Sessions. Archiving deletes nothing: messages, files, Agent memory and everything made in the Session stay, and the Session can still be opened and continued. An archived Session has `archivedAt`. The owner and the admins above them may archive it. Needs the Agent service release with archiving.
 
+### Changed
+
+- **Script fact IDs are the ones the service supplies.** `fact_product_tags` and `fact_product_video_requirements` are gone: Products have no such fields, the service never supplied them, and a Script citing them was always refused, so no saved Script cites them and every SDK still reads every Script. A Script that cites a fact it doesn't have is refused with the bad ID and the facts it does have.
+
 ### Fixed
 
 - **Skills you register are used in Agent conversations** ([#36](https://github.com/Nuva-Lab/ads-sdk/issues/36)). Every Skill of yours that has a main version (`AdminClient.RegisterSkill`, then `SetSkillMain` for later versions) is available to the Agent in new Sessions, beside Nuva's; you no longer need Nuva to enable it. A Session keeps the Skills and versions it started with, so a new main or a newly registered Skill reaches only Sessions started afterwards. This is a service change, live since 2026-11-13: it needs no SDK upgrade or code change. The docs now also say that the direct writers (`scripts.generate`, `storyboards.generate`, `prompts.generate`) use Nuva's writing Skills.

@@ -80,6 +80,21 @@ test('a v3 Script has no clips: panels hold lines with IDs, and its checks catch
 	assert.match(scriptAuthoringSchema.safeParse(offscreen).error.issues[0].message, /on screen/);
 });
 
+test('a Script cites only the facts the service supplies, and an unknown ID names the ones there are', () => {
+	// Product data has no tags or video requirements, so they are not fact IDs.
+	for (const legacy of ['fact_product_tags', 'fact_product_video_requirements']) {
+		const old = script();
+		old.panels[0].fact_ids = [legacy];
+		assert.equal(scriptSchema.safeParse(old).success, false, legacy);
+	}
+	const uncited = script();
+	uncited.beats[1].fact_ids = ['fact_product_target_audience'];
+	assert.deepEqual(
+		scriptSchema.safeParse(uncited).error.issues.map((issue) => [issue.path.join('.'), issue.message]),
+		[['beats.1.fact_ids', "Unknown fact ID fact_product_target_audience; this Script's facts are fact_product_name, fact_product_selling_points."]],
+	);
+});
+
 test('a cast Character goes into every clip it appears in: its default image, and its voice file wherever it speaks', () => {
 	assert.equal(storyboardSchema.safeParse(storyboard()).success, true);
 	assert.deepEqual(storyboardIssues(storyboard(), context()), []);

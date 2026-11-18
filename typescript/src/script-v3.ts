@@ -93,10 +93,17 @@ function scriptChecks(value: ScriptShape, ctx: z.RefinementCtx) {
 	const roles = new Map(value.roles.map((role) => [role.id, role]));
 	const beats = new Map(value.beats.map((beat, index) => [beat.id, index]));
 	const facts = value.facts === undefined ? undefined : new Set(value.facts.map((fact) => fact.id));
-	const unknownFacts = (ids: readonly string[]) => facts !== undefined && ids.some((id) => !facts.has(id));
+	// Names the first ID this Script has no fact for, and the ones it has, so a writer can correct its citations.
+	const unknownFact = (ids: readonly string[]) => {
+		const unknown = facts === undefined ? undefined : ids.find((id) => !facts.has(id));
+		return unknown === undefined ? undefined : `Unknown fact ID ${unknown}; this Script's facts are ${[...facts!].join(', ') || 'none'}.`;
+	};
 	const used = new Set<string>();
 	let last = 0;
-	value.beats.forEach((beat, index) => unknownFacts(beat.fact_ids) && issue(ctx, ['beats', index, 'fact_ids'], 'Unknown fact ID.'));
+	value.beats.forEach((beat, index) => {
+		const unknown = unknownFact(beat.fact_ids);
+		if (unknown) issue(ctx, ['beats', index, 'fact_ids'], unknown);
+	});
 	value.panels.forEach((panel, p) => {
 		const path = ['panels', p];
 		const beat = beats.get(panel.beat_id);
@@ -107,7 +114,8 @@ function scriptChecks(value: ScriptShape, ctx: z.RefinementCtx) {
 			used.add(panel.beat_id);
 		}
 		panel.on_screen.forEach((who, i) => who !== PRODUCT && !roles.has(who) && issue(ctx, [...path, 'on_screen', i], `Unknown role ${who}.`));
-		if (unknownFacts(panel.fact_ids)) issue(ctx, [...path, 'fact_ids'], 'Unknown fact ID.');
+		const unknown = unknownFact(panel.fact_ids);
+		if (unknown) issue(ctx, [...path, 'fact_ids'], unknown);
 		panel.lines.forEach((line, i) => {
 			const at = [...path, 'lines', i];
 			if (line.speaker === NARRATOR) {
