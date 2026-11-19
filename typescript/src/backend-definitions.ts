@@ -1,4 +1,4 @@
-// Generated from ads_backend/openapi.json at 0a6b21ccb1214322463b545f2d2f9442d2b0fd0a. Do not edit.
+// Generated from ads_backend/openapi.json at b7ad3b80b2044f45353dd15122e136cca228926c. Do not edit.
 import type { z } from "zod";
 export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.fromJSONSchema>[0], boolean>> = {
   "AdOut": {
@@ -136,7 +136,8 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
             "enum": [
               "image",
               "video",
-              "audio"
+              "audio",
+              "document"
             ]
           },
           {
@@ -227,10 +228,11 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "enum": [
           "image",
           "video",
-          "audio"
+          "audio",
+          "document"
         ],
         "title": "Kind",
-        "description": "`image`, `video` or `audio`."
+        "description": "`image`, `video`, `audio` or `document` (a PDF)."
       },
       "mime": {
         "type": "string",
@@ -250,7 +252,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "additionalProperties": true,
         "type": "object",
         "title": "Metadata",
-        "description": "width and height for images; duration_ms otherwise."
+        "description": "width and height for images; duration_ms for video and audio; page_count for documents."
       },
       "label": {
         "anyOf": [
@@ -2077,7 +2079,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "maxLength": 10000,
         "minLength": 1,
         "title": "Prompt",
-        "description": "What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other."
+        "description": "What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other. It reaches the video model as written: write it in English, keeping spoken lines, on-screen text and text visible in the scene in their own language."
       },
       "image_asset_ids": {
         "items": {
@@ -2163,7 +2165,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "maxLength": 10000,
         "minLength": 1,
         "title": "Prompt",
-        "description": "What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other."
+        "description": "What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other. It reaches the video model as written: write it in English, keeping spoken lines, on-screen text and text visible in the scene in their own language."
       },
       "image_asset_ids": {
         "items": {
@@ -2289,7 +2291,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "maxLength": 10000,
         "minLength": 1,
         "title": "Prompt",
-        "description": "What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other."
+        "description": "What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other. It reaches the video model as written: write it in English, keeping spoken lines, on-screen text and text visible in the scene in their own language."
       },
       "image_asset_ids": {
         "items": {
@@ -3601,10 +3603,11 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "enum": [
           "image",
           "video",
-          "audio"
+          "audio",
+          "document"
         ],
         "title": "Kind",
-        "description": "What you will upload: `image` (JPEG, PNG or WebP), `video` (MP4) or `audio` (MP3, WAV or MP4)."
+        "description": "What you will upload: `image` (JPEG, PNG or WebP), `video` (MP4), `audio` (MP3, WAV or MP4) or `document` (PDF, for the Agent to read)."
       }
     },
     "additionalProperties": false,

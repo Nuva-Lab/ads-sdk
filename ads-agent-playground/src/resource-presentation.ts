@@ -206,6 +206,7 @@ export function resourcePresentation(
         image: "Image",
         video: "Video",
         audio: "Audio",
+        document: "PDF",
       };
     return {
       ...base,
@@ -217,7 +218,7 @@ export function resourcePresentation(
         (type ? translate(names[type]) : undefined) ??
         translate("Media"),
       image: type === "image" ? imageURL(row.download_url) : undefined,
-      icon: type === "audio" ? "audio" : type === "video" ? "video" : "image",
+      icon: type === "audio" ? "audio" : type === "video" ? "video" : type === "document" ? "document" : "image",
       meta: join(
         duration(metadata.duration_ms),
         typeof metadata.width === "number" &&

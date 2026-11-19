@@ -119,6 +119,7 @@ export class ChatController {
       container: () => document.body,
       multiple: true,
       title: msg("Upload reference files"),
+      documents: true,
     }));
     const upload = byId<HTMLButtonElement>("upload-reference");
     upload.replaceChildren(icon("attach"));

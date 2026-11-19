@@ -1,4 +1,4 @@
-// Generated from ads_backend/openapi.json at 0a6b21ccb1214322463b545f2d2f9442d2b0fd0a. Do not edit.
+// Generated from ads_backend/openapi.json at b7ad3b80b2044f45353dd15122e136cca228926c. Do not edit.
 export interface paths {
     "/v1/admin/tokens": {
         parameters: {
@@ -773,7 +773,7 @@ export interface components {
              * Kind
              * @description Required with `url`.
              */
-            kind?: ("image" | "video" | "audio") | null;
+            kind?: ("image" | "video" | "audio" | "document") | null;
             /**
              * Label
              * @description A short name for what the file shows, e.g. which part of a product package.
@@ -808,10 +808,10 @@ export interface components {
             id: string;
             /**
              * Kind
-             * @description `image`, `video` or `audio`.
+             * @description `image`, `video`, `audio` or `document` (a PDF).
              * @enum {string}
              */
-            kind: "image" | "video" | "audio";
+            kind: "image" | "video" | "audio" | "document";
             /**
              * Mime
              * @description The file's MIME type, as detected from its content.
@@ -826,7 +826,7 @@ export interface components {
             size_bytes: number;
             /**
              * Metadata
-             * @description width and height for images; duration_ms otherwise.
+             * @description width and height for images; duration_ms for video and audio; page_count for documents.
              */
             metadata: {
                 [key: string]: unknown;
@@ -1780,7 +1780,7 @@ export interface components {
         PromptDataV1: {
             /**
              * Prompt
-             * @description What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other.
+             * @description What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other. It reaches the video model as written: write it in English, keeping spoken lines, on-screen text and text visible in the scene in their own language.
              */
             prompt: string;
             /**
@@ -1819,7 +1819,7 @@ export interface components {
         PromptReadV1: {
             /**
              * Prompt
-             * @description What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other.
+             * @description What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other. It reaches the video model as written: write it in English, keeping spoken lines, on-screen text and text visible in the scene in their own language.
              */
             prompt: string;
             /**
@@ -1874,7 +1874,7 @@ export interface components {
         RawPromptDataV1: {
             /**
              * Prompt
-             * @description What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other.
+             * @description What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other. It reaches the video model as written: write it in English, keeping spoken lines, on-screen text and text visible in the scene in their own language.
              */
             prompt: string;
             /**
@@ -2558,10 +2558,10 @@ export interface components {
         UploadRequest: {
             /**
              * Kind
-             * @description What you will upload: `image` (JPEG, PNG or WebP), `video` (MP4) or `audio` (MP3, WAV or MP4).
+             * @description What you will upload: `image` (JPEG, PNG or WebP), `video` (MP4), `audio` (MP3, WAV or MP4) or `document` (PDF, for the Agent to read).
              * @enum {string}
              */
-            kind: "image" | "video" | "audio";
+            kind: "image" | "video" | "audio" | "document";
         };
     };
     responses: never;

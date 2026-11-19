@@ -4,11 +4,11 @@ import { browser, bundle } from "./storyboard-fixture.mjs";
 
 const built = await bundle(
   "playground-reference-upload-",
-  `export { referencePicker, referenceKind, REFERENCE_ACCEPT } from './src/reference-upload.ts';
+  `export { referencePicker, referenceKind, referenceAccept } from './src/reference-upload.ts';
    export { setLocale } from './src/i18n.ts';`,
 );
 after(built.cleanup);
-const { referencePicker, referenceKind, REFERENCE_ACCEPT, setLocale } = built.module;
+const { referencePicker, referenceKind, referenceAccept, setLocale } = built.module;
 let env;
 before(() => {
   env = browser();
@@ -59,10 +59,10 @@ function deferredUploads() {
     },
   };
 }
-function picker(sdk) {
+function picker(sdk, documents = false) {
   const root = env.root;
   root.replaceChildren();
-  return referencePicker({ sdk, container: () => root, multiple: true, title: "Upload reference files" });
+  return referencePicker({ sdk, container: () => root, multiple: true, title: "Upload reference files", documents });
 }
 
 test("a file's kind comes from its MIME type, or its extension when the browser gives none", () => {
@@ -74,7 +74,32 @@ test("a file's kind comes from its MIME type, or its extension when the browser 
   assert.equal(referenceKind({ name: "clip.mov", type: "video/quicktime" }), undefined);
   assert.equal(referenceKind({ name: "look.gif", type: "image/gif" }), undefined);
   assert.equal(referenceKind({ name: "notes", type: "" }), undefined);
-  for (const accepted of ["image/png", "video/mp4", "audio/mpeg", ".m4a"]) assert.ok(REFERENCE_ACCEPT.split(",").includes(accepted));
+  assert.equal(referenceKind({ name: "brief.pdf", type: "application/pdf" }), "document");
+  assert.equal(referenceKind({ name: "brief.PDF", type: "" }), "document");
+  for (const accepted of ["image/png", "video/mp4", "audio/mpeg", ".m4a"]) assert.ok(referenceAccept(false).split(",").includes(accepted));
+  assert.deepEqual([referenceAccept(false), referenceAccept(true)].map((accept) => accept.split(",").filter((type) => type.includes("pdf"))), [[], ["application/pdf", ".pdf"]]);
+});
+
+test("PDFs upload as documents where the picker takes them (chat), and are refused where it does not (shots)", async () => {
+  const sdk = uploads();
+  const chat = picker(sdk, true);
+  let result;
+  chat.open((uploaded) => (result = uploaded));
+  assert.match(chat.input.accept, /application\/pdf/);
+  choose(chat.input, [file("brief.pdf", "application/pdf")]);
+  const dialog = env.root.querySelector("dialog.reference-upload");
+  assert.deepEqual([...dialog.querySelectorAll(".reference-upload-row")].map((row) => row.dataset.kind), ["document"]);
+  submit(dialog);
+  await settle();
+  assert.deepEqual(sdk.calls, [["brief.pdf", { kind: "document" }]]);
+  assert.equal(result.length, 1);
+
+  const shot = picker(uploads());
+  assert.doesNotMatch(shot.input.accept, /pdf/);
+  shot.open(() => assert.fail("Nothing was uploaded."));
+  choose(shot.input, [file("brief.pdf", "application/pdf")]);
+  assert.equal(env.root.querySelector("dialog.reference-upload"), null);
+  assert.match(env.window.document.getElementById("notice").textContent, /Not a supported file: brief\.pdf\. Use PNG, JPEG or WebP images, MP4 videos, or MP3/);
 });
 
 test("chosen files upload in order with their own kind, label and description, then are handed back", async () => {
