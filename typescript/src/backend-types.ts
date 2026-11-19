@@ -1,4 +1,4 @@
-// Generated from ads_backend/openapi.json at d425dd336c9af00fb8c378ff0b0042201d5d17eb. Do not edit.
+// Generated from ads_backend/openapi.json at b7ad3b80b2044f45353dd15122e136cca228926c. Do not edit.
 export interface paths {
     "/v1/admin/tokens": {
         parameters: {
@@ -1780,7 +1780,7 @@ export interface components {
         PromptDataV1: {
             /**
              * Prompt
-             * @description What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other.
+             * @description What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other. It reaches the video model as written: write it in English, keeping spoken lines, on-screen text and text visible in the scene in their own language.
              */
             prompt: string;
             /**
@@ -1819,7 +1819,7 @@ export interface components {
         PromptReadV1: {
             /**
              * Prompt
-             * @description What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other.
+             * @description What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other. It reaches the video model as written: write it in English, keeping spoken lines, on-screen text and text visible in the scene in their own language.
              */
             prompt: string;
             /**
@@ -1874,7 +1874,7 @@ export interface components {
         RawPromptDataV1: {
             /**
              * Prompt
-             * @description What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other.
+             * @description What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other. It reaches the video model as written: write it in English, keeping spoken lines, on-screen text and text visible in the scene in their own language.
              */
             prompt: string;
             /**

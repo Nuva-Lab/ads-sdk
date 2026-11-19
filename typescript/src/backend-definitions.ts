@@ -1,4 +1,4 @@
-// Generated from ads_backend/openapi.json at d425dd336c9af00fb8c378ff0b0042201d5d17eb. Do not edit.
+// Generated from ads_backend/openapi.json at b7ad3b80b2044f45353dd15122e136cca228926c. Do not edit.
 import type { z } from "zod";
 export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.fromJSONSchema>[0], boolean>> = {
   "AdOut": {
@@ -2079,7 +2079,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "maxLength": 10000,
         "minLength": 1,
         "title": "Prompt",
-        "description": "What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other."
+        "description": "What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other. It reaches the video model as written: write it in English, keeping spoken lines, on-screen text and text visible in the scene in their own language."
       },
       "image_asset_ids": {
         "items": {
@@ -2165,7 +2165,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "maxLength": 10000,
         "minLength": 1,
         "title": "Prompt",
-        "description": "What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other."
+        "description": "What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other. It reaches the video model as written: write it in English, keeping spoken lines, on-screen text and text visible in the scene in their own language."
       },
       "image_asset_ids": {
         "items": {
@@ -2291,7 +2291,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "maxLength": 10000,
         "minLength": 1,
         "title": "Prompt",
-        "description": "What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other."
+        "description": "What the clip shows and says. It names each attached file by its position in its list: <Picture 1> is the first of `image_asset_ids`, likewise <Video N> and <Audio N>. A new prompt must name every attached file and no other. It reaches the video model as written: write it in English, keeping spoken lines, on-screen text and text visible in the scene in their own language."
       },
       "image_asset_ids": {
         "items": {
