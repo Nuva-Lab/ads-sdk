@@ -1,7 +1,8 @@
 /**
- * Uploads reference files (images, videos, audio, and in chat PDFs) as Assets, each with an optional label and
- * description: the Agent and the writers read those to know what a file shows. Chat attaches the uploaded Assets to the
- * next message; the Storyboard editor names one in a shot with `{{asset:<id>}}`, which takes no PDF.
+ * Uploads reference files (images, videos, audio, and in chat documents: PDF, Word and Excel) as Assets, each with an
+ * optional label and description: the Agent and the writers read those to know what a file shows. Chat attaches the
+ * uploaded Assets to the next message; the Storyboard editor names one in a shot with `{{asset:<id>}}`, which takes no
+ * document.
  */
 import type { Asset, NuvaClient } from "@nuva/sdk";
 import { msg, setAttribute, type UiLabel } from "./i18n.js";
@@ -22,6 +23,8 @@ const TYPES: Readonly<Record<string, ReferenceKind>> = {
   "audio/mp4": "audio",
   "audio/x-m4a": "audio",
   "application/pdf": "document",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "document",
 };
 const EXTENSIONS: Readonly<Record<string, ReferenceKind>> = {
   png: "image",
@@ -33,8 +36,10 @@ const EXTENSIONS: Readonly<Record<string, ReferenceKind>> = {
   wav: "audio",
   m4a: "audio",
   pdf: "document",
+  docx: "document",
+  xlsx: "document",
 };
-/** The file chooser's types; PDFs only where `documents` (chat). */
+/** The file chooser's types; documents (PDF, Word, Excel) only where `documents` (chat). */
 export const referenceAccept = (documents: boolean) =>
   [...Object.entries(TYPES), ...Object.entries(EXTENSIONS).map(([extension, kind]) => [`.${extension}`, kind] as const)]
     .filter(([, kind]) => documents || kind !== "document")
@@ -50,7 +55,7 @@ const byExtension = (name: string) => {
   const dot = name.lastIndexOf(".");
   return dot < 0 ? undefined : EXTENSIONS[name.slice(dot + 1).toLowerCase()];
 };
-const KIND_LABELS: Record<ReferenceKind, string> = { image: "Image", video: "Video", audio: "Audio", document: "PDF" };
+const KIND_LABELS: Record<ReferenceKind, string> = { image: "Image", video: "Video", audio: "Audio", document: "Document" };
 export const kindLabel = (kind: ReferenceKind) => msg(KIND_LABELS[kind]);
 
 export interface UploadedReference {
@@ -71,7 +76,7 @@ export function referencePicker(options: {
   container: () => HTMLElement;
   multiple: boolean;
   title: UiLabel;
-  /** PDFs too, for the Agent to read (chat); a shot cannot use one. */
+  /** Documents too (PDF, Word, Excel), for the Agent to read (chat); a shot cannot use one. */
   documents?: boolean;
 }) {
   const documents = options.documents ?? false;
@@ -101,7 +106,7 @@ export function referencePicker(options: {
     const refusal = !refused.length
       ? undefined
       : documents
-        ? msg("Not a supported file: {p0}. Use PNG, JPEG or WebP images, MP4 videos, MP3, WAV or M4A audio, or PDFs.", { p0: names })
+        ? msg("Not a supported file: {p0}. Use PNG, JPEG or WebP images, MP4 videos, MP3, WAV or M4A audio, or PDF, Word (.docx) or Excel (.xlsx) documents.", { p0: names })
         : msg("Not a supported file: {p0}. Use PNG, JPEG or WebP images, MP4 videos, or MP3, WAV or M4A audio.", { p0: names });
     // With nothing to upload there is no dialog, so the page's notice says it; otherwise the dialog does, since an
     // open dialog covers the notice.

@@ -78,6 +78,10 @@ export interface AssetsClient {
 	 * Adds a file, uploaded or fetched from a public HTTPS URL. `label` and `description` say what it shows (for example
 	 * which side of a package); the writers read them. The same file added again returns the same Asset, so retrying a
 	 * file upload is safe; `idempotencyKey` applies to a URL. To change the text later, use `update`.
+	 *
+	 * A PDF, Word (.docx) or Excel (.xlsx) file is a `document`, for the Agent to read. A Word or Excel file is read when
+	 * it is added: its text is at `text_url`, and each picture in it becomes an image Asset (`metadata.images`). `kind`
+	 * defaults from the file's type (or a .pdf/.docx/.xlsx name); give it for a URL.
 	 */
 	upload(
 		source: File | { readonly url: string },

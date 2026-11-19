@@ -74,6 +74,9 @@ test("a file's kind comes from its MIME type, or its extension when the browser 
   assert.equal(referenceKind({ name: "clip.mov", type: "video/quicktime" }), undefined);
   assert.equal(referenceKind({ name: "look.gif", type: "image/gif" }), undefined);
   assert.equal(referenceKind({ name: "notes", type: "" }), undefined);
+  assert.equal(referenceKind({ name: "brief.docx", type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }), "document");
+  assert.equal(referenceKind({ name: "SKU.XLSX", type: "" }), "document");
+  assert.equal(referenceKind({ name: "old.doc", type: "application/msword" }), undefined);
   assert.equal(referenceKind({ name: "brief.pdf", type: "application/pdf" }), "document");
   assert.equal(referenceKind({ name: "brief.PDF", type: "" }), "document");
   for (const accepted of ["image/png", "video/mp4", "audio/mpeg", ".m4a"]) assert.ok(referenceAccept(false).split(",").includes(accepted));

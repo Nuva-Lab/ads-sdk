@@ -65,6 +65,10 @@ test('a file upload registers with a key the SDK makes; a URL registration with 
 	try {
 		await nuva.assets.upload(new File([new Uint8Array(10)], 'a.png', { type: 'image/png' }), { idempotencyKey: 'k-1' });
 		await nuva.assets.upload({ url: 'https://example.com/a.png' }, { kind: 'image', idempotencyKey: 'k-2' });
+		await nuva.assets.upload(new File([new Uint8Array(10)], 'brief.docx', { type: '' }));
+		await nuva.assets.upload(new File([new Uint8Array(10)], 'brief.pdf', { type: 'application/pdf' }));
+		const intents = requests.filter(({ url }) => url.endsWith('/v1/assets/uploads')).map(({ body }) => body.kind);
+		assert.deepEqual(intents, ['image', 'document', 'document']);
 		const registrations = requests.filter(({ url }) => url === 'https://store.invalid/v1/assets');
 		const [file, url] = registrations.map(key);
 		assert.match(file, /^[0-9a-f-]{36}$/);

@@ -1,4 +1,4 @@
-// Generated from ads_backend/openapi.json at b7ad3b80b2044f45353dd15122e136cca228926c. Do not edit.
+// Generated from ads_backend/openapi.json at 8f837266f8e6d82e030ed09e62640bccd38a8522. Do not edit.
 export interface paths {
     "/v1/admin/tokens": {
         parameters: {
@@ -808,7 +808,7 @@ export interface components {
             id: string;
             /**
              * Kind
-             * @description `image`, `video`, `audio` or `document` (a PDF).
+             * @description `image`, `video`, `audio` or `document` (a PDF, Word or Excel file).
              * @enum {string}
              */
             kind: "image" | "video" | "audio" | "document";
@@ -826,7 +826,7 @@ export interface components {
             size_bytes: number;
             /**
              * Metadata
-             * @description width and height for images; duration_ms for video and audio; page_count for documents.
+             * @description width and height for images; duration_ms for video and audio; page_count for a PDF. For Word or Excel: `headings` (Word) or `sheets` (Excel: name, rows, columns, hidden), `text_bytes` and `text_lines` of its text, and `images`, the ids of the image assets taken from it in the order the text shows them.
              */
             metadata: {
                 [key: string]: unknown;
@@ -858,6 +858,16 @@ export interface components {
              * @description When `download_url` stops working: an hour after this response.
              */
             download_url_expires_at: string;
+            /**
+             * Text Url
+             * @description A Word or Excel document's text, until `text_url_expires_at`: Markdown for Word; for Excel, `## <sheet>` then the sheet's rows as CSV, as Excel displays the cells. `[image: <asset id>]` marks where an embedded image appears. null for media and PDFs, which are read as they are.
+             */
+            text_url?: string | null;
+            /**
+             * Text Url Expires At
+             * @description When `text_url` stops working: an hour after this response.
+             */
+            text_url_expires_at?: string | null;
         };
         /**
          * AssetSource
@@ -2558,7 +2568,7 @@ export interface components {
         UploadRequest: {
             /**
              * Kind
-             * @description What you will upload: `image` (JPEG, PNG or WebP), `video` (MP4), `audio` (MP3, WAV or MP4) or `document` (PDF, for the Agent to read).
+             * @description What you will upload: `image` (JPEG, PNG or WebP), `video` (MP4), `audio` (MP3, WAV or MP4) or `document` (a PDF, or a Word .docx or Excel .xlsx without a password, for the Agent to read). A Word or Excel document is read when it is registered: see `text_url` on the asset.
              * @enum {string}
              */
             kind: "image" | "video" | "audio" | "document";
