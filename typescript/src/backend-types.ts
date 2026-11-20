@@ -1,4 +1,4 @@
-// Generated from ads_backend/openapi.json at b7ad3b80b2044f45353dd15122e136cca228926c. Do not edit.
+// Generated from ads_backend/openapi.json at d4646d29b922e7c607bcd184ca9c809314fa29d8. Do not edit.
 export interface paths {
     "/v1/admin/tokens": {
         parameters: {
@@ -11,7 +11,7 @@ export interface paths {
         put?: never;
         /**
          * Issue a user token
-         * @description For your backend, with your API key: a token that acts as the user with `external_user_id`, valid for an hour. The first token for an id creates the user.
+         * @description For your backend, with your API key: a token that acts as the user with `external_user_id`, valid for an hour. The first token for an id creates the user; a deleted user gets `409 USER_DELETED`.
          */
         post: operations["issue_user_token_v1_admin_tokens_post"];
         delete?: never;
@@ -650,11 +650,31 @@ export interface paths {
         get: operations["get_memberships_v1_admin_users__external_user_id__memberships_get"];
         /**
          * Set a user's memberships
-         * @description Replaces the user's scopes and roles; `customer` with `admin` makes a customer admin, with `viewer` a reader of the whole customer. Every user is a member of the customer without a row. Takes effect at once. The first call for an id creates the user, like a first token.
+         * @description Replaces the user's scopes and roles; `customer` with `admin` makes a customer admin, with `viewer` a reader of the whole customer. Every user is a member of the customer without a row. Takes effect at once. The first call for an id creates the user, like a first token; a deleted user gets `409 USER_DELETED`.
          */
         put: operations["put_memberships_v1_admin_users__external_user_id__memberships_put"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/users/{external_user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a user
+         * @description Stops the user at once: their tokens stop working and no new token is issued for the id. What they made stays theirs, with its shares, and their admins keep administering it; their memberships are kept for that. A repeat succeeds. The id can't be used for a new user.
+         */
+        delete: operations["delete_user_v1_admin_users__external_user_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2596,6 +2616,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4669,6 +4698,62 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    delete_user_v1_admin_users__external_user_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                external_user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

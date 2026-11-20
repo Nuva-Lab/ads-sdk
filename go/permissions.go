@@ -198,6 +198,17 @@ func (c *AdminClient) GetMemberships(ctx context.Context, externalUserID string)
 	}
 	return out, err
 }
+// DeleteUser stops the user at once: their tokens stop working, and a new token or memberships
+// for the ID are refused (409 USER_DELETED). What they made stays theirs, with its shares, and
+// their admins keep administering it. A repeat succeeds; an unknown ID is 404 NOT_FOUND. The ID
+// can't be used for a new user.
+func (c *AdminClient) DeleteUser(ctx context.Context, externalUserID string) error {
+	if !validExternalID(externalUserID) {
+		return invalid("external_user_id must contain 1–255 characters without control characters or '/'.")
+	}
+	return c.connection.request(ctx, "DELETE", "/v1/admin/users/"+externalUserID, nil, nil, nil)
+}
+
 func validMemberships(m UserMemberships, externalUserID string) bool {
 	if !uuidPattern.MatchString(m.UserID) || m.ExternalUserID != externalUserID || m.Memberships == nil {
 		return false
