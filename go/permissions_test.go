@@ -50,7 +50,7 @@ func TestScopesMembershipsAndShares(t *testing.T) {
 			fmt.Fprint(w, `{"user_id":"`+userID+`","external_user_id":"mei","memberships":[{"scope":"agency-a","role":"viewer"}]}`)
 		case "GET /v1/admin/users/mei/memberships":
 			fmt.Fprint(w, `{"user_id":"`+userID+`","external_user_id":"mei","memberships":[]}`)
-		case "DELETE /v1/admin/users/mei":
+		case "DELETE /v1/admin/users/mei", "DELETE /v1/admin/users/team/a":
 			w.WriteHeader(204)
 		case "DELETE /v1/admin/users/nobody":
 			w.WriteHeader(404)
@@ -101,6 +101,9 @@ func TestScopesMembershipsAndShares(t *testing.T) {
 	if err := admin.DeleteUser(ctx, "mei"); err != nil {
 		t.Fatalf("DeleteUser: %v", err)
 	}
+	if err := admin.DeleteUser(ctx, "team/a"); err != nil {
+		t.Fatalf("DeleteUser of an ID with a slash: %v", err)
+	}
 	if err := admin.DeleteUser(ctx, "nobody"); !errors.As(err, &apiErr) || apiErr.Code != "NOT_FOUND" {
 		t.Fatalf("DeleteUser of an unknown ID: %v", err)
 	}
@@ -114,7 +117,7 @@ func TestScopesMembershipsAndShares(t *testing.T) {
 	if err := admin.RemoveShare(ctx, item, CustomerScope); err != nil {
 		t.Fatalf("RemoveShare: %v", err)
 	}
-	if len(seen) != 11 {
+	if len(seen) != 12 {
 		t.Fatalf("requests: %v", seen)
 	}
 }
@@ -131,7 +134,8 @@ func TestPermissionInputsAreCheckedBeforeSending(t *testing.T) {
 		func() error { _, err := admin.PutScope(ctx, "a/b", ScopeInput{Kind: ScopeOrg}); return err }(),
 		func() error { _, err := admin.PutScope(ctx, "a1", ScopeInput{Kind: "team"}); return err }(),
 		admin.ArchiveScope(ctx, "customer"),
-		admin.DeleteUser(ctx, "a/b"),
+		admin.DeleteUser(ctx, "a/../b"),
+		admin.DeleteUser(ctx, "a\nb"),
 		func() error {
 			_, err := admin.SetMemberships(ctx, "mei", []Membership{{Scope: "a1", Role: "owner"}})
 			return err
