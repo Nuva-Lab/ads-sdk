@@ -209,9 +209,9 @@ export interface SharesClient {
 	getAutoShare(scope: string): Promise<AutoShare>;
 	/**
 	 * Replaces the scope's auto-share rules. For each kind with a rule, every new one whose owner is at or below the scope
-	 * is shared with it, with that access; the existing ones are shared now too. A share is only ever raised (`read` to
-	 * `write`), never lowered; a kind left out keeps the shares it has, and `{}` removes every rule. For an admin of the
-	 * scope or above it.
+	 * is shared with it, with that access. Adding a rule, or raising one from `read` to `write`, also shares the existing
+	 * ones now, including any unshared before; the same rules again change nothing. A share is only ever raised, never
+	 * lowered; a kind left out keeps the shares it has, and `{}` removes every rule. For an admin of the scope or above it.
 	 */
 	setAutoShare(scope: string, rules: AutoShareRules, options?: CommandOptions): Promise<AutoShare>;
 }

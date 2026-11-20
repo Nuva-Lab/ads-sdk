@@ -1,4 +1,4 @@
-// Generated from ads_backend/openapi.json at 90932bf2d892d69a2219e39cad06b60eed93679b. Do not edit.
+// Generated from ads_backend/openapi.json at 8ef803c68836cbd3baf07a5af880f3d98b6fc5ad. Do not edit.
 export interface paths {
     "/v1/admin/tokens": {
         parameters: {
@@ -738,7 +738,7 @@ export interface paths {
         get: operations["get_auto_shares_v1_auto_shares__scope__get"];
         /**
          * Set a scope's auto-share rules
-         * @description Replaces the scope's rules. For each kind with a rule, every new one whose owner is at or below the scope is shared with it, with that access; the existing ones are shared now too. A share is only ever raised (`read` to `write`), never lowered, and a kind left out keeps the shares it has. `{}` removes every rule. For the customer's API key and admins of the scope or above, not through the Agent.
+         * @description Replaces the scope's rules. For each kind with a rule, every new one whose owner is at or below the scope is shared with it, with that access. Adding a rule, or raising one from `read` to `write`, also shares the existing ones now, including any unshared before; sending the same rules again changes nothing. A share is only ever raised, never lowered, and a kind left out keeps the shares it has. `{}` removes every rule. For the customer's API key and admins of the scope or above, not through the Agent.
          */
         put: operations["put_auto_shares_v1_auto_shares__scope__put"];
         post?: never;

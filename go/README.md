@@ -75,7 +75,7 @@ _, err = admin.SetMemberships(ctx, "lead@example.com", []nuva.Membership{{Scope:
 _, err = admin.SetMemberships(ctx, "maker@example.com", []nuva.Membership{{Scope: "team-1", Role: nuva.RoleMember}})
 // Everyone in team-1 may read the Product and use it in their own content.
 _, err = admin.SetShare(ctx, nuva.ItemRef{Kind: "product", ID: productID}, "team-1", nuva.AccessRead)
-// Share every Product a team-1 member makes with team-1 for editing, those they already made included.
+// Share every Product a team-1 member makes with team-1 for editing; adding the rule shares those they already made too.
 _, err = admin.SetAutoShare(ctx, "team-1", nuva.AutoShareRules{Product: nuva.AccessWrite})
 ```
 
@@ -83,7 +83,7 @@ _, err = admin.SetAutoShare(ctx, "team-1", nuva.AutoShareRules{Product: nuva.Acc
 - **`RoleAdmin`** reads, writes, deletes and shares what users at or below its scope own, and can drive their Agent Sessions.
 - **`RoleViewer`** reads what users at or below its scope own, and changes nothing of theirs. A viewer is still a member: an item shared with them for writing, they can edit.
 - **Shares** are `AccessRead` (see and use) or `AccessWrite` (also edit). A share reaches everyone at or below its scope. It never allows deleting the item or sharing it on.
-- **Auto-share rules** (`SetAutoShare`) share every new Brand, Product or Character whose owner is at or below a scope with it, `AccessRead` or `AccessWrite` per kind; setting them shares the existing ones too. They only raise a share, never lower one. `AutoShareRules{}` removes them. Organizations from before scopes have an `AccessRead` rule for all three on `customer`.
+- **Auto-share rules** (`SetAutoShare`) share every new Brand, Product or Character whose owner is at or below a scope with it, `AccessRead` or `AccessWrite` per kind; adding or raising a rule shares the existing ones too, and the same rules again change nothing. They only raise a share, never lower one. `AutoShareRules{}` removes them. Organizations from before scopes have an `AccessRead` rule for all three on `customer`.
 - **`DeleteUser`** stops a user: the API refuses their tokens at once, and a new token or memberships for the ID get `409 USER_DELETED`. A token they already hold still opens the Agent until it expires (within an hour), but nothing they do there reaches the API. What they made stays theirs, with its shares, for their admins and colleagues. The ID can't be used again.
 - Shareable kinds are `brand`, `product`, `character`, `asset`, `script`, `storyboard`, `directing_plan` and `prompt`.
 - The API key administers the whole customer: it lists, reads and shares everyone's items, but writing items takes a user token.

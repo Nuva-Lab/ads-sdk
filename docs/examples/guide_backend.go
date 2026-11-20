@@ -122,7 +122,7 @@ func SetUpAgency(ctx context.Context, admin *nuva.AdminClient, productID string)
 		return err
 	}
 	// From now on, every Product a team-1 member makes is shared with team-1 for editing, and every
-	// Character to read; the ones they already made are shared now too.
+	// Character to read; adding these rules shares the ones they already made too.
 	_, err := admin.SetAutoShare(ctx, "team-1", nuva.AutoShareRules{Product: nuva.AccessWrite, Character: nuva.AccessRead})
 	return err
 }

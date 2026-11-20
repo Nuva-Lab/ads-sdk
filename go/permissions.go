@@ -307,9 +307,10 @@ func (c *AdminClient) GetAutoShare(ctx context.Context, scope string) (AutoShare
 }
 
 // SetAutoShare replaces the scope's auto-share rules. For each kind with a rule, every new one whose
-// owner is at or below the scope is shared with it, with that access, and the existing ones are shared
-// now too. A share is only ever raised (read to write), never lowered; a kind without a rule keeps the
-// shares it has, and AutoShareRules{} removes every rule. It is idempotent.
+// owner is at or below the scope is shared with it, with that access. Adding a rule, or raising one
+// from read to write, also shares the existing ones now, including any unshared before; the same rules
+// again change nothing. A share is only ever raised, never lowered; a kind without a rule keeps the
+// shares it has, and AutoShareRules{} removes every rule.
 func (c *AdminClient) SetAutoShare(ctx context.Context, scope string, rules AutoShareRules) (AutoShare, error) {
 	var out AutoShare
 	if !validExternalID(scope) || !validRules(rules) {
