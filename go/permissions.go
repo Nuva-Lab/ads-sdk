@@ -198,11 +198,12 @@ func (c *AdminClient) GetMemberships(ctx context.Context, externalUserID string)
 	}
 	return out, err
 }
+
 // DeleteUser stops the user: the API refuses their tokens at once, and a new token or memberships
 // for the ID are refused (409 USER_DELETED). A token the Agent already holds lets them chat until
-// it expires (within an hour), but nothing it does for them reaches the API. What they made stays theirs, with its shares, and
-// their admins keep administering it. A repeat succeeds; an unknown ID is 404 NOT_FOUND. The ID
-// can't be used for a new user.
+// it expires (within an hour), but nothing it does for them reaches the API. What they made stays
+// theirs, with its shares, and their admins keep administering it. A repeat succeeds; an unknown
+// ID is 404 NOT_FOUND. The ID can't be used for a new user.
 func (c *AdminClient) DeleteUser(ctx context.Context, externalUserID string) error {
 	if !validExternalID(externalUserID) {
 		return invalid("external_user_id must contain 1–255 characters without control characters or '/'.")
