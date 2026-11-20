@@ -1,4 +1,5 @@
-"""Customer migration guide to 0.1.0-preview.5, in Chinese and English."""
+"""The customer upgrade guide, in Chinese and English: one part per release that needs changes, newest first.
+The release notes (release_notes.py) link to these sections by their keys, so keep a key once it is published."""
 from build import table
 from customer_layout import code, filename
 
@@ -13,13 +14,32 @@ def migration_sections(locale='zh'):
     after = lambda: '<p><strong>' + t('Now', '现在') + '</strong></p>'
 
     return [
-        section('overview', 'What changes', '变化概览',
+        section('next', 'Upgrade to the next release', '升级到下一版本',
+            p('The next release adds user deletion, PDF Assets for the Agent and archiving for Skills and Sessions. Most integrations need no change. Check the four points below; the <a href="' + link('release-notes', 'unreleased') + '">release notes</a> list everything.',
+                '下一版本新增用户删除、供 Agent 阅读的 PDF Asset，以及 Skill 和 Session 的归档。大多数集成无需修改。请检查以下四点；完整内容见<a href="' + link('release-notes', 'unreleased') + '">版本说明</a>。')
+            + '<ol>'
+            + '<li>' + t('<strong>An Asset\'s <code>kind</code> can be <code>document</code></strong> (a PDF). Handle it wherever you branch on <code>kind</code>. A document never goes into a Product, Character or Prompt. Upgrade everyone in your organization before your users attach PDFs: older SDKs fail to read a document Asset.',
+                         '<strong>Asset 的 <code>kind</code> 可能是 <code>document</code></strong>（PDF）。按 <code>kind</code> 分支处理的地方请加上这种情况。文档不会进入产品、人物或提示词。在用户上传 PDF 之前，请让组织内所有人都升级：旧版 SDK 无法读取文档 Asset。') + '</li>'
+            + '<li>' + t('<strong>Deleted users (Go Admin SDK).</strong> After <code>DeleteUser</code>, <code>IssueUserToken</code> and <code>SetMemberships</code> for that ID return <code>409 USER_DELETED</code>, and the user\'s tokens get <code>UNAUTHENTICATED</code>. Treat both as signed out.',
+                         '<strong>已删除的用户（Go Admin SDK）。</strong>调用 <code>DeleteUser</code> 之后，再为该 ID 调用 <code>IssueUserToken</code> 或 <code>SetMemberships</code> 会返回 <code>409 USER_DELETED</code>，该用户的令牌会得到 <code>UNAUTHENTICATED</code>。两者都按已退出登录处理。') + '</li>'
+            + '<li>' + t('<strong>Archived Skills and Sessions are left out of lists.</strong> <code>skills.list</code>, <code>ListSkills</code> and <code>sessions.list</code> no longer return archived ones; pass <code>{archived: true}</code> (Go: <code>ListArchivedSkills</code>) to read them.',
+                         '<strong>列表不再包含已归档的 Skill 和 Session。</strong><code>skills.list</code>、<code>ListSkills</code> 和 <code>sessions.list</code> 不再返回已归档的项；如需读取，请传 <code>{archived: true}</code>（Go 使用 <code>ListArchivedSkills</code>）。') + '</li>'
+            + '<li>' + t('<strong>Script fact IDs.</strong> <code>fact_product_tags</code> and <code>fact_product_video_requirements</code> are gone from the Script types; the service never supplied them. If your code names them, remove them: TypeScript flags each one.',
+                         '<strong>脚本的事实 ID。</strong><code>fact_product_tags</code> 和 <code>fact_product_video_requirements</code> 已从脚本类型中移除，服务从未提供过它们。如果代码中用到了它们，请删除：TypeScript 会逐一标出。') + '</li>'
+            + '</ol>'
+            + c('token, err := admin.IssueUserToken(ctx, externalUserID)\nvar apiErr *nuva.APIError\nif errors.As(err, &apiErr) && apiErr.Code == "USER_DELETED" {\n    // The user was deleted: sign them out of your app.\n}', 'go')),
+        section('preview6', 'Upgrade to preview.6', '升级到 preview.6',
+            p('preview.6 fixes how the Agent connection handles a failed token refresh. It works with the services already live and needs no code change from preview.5, with one exception: throwing from <code>getAccessToken</code> no longer signs a user out at once. Call <code>client.close()</code> instead. From an earlier preview, follow <a href="#overview">Upgrade to preview.5</a> first.',
+                'preview.6 修复了 Agent 连接在令牌刷新失败时的处理。它可用于已上线的服务，从 preview.5 升级无需修改代码，只有一个例外：在 <code>getAccessToken</code> 中抛出错误不再会立即让用户退出登录，请改为调用 <code>client.close()</code>。从更早的预览版升级，请先完成<a href="#overview">升级到 preview.5</a>。')
+            + before() + c("getAccessToken: async () => {\n  if (signedOut) throw new Error('signed out'); // ended access at once\n  return fetchToken();\n}")
+            + after() + c("// When the user signs out:\nclient.close();")),
+        section('overview', 'Upgrade to preview.5', '升级到 preview.5',
             p('preview.5 makes Scripts, Storyboards and Prompts come only from the writers, so every change goes through the same checks, and lets shots use any image, video or audio file. Upgrade from <code>0.1.0-preview.4</code> with the steps below; from <code>0.1.0-preview.3</code>, first do <a href="#from-preview3">the preview.4 steps</a>.',
                 'preview.5 让脚本、分镜和提示词只由编写服务生成，因此所有修改都经过相同检查；镜头还可以使用任意图片、视频或音频文件。从 <code>0.1.0-preview.4</code> 升级请按以下步骤操作；从 <code>0.1.0-preview.3</code> 升级请先完成<a href="#from-preview3">升级到 preview.4 的步骤</a>。')
             + p('The new SDK needs the new services: use it once they are released. It sends <code>Nuva-Api-Version: 2026-11-07</code> with every request (you do not set it) and reads the new Product fields, which older services do not have.',
                 '新 SDK 需要新版服务，请在服务发布后使用。它在每个请求中发送 <code>Nuva-Api-Version: 2026-11-07</code>（无需自行设置），并读取旧版服务没有的新产品字段。')
             + c('pnpm add /path/to/nuva-sdk-0.1.0-preview.6.tgz', 'sh')),
-        section('removed', 'Removed and changed calls', '移除和变更的调用',
+        section('removed', 'preview.5: Removed and changed calls', 'preview.5：移除和变更的调用',
             p('Change each call in the left column. TypeScript flags the removed methods after the upgrade; the old <code>scripts.generate({base})</code> and <code>storyboards.generate({base})</code> / <code>({content})</code> forms throw <code>INVALID_INPUT</code> naming the new method before anything is sent.',
                 '逐一修改左列中的调用。升级后 TypeScript 会标出已移除的方法；旧的 <code>scripts.generate({base})</code> 和 <code>storyboards.generate({base})</code> / <code>({content})</code> 写法会在发送前抛出 <code>INVALID_INPUT</code>，并给出新方法名。')
             + table([t('preview.4', 'preview.4'), t('preview.5', 'preview.5')], [
@@ -58,7 +78,7 @@ def migration_sections(locale='zh'):
             + after() + c("await nuva.storyboards.generateFrom(storyboard.ref, { instruction: '第二个片段换成特写' });\nawait nuva.storyboards.createFrom(storyboard.ref, { clips });")
             + p('A Script saved before Storyboards (<code>format: 2</code>) is read-only: <code>scripts.generateFrom</code> and <code>scripts.createFrom</code> on it throw <code>INVALID_INPUT</code> before anything is sent. Write a new Script with <code>scripts.generate</code>.',
                 'Storyboard 推出之前保存的脚本（<code>format: 2</code>）为只读：对其调用 <code>scripts.generateFrom</code> 或 <code>scripts.createFrom</code> 会在发送前抛出 <code>INVALID_INPUT</code>。请用 <code>scripts.generate</code> 生成新脚本。')),
-        section('entities', 'Brands, Products and Characters', '品牌、产品和人物',
+        section('entities', 'preview.5: Brands, Products and Characters', 'preview.5：品牌、产品和人物',
             p('<code>update</code> takes the record you read (or <code>{id, version}</code>) and only the fields you change. Product media fields have new names, and <code>uploadImage</code> is gone: upload the file, then add its ID.',
                 '<code>update</code> 接收读取到的记录（或 <code>{id, version}</code>），只传要修改的字段。产品的媒体字段已改名，<code>uploadImage</code> 已移除：先上传文件，再加入其 ID。')
             + table([t('preview.4', 'preview.4'), t('preview.5', 'preview.5')], [
@@ -70,14 +90,14 @@ def migration_sections(locale='zh'):
             ])
             + before() + c("const uploaded = await nuva.products.uploadImage({ base: product, file });\nconst saved = await nuva.products.update({ base: uploaded.product, brand_id: product.brand_id, data: { ...uploaded.product.data, name } });")
             + after() + c("const image = await nuva.assets.upload(file, { kind: 'image', label: 'Box, front' });\nconst saved = await nuva.products.update(product, {\n  data: { name, image_asset_ids: [...(product.data.image_asset_ids ?? []), image.id] },\n});")),
-        section('named-files', 'Prompts must name every file', '提示词必须提到每个文件',
+        section('named-files', 'preview.5: Prompts must name every file', 'preview.5：提示词必须提到每个文件',
             p('A Prompt\'s text names its files by position: <code>&lt;Picture 1&gt;</code> is the first of <code>image_asset_ids</code>, and likewise <code>&lt;Video N&gt;</code> and <code>&lt;Audio N&gt;</code>. The video model ignores a file the text does not name. A new Prompt (<code>videos.generate({input})</code>, <code>prompts.createFrom</code>) must name every attached file, and no number past the end of its list; otherwise it is rejected with <code>422 INVALID_PROMPT</code>, nothing is saved or charged, and the message says which file is missing.',
                 '提示词按位置指代文件：<code>&lt;Picture 1&gt;</code> 是 <code>image_asset_ids</code> 中的第一个，<code>&lt;Video N&gt;</code> 和 <code>&lt;Audio N&gt;</code> 同理。视频模型会忽略文字中没有提到的文件。新的提示词（<code>videos.generate({input})</code>、<code>prompts.createFrom</code>）必须提到每个附带的文件，且编号不能超出列表；否则返回 <code>422 INVALID_PROMPT</code>，不会保存或计费，错误信息会指出缺少哪个文件。')
             + before() + c("// Accepted, but the video model ignored the second image.\ndata: { prompt: 'Show <Picture 1> on a table.', image_asset_ids: [product, poster] }")
             + after() + c("data: { prompt: 'Show <Picture 1> on a table, with the poster in <Picture 2> on the wall.', image_asset_ids: [product, poster] }")
             + p('Prompts from <code>prompts.generate</code> always name their files. To change what gets rendered, change the Storyboard or the Product and compile again: see <a href="' + link('generation', 'change-render') + '">Change what gets rendered</a>.',
                 '<code>prompts.generate</code> 生成的提示词总会提到其文件。需要修改生成内容时，请修改分镜或产品后重新编译，见<a href="' + link('generation', 'change-render') + '">修改生成的内容</a>。')),
-        section('also-new', 'Also new', '其他变化',
+        section('also-new', 'preview.5: Also new', 'preview.5：其他变化',
             table([t('Change', '变化'), t('What to know', '说明')], [
                 [t('File tokens', '文件标记'), t('<code>{{asset:&lt;id&gt;}}</code> uses any image, video or audio Asset you may use; <code>{{role:&lt;id&gt;}}</code> and <code>{{product:&lt;id&gt;}}</code> take any file that Character or Product has. The file\'s kind decides how it is used. They work in shots and in <code>instruction</code>; see <a href="' + link('generation', 'tokens') + '">Tokens in shots</a>.', '<code>{{asset:&lt;id&gt;}}</code> 可使用你有权使用的任意图片、视频或音频 Asset；<code>{{role:&lt;id&gt;}}</code> 和 <code>{{product:&lt;id&gt;}}</code> 可使用该人物或产品的任意文件。文件类型决定其用法。可写在镜头和 <code>instruction</code> 中，见<a href="' + link('generation', 'tokens') + '">镜头中的标记</a>。')],
                 [t('Product videos', '产品视频'), t('Products take up to 5 <code>video_asset_ids</code>. While anyone in your organization still reads Products with preview.4 or older, don\'t add videos: those SDKs can\'t read a Product that has them, and <code>products.list</code> then fails for the whole page.', '产品可保存最多 5 个 <code>video_asset_ids</code>。组织中仍有人用 preview.4 或更早版本读取产品时，请不要添加视频：这些版本无法读取带视频的产品，<code>products.list</code> 会因此整页失败。')],
@@ -92,12 +112,12 @@ def migration_sections(locale='zh'):
                 [t('Error codes', '错误码'), t('The backend\'s <code>UNAUTHORIZED</code> is now <code>UNAUTHENTICATED</code>, and <code>INVALID_REQUEST</code> is now <code>INVALID_INPUT</code>, the codes the SDK already used. Check for the new codes.', '后端的 <code>UNAUTHORIZED</code> 改为 <code>UNAUTHENTICATED</code>，<code>INVALID_REQUEST</code> 改为 <code>INVALID_INPUT</code>，与 SDK 已使用的错误码一致。请按新错误码判断。')],
                 [t('Attaching an Asset', '附加 Asset'), t('<code>Message.create().attach(asset)</code> compiles under strict TypeScript.', '<code>Message.create().attach(asset)</code> 在 strict TypeScript 下可以编译。')],
             ])),
-        section('grace', 'Grace period for existing integrations', '现有集成的过渡期',
+        section('grace', 'preview.5: Grace period for existing integrations', 'preview.5：现有集成的过渡期',
             p('If we told you your organization is on the grace list, your preview.4 calls keep working after the release while you upgrade: <code>prompts.create</code>, <code>scripts.create</code>, direct <code>scripts.update</code> and <code>storyboards.generate({content})</code>. A Prompt that leaves a file unnamed is saved as before instead of being rejected; the file is still ignored by the video model.',
                 '如果我们已告知你的组织在过渡名单中，发布后你在 preview.4 上的调用仍可使用，方便你逐步升级：<code>prompts.create</code>、<code>scripts.create</code>、直接调用的 <code>scripts.update</code> 和 <code>storyboards.generate({content})</code>。文字中未提到某个文件的提示词仍会照旧保存，不会被拒绝；视频模型仍会忽略该文件。')
             + p('Each such response carries <code>Deprecation: true</code> and a <code>Link</code> to this page; log it to find the calls left to change. The grace period ends later, after we tell you; then these calls get the preview.5 behavior: <code>403</code> for the removed creates and direct versions, <code>422 REJECTED</code> for <code>storyboards.generate({content})</code> without a base, and <code>422 INVALID_PROMPT</code> for a Prompt that leaves a file unnamed. Organizations not on the list get the preview.5 behavior at once.',
                 '这类响应带有 <code>Deprecation: true</code> 和指向本页的 <code>Link</code> 头；记录它们即可找出还需修改的调用。过渡期会在我们通知后结束，届时这些调用将按 preview.5 处理：已移除的创建和直接保存版本返回 <code>403</code>，不带 base 的 <code>storyboards.generate({content})</code> 返回 <code>422 REJECTED</code>，未提到所有文件的提示词返回 <code>422 INVALID_PROMPT</code>。不在名单中的组织在发布后立即按 preview.5 处理。')),
-        section('from-preview3', 'From preview.3', '从 preview.3 升级',
+        section('from-preview3', 'preview.5: from preview.3', 'preview.5：从 preview.3 升级',
             p('Since 2026-11-04, Script and Prompt generation needs preview.4 or later. Make these changes first, then the ones above.',
                 '自 2026-11-04 起，脚本和提示词生成需要 preview.4 或更高版本。请先完成以下修改，再完成上面的修改。')
             + '<ol>'
@@ -107,7 +127,7 @@ def migration_sections(locale='zh'):
             + '<li>' + t('<code>asset.label</code> is your label or <code>null</code>.', '<code>asset.label</code> 是你设置的标签，未设置时为 <code>null</code>。') + '</li>'
             + '<li>' + t('Allow 300 s for <code>storyboards.generate</code> and <code>prompts.generate</code> if you set <code>requestTimeoutMs</code>.', '如果设置了 <code>requestTimeoutMs</code>，请为 <code>storyboards.generate</code> 和 <code>prompts.generate</code> 留出 300 秒。') + '</li>'
             + '</ol>'),
-        section('checklist', 'Checklist', '检查清单',
+        section('checklist', 'preview.5: Checklist', 'preview.5：检查清单',
             '<ul>'
             + '<li>' + t('Install the preview.6 archive (and Go <code>v0.1.0-preview.6</code> if you use the Go Admin SDK).', '安装 preview.6 包（使用 Go Admin SDK 时同时升级到 <code>v0.1.0-preview.6</code>）。') + '</li>'
             + '<li>' + t('Replace <code>prompts.create</code>, <code>prompts.update</code>, <code>scripts.create</code> and the <code>artifacts</code> client.', '替换 <code>prompts.create</code>、<code>prompts.update</code>、<code>scripts.create</code> 和 <code>artifacts</code> 客户端。') + '</li>'

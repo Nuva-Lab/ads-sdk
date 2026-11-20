@@ -9,6 +9,7 @@ from zipfile import ZipFile
 import api_reference
 from build_customer import CUSTOMER_FILES, DEST, generated
 from customer_layout import DOCUMENTS, REFERENCE, filename, md_filename
+from release_notes import changelog_versions, releases
 
 
 class Document(HTMLParser):
@@ -159,6 +160,10 @@ def main():
         assert set(archive.namelist()) == set(CUSTOMER_FILES)
         for name in CUSTOMER_FILES:
             assert archive.read(name) == (DEST / name).read_bytes(), f'Stale archived file: {name}'
+    # One release-notes entry per CHANGELOG.md heading, in the same order, and each one shown.
+    versions = [release.version for release in releases('en')]
+    assert versions == changelog_versions(), f'Release notes {versions} differ from CHANGELOG.md {changelog_versions()}'
+    assert docs['release-notes.html'].sections == [release.key for release in releases('zh')]
     methods, agent, fields = check_field_reference(docs)
     markdown = check_markdown(docs)
     print(f'Checked {len(docs)} pages: links, language parity, expanded samples and exact archive contents.')

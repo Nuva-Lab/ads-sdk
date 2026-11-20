@@ -76,7 +76,8 @@ DOCUMENTS = (
     ('reference-skills', 'Skills', 'Skill'),
     ('reference-shares', 'Shares', '共享'),
     ('reference-sessions', 'Agent and Sessions', 'Agent 与 Session'),
-    ('migration', 'Upgrade to preview.5', '升级到 preview.5'),
+    ('migration', 'Upgrade guide', '升级指南'),
+    ('release-notes', 'Release notes', '版本说明'),
 )
 # The API reference: an Introduction page and one page per resource, grouped in the navigation.
 REFERENCE = tuple(key for key, _, _ in DOCUMENTS if key.startswith('reference'))

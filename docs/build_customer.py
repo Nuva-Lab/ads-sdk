@@ -8,6 +8,7 @@ from customer_layout import DOCUMENTS, REFERENCE, filename, md_filename, page
 from go_reference import go_sections
 from client_reference import guide_pages, message_example
 from migration_guide import migration_sections
+from release_notes import release_sections
 from api_reference import INTRO, PAGES, reference_pages, validate as validate_reference
 from reference_markdown import llms_txt, markdown_page
 
@@ -28,7 +29,8 @@ GUIDES = {
     'store': 'Create Brands, Products and Characters, add their images and videos, read Ads and Batches.',
     'generation': 'Write a Script, shoot it as a Storyboard, compile Prompts and render clips, step by step; edit content yourself.',
     'backend-go': 'Issue user tokens, organize users and share, and register Skills from your backend with the Go Admin SDK.',
-    'migration': 'What changes when you upgrade to preview.5.',
+    'migration': 'What to change when you upgrade, release by release.',
+    'release-notes': 'What changed in each SDK version, what it needs, and how to upgrade.',
 }
 
 
@@ -43,6 +45,7 @@ def generated():
         guides = guide_pages(locale)
         guides['backend-go'] = go_sections(locale)
         guides['migration'] = migration_sections(locale)
+        guides['release-notes'] = release_sections(locale)
         guides.update(reference_pages(locale))
         for key, _, _ in DOCUMENTS:
             files[filename(key, locale)] = page(key, guides[key], locale)
@@ -75,8 +78,8 @@ def build_customer():
         'Ads SDK 0.1.0-preview.6\n\n'
         'Open index.html or frontend.html to start. Use the header language selector for English.\n'
         '从 index.html 或 frontend.html 开始，使用页首语言选项切换中文和英文。\n\n'
-        'Getting started; Agent conversations; products and media; content generation; backend setup; API reference, one page per resource; upgrading to preview.5.\n'
-        '开始使用；Agent 对话；产品与媒体；内容生成；后端接入；接口参考（每种资源一页）；升级到 preview.5。\n'
+        'Getting started; Agent conversations; products and media; content generation; backend setup; API reference, one page per resource; the upgrade guide; release notes.\n'
+        '开始使用；Agent 对话；产品与媒体；内容生成；后端接入；接口参考（每种资源一页）；升级指南；版本说明。\n'
         'Each API reference page has a Markdown twin (.md, .en.md); llms.txt lists them.\n'
         '每个接口参考页面都有 Markdown 版本（.md、.en.md），llms.txt 列出全部页面。\n'
         'examples/ contains the complete source used in the guides.\n'
