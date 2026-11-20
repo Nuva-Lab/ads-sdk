@@ -230,3 +230,7 @@ html[data-theme="dark"] .http-delete { color: #f2a59c; }
 .fields details { margin-top: 6px; }
 .fields summary { cursor: pointer; font-size: 12px; color: var(--muted); }
 h3 + .fields > li:first-child { border-top: 0; }
+/* Release notes: what a version needs and how to upgrade, as a two-column list. */
+.release-facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 12px 0 4px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 8px; }
+.release-facts dt { color: var(--muted); font-size: 13px; }
+.release-facts dd { margin: 0; }
