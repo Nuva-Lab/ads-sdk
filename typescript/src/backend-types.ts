@@ -1,4 +1,4 @@
-// Generated from ads_backend/openapi.json at d4646d29b922e7c607bcd184ca9c809314fa29d8. Do not edit.
+// Generated from ads_backend/openapi.json at b640e1ca0486c7c4b16a3bc561b1a7162b4159b0. Do not edit.
 export interface paths {
     "/v1/admin/tokens": {
         parameters: {
@@ -672,7 +672,7 @@ export interface paths {
         post?: never;
         /**
          * Delete a user
-         * @description Stops the user at once: their tokens stop working and no new token is issued for the id. What they made stays theirs, with its shares, and their admins keep administering it; their memberships are kept for that. A repeat succeeds. The id can't be used for a new user.
+         * @description Stops the user: the API refuses their tokens at once and issues no new one for the id. The Agent checks tokens itself, so a token it already holds lets them chat until it expires (within an hour), but nothing it does for them reaches the API. What they made stays theirs, with its shares, and their admins keep administering it; their memberships are kept for that. A repeat succeeds. The id can't be used for a new user.
          */
         delete: operations["delete_user_v1_admin_users__external_user_id__delete"];
         options?: never;

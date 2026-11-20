@@ -13,7 +13,7 @@ Each entry describes the change from the previous released version.
 
 ### Added
 
-- **Delete a user.** `AdminClient.DeleteUser(ctx, externalUserID)` stops a user at once, for example someone who left: their tokens stop working, and `IssueUserToken` and `SetMemberships` for the ID return `409 USER_DELETED`. Nothing they made is deleted: it stays theirs, with its shares, and the admins above them keep administering it. A repeat succeeds; the ID can't be used for a new user. Needs the services released with user deletion.
+- **Delete a user.** `AdminClient.DeleteUser(ctx, externalUserID)` stops a user, for example someone who left: the API refuses their tokens at once (a token they already hold still opens the Agent until it expires, within an hour, with every API call refused), and `IssueUserToken` and `SetMemberships` for the ID return `409 USER_DELETED`. Nothing they made is deleted: it stays theirs, with its shares, and the admins above them keep administering it. A repeat succeeds; the ID can't be used for a new user. Needs the services released with user deletion.
 
 - **PDF Assets for the Agent to read.** `assets.upload(file, { kind: 'document' })` uploads a PDF (at most 50 MB); attach it to a message and the Agent reads it, text and pages. An Asset's `kind` can now be `document` (MIME `application/pdf`, `metadata.page_count`); a file that is not a readable PDF with at least one page is refused (`INVALID_MEDIA`). A document is never a generation input: Products, Characters, Prompts and shots still take only images, video and audio. Needs the services released with document Assets. An SDK before this version fails to parse a document Asset; only this version can create one.
 

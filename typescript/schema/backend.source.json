@@ -1,8 +1,8 @@
 {
   "repository": "Nuva-Lab/WhatIf",
-  "commit": "d4646d29b922e7c607bcd184ca9c809314fa29d8",
+  "commit": "b640e1ca0486c7c4b16a3bc561b1a7162b4159b0",
   "path": "ads_backend/openapi.json",
-  "sha256": "d65f4e4683b315c8522c4a0e6daa3bea5f295a14967630dd2d85e219b4bac6e4",
+  "sha256": "33e839c7f0b5dcca9036939fa6d0480747ade8f2badd4e1eaa1ae247e17d9ff2",
   "note": "The API version 2026-11-07 contract with Skill archiving, document (PDF) Assets and user deletion.",
   "pullRequest": "https://github.com/Nuva-Lab/WhatIf/pull/2602",
   "verifiedAt": "2026-11-20"
