@@ -118,7 +118,12 @@ func SetUpAgency(ctx context.Context, admin *nuva.AdminClient, productID string)
 		return err
 	}
 	// Everyone in team-1 may now read the Product and use it in their own content.
-	_, err := admin.SetShare(ctx, nuva.ItemRef{Kind: "product", ID: productID}, "team-1", nuva.AccessRead)
+	if _, err := admin.SetShare(ctx, nuva.ItemRef{Kind: "product", ID: productID}, "team-1", nuva.AccessRead); err != nil {
+		return err
+	}
+	// From now on, every Product a team-1 member makes is shared with team-1 for editing, and every
+	// Character to read; the ones they already made are shared now too.
+	_, err := admin.SetAutoShare(ctx, "team-1", nuva.AutoShareRules{Product: nuva.AccessWrite, Character: nuva.AccessRead})
 	return err
 }
 

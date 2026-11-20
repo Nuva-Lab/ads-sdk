@@ -3766,6 +3766,174 @@
           }
         }
       }
+    },
+    "/v1/auto-shares/{scope}": {
+      "get": {
+        "tags": [
+          "shares"
+        ],
+        "summary": "Read a scope's auto-share rules",
+        "description": "Which new Brands, Products and Characters are shared with the scope, and how. For the customer's API key and admins of the scope or above.",
+        "operationId": "get_auto_shares_v1_auto_shares__scope__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "title": "Scope"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutoShareOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "shares"
+        ],
+        "summary": "Set a scope's auto-share rules",
+        "description": "Replaces the scope's rules. For each kind with a rule, every new one whose owner is at or below the scope is shared with it, with that access; the existing ones are shared now too. A share is only ever raised (`read` to `write`), never lowered, and a kind left out keeps the shares it has. `{}` removes every rule. For the customer's API key and admins of the scope or above, not through the Agent.",
+        "operationId": "put_auto_shares_v1_auto_shares__scope__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "title": "Scope"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutoShareRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutoShareOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4086,6 +4254,93 @@
           "generated"
         ],
         "title": "AssetSource"
+      },
+      "AutoShareOut": {
+        "properties": {
+          "scope": {
+            "type": "string",
+            "title": "Scope",
+            "description": "`customer` or the scope's external id."
+          },
+          "brand": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShareAccess"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Left out when there is no rule."
+          },
+          "product": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShareAccess"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Left out when there is no rule."
+          },
+          "character": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShareAccess"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Left out when there is no rule."
+          }
+        },
+        "type": "object",
+        "required": [
+          "scope"
+        ],
+        "title": "AutoShareOut"
+      },
+      "AutoShareRequest": {
+        "properties": {
+          "brand": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShareAccess"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`read` or `write` to share every new one with the scope; leave it out for none."
+          },
+          "product": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShareAccess"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`read` or `write` to share every new one with the scope; leave it out for none."
+          },
+          "character": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShareAccess"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`read` or `write` to share every new one with the scope; leave it out for none."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AutoShareRequest"
       },
       "BatchAd": {
         "properties": {

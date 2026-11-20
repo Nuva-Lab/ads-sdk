@@ -463,4 +463,6 @@ export const responses: Record<string, readonly unknown[]> = {
 	'shares.set': [share],
 	'shares.list': [{ items: [share] } satisfies B['SharesOut']],
 	'shares.remove': [],
+	'shares.setAutoShare': [{ scope: 'team-1', product: 'write', character: 'read' } satisfies B['AutoShareOut']],
+	'shares.getAutoShare': [{ scope: 'customer', brand: 'read', product: 'read', character: 'read' } satisfies B['AutoShareOut']],
 };

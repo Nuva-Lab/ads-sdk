@@ -55,6 +55,7 @@ const writes = new Set([
 	'products.delete',
 	'shares.set',
 	'shares.remove',
+	'shares.setAutoShare',
 	'scripts.generate',
 	'scripts.update',
 	'agent.send',
@@ -63,7 +64,7 @@ const writes = new Set([
 	'agent.fail',
 ]);
 /** Writes without an idempotency key that end the same however often they are sent. */
-const sameWhenRepeated = new Set(['jobs.cancel', 'sessions.archive', 'sessions.unarchive', 'products.delete', 'shares.set', 'shares.remove', 'assets.update', 'assets.uploadIntent']);
+const sameWhenRepeated = new Set(['jobs.cancel', 'sessions.archive', 'sessions.unarchive', 'products.delete', 'shares.set', 'shares.remove', 'shares.setAutoShare', 'assets.update', 'assets.uploadIntent']);
 /** How often a request safe to repeat is sent again after a transient failure, and the first wait (tripled each time). */
 const RETRIES = 2;
 const RETRY_DELAY_MS = 500;

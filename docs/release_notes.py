@@ -46,14 +46,16 @@ def releases(locale):
     return [
         Release(
             'Unreleased', None,
-            ('Delete users, let the Agent read PDFs, and archive Skills and Sessions.',
-             '删除用户、让 Agent 阅读 PDF，以及归档 Skill 和 Session。'),
-            ('The services live now: user deletion and PDF Assets since 2026-11-20, Skill archiving since 2026-11-13. Session archiving needs the Agent release with it. The API version stays <code>2026-11-07</code>.',
-             '现已上线的服务即可：用户删除和 PDF Asset 自 2026-11-20 起可用，Skill 归档自 2026-11-13 起可用。Session 归档需要随其发布的 Agent 版本。API 版本仍为 <code>2026-11-07</code>。'),
-            (f'Most integrations need no change. Check the four points in {next_guide[0]}.',
-             f'大多数集成无需修改。请检查{next_guide[1]}中的四点。'),
+            ('Auto-share rules per scope, delete users, let the Agent read PDFs, and archive Skills and Sessions.',
+             '按范围设置自动共享规则、删除用户、让 Agent 阅读 PDF，以及归档 Skill 和 Session。'),
+            ('User deletion and PDF Assets are live since 2026-11-20, Skill archiving since 2026-11-13. Auto-share rules need the services released with them, and Session archiving the Agent release with it. The API version stays <code>2026-11-07</code>.',
+             '用户删除和 PDF Asset 自 2026-11-20 起可用，Skill 归档自 2026-11-13 起可用。自动共享规则需要随其发布的服务，Session 归档需要随其发布的 Agent 版本。API 版本仍为 <code>2026-11-07</code>。'),
+            (f'Most integrations need no change. Check the points in {next_guide[0]}.',
+             f'大多数集成无需修改。请检查{next_guide[1]}中列出的几点。'),
             {
                 'added': [
+                    ('<strong>Auto-share rules per scope</strong> (<a href="https://github.com/Nuva-Lab/ads-sdk/issues/48">#48</a>). <code>shares.setAutoShare(scope, {brand?, product?, character?})</code> and Go <code>SetAutoShare</code> share every new Brand, Product or Character whose owner is at or below a scope with it, <code>read</code> or <code>write</code>, and share the existing ones too. A rule only raises a share, never lowers one. For your API key and the scope\'s admins.',
+                     '<strong>按范围的自动共享规则</strong>（<a href="https://github.com/Nuva-Lab/ads-sdk/issues/48">#48</a>）。<code>shares.setAutoShare(scope, {brand?, product?, character?})</code> 和 Go 的 <code>SetAutoShare</code> 会把所有者在某范围内（含下级）的新建品牌、产品和人物以 <code>read</code> 或 <code>write</code> 共享给该范围，并立即共享已有的内容。规则只会提升共享，不会降低。供你的 API key 和该范围的管理员使用。'),
                     ('<strong>Delete a user</strong> (Go Admin SDK). <code>DeleteUser(ctx, externalUserID)</code> stops someone who left: the API refuses their tokens at once, and a new token or memberships for the ID return <code>409 USER_DELETED</code>. Nothing they made is deleted; it stays theirs, with its shares, for their admins and colleagues.',
                      '<strong>删除用户</strong>（Go Admin SDK）。<code>DeleteUser(ctx, externalUserID)</code> 可停用已离开的人：API 立即拒绝其令牌，再为该 ID 申请令牌或设置成员关系会返回 <code>409 USER_DELETED</code>。其创建的内容不会删除，仍归其所有、共享照旧，管理员和同事可继续使用。'),
                     ('<strong>PDFs for the Agent to read.</strong> <code>assets.upload(file, {kind: \'document\'})</code> uploads a PDF of up to 50 MB; attach it to a message and the Agent reads its text and pages. A document is never a generation input.',
@@ -64,6 +66,8 @@ def releases(locale):
                      '<strong>归档 Session</strong>（<a href="https://github.com/Nuva-Lab/ads-sdk/issues/35">#35</a>）。<code>sessions.archive(id)</code> 可让测试对话不再出现在 <code>sessions.list</code> 中；消息和内容都会保留，仍可打开。'),
                 ],
                 'changed': [
+                    ('<strong>Organization-wide sharing is now a rule you control.</strong> The setting only Nuva could change is gone. An organization that had it keeps the same behavior as a <code>read</code> rule for all three kinds on <code>customer</code>.',
+                     '<strong>组织范围的自动共享改为你可控制的规则。</strong>只有 Nuva 能修改的设置已移除。原先开启该设置的组织，现在在 <code>customer</code> 上有三类内容的 <code>read</code> 规则，行为不变。'),
                     ('<strong>Script fact IDs</strong> are the ones the service supplies: <code>fact_product_tags</code> and <code>fact_product_video_requirements</code> are gone. A Script that cites a fact it doesn\'t have is refused with the bad ID.',
                      '<strong>脚本的事实 ID</strong> 只保留服务提供的那些：<code>fact_product_tags</code> 和 <code>fact_product_video_requirements</code> 已移除。引用不存在的事实的脚本会被拒绝，并指出错误的 ID。'),
                 ],

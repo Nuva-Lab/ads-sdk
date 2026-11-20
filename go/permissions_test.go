@@ -52,6 +52,13 @@ func TestScopesMembershipsAndShares(t *testing.T) {
 			fmt.Fprint(w, `{"user_id":"`+userID+`","external_user_id":"mei","memberships":[]}`)
 		case "DELETE /v1/admin/users/mei", "DELETE /v1/admin/users/team/a":
 			w.WriteHeader(204)
+		case "PUT /v1/auto-shares/team a1":
+			if len(body) != 1 || body["product"] != "write" {
+				t.Errorf("bad rules: %v", body)
+			}
+			fmt.Fprint(w, `{"scope":"team a1","product":"write"}`)
+		case "GET /v1/auto-shares/customer":
+			fmt.Fprint(w, `{"scope":"customer","brand":"read","product":"read","character":"read"}`)
 		case "DELETE /v1/admin/users/nobody":
 			w.WriteHeader(404)
 			fmt.Fprint(w, `{"error":{"code":"NOT_FOUND","message":"User not found.","retryable":false},"request_id":"r2"}`)
@@ -104,6 +111,12 @@ func TestScopesMembershipsAndShares(t *testing.T) {
 	if err := admin.DeleteUser(ctx, "team/a"); err != nil {
 		t.Fatalf("DeleteUser of an ID with a slash: %v", err)
 	}
+	if rules, err := admin.SetAutoShare(ctx, "team a1", AutoShareRules{Product: AccessWrite}); err != nil || rules.Product != AccessWrite || rules.Brand != "" {
+		t.Fatalf("SetAutoShare: %v %+v", err, rules)
+	}
+	if rules, err := admin.GetAutoShare(ctx, CustomerScope); err != nil || rules.Character != AccessRead {
+		t.Fatalf("GetAutoShare: %v %+v", err, rules)
+	}
 	if err := admin.DeleteUser(ctx, "nobody"); !errors.As(err, &apiErr) || apiErr.Code != "NOT_FOUND" {
 		t.Fatalf("DeleteUser of an unknown ID: %v", err)
 	}
@@ -117,7 +130,7 @@ func TestScopesMembershipsAndShares(t *testing.T) {
 	if err := admin.RemoveShare(ctx, item, CustomerScope); err != nil {
 		t.Fatalf("RemoveShare: %v", err)
 	}
-	if len(seen) != 12 {
+	if len(seen) != 14 {
 		t.Fatalf("requests: %v", seen)
 	}
 }
@@ -135,6 +148,8 @@ func TestPermissionInputsAreCheckedBeforeSending(t *testing.T) {
 		func() error { _, err := admin.PutScope(ctx, "a1", ScopeInput{Kind: "team"}); return err }(),
 		admin.ArchiveScope(ctx, "customer"),
 		admin.DeleteUser(ctx, "a/../b"),
+		func() error { _, err := admin.SetAutoShare(ctx, "a1", AutoShareRules{Brand: "admin"}); return err }(),
+		func() error { _, err := admin.GetAutoShare(ctx, "a/b"); return err }(),
 		admin.DeleteUser(ctx, "a\nb"),
 		func() error {
 			_, err := admin.SetMemberships(ctx, "mei", []Membership{{Scope: "a1", Role: "owner"}})
