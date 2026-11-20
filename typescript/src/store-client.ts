@@ -271,6 +271,9 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 			return undefined;
 		},
 	};
+	const ruleAccess = z.enum(['read', 'write']).exactOptional();
+	const autoShareFor = (scope: string) =>
+		z.object({ scope: z.literal(scope), brand: ruleAccess, product: ruleAccess, character: ruleAccess }).loose();
 	const api: StoreClients = {
 		shares: {
 			list: async (item) => [...(await request('shares.list', { item }, z.object({ items: z.array(shareFor(item)) }).loose())).items],
@@ -278,6 +281,8 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 			remove: async (item, scope, options) => {
 				await request('shares.remove', { item, scope }, noContent, options?.requestId);
 			},
+			getAutoShare: (scope) => request('shares.getAutoShare', { scope }, autoShareFor(scope)),
+			setAutoShare: (scope, rules, options) => request('shares.setAutoShare', { scope, rules }, autoShareFor(scope), options?.requestId),
 		},
 		products: {
 			...(profiles('Product') as Omit<StoreClients['products'], 'delete'>),

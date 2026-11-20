@@ -79,6 +79,20 @@ type Share struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// AutoShareRules are a scope's auto-share rules: AccessRead or AccessWrite per kind, or "" for none.
+// For each kind with a rule, every new one whose owner is at or below the scope is shared with it.
+type AutoShareRules struct {
+	Brand     string `json:"brand,omitempty"`
+	Product   string `json:"product,omitempty"`
+	Character string `json:"character,omitempty"`
+}
+
+// AutoShare is a scope's auto-share rules, as the service returns them.
+type AutoShare struct {
+	Scope string `json:"scope"`
+	AutoShareRules
+}
+
 var shareableKinds = map[string]bool{"brand": true, "product": true, "character": true, "asset": true, "script": true, "storyboard": true, "prompt": true}
 var artifactKinds = map[string]bool{"script": true, "storyboard": true, "prompt": true}
 
@@ -277,6 +291,45 @@ func (c *AdminClient) SetShare(ctx context.Context, item ItemRef, scope string, 
 		err = malformed()
 	}
 	return out, err
+}
+
+// GetAutoShare reads the scope's auto-share rules ("customer" or a scope's external ID).
+func (c *AdminClient) GetAutoShare(ctx context.Context, scope string) (AutoShare, error) {
+	var out AutoShare
+	if !validExternalID(scope) {
+		return out, invalid("A scope is required.")
+	}
+	err := c.connection.request(ctx, "GET", "/v1/auto-shares/"+scope, nil, nil, &out, "scope")
+	if err == nil && (out.Scope != scope || !validRules(out.AutoShareRules)) {
+		err = malformed()
+	}
+	return out, err
+}
+
+// SetAutoShare replaces the scope's auto-share rules. For each kind with a rule, every new one whose
+// owner is at or below the scope is shared with it, with that access. Adding a rule, or raising one
+// from read to write, also shares the existing ones now, including any unshared before; the same rules
+// again change nothing. A share is only ever raised, never lowered; a kind without a rule keeps the
+// shares it has, and AutoShareRules{} removes every rule.
+func (c *AdminClient) SetAutoShare(ctx context.Context, scope string, rules AutoShareRules) (AutoShare, error) {
+	var out AutoShare
+	if !validExternalID(scope) || !validRules(rules) {
+		return out, invalid("A scope, and for each kind read, write or \"\", are required.")
+	}
+	err := c.connection.request(ctx, "PUT", "/v1/auto-shares/"+scope, nil, rules, &out, "scope")
+	if err == nil && (out.Scope != scope || out.AutoShareRules != rules) {
+		err = malformed()
+	}
+	return out, err
+}
+
+func validRules(r AutoShareRules) bool {
+	for _, access := range []string{r.Brand, r.Product, r.Character} {
+		if access != "" && access != AccessRead && access != AccessWrite {
+			return false
+		}
+	}
+	return true
 }
 
 // RemoveShare removes the item's share with the scope; it succeeds when there was none.

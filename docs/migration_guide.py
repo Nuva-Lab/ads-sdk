@@ -15,8 +15,8 @@ def migration_sections(locale='zh'):
 
     return [
         section('next', 'Upgrade to the next release', '升级到下一版本',
-            p('The next release adds user deletion, PDF Assets for the Agent and archiving for Skills and Sessions. Most integrations need no change. Check the four points below; the <a href="' + link('release-notes', 'unreleased') + '">release notes</a> list everything.',
-                '下一版本新增用户删除、供 Agent 阅读的 PDF Asset，以及 Skill 和 Session 的归档。大多数集成无需修改。请检查以下四点；完整内容见<a href="' + link('release-notes', 'unreleased') + '">版本说明</a>。')
+            p('The next release adds auto-share rules per scope, user deletion, PDF Assets for the Agent and archiving for Skills and Sessions. Most integrations need no change. Check the points below; the <a href="' + link('release-notes', 'unreleased') + '">release notes</a> list everything.',
+                '下一版本新增按范围的自动共享规则、用户删除、供 Agent 阅读的 PDF Asset，以及 Skill 和 Session 的归档。大多数集成无需修改。请检查以下几点；完整内容见<a href="' + link('release-notes', 'unreleased') + '">版本说明</a>。')
             + '<ol>'
             + '<li>' + t('<strong>An Asset\'s <code>kind</code> can be <code>document</code></strong> (a PDF). Handle it wherever you branch on <code>kind</code>. A document never goes into a Product, Character or Prompt. Upgrade everyone in your organization before your users attach PDFs: older SDKs fail to read a document Asset.',
                          '<strong>Asset 的 <code>kind</code> 可能是 <code>document</code></strong>（PDF）。按 <code>kind</code> 分支处理的地方请加上这种情况。文档不会进入产品、人物或提示词。在用户上传 PDF 之前，请让组织内所有人都升级：旧版 SDK 无法读取文档 Asset。') + '</li>'
@@ -24,6 +24,8 @@ def migration_sections(locale='zh'):
                          '<strong>已删除的用户（Go Admin SDK）。</strong>调用 <code>DeleteUser</code> 之后，再为该 ID 调用 <code>IssueUserToken</code> 或 <code>SetMemberships</code> 会返回 <code>409 USER_DELETED</code>，该用户的令牌会得到 <code>UNAUTHENTICATED</code>。两者都按已退出登录处理。') + '</li>'
             + '<li>' + t('<strong>Archived Skills and Sessions are left out of lists.</strong> <code>skills.list</code>, <code>ListSkills</code> and <code>sessions.list</code> no longer return archived ones; pass <code>{archived: true}</code> (Go: <code>ListArchivedSkills</code>) to read them.',
                          '<strong>列表不再包含已归档的 Skill 和 Session。</strong><code>skills.list</code>、<code>ListSkills</code> 和 <code>sessions.list</code> 不再返回已归档的项；如需读取，请传 <code>{archived: true}</code>（Go 使用 <code>ListArchivedSkills</code>）。') + '</li>'
+            + '<li>' + t('<strong>Automatic sharing is yours to set.</strong> If your organization used the API before scopes, its new Brands, Products and Characters were shared with everyone to read by a setting only Nuva could change. That is now a <code>read</code> rule for all three kinds on <code>customer</code>, so nothing changes until you change it: <code>shares.setAutoShare</code> or Go <code>SetAutoShare</code>, for example to let everyone edit (<code>write</code>) or to share only within a group.',
+                         '<strong>自动共享由你设置。</strong>如果你的组织在范围功能推出之前就已使用 API，其新建的品牌、产品和人物会通过一项只有 Nuva 能修改的设置以只读方式共享给所有人。现在它变为 <code>customer</code> 上三类内容的 <code>read</code> 规则，在你修改之前行为不变：可用 <code>shares.setAutoShare</code> 或 Go 的 <code>SetAutoShare</code> 修改，例如让所有人可编辑（<code>write</code>），或只在某个 group 内共享。') + '</li>'
             + '<li>' + t('<strong>Script fact IDs.</strong> <code>fact_product_tags</code> and <code>fact_product_video_requirements</code> are gone from the Script types; the service never supplied them. If your code names them, remove them: TypeScript flags each one.',
                          '<strong>脚本的事实 ID。</strong><code>fact_product_tags</code> 和 <code>fact_product_video_requirements</code> 已从脚本类型中移除，服务从未提供过它们。如果代码中用到了它们，请删除：TypeScript 会逐一标出。') + '</li>'
             + '</ol>'

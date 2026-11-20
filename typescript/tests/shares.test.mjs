@@ -67,6 +67,37 @@ test('shares: inputs are checked before anything is sent', () => {
 	assert.deepEqual(dataRequest('shares.remove', { item, scope: 'customer' }), { method: 'DELETE', path: `/v1/shares/product/${id}/customer` });
 });
 
+test('shares: a scope\'s auto-share rules are read and replaced', async () => {
+	const rules = { scope: 'team a1', product: 'write' };
+	await withFetch(
+		() => Response.json(rules),
+		async (nuva, requests) => {
+			assert.deepEqual(await nuva.shares.setAutoShare('team a1', { product: 'write', brand: undefined }), rules);
+			assert.deepEqual(await nuva.shares.getAutoShare('team a1'), rules);
+			assert.deepEqual(requests, [
+				{ url: 'https://store.invalid/v1/auto-shares/team%20a1', method: 'PUT', body: '{"product":"write"}' },
+				{ url: 'https://store.invalid/v1/auto-shares/team%20a1', method: 'GET', body: undefined },
+			]);
+		},
+	);
+	// The rules of another scope, or an access that is neither read nor write, are a service error.
+	for (const answer of [{ scope: 'customer' }, { scope: 'team a1', brand: 'admin' }])
+		await withFetch(
+			() => Response.json(answer),
+			async (nuva) => {
+				await assert.rejects(nuva.shares.getAutoShare('team a1'), (error) => error.code === 'SERVICE_ERROR');
+			},
+		);
+	for (const params of [
+		{ scope: 'a/b', rules: {} },
+		{ scope: 'customer', rules: { asset: 'read' } },
+		{ scope: 'customer', rules: { product: 'admin' } },
+		{ scope: 'customer', rules: null },
+	])
+		assert.throws(() => dataRequest('shares.setAutoShare', params), (error) => error.code === 'INVALID_INPUT', JSON.stringify(params));
+	assert.deepEqual(dataRequest('shares.setAutoShare', { scope: 'customer', rules: {} }), { method: 'PUT', path: '/v1/auto-shares/customer', body: {} });
+});
+
 test('sessions.list passes owner, so an admin lists a member\'s Sessions', async () => {
 	await withFetch(
 		() => Response.json({ items: [], nextCursor: null }),

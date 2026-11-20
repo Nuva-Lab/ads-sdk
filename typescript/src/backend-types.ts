@@ -1,4 +1,4 @@
-// Generated from ads_backend/openapi.json at b640e1ca0486c7c4b16a3bc561b1a7162b4159b0. Do not edit.
+// Generated from ads_backend/openapi.json at 8ef803c68836cbd3baf07a5af880f3d98b6fc5ad. Do not edit.
 export interface paths {
     "/v1/admin/tokens": {
         parameters: {
@@ -724,6 +724,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/auto-shares/{scope}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a scope's auto-share rules
+         * @description Which new Brands, Products and Characters are shared with the scope, and how. For the customer's API key and admins of the scope or above.
+         */
+        get: operations["get_auto_shares_v1_auto_shares__scope__get"];
+        /**
+         * Set a scope's auto-share rules
+         * @description Replaces the scope's rules. For each kind with a rule, every new one whose owner is at or below the scope is shared with it, with that access. Adding a rule, or raising one from `read` to `write`, also shares the existing ones now, including any unshared before; sending the same rules again changes nothing. A share is only ever raised, never lowered, and a kind left out keeps the shares it has. `{}` removes every rule. For the customer's API key and admins of the scope or above, not through the Agent.
+         */
+        put: operations["put_auto_shares_v1_auto_shares__scope__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -884,6 +908,29 @@ export interface components {
          * @enum {string}
          */
         AssetSource: "uploaded" | "generated";
+        /** AutoShareOut */
+        AutoShareOut: {
+            /**
+             * Scope
+             * @description `customer` or the scope's external id.
+             */
+            scope: string;
+            /** @description Left out when there is no rule. */
+            brand?: components["schemas"]["ShareAccess"] | null;
+            /** @description Left out when there is no rule. */
+            product?: components["schemas"]["ShareAccess"] | null;
+            /** @description Left out when there is no rule. */
+            character?: components["schemas"]["ShareAccess"] | null;
+        };
+        /** AutoShareRequest */
+        AutoShareRequest: {
+            /** @description `read` or `write` to share every new one with the scope; leave it out for none. */
+            brand?: components["schemas"]["ShareAccess"] | null;
+            /** @description `read` or `write` to share every new one with the scope; leave it out for none. */
+            product?: components["schemas"]["ShareAccess"] | null;
+            /** @description `read` or `write` to share every new one with the scope; leave it out for none. */
+            character?: components["schemas"]["ShareAccess"] | null;
+        };
         /** BatchAd */
         BatchAd: {
             /**
@@ -4914,6 +4961,126 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_auto_shares_v1_auto_shares__scope__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scope: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutoShareOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    put_auto_shares_v1_auto_shares__scope__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scope: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutoShareRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutoShareOut"];
+                };
             };
             /** @description Unauthorized */
             401: {

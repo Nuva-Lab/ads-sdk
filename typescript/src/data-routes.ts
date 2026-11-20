@@ -1,8 +1,18 @@
 import { backendIdSchema } from './backend-id.js';
 import { AdsError } from './errors.js';
-import type { ShareableKind } from './stores.js';
+import type { AutoShareKind, ShareableKind } from './stores.js';
 
 export const SHAREABLE_KINDS: readonly ShareableKind[] = ['brand', 'product', 'character', 'asset', 'script', 'storyboard', 'prompt'];
+const AUTO_SHARE_KINDS: readonly AutoShareKind[] = ['brand', 'product', 'character'];
+/**
+ * `customer`, or an org's or group's external ID: 1–255 characters, no control characters or '/', and not '.' or '..',
+ * which would change the request path.
+ */
+function validScope(scope: unknown, invalid: (message: string) => Error): string {
+	if (typeof scope !== 'string' || scope === '.' || scope === '..' || !/^[^\x00-\x1f\x7f/]{1,255}$/.test(scope))
+		throw invalid('A scope is required: customer, or an org or group external ID.');
+	return scope;
+}
 /** Existing backend DTOs are passed unchanged. Generation writers use a separate service. */
 export function dataRequest(
 	method: string,
@@ -31,14 +41,22 @@ export function dataRequest(
 	const [collection, action] = method.split('.');
 	if (collection === 'shares') {
 		const invalid = (message: string) => new AdsError({ code: 'INVALID_INPUT', message, retryable: false, acceptance: 'not_accepted' });
+		if (action === 'getAutoShare' || action === 'setAutoShare') {
+			const path = `/v1/auto-shares/${encodeURIComponent(validScope(p.scope, invalid))}`;
+			if (action === 'getAutoShare') return { method: 'GET', path };
+			const rules = p.rules as Record<string, unknown> | null | undefined;
+			if (rules === null || typeof rules !== 'object' || Array.isArray(rules)) throw invalid('rules is an object: {brand?, product?, character?}.');
+			for (const [kind, access] of Object.entries(rules)) {
+				if (!AUTO_SHARE_KINDS.includes(kind as AutoShareKind)) throw invalid(`An auto-share rule is for one of: ${AUTO_SHARE_KINDS.join(', ')}.`);
+				if (access !== undefined && access !== 'read' && access !== 'write') throw invalid(`${kind} must be read or write.`);
+			}
+			return { method: 'PUT', path, body: Object.fromEntries(Object.entries(rules).filter(([, access]) => access !== undefined)) };
+		}
 		const item = p.item as { kind?: unknown; id?: unknown } | undefined;
 		if (!SHAREABLE_KINDS.includes(item?.kind as ShareableKind)) throw invalid(`A share is for one of: ${SHAREABLE_KINDS.join(', ')}.`);
 		const base = `/v1/shares/${item!.kind as string}/${resourceId(typeof item!.id === 'string' ? item!.id.toLowerCase() : item!.id)}`;
 		if (action === 'list') return { method: 'GET', path: base };
-		// `customer`, or an org's or group's external ID: 1–255 characters, no control characters or '/', and not '.' or
-		// '..', which would change the request path.
-		const scope = p.scope;
-		if (typeof scope !== 'string' || scope === '.' || scope === '..' || !/^[^\x00-\x1f\x7f/]{1,255}$/.test(scope)) throw invalid('A scope is required: customer, or an org or group external ID.');
+		const scope = validScope(p.scope, invalid);
 		if (action === 'set') {
 			if (p.access !== 'read' && p.access !== 'write') throw invalid('access must be read or write.');
 			return { method: 'PUT', path: `${base}/${encodeURIComponent(scope)}`, body: { access: p.access } };
