@@ -87,6 +87,17 @@ var artifactKinds = map[string]bool{"script": true, "storyboard": true, "prompt"
 func validExternalID(id string) bool {
 	return id != "" && id != "." && id != ".." && validText(id, 255) && strings.IndexFunc(id, func(r rune) bool { return r < 32 || r == 127 || r == '/' }) < 0
 }
+func validUserID(id string) bool {
+	if id == "" || !validText(id, 255) || strings.IndexFunc(id, func(r rune) bool { return r < 32 || r == 127 }) >= 0 {
+		return false
+	}
+	for _, segment := range strings.Split(id, "/") {
+		if segment == "." || segment == ".." {
+			return false
+		}
+	}
+	return true
+}
 func validScope(s Scope) bool {
 	return uuidPattern.MatchString(s.ID) && validExternalID(s.ExternalID) && (s.Kind == ScopeOrg || s.Kind == ScopeGroup) && s.Parent != "" && !s.CreatedAt.IsZero()
 }
@@ -198,6 +209,20 @@ func (c *AdminClient) GetMemberships(ctx context.Context, externalUserID string)
 	}
 	return out, err
 }
+
+// DeleteUser stops the user: the API refuses their tokens at once, and a new token or memberships
+// for the ID are refused (409 USER_DELETED). A token the Agent already holds lets them chat until
+// it expires (within an hour), but nothing it does for them reaches the API. What they made stays
+// theirs, with its shares, and their admins keep administering it. A repeat succeeds; an unknown
+// ID is 404 NOT_FOUND. The ID can't be used for a new user.
+func (c *AdminClient) DeleteUser(ctx context.Context, externalUserID string) error {
+	// Any ID IssueUserToken accepts, '/' included; "." and ".." segments would not survive the path.
+	if !validUserID(externalUserID) {
+		return invalid("external_user_id must contain 1–255 characters without control characters, and no \".\" or \"..\" segment.")
+	}
+	return c.connection.request(ctx, "DELETE", "/v1/admin/users/"+externalUserID, nil, nil, nil)
+}
+
 func validMemberships(m UserMemberships, externalUserID string) bool {
 	if !uuidPattern.MatchString(m.UserID) || m.ExternalUserID != externalUserID || m.Memberships == nil {
 		return false

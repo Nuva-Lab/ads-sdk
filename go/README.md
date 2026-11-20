@@ -45,6 +45,7 @@ Handle every error in application code; the abbreviated example omits applicatio
 | `AdminClient.ArchiveScope(ctx, externalID)` | DELETE `/v1/admin/scopes/{external_id}` | Customer API key |
 | `AdminClient.SetMemberships(ctx, externalUserID, memberships)` | PUT `/v1/admin/users/{external_user_id}/memberships` | Customer API key |
 | `AdminClient.GetMemberships(ctx, externalUserID)` | GET `/v1/admin/users/{external_user_id}/memberships` | Customer API key |
+| `AdminClient.DeleteUser(ctx, externalUserID)` | DELETE `/v1/admin/users/{external_user_id}` | Customer API key |
 | `AdminClient.ListShares(ctx, ItemRef)` | GET `/v1/shares/{kind}/{id}` | Customer API key |
 | `AdminClient.SetShare(ctx, ItemRef, scope, access)` | PUT `/v1/shares/{kind}/{id}/{scope}` | Customer API key |
 | `AdminClient.RemoveShare(ctx, ItemRef, scope)` | DELETE `/v1/shares/{kind}/{id}/{scope}` | Customer API key |
@@ -78,6 +79,7 @@ _, err = admin.SetShare(ctx, nuva.ItemRef{Kind: "product", ID: productID}, "team
 - **`RoleAdmin`** reads, writes, deletes and shares what users at or below its scope own, and can drive their Agent Sessions.
 - **`RoleViewer`** reads what users at or below its scope own, and changes nothing of theirs. A viewer is still a member: an item shared with them for writing, they can edit.
 - **Shares** are `AccessRead` (see and use) or `AccessWrite` (also edit). A share reaches everyone at or below its scope. It never allows deleting the item or sharing it on.
+- **`DeleteUser`** stops a user: the API refuses their tokens at once, and a new token or memberships for the ID get `409 USER_DELETED`. A token they already hold still opens the Agent until it expires (within an hour), but nothing they do there reaches the API. What they made stays theirs, with its shares, for their admins and colleagues. The ID can't be used again.
 - Shareable kinds are `brand`, `product`, `character`, `asset`, `script`, `storyboard`, `directing_plan` and `prompt`.
 - The API key administers the whole customer: it lists, reads and shares everyone's items, but writing items takes a user token.
 - `ListShares` takes the right to share the item (the API key, its owner or an admin above them).
