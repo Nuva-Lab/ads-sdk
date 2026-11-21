@@ -5,6 +5,7 @@ import { AdsError, acceptanceOf, initOf, withMethod } from './errors.js';
 import { frozen } from './protocol.js';
 import { backendSchema } from './backend-schema.js';
 import { decodeScriptPackage } from './script-content.js';
+import { fitImage } from './image-fit.js';
 import {
 	generateScriptSchema,
 	generateStoryboardSchema,
@@ -315,9 +316,17 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 				const kind = o?.kind ?? (prefix === 'image' || prefix === 'video' || prefix === 'audio' ? prefix : undefined);
 				if (!kind) throw new AdsError({ code: 'INVALID_INPUT', message: 'Specify the media kind for this upload.', retryable: false });
 				const intent = await dto('assets.uploadIntent', checked(backendSchema('UploadRequest'), { kind }, true), 'UploadOut', o?.requestId);
-				if (source.size > intent.max_bytes)
-					throw new AdsError({ code: 'INVALID_INPUT', message: `The file is larger than ${intent.max_bytes} bytes.`, retryable: false });
-				await transport.upload(intent.upload_url, source);
+				// An image over the limit is sent as a smaller copy where the runtime can make one (a browser).
+				const file = source.size <= intent.max_bytes ? source : kind === 'image' ? await fitImage(source, intent.max_bytes) : undefined;
+				if (file === undefined)
+					throw new AdsError({
+						code: 'INVALID_INPUT',
+						message:
+							`The file is larger than ${intent.max_bytes} bytes.` +
+							(kind === 'image' ? ' Scale it down, for example to 2048 px on its long side, and upload it again.' : ''),
+						retryable: false,
+					});
+				await transport.upload(intent.upload_url, file);
 				return register({ upload_token: intent.upload_token });
 			},
 		},
