@@ -206,7 +206,7 @@ export function resourcePresentation(
         image: "Image",
         video: "Video",
         audio: "Audio",
-        document: "PDF",
+        document: "Document",
       };
     return {
       ...base,

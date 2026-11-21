@@ -281,14 +281,14 @@ INTRO_TYPES = ('NuvaClientOptions', 'AccessToken', 'AdsError', 'StoreCommandOpti
 PAGES = [
     Page('reference-assets', ('Assets', '素材（Asset）'),
          ('Upload files and read them with fresh download URLs.', '上传文件，并读取带新下载地址的文件。'),
-         [('An Asset is a file: an image, video or audio you add, a PDF (`document`) for the Agent to read, or a clip a Job renders. Products, Characters, Prompts and messages name Assets by id; a PDF goes only in messages. `download_url` expires; read the Asset again for a new one.',
-           'Asset 是一个文件：你添加的图片、视频或音频，供 Agent 阅读的 PDF（<code>document</code>），或任务渲染出的片段。产品、人物、提示词和消息都按 ID 引用 Asset；PDF 只能用在消息里。<code>download_url</code> 会过期，需要时重新读取 Asset 获取新地址。')],
+         [('An Asset is a file: an image, video or audio you add, a document (`document`: a PDF, Word or Excel file) for the Agent to read, or a clip a Job renders. Products, Characters, Prompts and messages name Assets by id; a document goes only in messages. A Word or Excel document is read when you add it: `text_url` is its text, and each picture in it becomes an image Asset (`metadata.images`). `download_url` and `text_url` expire; read the Asset again for new ones.',
+           'Asset 是一个文件：你添加的图片、视频或音频，供 Agent 阅读的文档（<code>document</code>：PDF、Word 或 Excel 文件），或任务渲染出的片段。产品、人物、提示词和消息都按 ID 引用 Asset；文档只能用在消息里。Word 或 Excel 文档在添加时就会被读取：<code>text_url</code> 是它的正文，其中的每张图片都会成为一个图片 Asset（<code>metadata.images</code>）。<code>download_url</code> 和 <code>text_url</code> 会过期，需要时重新读取 Asset 获取新地址。')],
          [Method('assets.upload', ('Upload a file', '上传文件'),
                  [P('source', 'File | {url: string}', None, 'The file: a `File` from your upload control, or `{url}` for a public HTTPS URL the service fetches.',
                     '文件：上传控件中的 <code>File</code>，或由服务抓取的公开 HTTPS 地址 <code>{url}</code>。'),
                   P('options', 'StoreCommandOptions & {kind?, label?, description?}', [
-                      Field('UploadRequest', 'kind', required=False, note=T('`image` (JPEG, PNG or WebP), `video` (MP4) or `audio` (MP3, WAV or MP4). For a `File`, taken from its MIME type when left out; required with `{url}`.',
-                                                                          '<code>image</code>（JPEG、PNG 或 WebP）、<code>video</code>（MP4）或 <code>audio</code>（MP3、WAV 或 MP4）。上传 <code>File</code> 时可省略，按其 MIME 类型确定；使用 <code>{url}</code> 时必填。')),
+                      Field('UploadRequest', 'kind', required=False, note=T('`image` (JPEG, PNG or WebP), `video` (MP4), `audio` (MP3, WAV or MP4) or `document` (PDF, Word .docx or Excel .xlsx). For a `File`, taken from its MIME type (or a document\'s file name) when left out; required with `{url}`.',
+                                                                          '<code>image</code>（JPEG、PNG 或 WebP）、<code>video</code>（MP4）、<code>audio</code>（MP3、WAV 或 MP4）或 <code>document</code>（PDF、Word .docx 或 Excel .xlsx）。上传 <code>File</code> 时可省略，按其 MIME 类型（文档也可按文件名）确定；使用 <code>{url}</code> 时必填。')),
                       Field('AssetCreate', 'label'), Field('AssetCreate', 'description'),
                       Row('idempotencyKey', 'string', False, 'For `{url}`: see StoreCommandOptions. A `File` needs none: adding the same file again returns the same Asset.',
                           '用于 <code>{url}</code>，参见 StoreCommandOptions。<code>File</code> 不需要：再次添加同一文件会返回同一个 Asset。'),

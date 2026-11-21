@@ -311,9 +311,8 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 					if (typeof source?.url !== 'string') throw moved('Upload a File, or { url } for a public HTTPS URL.');
 					return register({ url: source.url, ...(o?.kind === undefined ? {} : { kind: o.kind }) }, o?.idempotencyKey);
 				}
-				const prefix = source.type.split('/')[0];
-				const kind = o?.kind ?? (prefix === 'image' || prefix === 'video' || prefix === 'audio' ? prefix : undefined);
-				if (!kind) throw new AdsError({ code: 'INVALID_INPUT', message: 'Specify the media kind for this upload.', retryable: false });
+				const kind = o?.kind ?? uploadKind(source);
+				if (!kind) throw new AdsError({ code: 'INVALID_INPUT', message: 'Specify the kind (image, video, audio or document) for this upload.', retryable: false });
 				const intent = await dto('assets.uploadIntent', checked(backendSchema('UploadRequest'), { kind }, true), 'UploadOut', o?.requestId);
 				if (source.size > intent.max_bytes)
 					throw new AdsError({ code: 'INVALID_INPUT', message: `The file is larger than ${intent.max_bytes} bytes.`, retryable: false });
@@ -558,4 +557,14 @@ function named<T extends object>(clients: T): T {
 			),
 		]),
 	) as T;
+}
+
+/** PDF, Word and Excel files, by MIME type and, for files the browser gives no type, by extension. */
+const DOCUMENT_TYPES = new Set(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
+/** A file's kind from its type, or its extension for a document; undefined when neither says. */
+function uploadKind(file: File): 'image' | 'video' | 'audio' | 'document' | undefined {
+	const prefix = file.type.split('/')[0];
+	if (prefix === 'image' || prefix === 'video' || prefix === 'audio') return prefix;
+	if (DOCUMENT_TYPES.has(file.type) || /\.(pdf|docx|xlsx)$/i.test(file.name)) return 'document';
+	return undefined;
 }

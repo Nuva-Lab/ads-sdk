@@ -1,4 +1,4 @@
-// Generated from ads_backend/openapi.json at 8ef803c68836cbd3baf07a5af880f3d98b6fc5ad. Do not edit.
+// Generated from ads_backend/openapi.json at 1547c7755466c2c93d32b2dfe9f66967e70a6f84. Do not edit.
 import type { z } from "zod";
 export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.fromJSONSchema>[0], boolean>> = {
   "AdOut": {
@@ -232,7 +232,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
           "document"
         ],
         "title": "Kind",
-        "description": "`image`, `video`, `audio` or `document` (a PDF)."
+        "description": "`image`, `video`, `audio` or `document` (a PDF, Word or Excel file)."
       },
       "mime": {
         "type": "string",
@@ -252,7 +252,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "additionalProperties": true,
         "type": "object",
         "title": "Metadata",
-        "description": "width and height for images; duration_ms for video and audio; page_count for documents."
+        "description": "width and height for images; duration_ms for video and audio; page_count for a PDF. For Word or Excel: `headings` (Word) or `sheets` (Excel: name, rows, columns, hidden), `text_bytes` and `text_lines` of its text, and `images`, the ids of the image assets taken from it in the order the text shows them."
       },
       "label": {
         "anyOf": [
@@ -294,6 +294,31 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
         "format": "date-time",
         "title": "Download Url Expires At",
         "description": "When `download_url` stops working: an hour after this response."
+      },
+      "text_url": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Text Url",
+        "description": "A Word or Excel document's text, until `text_url_expires_at`: Markdown for Word; for Excel, `## <sheet>` then the sheet's rows as CSV, as Excel displays the cells. `[image: <asset id>]` marks where an embedded image appears. null for media and PDFs, which are read as they are."
+      },
+      "text_url_expires_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Text Url Expires At",
+        "description": "When `text_url` stops working: an hour after this response."
       }
     },
     "type": "object",
@@ -3694,7 +3719,7 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
           "document"
         ],
         "title": "Kind",
-        "description": "What you will upload: `image` (JPEG, PNG or WebP), `video` (MP4), `audio` (MP3, WAV or MP4) or `document` (PDF, for the Agent to read)."
+        "description": "What you will upload: `image` (JPEG, PNG or WebP), `video` (MP4), `audio` (MP3, WAV or MP4) or `document` (a PDF, or a Word .docx or Excel .xlsx without a password, for the Agent to read). A Word or Excel document is read when it is registered: see `text_url` on the asset."
       }
     },
     "additionalProperties": false,
