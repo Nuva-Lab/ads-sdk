@@ -66,8 +66,6 @@ def releases(locale):
                      '<strong>归档 Session</strong>（<a href="https://github.com/Nuva-Lab/ads-sdk/issues/35">#35</a>）。<code>sessions.archive(id)</code> 可让测试对话不再出现在 <code>sessions.list</code> 中；消息和内容都会保留，仍可打开。'),
                 ],
                 'changed': [
-                    ('<strong>An image over the upload limit is sent as a smaller copy in a browser</strong> (<a href="https://github.com/Nuva-Lab/ads-sdk/issues/47">#47</a>). Instead of failing, <code>assets.upload</code> sends WebP of at most 2048 px on its long side, the size the Agent uses. The 10 MB limit stays.',
-                     '<strong>在浏览器中，超过上传上限的图片会改为上传缩小后的副本</strong>（<a href="https://github.com/Nuva-Lab/ads-sdk/issues/47">#47</a>）。<code>assets.upload</code> 不再报错，而是上传长边不超过 2048 像素的 WebP，即 Agent 所用的尺寸。10 MB 上限保持不变。'),
                     ('<strong>Organization-wide sharing is now a rule you control.</strong> The setting only Nuva could change is gone. An organization that had it keeps the same behavior as a <code>read</code> rule for all three kinds on <code>customer</code>.',
                      '<strong>组织范围的自动共享改为你可控制的规则。</strong>只有 Nuva 能修改的设置已移除。原先开启该设置的组织，现在在 <code>customer</code> 上有三类内容的 <code>read</code> 规则，行为不变。'),
                     ('<strong>Script fact IDs</strong> are the ones the service supplies: <code>fact_product_tags</code> and <code>fact_product_video_requirements</code> are gone. A Script that cites a fact it doesn\'t have is refused with the bad ID.',

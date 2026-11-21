@@ -116,8 +116,6 @@ Brands take a `description` and `attributes`, and Products a `description`; the 
 
 `assets.upload(source, {kind?, label?, description?})` takes a `File` (its MIME type gives the `kind` unless you pass one) or `{url}` for a public HTTPS URL (pass `kind`, and an `idempotencyKey` to retry the fetch safely). The writers read `label` and `description` to tell files apart; `assets.update(id, {label, description})` changes them. Adding a file you already have returns the same Asset, so retrying a file upload is safe; adding it again with different text fails with `ASSET_EXISTS`. Download URLs expire (`download_url_expires_at`): read the Asset again for a fresh one.
 
-A file larger than its kind allows (`max_bytes`: images 10 MB) is refused before it is sent, except an image in a browser: the SDK sends a smaller copy instead, WebP of at most 2048 px on its long side (1536 px if that is still too large), the size the Agent and the writers use. Elsewhere (Node.js), scale such an image down before uploading it. A `{url}` is fetched by the service, which refuses one over the limit.
-
 ## Videos and Jobs
 
 `videos.generate({prompt})` renders a saved Prompt, such as one from `prompts.generate`; its Job joins the Prompt's Batch. To render text of your own, pass `input: {schema_version: 1, data}` instead, with only what the model renders from: `prompt`, `image_asset_ids`, `video_asset_ids`, `audio_asset_ids`, `seconds` (default 5) and `ratio` (default 16:9). Beside `input` or `prompt` go `seed`, `resolution` (default 768P), `batch_id` and `callback_url`. An omitted `seed` is random and returned as `job.seed`; pass it again to repeat a draw. The same naming rule applies to the text.

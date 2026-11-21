@@ -25,8 +25,6 @@ Each entry describes the change from the previous released version.
 
 ### Changed
 
-- **An image over the upload limit is sent as a smaller copy in a browser** ([#47](https://github.com/Nuva-Lab/ads-sdk/issues/47)). `assets.upload(file)` with an image larger than its limit (10 MB) no longer fails in a browser: the SDK sends WebP of at most 2048 px on its long side (1536 px if that is still too large), upright as the photo was taken. The Agent and the writers use images of that size anyway, so nothing they would use is lost; the limit itself stays, because larger images make generation slower without making it better. An image within the limit is sent as it is. In a runtime without image decoding (Node.js), an image over the limit is still refused, now with how to fix it.
-
 - **Script fact IDs are the ones the service supplies.** `fact_product_tags` and `fact_product_video_requirements` are gone: Products have no such fields, the service never supplied them, and a Script citing them was always refused, so no saved Script cites them and every SDK still reads every Script. A Script that cites a fact it doesn't have is refused with the bad ID and the facts it does have.
 
 ### Fixed
