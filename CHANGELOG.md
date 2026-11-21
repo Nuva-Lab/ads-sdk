@@ -29,6 +29,8 @@ Each entry describes the change from the previous released version.
 
 ### Fixed
 
+- **A Session's first message no longer fails with "No acknowledgement received"** ([#44](https://github.com/Nuva-Lab/ads-sdk/issues/44)). The Agent accepts a new Session's first message only after preparing the Session, which took up to 9 s, and the connection answers its requests in order, so a message could wait behind the one before it; the SDK gave up after 8 s while the service still accepted the message. Agent requests (`send`, `stop`, `respond`, `fail`, `refresh`) now wait 30 s for their answer. If one still times out, sending again with the error's `requestId` answers with the first receipt and sends nothing twice. An explicit `requestTimeoutMs` still applies to every request.
+
 - **Skills you register are used in Agent conversations** ([#36](https://github.com/Nuva-Lab/ads-sdk/issues/36)). Every Skill of yours that has a main version (`AdminClient.RegisterSkill`, then `SetSkillMain` for later versions) is available to the Agent in new Sessions, beside Nuva's; you no longer need Nuva to enable it. A Session keeps the Skills and versions it started with, so a new main or a newly registered Skill reaches only Sessions started afterwards. This is a service change, live since 2026-11-13: it needs no SDK upgrade or code change. The docs now also say that the direct writers (`scripts.generate`, `storyboards.generate`, `prompts.generate`) use Nuva's writing Skills.
 
 ## 0.1.0-preview.6

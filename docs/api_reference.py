@@ -529,8 +529,8 @@ TS_TYPES = {
 }
 TS_DEFAULTS = {
     'NuvaClientOptions.environment': '"sandbox"',
-    'NuvaClientOptions.requestTimeoutMs': ('8000; 180000 for scripts.*, assets.upload; 300000 for storyboards.*, prompts.generate',
-                                          '8000；scripts.*、assets.upload 为 180000；storyboards.*、prompts.generate 为 300000'),
+    'NuvaClientOptions.requestTimeoutMs': ('8000; 30000 for Agent send, stop, respond, fail, refresh; 180000 for scripts.*, assets.upload; 300000 for storyboards.*, prompts.generate',
+                                          '8000；Agent 的 send、stop、respond、fail、refresh 为 30000；scripts.*、assets.upload 为 180000；storyboards.*、prompts.generate 为 300000'),
     'NuvaClientOptions.jobPollIntervalMs': '500',
     'NuvaClientOptions.tokenRefreshSkewMs': '30000',
 }
