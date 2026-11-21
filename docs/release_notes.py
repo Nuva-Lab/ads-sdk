@@ -72,6 +72,8 @@ def releases(locale):
                      '<strong>脚本的事实 ID</strong> 只保留服务提供的那些：<code>fact_product_tags</code> 和 <code>fact_product_video_requirements</code> 已移除。引用不存在的事实的脚本会被拒绝，并指出错误的 ID。'),
                 ],
                 'fixed': [
+                    ('<strong>A Session\'s first message no longer fails with “No acknowledgement received”</strong> (<a href="https://github.com/Nuva-Lab/ads-sdk/issues/44">#44</a>). Agent requests (<code>send</code>, <code>stop</code>, <code>respond</code>, <code>fail</code>, <code>refresh</code>) wait 30 s for their answer instead of 8 s. If one still times out, send again with the error\'s <code>requestId</code>: it answers with the first receipt.',
+                     '<strong>Session 的第一条消息不再报“No acknowledgement received”</strong>（<a href="https://github.com/Nuva-Lab/ads-sdk/issues/44">#44</a>）。Agent 请求（<code>send</code>、<code>stop</code>、<code>respond</code>、<code>fail</code>、<code>refresh</code>）等待回应的时间由 8 秒改为 30 秒。如果仍然超时，用错误中的 <code>requestId</code> 再次发送，会返回第一次的回执。'),
                     ('<strong>Skills you register are used in Agent conversations</strong> (<a href="https://github.com/Nuva-Lab/ads-sdk/issues/36">#36</a>). A Skill with a main version reaches the Agent\'s new Sessions without asking Nuva. A service change, live since 2026-11-13.',
                      '<strong>你注册的 Skill 会用于 Agent 对话</strong>（<a href="https://github.com/Nuva-Lab/ads-sdk/issues/36">#36</a>）。有主版本的 Skill 会进入 Agent 新建的 Session，无需请 Nuva 开启。这是服务端变化，自 2026-11-13 起生效。'),
                 ],

@@ -149,7 +149,7 @@ export type NuvaEnvironment = 'sandbox' | 'production';
 export interface NuvaClientOptions {
 	/** Paired Agent and API services. Defaults to sandbox (staging); use credentials issued by that environment. */
 	readonly environment?: NuvaEnvironment;
-	/** Override request deadlines. Defaults: 8s for control/reads; 180s for writers, Asset registration and uploads. */
+	/** Override request deadlines. Defaults: 8s for control/reads; 30s for Agent requests (send, stop, replies, refresh); 180s for Scripts, Asset registration and uploads; 300s for Storyboards and Prompts. */
 	readonly requestTimeoutMs?: number;
 	readonly jobPollIntervalMs?: number;
 	/** Legacy strings have no proactive expiry guarantee. */

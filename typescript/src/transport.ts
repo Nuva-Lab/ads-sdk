@@ -92,6 +92,12 @@ export class Transport {
 	private readonly base: URL;
 	private readonly origins: ReturnType<typeof originsForEnvironment>;
 	private readonly timeout: number;
+	/**
+	 * How long a socket frame (a request or a reauthentication) waits for its answer. The gateway answers one socket's
+	 * frames in order, so this also covers the frames sent before it; a Session's first message is accepted only after
+	 * its instructions are frozen, measured at up to 9 s (Nuva-Lab/ads-sdk#44).
+	 */
+	private readonly acknowledgementTimeout: number;
 	private credentials: Credentials;
 	private socketToken: string | undefined;
 	private renewal:
@@ -133,6 +139,7 @@ export class Transport {
 			throw new TypeError('A service HTTP(S) baseUrl without credentials is required.');
 		this.timeout = options.requestTimeoutMs ?? 8000;
 		if (!Number.isFinite(this.timeout) || this.timeout <= 0) throw new TypeError('requestTimeoutMs must be positive.');
+		this.acknowledgementTimeout = options.requestTimeoutMs ?? 30000;
 		this.credentials = new Credentials(
 			options,
 			(credential) => {
@@ -219,7 +226,7 @@ export class Transport {
 			} catch {
 				/* Failure is already reported. */
 			}
-		}, this.timeout);
+		}, this.acknowledgementTimeout);
 		this.renewal = { id, token, promise, resolve, reject, timer };
 		this.wire({
 			transport: 'websocket',
@@ -787,7 +794,7 @@ export class Transport {
 					...(writes.has(method) ? { acceptance: 'unknown' as const } : {}),
 				});
 				reject(error);
-			}, this.timeout);
+			}, this.acknowledgementTimeout);
 			this.pending.set(id, { method, started, resolve: (value) => resolve(value as T), reject, timer });
 			const body = JSON.stringify({ id, method, params });
 			this.wire({ transport: 'websocket', direction: 'send', event: 'frame', data: body });
