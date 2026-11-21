@@ -1,4 +1,4 @@
-// Generated from ads_backend/openapi.json at 8f837266f8e6d82e030ed09e62640bccd38a8522. Do not edit.
+// Generated from ads_backend/openapi.json at 1547c7755466c2c93d32b2dfe9f66967e70a6f84. Do not edit.
 import type { z } from "zod";
 export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.fromJSONSchema>[0], boolean>> = {
   "AdOut": {
@@ -342,6 +342,93 @@ export const backendDefinitions: Record<string, Exclude<Parameters<typeof z.from
       "generated"
     ],
     "title": "AssetSource"
+  },
+  "AutoShareOut": {
+    "properties": {
+      "scope": {
+        "type": "string",
+        "title": "Scope",
+        "description": "`customer` or the scope's external id."
+      },
+      "brand": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ShareAccess"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Left out when there is no rule."
+      },
+      "product": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ShareAccess"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Left out when there is no rule."
+      },
+      "character": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ShareAccess"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Left out when there is no rule."
+      }
+    },
+    "type": "object",
+    "required": [
+      "scope"
+    ],
+    "title": "AutoShareOut"
+  },
+  "AutoShareRequest": {
+    "properties": {
+      "brand": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ShareAccess"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "`read` or `write` to share every new one with the scope; leave it out for none."
+      },
+      "product": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ShareAccess"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "`read` or `write` to share every new one with the scope; leave it out for none."
+      },
+      "character": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ShareAccess"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "`read` or `write` to share every new one with the scope; leave it out for none."
+      }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "title": "AutoShareRequest"
   },
   "BatchAd": {
     "properties": {

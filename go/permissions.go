@@ -79,6 +79,20 @@ type Share struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// AutoShareRules are a scope's auto-share rules: AccessRead or AccessWrite per kind, or "" for none.
+// For each kind with a rule, every new one whose owner is at or below the scope is shared with it.
+type AutoShareRules struct {
+	Brand     string `json:"brand,omitempty"`
+	Product   string `json:"product,omitempty"`
+	Character string `json:"character,omitempty"`
+}
+
+// AutoShare is a scope's auto-share rules, as the service returns them.
+type AutoShare struct {
+	Scope string `json:"scope"`
+	AutoShareRules
+}
+
 var shareableKinds = map[string]bool{"brand": true, "product": true, "character": true, "asset": true, "script": true, "storyboard": true, "prompt": true}
 var artifactKinds = map[string]bool{"script": true, "storyboard": true, "prompt": true}
 
@@ -86,6 +100,17 @@ var artifactKinds = map[string]bool{"script": true, "storyboard": true, "prompt"
 // or "..", which would change the request path.
 func validExternalID(id string) bool {
 	return id != "" && id != "." && id != ".." && validText(id, 255) && strings.IndexFunc(id, func(r rune) bool { return r < 32 || r == 127 || r == '/' }) < 0
+}
+func validUserID(id string) bool {
+	if id == "" || !validText(id, 255) || strings.IndexFunc(id, func(r rune) bool { return r < 32 || r == 127 }) >= 0 {
+		return false
+	}
+	for _, segment := range strings.Split(id, "/") {
+		if segment == "." || segment == ".." {
+			return false
+		}
+	}
+	return true
 }
 func validScope(s Scope) bool {
 	return uuidPattern.MatchString(s.ID) && validExternalID(s.ExternalID) && (s.Kind == ScopeOrg || s.Kind == ScopeGroup) && s.Parent != "" && !s.CreatedAt.IsZero()
@@ -198,6 +223,20 @@ func (c *AdminClient) GetMemberships(ctx context.Context, externalUserID string)
 	}
 	return out, err
 }
+
+// DeleteUser stops the user: the API refuses their tokens at once, and a new token or memberships
+// for the ID are refused (409 USER_DELETED). A token the Agent already holds lets them chat until
+// it expires (within an hour), but nothing it does for them reaches the API. What they made stays
+// theirs, with its shares, and their admins keep administering it. A repeat succeeds; an unknown
+// ID is 404 NOT_FOUND. The ID can't be used for a new user.
+func (c *AdminClient) DeleteUser(ctx context.Context, externalUserID string) error {
+	// Any ID IssueUserToken accepts, '/' included; "." and ".." segments would not survive the path.
+	if !validUserID(externalUserID) {
+		return invalid("external_user_id must contain 1–255 characters without control characters, and no \".\" or \"..\" segment.")
+	}
+	return c.connection.request(ctx, "DELETE", "/v1/admin/users/"+externalUserID, nil, nil, nil)
+}
+
 func validMemberships(m UserMemberships, externalUserID string) bool {
 	if !uuidPattern.MatchString(m.UserID) || m.ExternalUserID != externalUserID || m.Memberships == nil {
 		return false
@@ -252,6 +291,45 @@ func (c *AdminClient) SetShare(ctx context.Context, item ItemRef, scope string, 
 		err = malformed()
 	}
 	return out, err
+}
+
+// GetAutoShare reads the scope's auto-share rules ("customer" or a scope's external ID).
+func (c *AdminClient) GetAutoShare(ctx context.Context, scope string) (AutoShare, error) {
+	var out AutoShare
+	if !validExternalID(scope) {
+		return out, invalid("A scope is required.")
+	}
+	err := c.connection.request(ctx, "GET", "/v1/auto-shares/"+scope, nil, nil, &out, "scope")
+	if err == nil && (out.Scope != scope || !validRules(out.AutoShareRules)) {
+		err = malformed()
+	}
+	return out, err
+}
+
+// SetAutoShare replaces the scope's auto-share rules. For each kind with a rule, every new one whose
+// owner is at or below the scope is shared with it, with that access. Adding a rule, or raising one
+// from read to write, also shares the existing ones now, including any unshared before; the same rules
+// again change nothing. A share is only ever raised, never lowered; a kind without a rule keeps the
+// shares it has, and AutoShareRules{} removes every rule.
+func (c *AdminClient) SetAutoShare(ctx context.Context, scope string, rules AutoShareRules) (AutoShare, error) {
+	var out AutoShare
+	if !validExternalID(scope) || !validRules(rules) {
+		return out, invalid("A scope, and for each kind read, write or \"\", are required.")
+	}
+	err := c.connection.request(ctx, "PUT", "/v1/auto-shares/"+scope, nil, rules, &out, "scope")
+	if err == nil && (out.Scope != scope || out.AutoShareRules != rules) {
+		err = malformed()
+	}
+	return out, err
+}
+
+func validRules(r AutoShareRules) bool {
+	for _, access := range []string{r.Brand, r.Product, r.Character} {
+		if access != "" && access != AccessRead && access != AccessWrite {
+			return false
+		}
+	}
+	return true
 }
 
 // RemoveShare removes the item's share with the scope; it succeeds when there was none.

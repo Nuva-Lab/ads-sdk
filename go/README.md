@@ -45,9 +45,12 @@ Handle every error in application code; the abbreviated example omits applicatio
 | `AdminClient.ArchiveScope(ctx, externalID)` | DELETE `/v1/admin/scopes/{external_id}` | Customer API key |
 | `AdminClient.SetMemberships(ctx, externalUserID, memberships)` | PUT `/v1/admin/users/{external_user_id}/memberships` | Customer API key |
 | `AdminClient.GetMemberships(ctx, externalUserID)` | GET `/v1/admin/users/{external_user_id}/memberships` | Customer API key |
+| `AdminClient.DeleteUser(ctx, externalUserID)` | DELETE `/v1/admin/users/{external_user_id}` | Customer API key |
 | `AdminClient.ListShares(ctx, ItemRef)` | GET `/v1/shares/{kind}/{id}` | Customer API key |
 | `AdminClient.SetShare(ctx, ItemRef, scope, access)` | PUT `/v1/shares/{kind}/{id}/{scope}` | Customer API key |
 | `AdminClient.RemoveShare(ctx, ItemRef, scope)` | DELETE `/v1/shares/{kind}/{id}/{scope}` | Customer API key |
+| `AdminClient.SetAutoShare(ctx, scope, AutoShareRules)` | PUT `/v1/auto-shares/{scope}` | Customer API key |
+| `AdminClient.GetAutoShare(ctx, scope)` | GET `/v1/auto-shares/{scope}` | Customer API key |
 | `UserClient.ListSkills(ctx, ListOptions)` | GET `/v1/skills` | Issued user token |
 | `UserClient.ListArchivedSkills(ctx, ListOptions)` | GET `/v1/skills?archived=true` | Issued user token |
 | `UserClient.GetSkill(ctx, id)` | GET `/v1/skills/{id}` | Issued user token |
@@ -61,7 +64,7 @@ Responses retain nullable description/note/source/main fields, file hashes, down
 
 ## Orgs, groups, admins and shares
 
-New Brands, Products, Characters, Assets and Artifacts belong to the user who made them. They are private to that user, and to the admins above them, unless they are shared. Your customer may be set to share new Brands, Products and Characters with everyone automatically. Put your users into scopes, name admins, and share items with a scope:
+New Brands, Products, Characters, Assets and Artifacts belong to the user who made them. They are private to that user, and to the admins above them, unless they are shared, by hand or by a scope's auto-share rules. Put your users into scopes, name admins, and share items with a scope:
 
 ```go
 _, err = admin.PutScope(ctx, "agency-a", nuva.ScopeInput{Kind: nuva.ScopeOrg})
@@ -72,12 +75,16 @@ _, err = admin.SetMemberships(ctx, "lead@example.com", []nuva.Membership{{Scope:
 _, err = admin.SetMemberships(ctx, "maker@example.com", []nuva.Membership{{Scope: "team-1", Role: nuva.RoleMember}})
 // Everyone in team-1 may read the Product and use it in their own content.
 _, err = admin.SetShare(ctx, nuva.ItemRef{Kind: "product", ID: productID}, "team-1", nuva.AccessRead)
+// Share every Product a team-1 member makes with team-1 for editing; adding the rule shares those they already made too.
+_, err = admin.SetAutoShare(ctx, "team-1", nuva.AutoShareRules{Product: nuva.AccessWrite})
 ```
 
 - **`RoleMember`** reads what is shared with its scope or a scope above it. Every user is a member of `customer` without a row.
 - **`RoleAdmin`** reads, writes, deletes and shares what users at or below its scope own, and can drive their Agent Sessions.
 - **`RoleViewer`** reads what users at or below its scope own, and changes nothing of theirs. A viewer is still a member: an item shared with them for writing, they can edit.
 - **Shares** are `AccessRead` (see and use) or `AccessWrite` (also edit). A share reaches everyone at or below its scope. It never allows deleting the item or sharing it on.
+- **Auto-share rules** (`SetAutoShare`) share every new Brand, Product or Character whose owner is at or below a scope with it, `AccessRead` or `AccessWrite` per kind; adding or raising a rule shares the existing ones too, and the same rules again change nothing. They only raise a share, never lower one. `AutoShareRules{}` removes them. Organizations from before scopes have an `AccessRead` rule for all three on `customer`.
+- **`DeleteUser`** stops a user: the API refuses their tokens at once, and a new token or memberships for the ID get `409 USER_DELETED`. A token they already hold still opens the Agent until it expires (within an hour), but nothing they do there reaches the API. What they made stays theirs, with its shares, for their admins and colleagues. The ID can't be used again.
 - Shareable kinds are `brand`, `product`, `character`, `asset`, `script`, `storyboard`, `directing_plan` and `prompt`.
 - The API key administers the whole customer: it lists, reads and shares everyone's items, but writing items takes a user token.
 - `ListShares` takes the right to share the item (the API key, its owner or an admin above them).

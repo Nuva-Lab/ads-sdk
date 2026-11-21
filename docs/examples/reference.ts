@@ -338,4 +338,17 @@ export const examples: Record<string, (client: NuvaClient) => Promise<unknown>> 
 		await client.shares.remove({ kind: 'product', id: '01a1c7e2-5b3d-7f10-9c4e-2d8b6a0f1b02' }, 'customer');
 		// #endregion shares.remove
 	},
+	'shares.setAutoShare': async (client) => {
+		// #region shares.setAutoShare
+		// Everyone in team-1 sees its members' new Products and Characters, and edits the Products.
+		const rules = await client.shares.setAutoShare('team-1', { product: 'write', character: 'read' });
+		// #endregion shares.setAutoShare
+		return rules;
+	},
+	'shares.getAutoShare': async (client) => {
+		// #region shares.getAutoShare
+		const rules = await client.shares.getAutoShare('customer');
+		// #endregion shares.getAutoShare
+		return rules;
+	},
 };

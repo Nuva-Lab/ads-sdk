@@ -1,4 +1,4 @@
-// Generated from ads_backend/openapi.json at 8f837266f8e6d82e030ed09e62640bccd38a8522. Do not edit.
+// Generated from ads_backend/openapi.json at 1547c7755466c2c93d32b2dfe9f66967e70a6f84. Do not edit.
 export interface paths {
     "/v1/admin/tokens": {
         parameters: {
@@ -11,7 +11,7 @@ export interface paths {
         put?: never;
         /**
          * Issue a user token
-         * @description For your backend, with your API key: a token that acts as the user with `external_user_id`, valid for an hour. The first token for an id creates the user.
+         * @description For your backend, with your API key: a token that acts as the user with `external_user_id`, valid for an hour. The first token for an id creates the user; a deleted user gets `409 USER_DELETED`.
          */
         post: operations["issue_user_token_v1_admin_tokens_post"];
         delete?: never;
@@ -650,11 +650,31 @@ export interface paths {
         get: operations["get_memberships_v1_admin_users__external_user_id__memberships_get"];
         /**
          * Set a user's memberships
-         * @description Replaces the user's scopes and roles; `customer` with `admin` makes a customer admin, with `viewer` a reader of the whole customer. Every user is a member of the customer without a row. Takes effect at once. The first call for an id creates the user, like a first token.
+         * @description Replaces the user's scopes and roles; `customer` with `admin` makes a customer admin, with `viewer` a reader of the whole customer. Every user is a member of the customer without a row. Takes effect at once. The first call for an id creates the user, like a first token; a deleted user gets `409 USER_DELETED`.
          */
         put: operations["put_memberships_v1_admin_users__external_user_id__memberships_put"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/users/{external_user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a user
+         * @description Stops the user: the API refuses their tokens at once and issues no new one for the id. The Agent checks tokens itself, so a token it already holds lets them chat until it expires (within an hour), but nothing it does for them reaches the API. What they made stays theirs, with its shares, and their admins keep administering it; their memberships are kept for that. A repeat succeeds. The id can't be used for a new user.
+         */
+        delete: operations["delete_user_v1_admin_users__external_user_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -699,6 +719,30 @@ export interface paths {
          * @description Those who saw the item only through this share no longer find it (404). Removing a share that does not exist also returns 204.
          */
         delete: operations["delete_share_v1_shares__kind___item_id___scope__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auto-shares/{scope}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a scope's auto-share rules
+         * @description Which new Brands, Products and Characters are shared with the scope, and how. For the customer's API key and admins of the scope or above.
+         */
+        get: operations["get_auto_shares_v1_auto_shares__scope__get"];
+        /**
+         * Set a scope's auto-share rules
+         * @description Replaces the scope's rules. For each kind with a rule, every new one whose owner is at or below the scope is shared with it, with that access. Adding a rule, or raising one from `read` to `write`, also shares the existing ones now, including any unshared before; sending the same rules again changes nothing. A share is only ever raised, never lowered, and a kind left out keeps the shares it has. `{}` removes every rule. For the customer's API key and admins of the scope or above, not through the Agent.
+         */
+        put: operations["put_auto_shares_v1_auto_shares__scope__put"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -874,6 +918,29 @@ export interface components {
          * @enum {string}
          */
         AssetSource: "uploaded" | "generated";
+        /** AutoShareOut */
+        AutoShareOut: {
+            /**
+             * Scope
+             * @description `customer` or the scope's external id.
+             */
+            scope: string;
+            /** @description Left out when there is no rule. */
+            brand?: components["schemas"]["ShareAccess"] | null;
+            /** @description Left out when there is no rule. */
+            product?: components["schemas"]["ShareAccess"] | null;
+            /** @description Left out when there is no rule. */
+            character?: components["schemas"]["ShareAccess"] | null;
+        };
+        /** AutoShareRequest */
+        AutoShareRequest: {
+            /** @description `read` or `write` to share every new one with the scope; leave it out for none. */
+            brand?: components["schemas"]["ShareAccess"] | null;
+            /** @description `read` or `write` to share every new one with the scope; leave it out for none. */
+            product?: components["schemas"]["ShareAccess"] | null;
+            /** @description `read` or `write` to share every new one with the scope; leave it out for none. */
+            character?: components["schemas"]["ShareAccess"] | null;
+        };
         /** BatchAd */
         BatchAd: {
             /**
@@ -2606,6 +2673,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4686,6 +4762,62 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    delete_user_v1_admin_users__external_user_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                external_user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -4839,6 +4971,126 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_auto_shares_v1_auto_shares__scope__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scope: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutoShareOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    put_auto_shares_v1_auto_shares__scope__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scope: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutoShareRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutoShareOut"];
+                };
             };
             /** @description Unauthorized */
             401: {

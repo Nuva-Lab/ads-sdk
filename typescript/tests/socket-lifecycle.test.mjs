@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createNuva, Message } from '../dist/index.js';
 import { acceptanceOf } from '../dist/internal.js';
+import { setImmediate } from 'node:timers/promises';
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function until(read, predicate) {
 	for (let index = 0; index < 100; index++) {
@@ -451,4 +452,60 @@ test('a token the gateway could not check (SERVICE_BUSY) is kept and the socket 
 	);
 	assert.equal(calls, 1, 'A token that could not be checked is not refused.');
 	await agent.refresh();
+});
+// The gateway answers one socket's frames in order, and a Session's first message is accepted only after its
+// instructions are frozen (up to about 9 s): the acknowledgement deadline is 30 s, not the 8 s of HTTP reads (#44).
+async function connectedAgent(t) {
+	const boundary = browserBoundary();
+	boundary.listen();
+	const client = createNuva({ baseUrl: 'http://socket.invalid/api', getAccessToken: async () => 'fixture-token' });
+	t.after(() => {
+		client.close();
+		boundary.restore();
+	});
+	const agent = client.agent({ sessionId: 'socket-fixture' });
+	await agent.refresh();
+	t.mock.timers.enable({ apis: ['setTimeout'] });
+	return { agent, socket: boundary.instances[0] };
+}
+async function sentFrame(socket, method) {
+	for (let index = 0; index < 50; index++) {
+		const frame = socket.sent.find((candidate) => candidate.method === method);
+		if (frame) return frame;
+		await setImmediate();
+	}
+	throw new Error(`No ${method} frame was sent.`);
+}
+test('a send acknowledged after 9 seconds resolves with its receipt', async (t) => {
+	const { agent, socket } = await connectedAgent(t);
+	let outcome;
+	const sent = agent.send(Message.text('First message')).then(
+		(value) => (outcome = { value }),
+		(error) => (outcome = { error }),
+	);
+	const frame = await sentFrame(socket, 'agent.send');
+	t.mock.timers.tick(9000);
+	await setImmediate();
+	assert.equal(outcome, undefined);
+	const receipt = { requestId: frame.id, message: { sessionId: 'socket-fixture', messageId: 'first-message' } };
+	socket.onmessage?.({ data: JSON.stringify({ version: 1, type: 'result', id: frame.id, result: receipt }) });
+	await sent;
+	assert.deepEqual(outcome.value, receipt);
+});
+test('a send with no acknowledgement fails after 30 seconds with its request ID and unknown acceptance', async (t) => {
+	const { agent, socket } = await connectedAgent(t);
+	let outcome;
+	const sent = agent.send(Message.text('Unanswered')).then(
+		(value) => (outcome = { value }),
+		(error) => (outcome = { error }),
+	);
+	const frame = await sentFrame(socket, 'agent.send');
+	t.mock.timers.tick(29999);
+	await setImmediate();
+	assert.equal(outcome, undefined);
+	t.mock.timers.tick(1);
+	await sent;
+	assert.equal(outcome.error.code, 'CONNECTION_ERROR');
+	assert.equal(outcome.error.requestId, frame.id);
+	assert.equal(acceptanceOf(outcome.error), 'unknown');
 });

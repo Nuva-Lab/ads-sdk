@@ -264,12 +264,14 @@ MODELS = {
     'Batch': [Api('BatchOut'), *links('batch', 'Added by the SDK: the Batch\'s `intent`, for display.', '由 SDK 添加：批次的 <code>intent</code>，用于展示。')],
     'Skill': [Api('SkillRead'), *links('skill', 'Added by the SDK: the Skill\'s `name`, for display.', '由 SDK 添加：Skill 的 <code>name</code>，用于展示。')],
     'Share': [Api('ShareOut')],
+    'AutoShare': [Api('AutoShareOut')],
     'SessionFile': [Ts('SessionFile')],
 }
 # The contract component each model shows, so a field of that type links to the model instead of repeating it.
 COMPONENT_MODELS = {'AssetOut': 'Asset', 'Brand': 'Brand', 'Product': 'Product', 'Character': 'Character', 'Script': 'Script',
                     'Storyboard': 'Storyboard', 'Prompt': 'Prompt', 'JobOut': 'JobState', 'AdOut': 'Ad', 'BatchOut': 'Batch',
-                    'BatchListed': 'Batch', 'SkillRead': 'Skill', 'SkillListed': 'Skill', 'ShareOut': 'Share'}
+                    'BatchListed': 'Batch', 'SkillRead': 'Skill', 'SkillListed': 'Skill', 'ShareOut': 'Share',
+                    'AutoShareOut': 'AutoShare'}
 MODEL_NOTES = {
     'Job': ('What `videos.generate` returns: a JobState and two methods.', '<code>videos.generate</code> 的返回值：JobState 加两个方法。'),
 }
@@ -431,8 +433,8 @@ PAGES = [
          ('Share Brands, Products, Characters, Assets and Artifacts with an organization, org or group.', '将品牌、产品、人物、Asset 和产物共享给组织、org 或 group。'),
          [('Scopes (orgs, groups) and who administers them are set from your backend: see <a href="@guide:backend-go#permissions">Backend setup › Organize users, name admins and share</a> (the Go Admin SDK\'s `PutScope` and `SetMemberships`).',
            '范围（org、group）及其管理员由你的后端设置：参见<a href="@guide:backend-go#permissions">后端接入 › 组织用户、指定管理员与共享</a>（Go Admin SDK 的 <code>PutScope</code> 和 <code>SetMemberships</code>）。'),
-          ('An item is private to the user who made it, and to the admins above them, until it is shared with a scope: `customer` (everyone in the organization) or an org or group. Only an admin of the scope or above it shares into it. A share never allows deleting the item or sharing it on.',
-           '内容在共享给某个范围之前，只有创建者及其上级管理员可见；范围可以是 <code>customer</code>（组织内所有人）或某个 org、group。只有该范围或上级范围的管理员可以共享到该范围。共享不允许删除内容或再次共享。')],
+          ('An item is private to the user who made it, and to the admins above them, until it is shared with a scope: `customer` (everyone in the organization) or an org or group. Only an admin of the scope or above it shares into it. A share never allows deleting the item or sharing it on. A scope\'s auto-share rules share new Brands, Products and Characters with it automatically (`shares.setAutoShare`).',
+           '内容在共享给某个范围之前，只有创建者及其上级管理员可见；范围可以是 <code>customer</code>（组织内所有人）或某个 org、group。只有该范围或上级范围的管理员可以共享到该范围。共享不允许删除内容或再次共享。范围的自动共享规则可以把新建的品牌、产品和人物自动共享给该范围（<code>shares.setAutoShare</code>）。')],
          [Method('shares.set', ('Share an item', '共享内容'), [P('item', 'ShareTarget', Ts('ShareTarget')),
                  P('scope', 'string', None, '`customer` or the external id of an org or group: 1–255 characters, without `/` or control characters.',
                    '<code>customer</code> 或某个 org、group 的外部 ID：1–255 个字符，不含 <code>/</code> 或控制字符。'),
@@ -446,8 +448,19 @@ PAGES = [
                  ('GET', '/v1/shares/{kind}/{item_id}'), response='SharesOut'),
           Method('shares.remove', ('Stop sharing', '取消共享'), [P('item', 'ShareTarget', Ts('ShareTarget')), P('scope', 'string', None, 'The scope to stop sharing with.', '要停止共享的范围。'), COMMAND], 'Promise<void>',
                  ('Removes the item\'s share with `scope`; it succeeds when there was none, and those it reached get `NOT_FOUND` again.', '移除内容与 <code>scope</code> 的共享；原本没有共享时同样成功，原先通过它访问的人再次得到 <code>NOT_FOUND</code>。'),
-                 ('DELETE', '/v1/shares/{kind}/{item_id}/{scope}'))],
-         ['Share']),
+                 ('DELETE', '/v1/shares/{kind}/{item_id}/{scope}')),
+          Method('shares.setAutoShare', ('Set auto-share rules', '设置自动共享规则'),
+                 [P('scope', 'string', None, '`customer` or the external id of an org or group.', '<code>customer</code> 或某个 org、group 的外部 ID。'),
+                  P('rules', 'AutoShareRules', None, '`{brand?, product?, character?}`, each `read` or `write`. A kind left out has no rule; `{}` removes every rule.',
+                    '<code>{brand?, product?, character?}</code>，每项为 <code>read</code> 或 <code>write</code>。未写的类型没有规则；<code>{}</code> 删除全部规则。'), COMMAND], 'Promise<AutoShare>',
+                 ('Replaces the scope\'s rules. For each kind with a rule, every new one whose owner is at or below the scope is shared with it, with that access. Adding a rule, or raising one from `read` to `write`, also shares the existing ones now, including any unshared before; the same rules again change nothing. A share is only ever raised, never lowered, and a kind left out keeps the shares it has. For an admin of the scope or above it.',
+                  '替换该范围的规则。对有规则的每种类型，所有者在该范围内（含下级）的新建内容都会以该权限共享给该范围。新增规则，或把规则从 <code>read</code> 提升为 <code>write</code> 时，已有的内容也会立即共享，包括之前取消共享的内容；再次提交相同的规则不会有任何变化。共享只会提升，不会降低；未写的类型保留已有的共享。仅限该范围或上级范围的管理员。'),
+                 ('PUT', '/v1/auto-shares/{scope}'), body='AutoShareRequest', response='AutoShareOut'),
+          Method('shares.getAutoShare', ('Read auto-share rules', '读取自动共享规则'),
+                 [P('scope', 'string', None, '`customer` or the external id of an org or group.', '<code>customer</code> 或某个 org、group 的外部 ID。')], 'Promise<AutoShare>',
+                 ('The scope\'s rules, for an admin of the scope or above it.', '该范围的规则，仅限该范围或上级范围的管理员读取。'),
+                 ('GET', '/v1/auto-shares/{scope}'), response='AutoShareOut')],
+         ['Share', 'AutoShare']),
     Page('reference-sessions', ('Agent and Sessions', 'Agent 与 Session'),
          ('Open Sessions with the Ads Agent and bind a handle to one.', '与 Ads Agent 打开 Session，并将 handle 绑定到 Session。'),
          [('A Session is one conversation with the Ads Agent. Its behaviour (states, sending while the Agent works, waiting for renders, Stop) is in <a href="@guide:agent">Agent conversations</a>; message and state types are the ones the SDK exports.',
@@ -516,8 +529,8 @@ TS_TYPES = {
 }
 TS_DEFAULTS = {
     'NuvaClientOptions.environment': '"sandbox"',
-    'NuvaClientOptions.requestTimeoutMs': ('8000; 180000 for scripts.*, assets.upload; 300000 for storyboards.*, prompts.generate',
-                                          '8000；scripts.*、assets.upload 为 180000；storyboards.*、prompts.generate 为 300000'),
+    'NuvaClientOptions.requestTimeoutMs': ('8000; 30000 for Agent send, stop, respond, fail, refresh; 180000 for scripts.*, assets.upload; 300000 for storyboards.*, prompts.generate',
+                                          '8000；Agent 的 send、stop、respond、fail、refresh 为 30000；scripts.*、assets.upload 为 180000；storyboards.*、prompts.generate 为 300000'),
     'NuvaClientOptions.jobPollIntervalMs': '500',
     'NuvaClientOptions.tokenRefreshSkewMs': '30000',
 }

@@ -189,10 +189,18 @@ export interface Share {
 	readonly access: ShareAccess;
 	readonly created_at: string;
 }
+/** The kinds an auto-share rule is for. */
+export type AutoShareKind = 'brand' | 'product' | 'character';
+/** A scope's auto-share rules, one access per kind; a kind left out has no rule. */
+export type AutoShareRules = { readonly [K in AutoShareKind]?: ShareAccess };
+export interface AutoShare extends AutoShareRules {
+	/** `customer` or the external ID of an org or group. */
+	readonly scope: string;
+}
 /**
  * An item is private to the user who made it, and to the admins above them, until it is shared with a scope. Only an
  * admin of the scope (or above it) shares into it, for items they own or administer. A share never allows deleting the
- * item or sharing it on.
+ * item or sharing it on. A scope's auto-share rules share new Brands, Products and Characters with it automatically.
  */
 export interface SharesClient {
 	/** The item's shares, for whoever may share it: its owner or an admin above them. Others who can read the item get `FORBIDDEN`. */
@@ -201,6 +209,15 @@ export interface SharesClient {
 	set(item: ShareTarget, scope: string, access: ShareAccess, options?: CommandOptions): Promise<Share>;
 	/** Removes the item's share with `scope`; it succeeds when there was none. Those it reached get `NOT_FOUND` again. */
 	remove(item: ShareTarget, scope: string, options?: CommandOptions): Promise<void>;
+	/** The scope's auto-share rules, for an admin of the scope or above it. */
+	getAutoShare(scope: string): Promise<AutoShare>;
+	/**
+	 * Replaces the scope's auto-share rules. For each kind with a rule, every new one whose owner is at or below the scope
+	 * is shared with it, with that access. Adding a rule, or raising one from `read` to `write`, also shares the existing
+	 * ones now, including any unshared before; the same rules again change nothing. A share is only ever raised, never
+	 * lowered; a kind left out keeps the shares it has, and `{}` removes every rule. For an admin of the scope or above it.
+	 */
+	setAutoShare(scope: string, rules: AutoShareRules, options?: CommandOptions): Promise<AutoShare>;
 }
 export interface StoreClients {
 	readonly assets: AssetsClient;

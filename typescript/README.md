@@ -130,9 +130,10 @@ Lists return `Page<T>`: `{items, nextCursor}`; pass `cursor` and `limit` for the
 | --- | --- |
 | `storyboards.generate`, `generateFrom`, `createFrom`, and `prompts.generate` | 300 s |
 | `scripts.generate`, `generateFrom`, `createFrom`; an `assets.upload` transfer and its registration, each | 180 s |
+| Agent requests: `send`, `stop`, `respond`, `fail`, `refresh` | 30 s |
 | Every other request | 8 s |
 
-`requestTimeoutMs` overrides these. A timed-out write may still complete: retry it with the same `idempotencyKey`, or read before deciding.
+`requestTimeoutMs` overrides these. A timed-out write may still complete: retry it with the same `idempotencyKey`, or read before deciding. A timed-out `send` may also have been accepted: sending again with the error's `requestId` answers with the first receipt.
 
 ## Conversation and React
 

@@ -26,6 +26,8 @@ constant, and the release scripts. The repository tags `v0.1.0-preview.6` and
 
 Write the release notes in `CHANGELOG.md` under `## <version>`, describing the change from the previous released version. `check-tag.mjs` requires the entry, and `create-draft.mjs` puts it in the draft release notes.
 
+The docs site has its own short, bilingual entry per version: `docs/release_notes.py`, shown on the **Release notes** page. Rename its `Unreleased` entry to the version with its date when you rename the CHANGELOG heading; `pnpm docs:check` fails unless the two list the same versions in the same order. When a release needs code changes, add a part to the upgrade guide (`docs/migration_guide.py`, the **Upgrade guide** page) and link to it from the entry's upgrade line. Keep published section keys: release notes and customers link to them.
+
 Keep the chosen version while preparing an unpublished draft. Increment for the next issued
 release. Check the service configuration, examples, archive checksums and consumer verification
 before publishing a draft.
