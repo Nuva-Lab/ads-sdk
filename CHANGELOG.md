@@ -29,6 +29,12 @@ Each entry describes the change from the previous released version.
 
 - **Script fact IDs are the ones the service supplies.** `fact_product_tags` and `fact_product_video_requirements` are gone: Products have no such fields, the service never supplied them, and a Script citing them was always refused, so no saved Script cites them and every SDK still reads every Script. A Script that cites a fact it doesn't have is refused with the bad ID and the facts it does have.
 
+### Docs
+
+- **Release notes page.** The docs have a **Release notes** page (`release-notes.html`, 版本说明): one entry per version, saying what it needs and how to upgrade, with a link to the upgrade steps when there is something to change.
+- **One upgrade guide for every release.** **Upgrade to preview.5** is now the **Upgrade guide** (`migration.html`, 升级指南), with a part per release: the next release, preview.6 and preview.5. Existing links still work.
+- **Sharing.** Backend setup and the Shares reference describe auto-share rules; the sentence that suggested an organization setting you could not reach is gone ([#48](https://github.com/Nuva-Lab/ads-sdk/issues/48)).
+
 ### Fixed
 
 - **A Session's first message no longer fails with "No acknowledgement received"** ([#44](https://github.com/Nuva-Lab/ads-sdk/issues/44)). The Agent accepts a new Session's first message only after preparing the Session, which took up to 9 s, and the connection answers its requests in order, so a message could wait behind the one before it; the SDK gave up after 8 s while the service still accepted the message. Agent requests (`send`, `stop`, `respond`, `fail`, `refresh`) now wait 30 s for their answer. If one still times out, sending again with the error's `requestId` answers with the first receipt and sends nothing twice. An explicit `requestTimeoutMs` still applies to every request.
