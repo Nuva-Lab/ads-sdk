@@ -20,6 +20,7 @@ GROUPS = {
     'added': ('Added', '新增'),
     'changed': ('Changed', '变更'),
     'fixed': ('Fixed', '修复'),
+    'docs': ('Docs', '文档'),
     'playground': ('Playground', 'Playground'),
 }
 
@@ -76,6 +77,12 @@ def releases(locale):
                      '<strong>Session 的第一条消息不再报“No acknowledgement received”</strong>（<a href="https://github.com/Nuva-Lab/ads-sdk/issues/44">#44</a>）。Agent 请求（<code>send</code>、<code>stop</code>、<code>respond</code>、<code>fail</code>、<code>refresh</code>）等待回应的时间由 8 秒改为 30 秒。如果仍然超时，用错误中的 <code>requestId</code> 再次发送，会返回第一次的回执。'),
                     ('<strong>Skills you register are used in Agent conversations</strong> (<a href="https://github.com/Nuva-Lab/ads-sdk/issues/36">#36</a>). A Skill with a main version reaches the Agent\'s new Sessions without asking Nuva. A service change, live since 2026-11-13.',
                      '<strong>你注册的 Skill 会用于 Agent 对话</strong>（<a href="https://github.com/Nuva-Lab/ads-sdk/issues/36">#36</a>）。有主版本的 Skill 会进入 Agent 新建的 Session，无需请 Nuva 开启。这是服务端变化，自 2026-11-13 起生效。'),
+                ],
+                'docs': [
+                    ('This <strong>Release notes</strong> page, and one <strong>Upgrade guide</strong> with a part per release.',
+                     '新增本<strong>版本说明</strong>页面，以及按版本划分的<strong>升级指南</strong>。'),
+                    ('Backend setup and the Shares reference describe auto-share rules (<a href="https://github.com/Nuva-Lab/ads-sdk/issues/48">#48</a>).',
+                     '后端接入和共享接口参考说明了自动共享规则（<a href="https://github.com/Nuva-Lab/ads-sdk/issues/48">#48</a>）。'),
                 ],
                 'playground': [
                     ('A Prompt opens to its text again, and a clip opens its Prompt.', '提示词重新显示其文字，片段可打开其提示词。'),
