@@ -140,13 +140,18 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 		return value.id;
 	}
 	/**
-	 * The new Prompt version as it is sent. What you change is checked; a value copied from the base Prompt may be one
-	 * added after this SDK (a new `ratio`), so it goes as it was read, for the service to check.
+	 * The new Prompt version as it is sent. What you change is checked as usual. A value copied from the base Prompt may be
+	 * an enum value added after this SDK (a new `ratio`): it goes as it was read, but only if the version is valid
+	 * otherwise, as a response would be (types, lengths and counts are still checked).
 	 */
 	const promptVersion = (data: Record<string, unknown>, copied: readonly string[]) => {
 		const parsed = backendSchema('PromptVersionCreate').safeParse({ data });
 		if (parsed.success) return parsed.data;
-		if (parsed.error.issues.every((issue) => issue.path[0] === 'data' && copied.includes(String(issue.path[1])))) return { data };
+		if (
+			parsed.error.issues.every((issue) => issue.path[0] === 'data' && copied.includes(String(issue.path[1]))) &&
+			responseSchema('PromptVersionCreate').safeParse({ data }).success
+		)
+			return { data };
 		return checked(backendSchema('PromptVersionCreate'), { data }, true);
 	};
 	/** A new Prompt from `base` with changed render fields, the only Artifact users save directly. */

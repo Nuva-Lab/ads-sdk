@@ -6,7 +6,9 @@ import ts from 'typescript';
 /**
  * The schemas the backend only sends: reachable from a response and from no request body or parameter. Their enums are
  * open in the types (`'queued' | … | (string & {})`), since the backend may add a value and the SDK reads it
- * (backend-schema.ts › lenient). A schema that is also sent keeps its enums closed: it is checked as given.
+ * (backend-schema.ts › lenient). A schema that is also sent keeps its enums closed: it is checked as given. So a shared
+ * enum (ShareAccess, MembershipRole) is closed in the generated types while the SDK reads any value: read a response
+ * that holds one with a hand-written open type (stores.ts › Share, AutoShare), not with these generated ones.
  */
 function sentOnly(document) {
 	const schemas = document.components.schemas;

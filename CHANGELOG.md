@@ -15,6 +15,7 @@ Changes since `0.1.0-preview.7`. This SDK works with the services already live, 
   - **An Asset's `source`, a Job callback's `status` or a Prompt's `ratio`:** a value to show as it is. `prompts.createFrom` keeps the base Prompt's `ratio` when you don't change it.
 - **Types:** what you read is typed open, for example `Asset['kind']` is `'image' | 'video' | 'audio' | 'document' | (string & {})`; so are `JobState['status']`, an Asset's `source`, a callback's `status`, a Prompt's `ratio`, and `Share['access']` and `AutoShare` rules (the new `SharedAccess`). What you send stays closed: the `kind` of `assets.upload` is the new `AssetKind`, `shares.set` and `shares.setAutoShare` take `ShareAccess`, and `PromptChanges['ratio']` is a ratio this SDK knows. `AutoShare` is now a type alias rather than an interface.
 - `backendSchema` (`@nuva/sdk/schemas`) still checks strictly, as the SDK checks what it sends.
+- Script and Storyboard content (`script.content`, `storyboard.content`, decoded from `data.text`) is versioned on its own (`nuva.script` version 3, `nuva.storyboard` version 1) and is still read strictly: a change to it comes with a new version.
 
 ### Playground
 
@@ -33,6 +34,7 @@ Changes since `0.1.0-preview.7`. This SDK works with the services already live, 
   - **Asset 的 `source`、任务回调的 `status` 或提示词的 `ratio`：**按原样展示即可。你不修改 `ratio` 时，`prompts.createFrom` 会保留基础提示词的 `ratio`。
 - **类型：**读取到的值使用开放类型，例如 `Asset['kind']` 为 `'image' | 'video' | 'audio' | 'document' | (string & {})`；`JobState['status']`、Asset 的 `source`、回调的 `status`、提示词的 `ratio`，以及 `Share['access']` 和 `AutoShare` 规则（新的 `SharedAccess`）同样如此。发送的值仍是封闭类型：`assets.upload` 的 `kind` 为新的 `AssetKind`，`shares.set` 和 `shares.setAutoShare` 接收 `ShareAccess`，`PromptChanges['ratio']` 只能是本 SDK 认识的比例。`AutoShare` 由 interface 改为类型别名。
 - `backendSchema`（`@nuva/sdk/schemas`）仍按严格方式检查，与 SDK 检查发送内容的方式相同。
+- 脚本和分镜的内容（`script.content`、`storyboard.content`，由 `data.text` 解码）有各自的版本（`nuva.script` 第 3 版、`nuva.storyboard` 第 1 版），仍按严格方式读取：内容格式的变化会随新版本一起发布。
 
 **Playground：**文档，以及之后新增类型的 Asset，显示为文件链接，而不是视频播放器。
 

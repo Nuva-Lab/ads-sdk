@@ -80,7 +80,8 @@ test('a response reads with an enum value added after this SDK, and keeps it; th
 	const { kind: _kind, ...kindless } = asset;
 	assert.equal(responseSchema('AssetOut').safeParse(kindless).success, false);
 	assert.equal(responseSchema('AssetOut').safeParse({ ...asset, kind: 7 }).success, false);
-	assert.equal(responseSchema('Script').safeParse({ ...prompt, kind: 'novel' }).success, false, 'an Artifact kind stays a constant');
+	assert.equal(responseSchema('Prompt').safeParse(prompt).success, true);
+	assert.equal(responseSchema('Prompt').safeParse({ ...prompt, kind: 'novel' }).success, false, 'an Artifact kind stays a constant');
 });
 
 test('what the SDK sends is checked as it is: an unknown enum value or field is refused', () => {
@@ -157,6 +158,9 @@ test('createFrom keeps a ratio added after this SDK that it copies from the base
 			assert.equal(JSON.parse(requests[1].body).data.ratio, '2:3', 'the base ratio is sent as it was read');
 			for (const changes of [{ ratio: '5:4' }, { seconds: 99 }, { prompt: '' }])
 				await assert.rejects(nuva.prompts.createFrom(read, changes), (error) => error.code === 'INVALID_INPUT', JSON.stringify(changes));
+			// A base you hold is still checked for what isn't an added enum value: a wrong type or length is refused.
+			for (const data of [{ prompt: 42 }, { image_asset_ids: 'none' }, { seconds: -5 }, { prompt: 'x'.repeat(10001) }])
+				await assert.rejects(nuva.prompts.createFrom({ ...read, data: { ...read.data, ...data } }, { audio_asset_ids: [] }), (error) => error.code === 'INVALID_INPUT', JSON.stringify(data).slice(0, 40));
 			assert.equal(requests.length, 2, 'a change this SDK refuses is not sent');
 		},
 	);
