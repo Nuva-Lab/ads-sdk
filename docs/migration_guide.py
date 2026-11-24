@@ -14,6 +14,17 @@ def migration_sections(locale='zh'):
     after = lambda: '<p><strong>' + t('Now', '现在') + '</strong></p>'
 
     return [
+        section('preview8', 'Upgrade to preview.8', '升级到 preview.8',
+            p('preview.8 reads a response that has a field or an enum value it doesn\'t know, such as a new Asset <code>kind</code> or Job <code>status</code>, instead of failing; what you send is checked as before. It works with the services already live, and most integrations need no change. Its types say so: what you read is open (<code>\'image\' | \'video\' | \'audio\' | \'document\' | (string &amp; {})</code>), what you send is closed. TypeScript may flag the places below; the <a href="' + link('release-notes', 'unreleased') + '">release notes</a> list everything. From an earlier preview, follow <a href="#preview7">Upgrade to preview.7</a> first.',
+                'preview.8 读取响应时，遇到不认识的字段或枚举值（例如新的 Asset <code>kind</code> 或任务 <code>status</code>）会照常读取，而不是报错；发送的内容仍按原样检查。它可用于已上线的服务，大多数集成无需修改。类型也随之调整：读取到的值是开放类型（<code>\'image\' | \'video\' | \'audio\' | \'document\' | (string &amp; {})</code>），发送的值是封闭类型。TypeScript 可能会标出下面这些地方；完整内容见<a href="' + link('release-notes', 'unreleased') + '">版本说明</a>。从更早的预览版升级，请先完成<a href="#preview7">升级到 preview.7</a>。')
+            + '<ol>'
+            + '<li>' + t('<strong>Sending a value you read.</strong> An Asset\'s <code>kind</code>, a share\'s <code>access</code> or a Prompt\'s <code>ratio</code> you read may be one added after this SDK, which it can\'t send. Check it first, or type your own values with <code>AssetKind</code> and <code>ShareAccess</code>.',
+                         '<strong>发送读到的值。</strong>读到的 Asset <code>kind</code>、共享的 <code>access</code> 或提示词的 <code>ratio</code> 可能是本 SDK 之后新增的值，SDK 无法发送它。请先检查，或用 <code>AssetKind</code> 和 <code>ShareAccess</code> 为你自己的值标注类型。') + '</li>'
+            + '<li>' + t('<strong>Branching on a value you read.</strong> Give a branch on an Asset\'s <code>kind</code> or a Job\'s <code>status</code> a default: an unknown <code>kind</code> is a file to download, like a <code>document</code>; an unknown <code>status</code> means the Job hasn\'t ended, like <code>running</code>.',
+                         '<strong>按读到的值分支。</strong>按 Asset 的 <code>kind</code> 或任务的 <code>status</code> 分支时，请加上默认分支：不认识的 <code>kind</code> 是可下载的文件，与 <code>document</code> 一样处理；不认识的 <code>status</code> 表示任务尚未结束，与 <code>running</code> 一样处理。') + '</li>'
+            + '</ol>'
+            + before() + c("await client.assets.upload(file, { kind: asset.kind });")
+            + after() + c("import type { AssetKind } from '@nuva/sdk';\nconst known = (kind: string): kind is AssetKind => ['image', 'video', 'audio', 'document'].includes(kind);\nif (known(asset.kind)) await client.assets.upload(file, { kind: asset.kind });")),
         section('preview7', 'Upgrade to preview.7', '升级到 preview.7',
             p('preview.7 adds documents the Agent reads (PDF, Word and Excel), auto-share rules per scope, user deletion, and archiving for Skills and Sessions. It works with the services already live, and most integrations need no change. Check the points below; the <a href="' + link('release-notes', 'preview-7') + '">release notes</a> list everything. From an earlier preview, follow <a href="#preview6">Upgrade to preview.6</a> first.',
                 'preview.7 新增 Agent 可阅读的文档（PDF、Word 和 Excel）、按范围的自动共享规则、用户删除，以及 Skill 和 Session 的归档。它可用于已上线的服务，大多数集成无需修改。请检查以下几点；完整内容见<a href="' + link('release-notes', 'preview-7') + '">版本说明</a>。从更早的预览版升级，请先完成<a href="#preview6">升级到 preview.6</a>。')

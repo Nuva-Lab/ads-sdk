@@ -195,3 +195,29 @@ createNuva({ getAccessToken: async () => 'token', onWireTrace: () => {} });
 
 // @ts-expect-error Service origins are set with withServices (workspace-only); customers choose an environment.
 createNuva({ getAccessToken: async () => 'token', baseUrl: 'http://127.0.0.1:1' });
+
+// A value the backend adds after this SDK: what you read is open, what you send stays closed.
+declare const readAsset: import('@nuva/sdk').Asset;
+declare const readJob: import('@nuva/sdk').JobState;
+declare const readPrompt: import('@nuva/sdk').Prompt;
+declare const readShare: import('@nuva/sdk').Share;
+declare const readAutoShare: import('@nuva/sdk').AutoShare;
+const laterKind: import('@nuva/sdk').Asset['kind'] = 'spreadsheet';
+const laterStatus: import('@nuva/sdk').JobState['status'] = 'retrying';
+const laterRatio: NonNullable<import('@nuva/sdk').Prompt['data']['ratio']> = '2:3';
+const laterAccess: import('@nuva/sdk').Share['access'] = 'comment';
+const laterRule: import('@nuva/sdk').AutoShare['brand'] = 'comment';
+void [laterKind, laterStatus, laterRatio, laterAccess, laterRule, readAsset, readJob, readPrompt, readShare, readAutoShare];
+// @ts-expect-error An upload's kind is one this SDK knows.
+void client.assets.upload({ url: 'https://example.com/a.bin' }, { kind: 'spreadsheet' });
+// @ts-expect-error A read Asset's kind may be one this SDK doesn't know: check it before uploading with it.
+void client.assets.upload({ url: 'https://example.com/a.bin' }, { kind: readAsset.kind });
+// @ts-expect-error A Prompt's ratio you send is one this SDK knows.
+void client.prompts.createFrom({ id: 'p' }, { ratio: '2:3' });
+// @ts-expect-error A share's access you send is one this SDK knows.
+void client.shares.set({ kind: 'product', id: 'p' }, 'customer', 'comment');
+// @ts-expect-error Auto-share rules you send are ones this SDK knows.
+void client.shares.setAutoShare('customer', { brand: 'comment' });
+// The upgrade guide's check before sending a kind you read (docs/migration_guide.py › preview8).
+const knownKind = (kind: string): kind is import('@nuva/sdk').AssetKind => ['image', 'video', 'audio', 'document'].includes(kind);
+if (knownKind(readAsset.kind)) void client.assets.upload({ url: 'https://example.com/a.bin' }, { kind: readAsset.kind });

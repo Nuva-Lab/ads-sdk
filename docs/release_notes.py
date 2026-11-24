@@ -43,8 +43,29 @@ def releases(locale):
     """The entries; links resolve for `locale`."""
     guide = lambda anchor: filename('migration', locale) + '#' + anchor
     a = lambda anchor, en, zh: (f'<a href="{guide(anchor)}">{en}</a>', f'<a href="{guide(anchor)}">{zh}</a>')
+    preview8_guide = a('preview8', 'Upgrade to preview.8', '升级到 preview.8')
     preview7_guide, preview6_guide, preview5_guide = a('preview7', 'Upgrade to preview.7', '升级到 preview.7'), a('preview6', 'Upgrade to preview.6', '升级到 preview.6'), a('overview', 'Upgrade to preview.5', '升级到 preview.5')
     return [
+        Release(
+            'Unreleased', None,
+            ('A value the backend adds, such as a new Asset kind or Job status, no longer breaks the SDK.',
+             '后端新增的值（例如新的 Asset 类型或任务状态）不再导致 SDK 出错。'),
+            ('Works with the services already live. API version <code>2026-11-07</code>, unchanged.',
+             '可用于已上线的服务。API 版本 <code>2026-11-07</code>，未变。'),
+            (f'Most integrations need no change; TypeScript may flag code that sends a value it read: see {preview8_guide[0]}.',
+             f'大多数集成无需修改；如果代码把读到的值再发送出去，TypeScript 可能会报错，见{preview8_guide[1]}。'),
+            {
+                'changed': [
+                    ('<strong>A value the backend adds no longer breaks the SDK.</strong> A response with a field or an enum value this SDK doesn\'t know is read, and the value is kept; preview.3 to preview.7 fail the whole read. What you send is checked as before. A Job <code>status</code> this SDK doesn\'t know means the Job hasn\'t ended: <code>subscribe</code> and <code>result()</code> keep waiting. An Asset <code>kind</code> it doesn\'t know is a file to download, like a <code>document</code>.',
+                     '<strong>后端新增的值不再导致 SDK 出错。</strong>响应中有本 SDK 不认识的字段或枚举值时会照常读取，并保留该值；preview.3 至 preview.7 会整个读取失败。发送的内容仍按原样检查。本 SDK 不认识的任务 <code>status</code> 表示任务尚未结束：<code>subscribe</code> 和 <code>result()</code> 会继续等待。不认识的 Asset <code>kind</code> 是一个可下载的文件，与 <code>document</code> 一样处理。'),
+                    ('<strong>Types:</strong> what you read is typed open, such as <code>Asset[\'kind\']</code> and <code>JobState[\'status\']</code>; what you send stays closed (<code>AssetKind</code>, <code>ShareAccess</code>).',
+                     '<strong>类型：</strong>读取到的值使用开放类型，例如 <code>Asset[\'kind\']</code> 和 <code>JobState[\'status\']</code>；发送的值仍是封闭类型（<code>AssetKind</code>、<code>ShareAccess</code>）。'),
+                ],
+                'playground': [
+                    ('A document, or an Asset of a kind added later, shows as a link to the file instead of a video player.',
+                     '文档，以及之后新增类型的 Asset，显示为文件链接，而不是视频播放器。'),
+                ],
+            }),
         Release(
             '0.1.0-preview.7', '2026-11-24',
             ('Documents the Agent reads, auto-share rules per scope, user deletion, and archiving for Sessions and Skills.',

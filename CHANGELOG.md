@@ -2,6 +2,40 @@
 
 Each entry describes the change from the previous released version.
 
+## Unreleased
+
+Changes since `0.1.0-preview.7`. This SDK works with the services already live, and the API version is unchanged (`2026-11-07`). Most integrations need no change; TypeScript may flag code that sends a value it read, see **Upgrade to preview.8** in the docs' upgrade guide (`migration.html#preview8`).
+
+### Changed
+
+- **A value the backend adds no longer breaks the SDK.** This SDK reads a response that has a field, or an enum value, it doesn't know, and keeps it in what it returns. preview.3 to preview.7 fail the whole read with `SERVICE_ERROR` instead, for example preview.6 on a `document` Asset. What you send is checked as before: an unknown value or field is refused with `INVALID_INPUT`, and nothing is sent. A value added after this SDK means:
+  - **A Job `status`** other than `queued`, `running`, `completed`, `failed` or `cancelled`: the Job hasn't ended. `jobs.subscribe` keeps watching and a Job's `result()` keeps waiting (up to its `timeoutMs`), as for `running`. A Job ends `completed`, `failed` or `cancelled`.
+  - **An Asset `kind`** other than `image`, `video`, `audio` or `document`: a file you can download (`download_url`) that this SDK doesn't know how to show. Treat it as you treat a `document`.
+  - **A share's `access`**, or an auto-share rule's, other than `read` or `write`: the item is shared with that scope, with rights this SDK doesn't know.
+  - **An Asset's `source`, a Job callback's `status` or a Prompt's `ratio`:** a value to show as it is. `prompts.createFrom` keeps the base Prompt's `ratio` when you don't change it.
+- **Types:** what you read is typed open, for example `Asset['kind']` is `'image' | 'video' | 'audio' | 'document' | (string & {})`; so are `JobState['status']`, an Asset's `source`, a callback's `status`, a Prompt's `ratio`, and `Share['access']` and `AutoShare` rules (the new `SharedAccess`). What you send stays closed: the `kind` of `assets.upload` is the new `AssetKind`, `shares.set` and `shares.setAutoShare` take `ShareAccess`, and `PromptChanges['ratio']` is a ratio this SDK knows. `AutoShare` is now a type alias rather than an interface.
+- `backendSchema` (`@nuva/sdk/schemas`) still checks strictly, as the SDK checks what it sends.
+
+### Playground
+
+- A document, or an Asset of a kind added later, shows as a link to the file instead of a video player.
+
+### 中文说明
+
+相对 `0.1.0-preview.7` 的变化。所需服务均已上线，API 版本不变（`2026-11-07`）。大多数集成无需修改；如果代码把读到的值再发送出去，TypeScript 可能会报错，见文档升级指南中的 **升级到 preview.8**（`migration.html#preview8`）。
+
+**变更：**
+
+- **后端新增的值不再导致 SDK 出错。**本 SDK 读取响应时，遇到不认识的字段或枚举值会照常读取，并在返回结果中保留它。preview.3 至 preview.7 会因此整个读取失败并报 `SERVICE_ERROR`，例如 preview.6 读取 `document` Asset。发送的内容仍按原样检查：不认识的值或字段会以 `INVALID_INPUT` 拒绝，且不会发送任何请求。本 SDK 之后新增的值含义如下：
+  - **任务 `status`** 不是 `queued`、`running`、`completed`、`failed` 或 `cancelled`：任务尚未结束。`jobs.subscribe` 会继续监听，任务的 `result()` 会继续等待（直到 `timeoutMs`），与 `running` 相同。任务最终以 `completed`、`failed` 或 `cancelled` 结束。
+  - **Asset `kind`** 不是 `image`、`video`、`audio` 或 `document`：一个可以下载（`download_url`）、但本 SDK 不知道如何展示的文件。请按 `document` 的方式处理。
+  - **共享的 `access`**（或自动共享规则的 access）不是 `read` 或 `write`：该内容已共享给这个范围，具体权限本 SDK 不了解。
+  - **Asset 的 `source`、任务回调的 `status` 或提示词的 `ratio`：**按原样展示即可。你不修改 `ratio` 时，`prompts.createFrom` 会保留基础提示词的 `ratio`。
+- **类型：**读取到的值使用开放类型，例如 `Asset['kind']` 为 `'image' | 'video' | 'audio' | 'document' | (string & {})`；`JobState['status']`、Asset 的 `source`、回调的 `status`、提示词的 `ratio`，以及 `Share['access']` 和 `AutoShare` 规则（新的 `SharedAccess`）同样如此。发送的值仍是封闭类型：`assets.upload` 的 `kind` 为新的 `AssetKind`，`shares.set` 和 `shares.setAutoShare` 接收 `ShareAccess`，`PromptChanges['ratio']` 只能是本 SDK 认识的比例。`AutoShare` 由 interface 改为类型别名。
+- `backendSchema`（`@nuva/sdk/schemas`）仍按严格方式检查，与 SDK 检查发送内容的方式相同。
+
+**Playground：**文档，以及之后新增类型的 Asset，显示为文件链接，而不是视频播放器。
+
 ## 0.1.0-preview.7
 
 Changes since `0.1.0-preview.6`. This SDK works with the services already live, and the API version is unchanged (`2026-11-07`). Most integrations need no change; see **Upgrade to preview.7** in the docs' upgrade guide (`migration.html#preview7`).

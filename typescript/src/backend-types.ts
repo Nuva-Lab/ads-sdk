@@ -855,7 +855,7 @@ export interface components {
              * @description `image`, `video`, `audio` or `document` (a PDF, Word or Excel file).
              * @enum {string}
              */
-            kind: "image" | "video" | "audio" | "document";
+            kind: "image" | "video" | "audio" | "document" | (string & {});
             /**
              * Mime
              * @description The file's MIME type, as detected from its content.
@@ -917,7 +917,7 @@ export interface components {
          * AssetSource
          * @enum {string}
          */
-        AssetSource: "uploaded" | "generated";
+        AssetSource: "uploaded" | "generated" | (string & {});
         /** AutoShareOut */
         AutoShareOut: {
             /**
@@ -1159,7 +1159,7 @@ export interface components {
          * CallbackStatus
          * @enum {string}
          */
-        CallbackStatus: "pending" | "sent" | "failed";
+        CallbackStatus: "pending" | "sent" | "failed" | (string & {});
         /** Character */
         Character: {
             /**
@@ -1501,7 +1501,7 @@ export interface components {
          * JobStatus
          * @enum {string}
          */
-        JobStatus: "queued" | "running" | "completed" | "failed" | "cancelled";
+        JobStatus: "queued" | "running" | "completed" | "failed" | "cancelled" | (string & {});
         JsonValue: unknown;
         /** MadeFromArtifact */
         MadeFromArtifact: {
@@ -1926,7 +1926,7 @@ export interface components {
              * Ratio
              * @description The frame. Omitted: 16:9. `adaptive` follows the first image or video.
              */
-            ratio?: ("adaptive" | "21:9" | "16:9" | "4:3" | "1:1" | "3:4" | "9:16") | null;
+            ratio?: "adaptive" | "21:9" | "16:9" | "4:3" | "1:1" | "3:4" | "9:16" | (string & {}) | null;
             /**
              * Clip Id
              * @description For a Prompt compiled from a Storyboard: the clip it renders (`C01`, …).
@@ -2019,7 +2019,7 @@ export interface components {
              * @description `org` or `group`.
              * @enum {string}
              */
-            kind: "org" | "group";
+            kind: "org" | "group" | (string & {});
             /**
              * Parent
              * @description The parent's external id, or `customer` for the root.

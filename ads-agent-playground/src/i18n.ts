@@ -259,6 +259,7 @@ export const zh: Record<string, string> = {
   "Revise script": "修改脚本",
   "Previous revision": "上一版本",
   "Open Prompt": "查看提示词",
+  "Open file": "打开文件",
   "Create prompts": "生成提示词",
   "Script saved.": "脚本已保存。",
   "{p0} Prompts saved.": "已保存 {p0} 条提示词。",

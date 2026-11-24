@@ -49,6 +49,29 @@ export function adapted(source: Definitions): Definitions {
 	return definitions;
 }
 
+/**
+ * A copy of `definitions` to read responses with, so that a value the backend adds doesn't fail a read: an enum of
+ * strings takes any string (a value added after this SDK), and an object that refuses other fields
+ * (`additionalProperties: false`) keeps them, as every other object in a response already does. Requests are checked
+ * with the definitions as they are.
+ */
+export function lenient(source: Definitions): Definitions {
+	const definitions = structuredClone(source);
+	const open = (value: unknown): void => {
+		if (Array.isArray(value)) return value.forEach(open);
+		if (value === null || typeof value !== 'object') return;
+		const node = value as Record<string, unknown>;
+		if (Array.isArray(node.enum) && node.enum.every((item) => typeof item === 'string')) {
+			delete node.enum;
+			node.type = 'string';
+		}
+		if (node.additionalProperties === false) delete node.additionalProperties;
+		Object.values(node).forEach(open);
+	};
+	open(definitions);
+	return definitions;
+}
+
 export function compiler<S>(definitions: Definitions) {
 	const compiled = new Map<keyof S, z.ZodType>();
 	return <K extends keyof S>(name: K): z.ZodType<S[K]> => {
@@ -82,7 +105,9 @@ function jsonAttributes(name: string) {
 	};
 }
 
-/** A schema of the public contract (API version 2026-11-07). Authorization, references and other
- * semantic rules stay the backend's. */
+/** A schema of the public contract (API version 2026-11-07), as the SDK checks what it sends: an unknown enum value or
+ * field is refused. Authorization, references and other semantic rules stay the backend's. */
 export const backendSchema = compiler<BackendSchemas>(adapted(publicDefinitions));
+/** The same schema as the SDK reads a response with: an enum value or field added after this SDK is accepted and kept. */
+export const responseSchema = compiler<BackendSchemas>(lenient(adapted(publicDefinitions)));
 export type { BackendSchemas } from './backend-target.js';

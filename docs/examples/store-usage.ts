@@ -8,6 +8,7 @@ import {
 	type ResourceRef,
 	type JobState,
 	type AdsErrorInfo,
+	type AssetKind,
 } from '@nuva/sdk';
 import type { BackendSchemas, ScriptContent } from '@nuva/sdk/schemas';
 
@@ -52,7 +53,7 @@ export async function editScript(nuva: NuvaClient, script: Script, changes: Part
 	// #endregion script-update
 	return edited;
 }
-export async function uploadAsset(nuva: NuvaClient, file: File, kind: BackendSchemas['AssetOut']['kind']) {
+export async function uploadAsset(nuva: NuvaClient, file: File, kind: AssetKind) {
 	// #region asset-upload
 	const asset = await nuva.assets.upload(file, { kind, label: 'Box, front', description: 'The front of the gift box.' });
 	// The SDK requests an upload, PUTs bytes, then registers the Asset with its label and description.

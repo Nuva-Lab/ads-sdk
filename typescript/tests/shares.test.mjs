@@ -80,14 +80,19 @@ test('shares: a scope\'s auto-share rules are read and replaced', async () => {
 			]);
 		},
 	);
-	// The rules of another scope, or an access that is neither read nor write, are a service error.
-	for (const answer of [{ scope: 'customer' }, { scope: 'team a1', brand: 'admin' }])
-		await withFetch(
-			() => Response.json(answer),
-			async (nuva) => {
-				await assert.rejects(nuva.shares.getAutoShare('team a1'), (error) => error.code === 'SERVICE_ERROR');
-			},
-		);
+	// The rules of another scope are a service error; an access added after this SDK is read as it is.
+	await withFetch(
+		() => Response.json({ scope: 'customer' }),
+		async (nuva) => {
+			await assert.rejects(nuva.shares.getAutoShare('team a1'), (error) => error.code === 'SERVICE_ERROR');
+		},
+	);
+	await withFetch(
+		() => Response.json({ scope: 'team a1', brand: 'admin' }),
+		async (nuva) => {
+			assert.equal((await nuva.shares.getAutoShare('team a1')).brand, 'admin');
+		},
+	);
 	for (const params of [
 		{ scope: 'a/b', rules: {} },
 		{ scope: 'customer', rules: { asset: 'read' } },

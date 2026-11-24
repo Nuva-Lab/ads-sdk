@@ -16,7 +16,11 @@ export type Product = B['Product'] & ResourceLink<'product'>;
 export type Brand = B['Brand'] & ResourceLink<'brand'>;
 export type Character = B['Character'] & ResourceLink<'character'>;
 export type MutableResource = Product | Brand | Character;
-/** An Asset keeps its own `label` (what the uploader said it shows, or null); it is not replaced by a display label. */
+/**
+ * An Asset keeps its own `label` (what the uploader said it shows, or null); it is not replaced by a display label.
+ * `kind` may be one added after this SDK: such an Asset is a file you can download (`download_url`) but this SDK
+ * doesn't know how to show; treat it like a `document`.
+ */
 export type Asset = B['AssetOut'] & Omit<ResourceLink<'asset'>, 'label'>;
 export type Ad = B['AdOut'] & ResourceLink<'ad'>;
 export type Batch = B['BatchOut'] & ResourceLink<'batch'>;
@@ -85,7 +89,7 @@ export interface AssetsClient {
 	 */
 	upload(
 		source: File | { readonly url: string },
-		options?: StoreCommandOptions & { kind?: B['AssetOut']['kind']; label?: string; description?: string },
+		options?: StoreCommandOptions & { kind?: AssetKind; label?: string; description?: string },
 	): Promise<Asset>;
 	/**
 	 * Changes an Asset's `label` and `description`: only the fields you send; `null` removes one. The file never
@@ -93,8 +97,14 @@ export interface AssetsClient {
 	 */
 	update(id: string, changes: AssetChanges, options?: CommandOptions): Promise<Asset>;
 }
+/** The kinds of file you can add. An Asset you read may have a kind added after this SDK (see `Asset`). */
+export type AssetKind = B['UploadRequest']['kind'];
 /** What `assets.update` changes. */
 export type AssetChanges = B['AssetEdit'];
+/**
+ * A Job as it is now. `status` is `queued` or `running` until it ends `completed`, `failed` or `cancelled`. A status added
+ * after this SDK means the Job hasn't ended: `subscribe` keeps watching and `result` keeps waiting, as for `running`.
+ */
 export type JobState<T = unknown> = B['JobOut'];
 export interface ResultOptions {
 	signal?: AbortSignal;
@@ -148,7 +158,7 @@ export interface StoryboardsClient {
 	createFrom(base: Base<Storyboard>, changes: Partial<Omit<StoryboardContent, 'script'>>, options?: StoreCommandOptions): Promise<Storyboard>;
 }
 /** The render fields of a Prompt: the only ones `prompts.createFrom` changes. */
-export type PromptChanges = Partial<Pick<B['PromptReadV1'], 'prompt' | 'image_asset_ids' | 'video_asset_ids' | 'audio_asset_ids' | 'seconds' | 'ratio'>>;
+export type PromptChanges = Partial<Pick<B['PromptDataV1'], 'prompt' | 'image_asset_ids' | 'video_asset_ids' | 'audio_asset_ids' | 'seconds' | 'ratio'>>;
 /**
  * Video Prompts: what a clip is rendered from. `generate` compiles a Storyboard's clips. To change what a clip shows,
  * change its Storyboard (`storyboards.createFrom` or `generateFrom`) and compile again; `createFrom` saves a Prompt of
@@ -181,22 +191,25 @@ export interface ShareTarget {
 }
 /** `read` lets everyone at or below the scope see the item and use it; `write` also lets them edit it. */
 export type ShareAccess = 'read' | 'write';
+/** The access of a share you read: `read`, `write`, or one added after this SDK (the item is shared with the scope, with rights this SDK doesn't know). */
+export type SharedAccess = ShareAccess | (string & {});
 export interface Share {
 	readonly kind: ShareableKind;
 	readonly id: string;
 	/** `customer` (everyone in the organization) or the external ID of an org or group. */
 	readonly scope: string;
-	readonly access: ShareAccess;
+	readonly access: SharedAccess;
 	readonly created_at: string;
 }
 /** The kinds an auto-share rule is for. */
 export type AutoShareKind = 'brand' | 'product' | 'character';
 /** A scope's auto-share rules, one access per kind; a kind left out has no rule. */
 export type AutoShareRules = { readonly [K in AutoShareKind]?: ShareAccess };
-export interface AutoShare extends AutoShareRules {
+/** A scope's auto-share rules as you read them; an access may be one added after this SDK (see `SharedAccess`). */
+export type AutoShare = { readonly [K in AutoShareKind]?: SharedAccess } & {
 	/** `customer` or the external ID of an org or group. */
 	readonly scope: string;
-}
+};
 /**
  * An item is private to the user who made it, and to the admins above them, until it is shared with a scope. Only an
  * admin of the scope (or above it) shares into it, for items they own or administer. A share never allows deleting the

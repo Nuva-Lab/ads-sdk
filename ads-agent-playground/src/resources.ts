@@ -56,6 +56,24 @@ export interface ResourceHost {
   /** Opens a resource in its own workspace tab; without it, a resource opens in place. */
   open?(record: ResourceLink): Promise<unknown>;
 }
+/** An Asset as it shows: an image, video or audio player; a document, or a kind added after this SDK, as a link to the file. */
+function assetPreview(asset: Asset): HTMLElement {
+  if (asset.kind === "image") return media(asset.download_url, "image");
+  if (asset.kind === "video") return media(asset.download_url, "video");
+  if (asset.kind === "audio") {
+    const audio = node("audio");
+    audio.controls = true;
+    audio.src = asset.download_url;
+    return audio;
+  }
+  const url = new URL(asset.download_url);
+  if (!["http:", "https:"].includes(url.protocol)) throw new UiError(msg("Unsupported media URL."));
+  const link = node("a", msg("Open file"));
+  link.href = url.href;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  return link;
+}
 export async function readResource(
   sdk: NuvaClient,
   record: ResourceLink,
@@ -382,18 +400,7 @@ function fill(view: CardView, value: unknown) {
     view.host.remember(view.record, { finalAssetId: ad.asset.id });
   } else {
     const asset = value as Asset;
-    if (asset.kind === "audio") {
-      const audio = node("audio");
-      audio.controls = true;
-      audio.src = asset.download_url;
-      view.preview.append(audio);
-    } else
-      view.preview.append(
-        media(
-          asset.download_url,
-          asset.kind === "image" ? "image" : "video",
-        ),
-      );
+    view.preview.append(assetPreview(asset));
     setText(view.summary, msg(asset.kind));
   }
 }
@@ -898,10 +905,7 @@ async function renderResourceDetail(
       controls.append(poll);
     }
   } else if (record.ref.kind === "asset") {
-    const asset = value as Asset;
-    card.append(
-      media(asset.download_url, asset.kind === "image" ? "image" : "video"),
-    );
+    card.append(assetPreview(value as Asset));
   } else if (record.ref.kind === "session_file") {
     const file = value as SessionFile;
     if (file.mime.startsWith("audio/")) {
