@@ -92,6 +92,7 @@ func TestMCPServers(t *testing.T) {
 			return err
 		}(),
 		admin.DeleteMCPServer(ctx, "../x"),
+		admin.DeleteMCPServer(ctx, "acme__video"),
 	} {
 		if check == nil || check.(*APIError).Code != "INVALID_INPUT" {
 			t.Errorf("expected INVALID_INPUT, got %v", check)
