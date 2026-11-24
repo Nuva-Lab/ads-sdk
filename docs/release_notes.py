@@ -46,7 +46,7 @@ def releases(locale):
     preview7_guide, preview6_guide, preview5_guide = a('preview7', 'Upgrade to preview.7', '升级到 preview.7'), a('preview6', 'Upgrade to preview.6', '升级到 preview.6'), a('overview', 'Upgrade to preview.5', '升级到 preview.5')
     return [
         Release(
-            '0.1.0-preview.7', '2026-11-23',
+            '0.1.0-preview.7', '2026-11-24',
             ('Documents the Agent reads, auto-share rules per scope, user deletion, and archiving for Sessions and Skills.',
              'Agent 可阅读的文档、按范围的自动共享规则、用户删除，以及 Session 和 Skill 的归档。'),
             ('Works with the services already live. API version <code>2026-11-07</code>, unchanged.',
@@ -77,6 +77,8 @@ def releases(locale):
                      '你注册的 Skill 会用于 Agent 对话（<a href="https://github.com/Nuva-Lab/ads-sdk/issues/36">#36</a>）。'),
                     ('The Agent no longer gives links or file paths that don\'t work; it writes the text in full in its reply (<a href="https://github.com/Nuva-Lab/ads-sdk/issues/51">#51</a>).',
                      'Agent 不再给出无法使用的链接或文件路径，而是在回复中直接给出全文（<a href="https://github.com/Nuva-Lab/ads-sdk/issues/51">#51</a>）。'),
+                    ('Image uploads go up to 30 MB, from 10 MB (<a href="https://github.com/Nuva-Lab/ads-sdk/issues/47">#47</a>). An image over 2048 px or 5 MB is stored as a WebP copy at that size.',
+                     '图片上传上限由 10 MB 提高到 30 MB（<a href="https://github.com/Nuva-Lab/ads-sdk/issues/47">#47</a>）。超过 2048 像素或 5 MB 的图片会以该尺寸的 WebP 副本保存。'),
                 ],
             }),
         Release(

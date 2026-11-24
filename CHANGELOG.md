@@ -23,6 +23,7 @@ Changes since `0.1.0-preview.6`. This SDK works with the services already live, 
 - A Session's first message no longer fails with "No acknowledgement received" ([#44](https://github.com/Nuva-Lab/ads-sdk/issues/44)): Agent requests wait 30 s for their answer.
 - Skills you register are used in Agent conversations ([#36](https://github.com/Nuva-Lab/ads-sdk/issues/36)).
 - The Agent no longer gives links or file paths that don't work; it writes the text in full in its reply ([#51](https://github.com/Nuva-Lab/ads-sdk/issues/51)).
+- Image uploads go up to 30 MB, from 10 MB ([#47](https://github.com/Nuva-Lab/ads-sdk/issues/47)). An image over 2048 px or 5 MB is stored as a WebP copy at that size.
 
 ### 中文说明
 
@@ -41,6 +42,7 @@ Changes since `0.1.0-preview.6`. This SDK works with the services already live, 
 - Session 首条消息不再报 "No acknowledgement received"（#44）：Agent 请求的等待时间改为 30 秒。
 - 你注册的 Skill 会用于 Agent 对话（#36）。
 - Agent 不再给出无法使用的链接或文件路径，而是在回复中直接给出全文（#51）。
+- 图片上传上限由 10 MB 提高到 30 MB（#47）。超过 2048 像素或 5 MB 的图片会以该尺寸的 WebP 副本保存。
 
 **变更：**脚本类型中移除了 `fact_product_tags` 和 `fact_product_video_requirements`。
 
