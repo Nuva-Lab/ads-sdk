@@ -195,3 +195,21 @@ createNuva({ getAccessToken: async () => 'token', onWireTrace: () => {} });
 
 // @ts-expect-error Service origins are set with withServices (workspace-only); customers choose an environment.
 createNuva({ getAccessToken: async () => 'token', baseUrl: 'http://127.0.0.1:1' });
+
+// What the SDK reads can hold values a newer backend added; what it sends can't.
+declare const readAsset: import('@nuva/sdk').Asset;
+const newerKind: (typeof readAsset)['kind'] = 'hologram';
+const knownKind: (typeof readAsset)['kind'] = 'image';
+declare const readJob: import('@nuva/sdk').JobState;
+const newerStatus: (typeof readJob)['status'] = 'uploading';
+declare const readShare: import('@nuva/sdk').Share;
+const newerAccess: (typeof readShare)['access'] = 'admin';
+// A single value that tells one kind of record from another stays exact.
+declare const someScript: import('@nuva/sdk').Script;
+// @ts-expect-error A Script's kind is 'script'.
+const notScript: (typeof someScript)['kind'] = 'storyboard';
+// @ts-expect-error An upload's kind is one the backend takes.
+void client.assets.upload({ url: 'https://example.com/a.glb' }, { kind: 'hologram' });
+// @ts-expect-error A share's access is read or write.
+void client.shares.set({ kind: 'product', id: '00000000-0000-4000-8000-000000000001' }, 'team', 'admin');
+void [newerKind, knownKind, newerStatus, newerAccess, notScript];

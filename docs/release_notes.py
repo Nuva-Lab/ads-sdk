@@ -46,6 +46,23 @@ def releases(locale):
     preview7_guide, preview6_guide, preview5_guide = a('preview7', 'Upgrade to preview.7', '升级到 preview.7'), a('preview6', 'Upgrade to preview.6', '升级到 preview.6'), a('overview', 'Upgrade to preview.5', '升级到 preview.5')
     return [
         Release(
+            'Unreleased', None,
+            ('A newer backend no longer breaks the SDK: fields and values it doesn\'t know come through.',
+             '更新的后端不会再让 SDK 出错：不认识的字段和取值会原样返回。'),
+            ('Works with the services already live. API version <code>2026-11-07</code>, unchanged.',
+             '可用于已上线的服务。API 版本 <code>2026-11-07</code>，未变。'),
+            ('Code that keeps an Asset\'s <code>kind</code>, a Job\'s <code>status</code> or a similar field in a narrower type, or switches over every known value, needs a case for the others.',
+             '若代码把 Asset 的 <code>kind</code>、Job 的 <code>status</code> 等字段存入更窄的类型，或对所有已知取值做穷举判断，需要为其他取值增加分支。'),
+            {
+                'changed': [
+                    ('<strong>Fields and values a newer backend adds come through.</strong> A new field is kept; a new value in a field with a set of values (an Asset\'s <code>kind</code> and <code>source</code>, a Job\'s <code>status</code>, a callback\'s <code>status</code>, a Prompt\'s <code>ratio</code>, a share\'s <code>access</code>) is the string the backend sent. Earlier SDKs refuse the whole response. What the SDK sends is checked as before.',
+                     '<strong>更新的后端新增的字段和取值会原样返回。</strong>新字段会保留；取值固定的字段（Asset 的 <code>kind</code> 和 <code>source</code>、Job 的 <code>status</code>、回调的 <code>status</code>、Prompt 的 <code>ratio</code>、共享的 <code>access</code>）若出现新值，返回后端给出的字符串。旧版 SDK 会拒绝整个响应。SDK 发送的内容仍按原规则校验。'),
+                    ('The types are the known values or any other string (<code>\'image\' | \'video\' | … | (string &amp; {})</code>). A Job in a status the SDK doesn\'t know is still under way: <code>subscribe</code> and <code>result</code> wait until it is <code>completed</code>, <code>failed</code> or <code>cancelled</code>.',
+                     '类型为已知取值或任意其他字符串（<code>\'image\' | \'video\' | … | (string &amp; {})</code>）。状态未知的 Job 视为仍在进行：<code>subscribe</code> 和 <code>result</code> 会等待其变为 <code>completed</code>、<code>failed</code> 或 <code>cancelled</code>。'),
+                ],
+            },
+        ),
+        Release(
             '0.1.0-preview.7', '2026-11-24',
             ('Documents the Agent reads, auto-share rules per scope, user deletion, and archiving for Sessions and Skills.',
              'Agent 可阅读的文档、按范围的自动共享规则、用户删除，以及 Session 和 Skill 的归档。'),

@@ -4,6 +4,16 @@ import type { CommandOptions, JsonObject, JsonValue, ResourceRef, ResourceLink, 
 import type { BackendSchemas as B } from './backend-target.js';
 import type { ScriptPackage } from './service-schemas.js';
 export type { ScriptPackage } from './service-schemas.js';
+type IsUnion<T, U = T> = T extends unknown ? ([U] extends [T] ? false : true) : never;
+type OpenStrings<T> = true extends IsUnion<T> ? T | (string & {}) : T;
+// Records nest a few levels (an Ad's Assets' kinds); deeper is JSON data (Product attributes), left as it is.
+type OpenRest<T, D extends unknown[]> = D['length'] extends 6 ? T : T extends object ? { [K in keyof T]: Open<T[K], [...D, 0]> } : T;
+/**
+ * A record as the SDK returns it: each choice of string values (`kind`, `status`, `access`...) can also be a value a
+ * newer backend added, which the SDK passes through instead of failing; handle the ones you don't know. Single values,
+ * which tell one kind of record from another, stay as they are.
+ */
+export type Open<T, D extends unknown[] = []> = OpenStrings<Extract<T, string>> | OpenRest<Exclude<T, string>, D>;
 export type StoreQuery = {
 	limit?: number;
 	cursor?: string | null;
@@ -12,19 +22,19 @@ export type StoreQuery = {
 	/** `skills.list`: list only archived Skills instead of the others. */
 	archived?: boolean;
 };
-export type Product = B['Product'] & ResourceLink<'product'>;
-export type Brand = B['Brand'] & ResourceLink<'brand'>;
-export type Character = B['Character'] & ResourceLink<'character'>;
+export type Product = Open<B['Product']> & ResourceLink<'product'>;
+export type Brand = Open<B['Brand']> & ResourceLink<'brand'>;
+export type Character = Open<B['Character']> & ResourceLink<'character'>;
 export type MutableResource = Product | Brand | Character;
 /** An Asset keeps its own `label` (what the uploader said it shows, or null); it is not replaced by a display label. */
-export type Asset = B['AssetOut'] & Omit<ResourceLink<'asset'>, 'label'>;
-export type Ad = B['AdOut'] & ResourceLink<'ad'>;
-export type Batch = B['BatchOut'] & ResourceLink<'batch'>;
+export type Asset = Open<B['AssetOut']> & Omit<ResourceLink<'asset'>, 'label'>;
+export type Ad = Open<B['AdOut']> & ResourceLink<'ad'>;
+export type Batch = Open<B['BatchOut']> & ResourceLink<'batch'>;
 /**
  * A Skill at one version: the latest, or the one you asked for. `main_version` is the version new work uses;
  * `archived_at` is set while the Skill is archived (it then reaches no new Agent Session).
  */
-export type Skill = Pick<B['SkillRead'], 'id' | 'name' | 'platform' | 'main_version' | 'created_at' | 'archived_at'> & {
+export type Skill = Pick<Open<B['SkillRead']>, 'id' | 'name' | 'platform' | 'main_version' | 'created_at' | 'archived_at'> & {
 	readonly version: number;
 	readonly description: string | null;
 	readonly note: string | null;
@@ -32,19 +42,19 @@ export type Skill = Pick<B['SkillRead'], 'id' | 'name' | 'platform' | 'main_vers
 	readonly files: readonly B['SkillFile'][];
 	readonly download_url_expires_at: string;
 } & ResourceLink<'skill'>;
-export type Composition = B['CompositionReadV1'];
+export type Composition = Open<B['CompositionReadV1']>;
 export type ArtifactKind = 'script' | 'storyboard' | 'prompt';
 export type Artifact<K extends string = string, D = JsonValue> = ResourceLink<K> & { data: D };
 /** Each kind's record as the service keeps it: what it was made from differs by kind. */
-type ArtifactRecords = { script: B['Script']; storyboard: B['Storyboard']; prompt: B['Prompt'] };
+type ArtifactRecords = { script: Open<B['Script']>; storyboard: Open<B['Storyboard']>; prompt: Open<B['Prompt']> };
 export type BackendArtifact<K extends ArtifactKind = ArtifactKind, D = JsonValue> = Omit<ArtifactRecords[K], 'kind' | 'data'> &
 	Artifact<K, D> & { kind: K };
 /** A Script: the v3 idea (`content`), or a read-only v2 ScriptPackage saved before Storyboards (`legacy`). */
-export type Script = BackendArtifact<'script', B['ScriptDataV1']> &
+export type Script = BackendArtifact<'script', Open<B['ScriptDataV1']>> &
 	({ readonly format: 3; readonly content: ScriptContent; readonly legacy?: undefined } | { readonly format: 2; readonly legacy: ScriptPackage; readonly content?: undefined });
 /** A Storyboard: how a Script is cast and shot. `prompts.generate({ storyboard })` turns its clips into the Prompts `videos.generate` renders. */
-export type Storyboard = BackendArtifact<'storyboard', B['StoryboardDataV1']> & { readonly content: StoryboardContent };
-export type Prompt = BackendArtifact<'prompt', B['PromptReadV1']>;
+export type Storyboard = BackendArtifact<'storyboard', Open<B['StoryboardDataV1']>> & { readonly content: StoryboardContent };
+export type Prompt = BackendArtifact<'prompt', Open<B['PromptReadV1']>>;
 /** The version of a Brand, Product or Character you read: `update` needs it, so edits made since aren't overwritten. */
 export type EntityRef = { readonly id: string; readonly version: number };
 /** Brands, Products and Characters: you change them in place, and each change saves the next `version`. */
@@ -95,12 +105,14 @@ export interface AssetsClient {
 }
 /** What `assets.update` changes. */
 export type AssetChanges = B['AssetEdit'];
-export type JobState<T = unknown> = B['JobOut'];
+/** A Job's state. It ends `completed`, `failed` or `cancelled`; any other status, one a newer backend added too, means it is
+ * still under way, and `subscribe` and `result` keep waiting. */
+export type JobState<T = unknown> = Open<B['JobOut']>;
 export interface ResultOptions {
 	signal?: AbortSignal;
 	timeoutMs?: number;
 }
-export type Job<T = Asset> = B['JobOut'] & {
+export type Job<T = Asset> = JobState & {
 	subscribe(listener: (state: JobState) => void, onError?: (error: AdsErrorInfo) => void): Unsubscribe;
 	result(options?: ResultOptions): Promise<T>;
 };
@@ -186,17 +198,19 @@ export interface Share {
 	readonly id: string;
 	/** `customer` (everyone in the organization) or the external ID of an org or group. */
 	readonly scope: string;
-	readonly access: ShareAccess;
+	/** `read` or `write`, or an access a newer backend added. */
+	readonly access: Open<ShareAccess>;
 	readonly created_at: string;
 }
 /** The kinds an auto-share rule is for. */
 export type AutoShareKind = 'brand' | 'product' | 'character';
 /** A scope's auto-share rules, one access per kind; a kind left out has no rule. */
 export type AutoShareRules = { readonly [K in AutoShareKind]?: ShareAccess };
-export interface AutoShare extends AutoShareRules {
+/** A scope's auto-share rules as read: each access is `read` or `write`, or one a newer backend added. */
+export type AutoShare = { readonly [K in AutoShareKind]?: Open<ShareAccess> } & {
 	/** `customer` or the external ID of an org or group. */
 	readonly scope: string;
-}
+};
 /**
  * An item is private to the user who made it, and to the admins above them, until it is shared with a scope. Only an
  * admin of the scope (or above it) shares into it, for items they own or administer. A share never allows deleting the

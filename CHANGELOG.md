@@ -2,6 +2,24 @@
 
 Each entry describes the change from the previous released version.
 
+## Unreleased
+
+Changes since `0.1.0-preview.7`. This SDK works with the services already live, and the API version is unchanged (`2026-11-07`).
+
+### Changed
+
+- **A newer backend no longer breaks this SDK.** What it reads may have a field or a value it doesn't know: a new field is kept, and a new value in a field with a set of values (an Asset's `kind` and `source`, a Job's `status`, a callback's `status`, a Prompt's `ratio`, a share's `access`) comes through as the string the backend sent. Earlier SDKs refuse the whole response. What the SDK sends is still checked as before.
+- The types say so: those fields are the known values or any other string (`'image' | 'video' | … | (string & {})`). Code that keeps one in a narrower type, or switches over every known value, needs a case for the others. A Job in a status the SDK doesn't know is still under way: `subscribe` and `result` keep waiting until it is `completed`, `failed` or `cancelled`.
+
+### 中文说明
+
+相对 `0.1.0-preview.7` 的变化。所需服务均已上线，API 版本不变（`2026-11-07`）。
+
+**变更：**
+
+- **更新的后端不会再让本 SDK 出错。**读取的数据中可能出现 SDK 不认识的字段或取值：新字段会保留；取值固定的字段（Asset 的 `kind` 和 `source`、Job 的 `status`、回调的 `status`、Prompt 的 `ratio`、共享的 `access`）若出现新值，会原样返回后端给出的字符串。旧版 SDK 会拒绝整个响应。SDK 发送的内容仍按原规则校验。
+- 类型也随之放宽：这些字段的类型为已知取值或任意其他字符串（`'image' | 'video' | … | (string & {})`）。若代码把它们存入更窄的类型，或对所有已知取值做穷举判断，需要为其他取值增加分支。状态未知的 Job 视为仍在进行：`subscribe` 和 `result` 会继续等待，直到其变为 `completed`、`failed` 或 `cancelled`。
+
 ## 0.1.0-preview.7
 
 Changes since `0.1.0-preview.6`. This SDK works with the services already live, and the API version is unchanged (`2026-11-07`). Most integrations need no change; see **Upgrade to preview.7** in the docs' upgrade guide (`migration.html#preview7`).
