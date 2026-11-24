@@ -66,9 +66,12 @@ export function tolerant(source: Definitions): Definitions {
 			delete node.enum;
 			node.type = 'string';
 		}
-		Object.values(node).forEach(open);
+		// A `properties` map's keys are field names, not keywords: only its schemas are opened.
+		for (const [key, child] of Object.entries(node))
+			if (key === 'properties' && child !== null && typeof child === 'object') Object.values(child).forEach(open);
+			else open(child);
 	};
-	open(definitions);
+	Object.values(definitions).forEach(open);
 	return definitions;
 }
 
