@@ -14,12 +14,12 @@ def migration_sections(locale='zh'):
     after = lambda: '<p><strong>' + t('Now', '现在') + '</strong></p>'
 
     return [
-        section('next', 'Upgrade to the next release', '升级到下一版本',
-            p('The next release adds auto-share rules per scope, user deletion, PDF Assets for the Agent and archiving for Skills and Sessions. Most integrations need no change. Check the points below; the <a href="' + link('release-notes', 'unreleased') + '">release notes</a> list everything.',
-                '下一版本新增按范围的自动共享规则、用户删除、供 Agent 阅读的 PDF Asset，以及 Skill 和 Session 的归档。大多数集成无需修改。请检查以下几点；完整内容见<a href="' + link('release-notes', 'unreleased') + '">版本说明</a>。')
+        section('preview7', 'Upgrade to preview.7', '升级到 preview.7',
+            p('preview.7 adds documents the Agent reads (PDF, Word and Excel), auto-share rules per scope, user deletion, and archiving for Skills and Sessions. It works with the services already live, and most integrations need no change. Check the points below; the <a href="' + link('release-notes', 'preview-7') + '">release notes</a> list everything. From an earlier preview, follow <a href="#preview6">Upgrade to preview.6</a> first.',
+                'preview.7 新增 Agent 可阅读的文档（PDF、Word 和 Excel）、按范围的自动共享规则、用户删除，以及 Skill 和 Session 的归档。它可用于已上线的服务，大多数集成无需修改。请检查以下几点；完整内容见<a href="' + link('release-notes', 'preview-7') + '">版本说明</a>。从更早的预览版升级，请先完成<a href="#preview6">升级到 preview.6</a>。')
             + '<ol>'
-            + '<li>' + t('<strong>An Asset\'s <code>kind</code> can be <code>document</code></strong> (a PDF). Handle it wherever you branch on <code>kind</code>. A document never goes into a Product, Character or Prompt. Upgrade everyone in your organization before your users attach PDFs: older SDKs fail to read a document Asset.',
-                         '<strong>Asset 的 <code>kind</code> 可能是 <code>document</code></strong>（PDF）。按 <code>kind</code> 分支处理的地方请加上这种情况。文档不会进入产品、人物或提示词。在用户上传 PDF 之前，请让组织内所有人都升级：旧版 SDK 无法读取文档 Asset。') + '</li>'
+            + '<li>' + t('<strong>An Asset\'s <code>kind</code> can be <code>document</code></strong> (a PDF, Word or Excel file). Handle it wherever you branch on <code>kind</code>. A document never goes into a Product, Character or Prompt. Upgrade everyone in your organization before your users attach documents: older SDKs fail to read a document Asset.',
+                         '<strong>Asset 的 <code>kind</code> 可能是 <code>document</code></strong>（PDF、Word 或 Excel 文件）。按 <code>kind</code> 分支处理的地方请加上这种情况。文档不会进入产品、人物或提示词。在用户上传文档之前，请让组织内所有人都升级：旧版 SDK 无法读取文档 Asset。') + '</li>'
             + '<li>' + t('<strong>Deleted users (Go Admin SDK).</strong> After <code>DeleteUser</code>, <code>IssueUserToken</code> and <code>SetMemberships</code> for that ID return <code>409 USER_DELETED</code>, and the user\'s tokens get <code>UNAUTHENTICATED</code>. Treat both as signed out.',
                          '<strong>已删除的用户（Go Admin SDK）。</strong>调用 <code>DeleteUser</code> 之后，再为该 ID 调用 <code>IssueUserToken</code> 或 <code>SetMemberships</code> 会返回 <code>409 USER_DELETED</code>，该用户的令牌会得到 <code>UNAUTHENTICATED</code>。两者都按已退出登录处理。') + '</li>'
             + '<li>' + t('<strong>Archived Skills and Sessions are left out of lists.</strong> <code>skills.list</code>, <code>ListSkills</code> and <code>sessions.list</code> no longer return archived ones; pass <code>{archived: true}</code> (Go: <code>ListArchivedSkills</code>) to read them.',

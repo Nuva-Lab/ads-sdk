@@ -43,50 +43,42 @@ def releases(locale):
     """The entries; links resolve for `locale`."""
     guide = lambda anchor: filename('migration', locale) + '#' + anchor
     a = lambda anchor, en, zh: (f'<a href="{guide(anchor)}">{en}</a>', f'<a href="{guide(anchor)}">{zh}</a>')
-    next_guide, preview6_guide, preview5_guide = a('next', 'Upgrade to the next release', '升级到下一版本'), a('preview6', 'Upgrade to preview.6', '升级到 preview.6'), a('overview', 'Upgrade to preview.5', '升级到 preview.5')
+    preview7_guide, preview6_guide, preview5_guide = a('preview7', 'Upgrade to preview.7', '升级到 preview.7'), a('preview6', 'Upgrade to preview.6', '升级到 preview.6'), a('overview', 'Upgrade to preview.5', '升级到 preview.5')
     return [
         Release(
-            'Unreleased', None,
-            ('Auto-share rules per scope, delete users, let the Agent read PDFs, and archive Skills and Sessions.',
-             '按范围设置自动共享规则、删除用户、让 Agent 阅读 PDF，以及归档 Skill 和 Session。'),
-            ('User deletion and PDF Assets are live since 2026-11-20, Skill archiving since 2026-11-13. Auto-share rules need the services released with them, and Session archiving the Agent release with it. The API version stays <code>2026-11-07</code>.',
-             '用户删除和 PDF Asset 自 2026-11-20 起可用，Skill 归档自 2026-11-13 起可用。自动共享规则需要随其发布的服务，Session 归档需要随其发布的 Agent 版本。API 版本仍为 <code>2026-11-07</code>。'),
-            (f'Most integrations need no change. Check the points in {next_guide[0]}.',
-             f'大多数集成无需修改。请检查{next_guide[1]}中列出的几点。'),
+            '0.1.0-preview.7', '2026-11-24',
+            ('Documents the Agent reads, auto-share rules per scope, user deletion, and archiving for Sessions and Skills.',
+             'Agent 可阅读的文档、按范围的自动共享规则、用户删除，以及 Session 和 Skill 的归档。'),
+            ('Works with the services already live. API version <code>2026-11-07</code>, unchanged.',
+             '可用于已上线的服务。API 版本 <code>2026-11-07</code>，未变。'),
+            (f'Most integrations need no change: see {preview7_guide[0]}.',
+             f'大多数集成无需修改，见{preview7_guide[1]}。'),
             {
                 'added': [
-                    ('<strong>Auto-share rules per scope</strong> (<a href="https://github.com/Nuva-Lab/ads-sdk/issues/48">#48</a>). <code>shares.setAutoShare(scope, {brand?, product?, character?})</code> and Go <code>SetAutoShare</code> share every new Brand, Product or Character whose owner is at or below a scope with it, <code>read</code> or <code>write</code>; adding or raising a rule shares the existing ones too. A rule only raises a share, never lowers one. For your API key and the scope\'s admins.',
-                     '<strong>按范围的自动共享规则</strong>（<a href="https://github.com/Nuva-Lab/ads-sdk/issues/48">#48</a>）。<code>shares.setAutoShare(scope, {brand?, product?, character?})</code> 和 Go 的 <code>SetAutoShare</code> 会把所有者在某范围内（含下级）的新建品牌、产品和人物以 <code>read</code> 或 <code>write</code> 共享给该范围；新增或提升规则时，已有的内容也会一并共享。规则只会提升共享，不会降低。供你的 API key 和该范围的管理员使用。'),
-                    ('<strong>Delete a user</strong> (Go Admin SDK). <code>DeleteUser(ctx, externalUserID)</code> stops someone who left: the API refuses their tokens at once, and a new token or memberships for the ID return <code>409 USER_DELETED</code>. Nothing they made is deleted; it stays theirs, with its shares, for their admins and colleagues.',
-                     '<strong>删除用户</strong>（Go Admin SDK）。<code>DeleteUser(ctx, externalUserID)</code> 可停用已离开的人：API 立即拒绝其令牌，再为该 ID 申请令牌或设置成员关系会返回 <code>409 USER_DELETED</code>。其创建的内容不会删除，仍归其所有、共享照旧，管理员和同事可继续使用。'),
-                    ('<strong>PDFs for the Agent to read.</strong> <code>assets.upload(file, {kind: \'document\'})</code> uploads a PDF of up to 50 MB; attach it to a message and the Agent reads its text and pages. A document is never a generation input.',
-                     '<strong>供 Agent 阅读的 PDF。</strong><code>assets.upload(file, {kind: \'document\'})</code> 可上传最大 50 MB 的 PDF；附在消息中，Agent 会阅读其文字和页面。文档不会用作生成素材。'),
-                    ('<strong>Archive Skills.</strong> <code>ArchiveSkill</code> takes a Skill out of lists and the Agent\'s new Sessions without deleting anything; <code>UnarchiveSkill</code> brings it back.',
-                     '<strong>归档 Skill。</strong><code>ArchiveSkill</code> 让 Skill 不再出现在列表和 Agent 新建的 Session 中，不删除任何内容；<code>UnarchiveSkill</code> 可将其恢复。'),
-                    ('<strong>Archive Sessions</strong> (<a href="https://github.com/Nuva-Lab/ads-sdk/issues/35">#35</a>). <code>sessions.archive(id)</code> takes a test conversation out of <code>sessions.list</code>; its messages and work stay, and it can still be opened.',
-                     '<strong>归档 Session</strong>（<a href="https://github.com/Nuva-Lab/ads-sdk/issues/35">#35</a>）。<code>sessions.archive(id)</code> 可让测试对话不再出现在 <code>sessions.list</code> 中；消息和内容都会保留，仍可打开。'),
+                    ('<strong>Documents the Agent reads:</strong> PDF (up to 50 MB), Word and Excel (<code>.docx</code> / <code>.xlsx</code>, up to 30 MB). An Asset\'s <code>kind</code> can be <code>document</code>. Older SDKs can\'t read a document Asset, so upgrade everyone in your organization before your users upload documents.',
+                     '<strong>Agent 可阅读的文档：</strong>PDF（最大 50 MB）、Word 和 Excel（<code>.docx</code> / <code>.xlsx</code>，最大 30 MB）。Asset 的 <code>kind</code> 可能为 <code>document</code>。旧版 SDK 无法读取文档 Asset，请在用户上传文档前让组织内所有人升级。'),
+                    ('<strong>Auto-share rules per scope</strong> (<a href="https://github.com/Nuva-Lab/ads-sdk/issues/48">#48</a>): <code>shares.setAutoShare</code> and Go <code>SetAutoShare</code>. The old organization-wide setting is now a <code>read</code> rule on <code>customer</code>, so nothing changes.',
+                     '<strong>按范围的自动共享规则</strong>（<a href="https://github.com/Nuva-Lab/ads-sdk/issues/48">#48</a>）：<code>shares.setAutoShare</code> 和 Go 的 <code>SetAutoShare</code>。原有的组织级设置已转为 <code>customer</code> 上的 <code>read</code> 规则，行为不变。'),
+                    ('<strong>Delete a user</strong> (Go): <code>DeleteUser</code>. Afterwards, a token or memberships for that ID return <code>409 USER_DELETED</code>; what they made stays.',
+                     '<strong>删除用户</strong>（Go）：<code>DeleteUser</code>。之后为该 ID 申请令牌或设置成员关系会返回 <code>409 USER_DELETED</code>；其创建的内容会保留。'),
+                    ('<strong>Archive Sessions</strong> (<a href="https://github.com/Nuva-Lab/ads-sdk/issues/35">#35</a>): <code>sessions.archive</code> / <code>sessions.unarchive</code>, and <code>sessions.list({ archived: true })</code>.',
+                     '<strong>归档 Session</strong>（<a href="https://github.com/Nuva-Lab/ads-sdk/issues/35">#35</a>）：<code>sessions.archive</code> / <code>sessions.unarchive</code>，以及 <code>sessions.list({ archived: true })</code>。'),
+                    ('<strong>Archive Skills:</strong> <code>ArchiveSkill</code> / <code>UnarchiveSkill</code>, and <code>skills.list({ archived: true })</code>.',
+                     '<strong>归档 Skill：</strong><code>ArchiveSkill</code> / <code>UnarchiveSkill</code>，以及 <code>skills.list({ archived: true })</code>。'),
                 ],
                 'changed': [
-                    ('<strong>Organization-wide sharing is now a rule you control.</strong> The setting only Nuva could change is gone. An organization that had it keeps the same behavior as a <code>read</code> rule for all three kinds on <code>customer</code>.',
-                     '<strong>组织范围的自动共享改为你可控制的规则。</strong>只有 Nuva 能修改的设置已移除。原先开启该设置的组织，现在在 <code>customer</code> 上有三类内容的 <code>read</code> 规则，行为不变。'),
-                    ('<strong>Script fact IDs</strong> are the ones the service supplies: <code>fact_product_tags</code> and <code>fact_product_video_requirements</code> are gone. A Script that cites a fact it doesn\'t have is refused with the bad ID.',
-                     '<strong>脚本的事实 ID</strong> 只保留服务提供的那些：<code>fact_product_tags</code> 和 <code>fact_product_video_requirements</code> 已移除。引用不存在的事实的脚本会被拒绝，并指出错误的 ID。'),
+                    ('<code>fact_product_tags</code> and <code>fact_product_video_requirements</code> are gone from the Script types.',
+                     '脚本类型中移除了 <code>fact_product_tags</code> 和 <code>fact_product_video_requirements</code>。'),
                 ],
                 'fixed': [
-                    ('<strong>A Session\'s first message no longer fails with “No acknowledgement received”</strong> (<a href="https://github.com/Nuva-Lab/ads-sdk/issues/44">#44</a>). Agent requests (<code>send</code>, <code>stop</code>, <code>respond</code>, <code>fail</code>, <code>refresh</code>) wait 30 s for their answer instead of 8 s. If one still times out, send again with the error\'s <code>requestId</code>: it answers with the first receipt.',
-                     '<strong>Session 的第一条消息不再报“No acknowledgement received”</strong>（<a href="https://github.com/Nuva-Lab/ads-sdk/issues/44">#44</a>）。Agent 请求（<code>send</code>、<code>stop</code>、<code>respond</code>、<code>fail</code>、<code>refresh</code>）等待回应的时间由 8 秒改为 30 秒。如果仍然超时，用错误中的 <code>requestId</code> 再次发送，会返回第一次的回执。'),
-                    ('<strong>Skills you register are used in Agent conversations</strong> (<a href="https://github.com/Nuva-Lab/ads-sdk/issues/36">#36</a>). A Skill with a main version reaches the Agent\'s new Sessions without asking Nuva. A service change, live since 2026-11-13.',
-                     '<strong>你注册的 Skill 会用于 Agent 对话</strong>（<a href="https://github.com/Nuva-Lab/ads-sdk/issues/36">#36</a>）。有主版本的 Skill 会进入 Agent 新建的 Session，无需请 Nuva 开启。这是服务端变化，自 2026-11-13 起生效。'),
-                ],
-                'docs': [
-                    ('This <strong>Release notes</strong> page, and one <strong>Upgrade guide</strong> with a part per release.',
-                     '新增本<strong>版本说明</strong>页面，以及按版本划分的<strong>升级指南</strong>。'),
-                    ('Backend setup and the Shares reference describe auto-share rules (<a href="https://github.com/Nuva-Lab/ads-sdk/issues/48">#48</a>).',
-                     '后端接入和共享接口参考说明了自动共享规则（<a href="https://github.com/Nuva-Lab/ads-sdk/issues/48">#48</a>）。'),
-                ],
-                'playground': [
-                    ('A Prompt opens to its text again, and a clip opens its Prompt.', '提示词重新显示其文字，片段可打开其提示词。'),
-                    ('A playing video keeps playing when new work arrives.', '新内容到来时，正在播放的视频不会中断。'),
+                    ('A Session\'s first message no longer fails with “No acknowledgement received” (<a href="https://github.com/Nuva-Lab/ads-sdk/issues/44">#44</a>): Agent requests wait 30 s for their answer.',
+                     'Session 首条消息不再报“No acknowledgement received”（<a href="https://github.com/Nuva-Lab/ads-sdk/issues/44">#44</a>）：Agent 请求的等待时间改为 30 秒。'),
+                    ('Skills you register are used in Agent conversations (<a href="https://github.com/Nuva-Lab/ads-sdk/issues/36">#36</a>).',
+                     '你注册的 Skill 会用于 Agent 对话（<a href="https://github.com/Nuva-Lab/ads-sdk/issues/36">#36</a>）。'),
+                    ('The Agent no longer gives links or file paths that don\'t work; it writes the text in full in its reply (<a href="https://github.com/Nuva-Lab/ads-sdk/issues/51">#51</a>).',
+                     'Agent 不再给出无法使用的链接或文件路径，而是在回复中直接给出全文（<a href="https://github.com/Nuva-Lab/ads-sdk/issues/51">#51</a>）。'),
+                    ('Image uploads go up to 30 MB, from 10 MB (<a href="https://github.com/Nuva-Lab/ads-sdk/issues/47">#47</a>). An image over 2048 px or 5 MB is stored as a WebP copy at that size.',
+                     '图片上传上限由 10 MB 提高到 30 MB（<a href="https://github.com/Nuva-Lab/ads-sdk/issues/47">#47</a>）。超过 2048 像素或 5 MB 的图片会以该尺寸的 WebP 副本保存。'),
                 ],
             }),
         Release(

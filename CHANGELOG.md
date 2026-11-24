@@ -2,44 +2,49 @@
 
 Each entry describes the change from the previous released version.
 
-## Unreleased
+## 0.1.0-preview.7
 
-### Playground
-
-- **A Prompt opens to its text again.** Opening a Prompt showed only its title: its text, settings, **View raw prompt**, **Copy prompt** and its clips were missing.
-- **A clip opens its Prompt.** A clip's page has **Open Prompt**, which opens the Prompt it renders.
-- **A playing video keeps playing when new work arrives.** A new Script, Storyboard, Prompt, clip or final joins its tab without redrawing the cards already shown; a clip still rendering is read again when the conversation reports it.
-- **Generate video**, **Revise script** and **Write script** are marked as writing controls, so a read-only host (the staff admin page) hides them.
+Changes since `0.1.0-preview.6`. This SDK works with the services already live, and the API version is unchanged (`2026-11-07`). Most integrations need no change; see **Upgrade to preview.7** in the docs' upgrade guide (`migration.html#preview7`).
 
 ### Added
 
-- **Auto-share rules per scope** ([#48](https://github.com/Nuva-Lab/ads-sdk/issues/48)). `AdminClient.SetAutoShare(ctx, scope, AutoShareRules{Brand, Product, Character})` and `shares.setAutoShare(scope, rules)` give a scope (`customer`, an org or a group) a rule per kind, `read` or `write`: every new Brand, Product or Character whose owner is at or below the scope is shared with it, including what the Agent makes for them. Adding a rule, or raising one from `read` to `write`, also shares the existing ones, including any unshared before; sending the same rules again changes nothing. A rule only ever raises a share, never lowers one; a kind without a rule keeps the shares it has, and `{}` removes every rule. `GetAutoShare` / `shares.getAutoShare` read them. The customer's API key and the admins of the scope or above set them, not the Agent. This replaces the organization-wide setting only Nuva could change: an organization that had it (new items shared with everyone to read) now has a `read` rule for all three kinds on `customer`, so nothing changes until you change it. Needs the services released with auto-share rules.
-
-- **Delete a user.** `AdminClient.DeleteUser(ctx, externalUserID)` stops a user, for example someone who left: the API refuses their tokens at once (a token they already hold still opens the Agent until it expires, within an hour, with every API call refused), and `IssueUserToken` and `SetMemberships` for the ID return `409 USER_DELETED`. Nothing they made is deleted: it stays theirs, with its shares, and the admins above them keep administering it. A repeat succeeds; the ID can't be used for a new user. Needs the services released with user deletion.
-
-- **PDF Assets for the Agent to read.** `assets.upload(file, { kind: 'document' })` uploads a PDF (at most 50 MB); attach it to a message and the Agent reads it, text and pages. An Asset's `kind` can now be `document` (MIME `application/pdf`, `metadata.page_count`); a file that is not a readable PDF with at least one page is refused (`INVALID_MEDIA`). A document is never a generation input: Products, Characters, Prompts and shots still take only images, video and audio. Needs the services released with document Assets. An SDK before this version fails to parse a document Asset; only this version can create one.
-
-- **Word and Excel Assets for the Agent to read.** `assets.upload(file)` takes a `.docx` or `.xlsx` (at most 30 MB, without a password) as a `document`, its kind inferred from the file's type or name like a PDF's. The service reads it when it is added: the Asset's `text_url` is its text (Word as Markdown; Excel as each sheet's rows in CSV, cells as Excel shows them), `metadata` lists its `headings` or `sheets`, and each picture in it becomes an image Asset (`metadata.images`) that the text marks as `[image: <asset id>]`. A file that cannot be read is refused (`INVALID_MEDIA`); macro-enabled files, templates and the old `.doc`/`.xls` are not documents (`UNSUPPORTED_FORMAT`). The playground's chat takes them too.
-
-- **Archive Skills.** `AdminClient.ArchiveSkill(ctx, name)` takes a Skill out of `ListSkills` and the Agent's new Sessions, and `UnarchiveSkill` brings it back; `UserClient.ListArchivedSkills` and `skills.list({ archived: true })` list archived ones. Archiving deletes nothing: the Skill's versions stay readable, what was made with them keeps naming them, and Sessions that started with it keep it. A `Skill` has `archived_at` (`ArchivedAt` in Go admin responses). Nuva's Skills cannot be archived. Needs the services released with Skill archiving (live since 2026-11-13).
-
-- **Archive Sessions** ([#35](https://github.com/Nuva-Lab/ads-sdk/issues/35)). `sessions.archive(sessionId)` takes a Session, such as a test conversation, out of `sessions.list`; `sessions.unarchive(sessionId)` puts it back, and `sessions.list({ archived: true })` lists only archived Sessions. Archiving deletes nothing: messages, files, Agent memory and everything made in the Session stay, and the Session can still be opened and continued. An archived Session has `archivedAt`. The owner and the admins above them may archive it. Needs the Agent service release with archiving.
+- **Documents the Agent reads:** PDF (up to 50 MB), Word and Excel (`.docx` / `.xlsx`, up to 30 MB). An Asset's `kind` can be `document`. Older SDKs can't read a document Asset, so upgrade everyone in your organization before your users upload documents.
+- **Auto-share rules per scope** ([#48](https://github.com/Nuva-Lab/ads-sdk/issues/48)): `shares.setAutoShare` and Go `SetAutoShare`. The old organization-wide setting is now a `read` rule on `customer`, so nothing changes.
+- **Delete a user** (Go): `DeleteUser`. Afterwards, a token or memberships for that ID return `409 USER_DELETED`; what they made stays.
+- **Archive Sessions** ([#35](https://github.com/Nuva-Lab/ads-sdk/issues/35)): `sessions.archive` / `sessions.unarchive`, and `sessions.list({ archived: true })`.
+- **Archive Skills:** `ArchiveSkill` / `UnarchiveSkill`, and `skills.list({ archived: true })`.
 
 ### Changed
 
-- **Script fact IDs are the ones the service supplies.** `fact_product_tags` and `fact_product_video_requirements` are gone: Products have no such fields, the service never supplied them, and a Script citing them was always refused, so no saved Script cites them and every SDK still reads every Script. A Script that cites a fact it doesn't have is refused with the bad ID and the facts it does have.
-
-### Docs
-
-- **Release notes page.** The docs have a **Release notes** page (`release-notes.html`, 版本说明): one entry per version, saying what it needs and how to upgrade, with a link to the upgrade steps when there is something to change.
-- **One upgrade guide for every release.** **Upgrade to preview.5** is now the **Upgrade guide** (`migration.html`, 升级指南), with a part per release: the next release, preview.6 and preview.5. Existing links still work.
-- **Sharing.** Backend setup and the Shares reference describe auto-share rules; the sentence that suggested an organization setting you could not reach is gone ([#48](https://github.com/Nuva-Lab/ads-sdk/issues/48)).
+- `fact_product_tags` and `fact_product_video_requirements` are gone from the Script types.
 
 ### Fixed
 
-- **A Session's first message no longer fails with "No acknowledgement received"** ([#44](https://github.com/Nuva-Lab/ads-sdk/issues/44)). The Agent accepts a new Session's first message only after preparing the Session, which took up to 9 s, and the connection answers its requests in order, so a message could wait behind the one before it; the SDK gave up after 8 s while the service still accepted the message. Agent requests (`send`, `stop`, `respond`, `fail`, `refresh`) now wait 30 s for their answer. If one still times out, sending again with the error's `requestId` answers with the first receipt and sends nothing twice. An explicit `requestTimeoutMs` still applies to every request.
+- A Session's first message no longer fails with "No acknowledgement received" ([#44](https://github.com/Nuva-Lab/ads-sdk/issues/44)): Agent requests wait 30 s for their answer.
+- Skills you register are used in Agent conversations ([#36](https://github.com/Nuva-Lab/ads-sdk/issues/36)).
+- The Agent no longer gives links or file paths that don't work; it writes the text in full in its reply ([#51](https://github.com/Nuva-Lab/ads-sdk/issues/51)).
+- Image uploads go up to 30 MB, from 10 MB ([#47](https://github.com/Nuva-Lab/ads-sdk/issues/47)). An image over 2048 px or 5 MB is stored as a WebP copy at that size.
 
-- **Skills you register are used in Agent conversations** ([#36](https://github.com/Nuva-Lab/ads-sdk/issues/36)). Every Skill of yours that has a main version (`AdminClient.RegisterSkill`, then `SetSkillMain` for later versions) is available to the Agent in new Sessions, beside Nuva's; you no longer need Nuva to enable it. A Session keeps the Skills and versions it started with, so a new main or a newly registered Skill reaches only Sessions started afterwards. This is a service change, live since 2026-11-13: it needs no SDK upgrade or code change. The docs now also say that the direct writers (`scripts.generate`, `storyboards.generate`, `prompts.generate`) use Nuva's writing Skills.
+### 中文说明
+
+相对 `0.1.0-preview.6` 的变化。所需服务均已上线，API 版本不变（`2026-11-07`）。
+
+**新增：**
+
+- **Agent 可阅读的文档：**PDF（最大 50 MB）、Word 和 Excel（`.docx` / `.xlsx`，最大 30 MB）。Asset 的 `kind` 可能为 `document`。旧版 SDK 无法读取文档 Asset，请在用户上传文档前让组织内所有人升级。
+- **按范围的自动共享规则**（#48）：`shares.setAutoShare` 和 Go 的 `SetAutoShare`。原有的组织级设置已转为 `customer` 上的 `read` 规则，行为不变。
+- **删除用户**（Go）：`DeleteUser`。之后为该 ID 申请令牌或设置成员关系会返回 `409 USER_DELETED`；其创建的内容会保留。
+- **归档 Session**（#35）：`sessions.archive` / `sessions.unarchive`，以及 `sessions.list({ archived: true })`。
+- **归档 Skill：**`ArchiveSkill` / `UnarchiveSkill`，以及 `skills.list({ archived: true })`。
+
+**修复：**
+
+- Session 首条消息不再报 "No acknowledgement received"（#44）：Agent 请求的等待时间改为 30 秒。
+- 你注册的 Skill 会用于 Agent 对话（#36）。
+- Agent 不再给出无法使用的链接或文件路径，而是在回复中直接给出全文（#51）。
+- 图片上传上限由 10 MB 提高到 30 MB（#47）。超过 2048 像素或 5 MB 的图片会以该尺寸的 WebP 副本保存。
+
+**变更：**脚本类型中移除了 `fact_product_tags` 和 `fact_product_video_requirements`。
 
 ## 0.1.0-preview.6
 
