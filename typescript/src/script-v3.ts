@@ -29,10 +29,14 @@ const duplicates = (values: readonly string[]) => [...new Set(values.filter((val
 
 // ── Script v3 ────────────────────────────────────────────────────────────
 
-/** A speaker who is not a role: an unseen narrator. On screen, `product` stands for the Product; `asset` names any file. */
+/**
+ * A speaker who is not a role: an unseen narrator. On screen, `product` stands for the Product; `asset` names any file;
+ * `continue` opens a clip that carries on the previous clip's last shot.
+ */
 export const NARRATOR = 'narrator',
 	PRODUCT = 'product',
-	ASSET = 'asset';
+	ASSET = 'asset',
+	CONTINUE = 'continue';
 export const ROLE_ID = /^[a-z][a-z0-9_]{0,39}$/,
 	LINE_ID = /^L\d{2,3}$/;
 const roleId = z
@@ -205,7 +209,7 @@ export type CastEntry = z.infer<typeof castEntrySchema>;
 export interface StoryboardToken {
 	/** The token as written, braces included. */
 	raw: string;
-	/** A role ID, `product`, `asset`, or a line ID. */
+	/** A role ID, `product`, `asset`, `continue`, or a line ID. */
 	name: string;
 	/** The asset ID after a colon, if any. */
 	asset?: string;
@@ -254,6 +258,21 @@ export interface ClipReferences {
 export function namesAsset(token: Pick<StoryboardToken, 'name'>, script: Pick<ScriptGeneration, 'roles'>) {
 	return token.name === ASSET && !script.roles.some((role) => role.id === ASSET);
 }
+/** Whether a token is `{{continue}}` or `{{continue:<id>}}`. In a Script with a role called `continue`, it names that role. */
+export function namesContinuation(token: Pick<StoryboardToken, 'name'>, script: Pick<ScriptGeneration, 'roles'>) {
+	return token.name === CONTINUE && !script.roles.some((role) => role.id === CONTINUE);
+}
+/**
+ * Whether a clip carries on the previous clip's last shot without a cut: its first shot starts with `{{continue}}`.
+ * The clip renders from the previous clip's last frame, `{{continue:<image asset id>}}` once that clip has rendered;
+ * `frame` is that image's ID. The first clip has nothing to carry on.
+ */
+export function clipContinuation(storyboard: Pick<StoryboardContent, 'clips'>, clip: number, script: Pick<ScriptGeneration, 'roles'>): { frame?: string } | undefined {
+	const shot = clip > 0 ? storyboard.clips[clip]?.shots[0] : undefined;
+	const token = shot === undefined ? undefined : storyboardTokens(shot)[0];
+	if (token === undefined || !namesContinuation(token, script) || shot!.slice(0, token.index).trim() !== '') return undefined;
+	return token.asset === undefined ? {} : { frame: token.asset };
+}
 /** Session files (`sf_…`) are not Assets: a token names one only after it is promoted to an Asset. */
 const SESSION_FILE_TOKEN = /^\{\{\s*[A-Za-z][A-Za-z0-9_]{0,39}\s*[:：]\s*sf_[0-9a-f]{32}\s*\}\}$/;
 const SESSION_FILE_MESSAGE = (raw: string) => `${raw} names a Session file, which is not an Asset: promote it to an Asset first and use the Asset ID.`;
@@ -301,15 +320,20 @@ const characterHas = (entry: StoryboardContext['characters'][string] | undefined
  * kind: the file of each cast Character and the Product it names (the named file, or the default image), each
  * `{{asset:<id>}}`, and the voice file of each speaker whose line it contains when that role's voice is the
  * Character's. Each file goes in the list of its own kind. Tokens that do not resolve are skipped; the checks in
- * `storyboardIssues` report them.
+ * `storyboardIssues` report them. A clip that carries on the previous clip's shot (`clipContinuation`) renders from
+ * that clip's last frame, its first image: the people and the Product are already in it, so their images are left out.
  */
 export function clipReferences(storyboard: Pick<StoryboardContent, 'cast' | 'clips'>, clip: number, context: StoryboardContext): ClipReferences {
 	const references: ClipReferences = { images: [], videos: [], audio: [] };
 	const lists = { image: references.images, video: references.videos, audio: references.audio };
 	const add = (value: string | undefined, kind: FileKind) => value !== undefined && !lists[kind].includes(value) && lists[kind].push(value);
 	const speakers = new Map(scriptLines(context.script).map((line) => [line.id, line.speaker]));
+	const continuation = clipContinuation(storyboard, clip, context.script);
+	if (continuation?.frame !== undefined) add(continuation.frame, fileKind(context, continuation.frame));
 	for (const shot of storyboard.clips[clip]?.shots ?? [])
 		for (const token of storyboardTokens(shot)) {
+			if (namesContinuation(token, context.script)) continue;
+			if (continuation !== undefined && (token.name === PRODUCT || storyboard.cast[token.name] !== undefined)) continue;
 			if (token.name === PRODUCT) {
 				const id = token.asset ?? defaultImage(context, context.product.media);
 				if (id !== undefined) add(id, fileKind(context, id));
@@ -391,6 +415,15 @@ export function storyboardIssues(storyboard: StoryboardContent, context: Storybo
 			if (token.asset !== undefined) say(where, `${token.raw}: a line token takes no file.`);
 			return;
 		}
+		// Where it may stand is checked with the clip; here, the previous clip's last frame it names.
+		if (namesContinuation(token, script)) {
+			if (!inShot) return say(where, `${token.raw} belongs at the start of a clip's first shot, not in the direction.`);
+			if (token.asset === undefined) return;
+			const frame = context.assets?.[token.asset];
+			if (frame === undefined) return say(where, `${token.raw}: there is no image Asset with this ID that you may use.`);
+			if (frame.kind !== 'image') say(where, `${token.raw}: the previous clip's last frame is an image, and this Asset is ${frame.kind === 'audio' ? 'audio' : `a ${frame.kind}`}.`);
+			return;
+		}
 		if (namesAsset(token, script)) {
 			if (token.asset === undefined) return say(where, '{{asset}} needs an Asset ID: {{asset:<asset id>}}.');
 			if (context.assets?.[token.asset] === undefined) return say(where, `${token.raw}: there is no image, video or audio Asset with this ID that you may use.`);
@@ -418,12 +451,15 @@ export function storyboardIssues(storyboard: StoryboardContent, context: Storybo
 		const where = clip.id;
 		const expected = `C${String(c + 1).padStart(2, '0')}`;
 		if (clip.id !== expected) say(where, `Clips are numbered in order; this one is ${expected}.`);
+		const continuation = clipContinuation(storyboard, c, script);
 		clip.shots.forEach((shot, s) => {
 			const at = `${where} shot ${s + 1}`;
 			const tokens = storyboardTokens(shot);
 			const named = new Set(tokens.map((token) => token.name));
-			for (const token of tokens) {
+			for (const [t, token] of tokens.entries()) {
 				checkToken(at, token, true);
+				if (namesContinuation(token, script) && !(continuation !== undefined && s === 0 && t === 0))
+					say(at, c === 0 ? `${token.raw}: the first clip has no earlier shot to carry on.` : `${token.raw} goes at the very start of the clip's first shot, once.`);
 				const line = lineById.get(token.name);
 				if (line === undefined) continue;
 				placed.push(line.id);
@@ -438,8 +474,9 @@ export function storyboardIssues(storyboard: StoryboardContent, context: Storybo
 		if (references.audio.length > MAX_REFERENCES.audio) say(where, `This clip has ${references.audio.length} audio files (voices and named audio); at most ${MAX_REFERENCES.audio}.`);
 		const count = references.images.length + references.videos.length + references.audio.length;
 		if (count > MAX_VIDEO_ASSETS) say(where, `This clip has ${count} references in all; at most ${MAX_VIDEO_ASSETS}.`);
-		// The video model needs something to see: an image or a video.
-		if (references.images.length === 0 && references.videos.length === 0)
+		// The video model needs something to see: an image or a video. A clip that carries on the previous one gets its
+		// last frame once that clip has rendered.
+		if (references.images.length === 0 && references.videos.length === 0 && !(continuation !== undefined && continuation.frame === undefined))
 			say(where, 'A clip needs at least one image or video: name {{product}}, a cast Character or an image or video {{asset:…}} in a shot.');
 	});
 	for (const repeated of duplicates(placed)) say('clips', `Line ${repeated} is placed more than once; each line is spoken once.`);
