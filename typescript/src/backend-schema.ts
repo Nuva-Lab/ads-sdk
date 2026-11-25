@@ -49,6 +49,32 @@ export function adapted(source: Definitions): Definitions {
 	return definitions;
 }
 
+/**
+ * The definitions responses are parsed with: `adapted` ones that still parse what a newer backend sends. A field the SDK
+ * doesn't know is kept, as it already is on objects that never refused one, and an enum value it doesn't know comes
+ * through as the string the backend sent. Single-value enums, which tell one kind of record from another, stay. Requests
+ * are still checked with the `adapted` definitions, so the SDK never sends a value the backend doesn't take.
+ */
+export function tolerant(source: Definitions): Definitions {
+	const definitions = structuredClone(source);
+	const open = (value: unknown): void => {
+		if (Array.isArray(value)) return value.forEach(open);
+		if (value === null || typeof value !== 'object') return;
+		const node = value as Record<string, unknown>;
+		if (node.additionalProperties === false) delete node.additionalProperties;
+		if (Array.isArray(node.enum) && node.enum.length > 1 && node.enum.every((option) => typeof option === 'string')) {
+			delete node.enum;
+			node.type = 'string';
+		}
+		// A `properties` map's keys are field names, not keywords: only its schemas are opened.
+		for (const [key, child] of Object.entries(node))
+			if (key === 'properties' && child !== null && typeof child === 'object') Object.values(child).forEach(open);
+			else open(child);
+	};
+	Object.values(definitions).forEach(open);
+	return definitions;
+}
+
 export function compiler<S>(definitions: Definitions) {
 	const compiled = new Map<keyof S, z.ZodType>();
 	return <K extends keyof S>(name: K): z.ZodType<S[K]> => {
@@ -85,4 +111,7 @@ function jsonAttributes(name: string) {
 /** A schema of the public contract (API version 2026-11-07). Authorization, references and other
  * semantic rules stay the backend's. */
 export const backendSchema = compiler<BackendSchemas>(adapted(publicDefinitions));
+/** The schema a response of the public contract is parsed with (`tolerant`): a field or enum value added by a newer
+ * backend doesn't fail it. */
+export const responseSchema = compiler<BackendSchemas>(tolerant(adapted(publicDefinitions)));
 export type { BackendSchemas } from './backend-target.js';

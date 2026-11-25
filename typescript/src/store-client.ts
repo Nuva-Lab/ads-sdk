@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { Transport, isWriteMethod } from './transport.js';
 import { AdsError, acceptanceOf, initOf, withMethod } from './errors.js';
 import { frozen } from './protocol.js';
-import { backendSchema } from './backend-schema.js';
+import { backendSchema, responseSchema } from './backend-schema.js';
 import { decodeScriptPackage } from './script-content.js';
 import {
 	generateScriptSchema,
@@ -104,10 +104,10 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 		}
 	}
 	const dto = <K extends keyof B>(method: string, params: unknown, name: K, id?: string, idempotencyKey?: string) =>
-		request(method, params, backendSchema(name), id, idempotencyKey);
+		request(method, params, responseSchema(name), id, idempotencyKey);
 	const decorated = <K extends keyof B, Kind extends string>(name: K, kind: Kind): { parse(v: unknown): B[K] & ResourceLink<Kind> } => ({
 		parse(v: unknown) {
-			const raw = backendSchema(name).parse(v) as B[K] & { id: string; data?: { name?: string }; name?: string; intent?: string };
+			const raw = responseSchema(name).parse(v) as B[K] & { id: string; data?: { name?: string }; name?: string; intent?: string };
 			return link(raw, kind, raw.data?.name ?? raw.name ?? raw.intent ?? raw.id);
 		},
 	});
@@ -119,7 +119,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 			.parse(v);
 		if (schema_version !== 1)
 			throw new AdsError({ code: 'UNSUPPORTED_SCHEMA', message: `${kind}@${schema_version} is newer than this SDK; upgrade it.`, retryable: false });
-		const raw = backendSchema(kinds[kind]).parse(v);
+		const raw = responseSchema(kinds[kind]).parse(v);
 		if (expected && (raw.id !== expected.id || raw.kind !== expected.kind))
 			throw new AdsError({ code: 'SERVICE_ERROR', message: 'Artifact identity mismatch.', retryable: false });
 		return { ...raw, ref: { kind, id: raw.id }, label: raw.id } as BackendArtifact;
@@ -180,7 +180,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 		};
 	}
 	// An Asset's own label (or null) is kept; display code falls back to its ID.
-	const assetParser = { parse: (v: unknown) => { const raw = backendSchema('AssetOut').parse(v); return { ...raw, ref: { kind: 'asset' as const, id: raw.id } }; } };
+	const assetParser = { parse: (v: unknown) => { const raw = responseSchema('AssetOut').parse(v); return { ...raw, ref: { kind: 'asset' as const, id: raw.id } }; } };
 	const getJob = (id: string) => dto('jobs.get', { id }, 'JobOut');
 	function subscribe(id: string, listener: (s: JobState) => void, onError?: (e: AdsErrorInfo) => void) {
 		if (closed) throw new AdsError({ code: 'CONNECTION_ERROR', message: 'Client closed.', retryable: false });
@@ -214,7 +214,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 	const typedScript = (a: Artifact): Script => {
 		if (a.ref.kind !== 'script' || (a as BackendArtifact).schema_version !== 1)
 			throw new AdsError({ code: 'UNSUPPORTED_SCHEMA', message: 'Expected script@1.', retryable: false });
-		const data = checked(backendSchema('ScriptDataV1'), a.data);
+		const data = checked(responseSchema('ScriptDataV1'), a.data);
 		const base = { ...(a as BackendArtifact<'script'>), kind: 'script' as const, ref: { kind: 'script' as const, id: a.ref.id }, data };
 		// Scripts saved before Storyboards are read-only v2 ScriptPackages.
 		return scriptVersion(data.text) === 2
@@ -224,7 +224,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 	const typedStoryboard = (a: Artifact): Storyboard => {
 		if (a.ref.kind !== 'storyboard' || (a as BackendArtifact).schema_version !== 1)
 			throw new AdsError({ code: 'UNSUPPORTED_SCHEMA', message: 'Expected storyboard@1.', retryable: false });
-		const data = checked(backendSchema('StoryboardDataV1'), a.data);
+		const data = checked(responseSchema('StoryboardDataV1'), a.data);
 		return {
 			...(a as BackendArtifact<'storyboard'>),
 			kind: 'storyboard',
@@ -261,7 +261,8 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 					? backendIdSchema
 					: backendIdSchema.refine((id) => id.toLowerCase() === String(item.id).toLowerCase(), 'The share is for another item.'),
 				scope: z.string().min(1),
-				access: z.enum(['read', 'write']),
+				// `read` or `write`; a newer backend's other access comes through as it is.
+				access: z.string(),
 				created_at: z.string(),
 			})
 			.loose();
@@ -271,7 +272,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 			return undefined;
 		},
 	};
-	const ruleAccess = z.enum(['read', 'write']).exactOptional();
+	const ruleAccess = z.string().exactOptional(); // `read` or `write`, or a newer backend's other access
 	const autoShareFor = (scope: string) =>
 		z.object({ scope: z.literal(scope), brand: ruleAccess, product: ruleAccess, character: ruleAccess }).loose();
 	const api: StoreClients = {
@@ -380,7 +381,7 @@ export function createStores(transport: Transport, options: NuvaClientOptions) {
 					{
 						parse: (v) => {
 							const raw = z
-								.object({ prompts: z.array(backendSchema('Prompt')).min(1) })
+								.object({ prompts: z.array(responseSchema('Prompt')).min(1) })
 								.strict()
 								.parse(v);
 							// Each Prompt is one clip's: a distinct, non-null clip ID (the requested one, for a single clip).

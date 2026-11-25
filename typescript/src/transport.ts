@@ -8,7 +8,7 @@ import { wireObserver } from './wire-trace.js';
 import { servicesOf } from './dev-services.js';
 import type { NuvaClientOptions } from './types.js';
 import { dataRequest } from './data-routes.js';
-import { backendSchema } from './backend-schema.js';
+import { responseSchema } from './backend-schema.js';
 
 /** Socket auth codes that refuse the token itself (SDK-CONTRACT › Authentication); any other failure is transient. */
 const refusal = (code: string, reauth: boolean) => code === 'UNAUTHENTICATED' || (reauth && code === 'FORBIDDEN');
@@ -426,7 +426,7 @@ export class Transport {
 				});
 			}
 			if (!response.ok) {
-				const parsed = backendSchema('ErrorResponse').safeParse(result);
+				const parsed = responseSchema('ErrorResponse').safeParse(result);
 				if (!parsed.success)
 					throw new AdsError({
 						code: 'SERVICE_ERROR',
