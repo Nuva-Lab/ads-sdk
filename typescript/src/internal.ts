@@ -26,6 +26,8 @@ export {
 	storyboardTokens,
 	clipReferences,
 	namesAsset,
+	namesContinuation,
+	clipContinuation,
 	scriptLines,
 	durationTolerance,
 	scriptVersion,

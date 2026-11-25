@@ -9,6 +9,7 @@ import {
 	storyboardIssues,
 	storyboardTokens,
 	clipReferences,
+	clipContinuation,
 	encodeScript,
 	decodeScript,
 	encodeStoryboard,
@@ -195,6 +196,42 @@ test('{{asset:<id>}} names any usable file; each goes in the list of its own kin
 	const issues = storyboardIssues(value, context());
 	assert.ok(issues.some((message) => message.startsWith('C01 shot 1') && message.includes('no image, video or audio Asset with this ID that you may use')), issues.join('\n'));
 	assert.deepEqual(clipReferences(value, 0, context()).videos, []);
+});
+
+test('{{continue}} opens a clip that carries on the previous shot: it renders from that clip\'s last frame, without portraits', () => {
+	const value = storyboard();
+	value.clips[1].shots = [`{{continue}}镜头不切，接上一段。{{presenter}}继续拿着{{product}}说{{L02}}。`];
+	// Before the previous clip has rendered: no frame yet, and no picture is required.
+	assert.deepEqual(storyboardIssues(value, withAssets()), []);
+	assert.deepEqual(clipContinuation(value, 1, script()), {});
+	assert.deepEqual(clipReferences(value, 1, withAssets()), { images: [], videos: [], audio: [presenter.voice] });
+	// With its last frame: that image alone, first; the voices still come with the lines.
+	value.clips[1].shots = [`{{continue:${upload.image}}}镜头不切，接上一段。{{presenter}}继续拿着{{product}}说{{L02}}。`];
+	assert.deepEqual(storyboardIssues(value, withAssets()), []);
+	assert.deepEqual(clipContinuation(value, 1, script()), { frame: upload.image });
+	assert.deepEqual(clipReferences(value, 1, withAssets()), { images: [upload.image], videos: [], audio: [presenter.voice] });
+	// The other clips are unchanged.
+	assert.deepEqual(clipReferences(value, 2, withAssets()), { images: [presenter.media[0], productImages[0]], videos: [], audio: [presenter.voice] });
+});
+
+test('{{continue}} stands only at the start of a later clip\'s first shot, and its frame is a usable image', () => {
+	const issues = (edit) => {
+		const value = storyboard();
+		edit(value);
+		return storyboardIssues(value, withAssets());
+	};
+	const has = (list, start, text) => assert.ok(list.some((message) => message.startsWith(start) && message.includes(text)), list.join('\n'));
+	has(issues((value) => (value.clips[0].shots[0] = `{{continue}}${value.clips[0].shots[0]}`)), 'C01 shot 1', 'the first clip has no earlier shot');
+	has(issues((value) => (value.clips[1].shots[0] = `镜头不切。{{continue}}${value.clips[1].shots[0]}`)), 'C02 shot 1', 'goes at the very start');
+	has(issues((value) => value.clips[1].shots.push('{{continue}}特写。')), 'C02 shot 2', 'goes at the very start');
+	has(issues((value) => (value.clips[1].shots[0] = `{{continue:${upload.video}}}${value.clips[1].shots[0]}`)), 'C02 shot 1', 'last frame is an image');
+	has(issues((value) => (value.clips[1].shots[0] = `{{continue:${uuid(999)}}}${value.clips[1].shots[0]}`)), 'C02 shot 1', 'no image Asset with this ID');
+	has(issues((value) => (value.direction += '{{continue}}')), 'direction', "belongs at the start of a clip's first shot");
+	// Not at the start, it marks nothing: the clip keeps its people's images.
+	const value = storyboard();
+	value.clips[1].shots[0] = `镜头不切。{{continue}}${value.clips[1].shots[0]}`;
+	assert.equal(clipContinuation(value, 1, script()), undefined);
+	assert.deepEqual(clipReferences(value, 1, withAssets()).images, [presenter.media[0], productImages[0]]);
 });
 
 test('asset tokens are checked: an ID is required, Session files must be promoted first, and files belong in shots', () => {
