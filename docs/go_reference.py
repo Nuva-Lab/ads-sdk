@@ -13,7 +13,7 @@ def go_sections(locale='zh'):
         ('install', t('Install and create the Admin client', '安装并创建 Admin 客户端'),
          p('Use Go 1.22 or newer.',
            '使用 Go 1.22 或更新版本。')
-         + c('go get github.com/Nuva-Lab/ads-sdk/go@v0.1.0-preview.7', 'sh')
+         + c('go get github.com/Nuva-Lab/ads-sdk/go@v0.1.0-preview.8', 'sh')
          + p('Set the customer Admin API key in your server environment as <code>NUVA_CUSTOMER_API_KEY</code>, and create the Admin client once when the server starts.',
            '在服务端环境变量 <code>NUVA_CUSTOMER_API_KEY</code> 中设置客户 Admin API key，并在服务启动时创建一次 Admin 客户端。')
          + ex('admin-client', 'import (\n    "os"\n    nuva "github.com/Nuva-Lab/ads-sdk/go"\n)')
@@ -62,6 +62,18 @@ def go_sections(locale='zh'):
          + ex('archive-skill')
          + p('Archive a Skill you no longer want the Agent to use: it leaves <code>ListSkills</code> and reaches no new Session. Archiving deletes nothing: its versions stay readable, the Scripts, Storyboards and Prompts made with it keep naming it, and Sessions that started with it keep it. Registering a version or moving main keeps it archived; <code>UnarchiveSkill</code> brings it back, and <code>ListArchivedSkills</code> lists archived ones. The returned <code>Skill</code> has <code>ArchivedAt</code>. Nuva\'s Skills cannot be archived.',
            '不再希望 Agent 使用的 Skill 可以归档：它不再出现在 <code>ListSkills</code> 中，也不会进入新建的 Session。归档不删除任何内容：各版本仍可读取，用它写的脚本、分镜和提示词仍指向它，开始时已使用它的 Session 照常使用。归档期间注册新版本或切换主版本，它仍保持归档；<code>UnarchiveSkill</code> 可将其恢复，<code>ListArchivedSkills</code> 列出已归档的 Skill。返回的 <code>Skill</code> 带有 <code>ArchivedAt</code>。Nuva 的 Skill 不能归档。')),
+        ('mcp-servers', t('Connect your MCP servers', '接入你的 MCP 服务器'),
+         p('Give the Agent your own services\' tools by registering their MCP servers (Streamable HTTP). The Agent offers each tool as <code>&lt;server&gt;__&lt;tool&gt;</code> and calls it while it works for your users.',
+           '注册你的 MCP 服务器（Streamable HTTP），即可让 Agent 使用你自己服务的工具。Agent 以 <code>&lt;server&gt;__&lt;tool&gt;</code> 的名称提供每个工具，并在为你的用户工作时调用。')
+         + ex('mcp-server', 'import (\n    "context"\n    "os"\n)')
+         + table([t('Rule', '规则'), t('Limit', '限制')], [
+             [t('Server name', '服务器名称'), t('1–31 lowercase letters, digits or single <code>_</code>, starting with a letter. It becomes the prefix of the tools\' names.', '1–31 个小写字母、数字或单个 <code>_</code>，以字母开头。它会成为工具名称的前缀。')],
+             ['URL', t('Public <code>https</code> on port 443, by host name: no IP address and no credentials in the URL.', '公网 <code>https</code>，端口 443，使用主机名：不能是 IP 地址，URL 中不能包含凭据。')],
+             [t('Credential', '凭据'), t('<code>MCPAuthBearer</code> (<code>Authorization: Bearer</code>), <code>MCPAuthHeader</code> (a header you name) or <code>MCPAuthNone</code>. The secret is write-only: reads say only whether one is set. Leave it empty to keep the one already set.', '<code>MCPAuthBearer</code>（<code>Authorization: Bearer</code>）、<code>MCPAuthHeader</code>（你指定的请求头）或 <code>MCPAuthNone</code>。密钥只写不读：读取时只显示是否已设置。留空则保留已设置的密钥。')],
+             [t('How many', '数量'), t('Up to 10 servers per organization, and up to 16 tools in a Session.', '每个组织最多 10 个服务器，每个 Session 最多 16 个工具。')],
+         ])
+         + p('A Session reads your servers\' tools when it starts and keeps that list. A server that can\'t be reached then is left out; the Session still starts. Before each call the Session checks your servers again: once you change, disable or remove a server with <code>PutMCPServer</code> or <code>DeleteMCPServer</code>, a running Session\'s calls to it are refused, and the Agent tells the user. New Sessions use what you set. <code>ListMCPServers</code> and <code>GetMCPServer</code> read them; your API key manages them.',
+           'Session 在开始时读取你的服务器提供的工具，并在整个 Session 中沿用该列表。届时无法访问的服务器会被跳过，Session 仍会正常开始。每次调用前，Session 会再次检查你的服务器：用 <code>PutMCPServer</code> 或 <code>DeleteMCPServer</code> 修改、停用或删除某个服务器后，正在运行的 Session 对它的调用会被拒绝，Agent 会告知用户。新的 Session 使用你最新的设置。<code>ListMCPServers</code> 和 <code>GetMCPServer</code> 用于读取；通过你的 API key 管理。')),
         ('errors', t('Handle errors', '处理错误'),
          table([t('Field', '字段'), t('Use', '用途')], [
              ['<code>StatusCode / Code</code>', t('Identify the HTTP status and service error.', '识别 HTTP 状态和服务错误。')],

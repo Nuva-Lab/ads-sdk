@@ -2,23 +2,33 @@
 
 Each entry describes the change from the previous released version.
 
-## Unreleased
+## 0.1.0-preview.8
 
-Changes since `0.1.0-preview.7`. This SDK works with the services already live, and the API version is unchanged (`2026-11-07`).
+Changes since `0.1.0-preview.7`. This SDK works with the services already live, and the API version is unchanged (`2026-11-07`). Code that branches on the fields below may need a case for new values; see **Upgrade to preview.8** in the docs' upgrade guide (`migration.html#preview8`).
+
+### Added
+
+- **Your MCP servers' tools for the Agent** (Go): `PutMCPServer`, `ListMCPServers`, `GetMCPServer` and `DeleteMCPServer`. The Agent offers each tool as `<server>__<tool>` in Sessions that start afterwards. A server's secret is write-only: reads say only whether one is set. Public https on port 443 by host name, up to 10 servers.
 
 ### Changed
 
 - **A newer backend no longer breaks this SDK.** Records it reads (Brands, Products, Characters, Assets, Scripts, Storyboards, Prompts, Jobs, Batches, Ads, Skills, shares, errors) may have a field or a value it doesn't know: a new field is kept, and a new value in a field with a set of values (an Asset's `kind` and `source`, a Job's `status`, a callback's `status`, a Prompt's `ratio`, a share's `access`) comes through as the string the backend sent. Earlier SDKs refuse the whole response. What the SDK sends is still checked as before. A Script's or Storyboard's content (`content`, from `data.text`) has its own format version and is still read strictly.
 - The types say so: those fields are the known values or any other string (`'image' | 'video' | … | (string & {})`). Code that keeps one in a narrower type, switches over every known value, or passes a value it read back into a request (`shares.setAutoShare(scope, await shares.getAutoShare(scope))`, `shares.set(item, share.scope, share.access)`, `assets.upload(file, { kind: asset.kind })`) needs a case for the others; a request still takes only the values the SDK knows. A Job in a status the SDK doesn't know is still under way: `subscribe` and `result` keep waiting until it is `completed`, `failed` or `cancelled`.
+- `@nuva/sdk` and `@nuva/protocol` depend on zod 4.6.7 (was 4.3.6).
 
 ### 中文说明
 
-相对 `0.1.0-preview.7` 的变化。所需服务均已上线，API 版本不变（`2026-11-07`）。
+相对 `0.1.0-preview.7` 的变化。所需服务均已上线，API 版本不变（`2026-11-07`）。按下列字段分支处理的代码可能需要为新取值增加分支，见文档升级指南中的 **升级到 preview.8**（`migration.html#preview8`）。
+
+**新增：**
+
+- **Agent 可使用你的 MCP 服务器提供的工具**（Go）：`PutMCPServer`、`ListMCPServers`、`GetMCPServer` 和 `DeleteMCPServer`。之后新建的 Session 中，Agent 以 `<server>__<tool>` 的名称提供每个工具。服务器的密钥只写不读：读取时只显示是否已设置。须为公网 https、端口 443、使用主机名，最多 10 个服务器。
 
 **变更：**
 
 - **更新的后端不会再让本 SDK 出错。**读取的记录（Brand、Product、Character、Asset、Script、Storyboard、Prompt、Job、Batch、Ad、Skill、共享和错误）中可能出现 SDK 不认识的字段或取值：新字段会保留；取值固定的字段（Asset 的 `kind` 和 `source`、Job 的 `status`、回调的 `status`、Prompt 的 `ratio`、共享的 `access`）若出现新值，会原样返回后端给出的字符串。旧版 SDK 会拒绝整个响应。SDK 发送的内容仍按原规则校验。Script 和 Storyboard 的内容（来自 `data.text` 的 `content`）有自己的格式版本，仍严格读取。
 - 类型也随之放宽：这些字段的类型为已知取值或任意其他字符串（`'image' | 'video' | … | (string & {})`）。若代码把它们存入更窄的类型、对所有已知取值做穷举判断，或把读到的值传回请求（`shares.setAutoShare(scope, await shares.getAutoShare(scope))`、`shares.set(item, share.scope, share.access)`、`assets.upload(file, { kind: asset.kind })`），需要为其他取值增加分支；请求仍只接受 SDK 已知的取值。状态未知的 Job 视为仍在进行：`subscribe` 和 `result` 会继续等待，直到其变为 `completed`、`failed` 或 `cancelled`。
+- `@nuva/sdk` 和 `@nuva/protocol` 依赖的 zod 升级为 4.6.7（原为 4.3.6）。
 
 ## 0.1.0-preview.7
 
