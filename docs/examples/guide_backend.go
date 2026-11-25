@@ -128,3 +128,18 @@ func SetUpAgency(ctx context.Context, admin *nuva.AdminClient, productID string)
 }
 
 // #endregion permissions
+
+// #region mcp-server
+// ConnectInventory lets the Agent use the inventory service's tools in new Sessions.
+func ConnectInventory(ctx context.Context, admin *nuva.AdminClient) (nuva.MCPServer, error) {
+	return admin.PutMCPServer(ctx, "inventory", nuva.MCPServerInput{
+		URL:         "https://mcp.example.com/mcp",
+		Description: "Stock levels and prices for our catalog.",
+		// Sent as "Authorization: Bearer <secret>". The service never returns it.
+		Auth: nuva.MCPAuth{Type: nuva.MCPAuthBearer, Secret: os.Getenv("INVENTORY_MCP_TOKEN")},
+		// Only these tools; leave Tools out to offer every tool the server lists.
+		Tools: []nuva.MCPTool{{Name: "lookup_stock"}, {Name: "get_price"}},
+	})
+}
+
+// #endregion mcp-server
